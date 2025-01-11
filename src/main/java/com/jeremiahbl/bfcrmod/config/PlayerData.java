@@ -96,14 +96,13 @@ public class PlayerData {
 			BetterForgeChat.LOGGER.debug("Current open file content: \n {}",Input);
 			ArrayList<PlayerData> playerlist = PlayerData.fromString(Input);
 			BetterForgeChat.LOGGER.debug("fromstring output: {}", playerlist);
-			for(int player =0;player < playerlist.size();player++) {
-				PlayerData pdata = playerlist.get(player);
-				if (pdata != null) {
-					map.put(pdata.uuid, pdata);
-					BetterForgeChat.LOGGER.debug("loaded playerData \n {} from bfcr.playerData", pdata);
-				} else {
-					BetterForgeChat.LOGGER.debug("failed to load playerData \n {} from bfcr.playerData", pdata);
-				}
+			if (playerlist != null){
+                for (PlayerData pdata : playerlist) {
+                    if (pdata != null) {
+                        map.put(pdata.uuid, pdata);
+                        BetterForgeChat.LOGGER.debug("loaded playerData \n {} from bfcr.playerData", pdata);
+                    }
+                }
 			}
 		} catch(IOException ioe) {
             BetterForgeChat.LOGGER.error("Failed to load {}", dataFile.getAbsolutePath());
@@ -118,6 +117,7 @@ public class PlayerData {
 				if(dat != null) {
                     fos.write(dat.toString().getBytes());
 					BetterForgeChat.LOGGER.debug("saved player data \n {} to bfcr.player Data",dat);
+					BetterForgeChat.LOGGER.info("Saved all nicknames to file");
                 }
 			fos.close();
 		} catch(IOException ioe) {

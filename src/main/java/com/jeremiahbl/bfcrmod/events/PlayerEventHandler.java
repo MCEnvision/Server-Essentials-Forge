@@ -35,7 +35,7 @@ public class PlayerEventHandler implements IReloadable {
 		if(ConfigHandler.config.enableTabListIntegration.get() && e.getEntity() != null && e.getEntity() instanceof ServerPlayer) {
 			BetterForgeChat.LOGGER.debug("Tablist formatting enabled");
 			GameProfile player = e.getEntity().getGameProfile();
-			BetterForgeChat.LOGGER.debug("Tablist formatting for: "+ player);
+            BetterForgeChat.LOGGER.debug("Tablist formatting for: {}", player);
 			e.setDisplayName(BetterForgeChatUtilities.getFormattedPlayerName(player, 
 				enableNicknamesInTabList && PermissionsHandler.playerHasPermission(player.getId(), PermissionsHandler.tabListNicknameNode),  
 				enableMetadataInTabList  && PermissionsHandler.playerHasPermission(player.getId(), PermissionsHandler.tabListMetadataNode)));

@@ -13,10 +13,10 @@ public interface INicknameProvider {
 		
 		String nick = getPlayerNickname(player);
 		if(nick == null || nick.isEmpty()){
-			BetterForgeChat.LOGGER.info("DEV - no nickname found for: {}",player.getName());
+			BetterForgeChat.LOGGER.debug("no nickname found for: {}",player.getName());
 			return player.getName();
 		}else{
-			BetterForgeChat.LOGGER.info("DEV - found nickname: {} for {}",nick,player.getName());
+			BetterForgeChat.LOGGER.debug("found nickname: {} for {}",nick,player.getName());
 			return nick;
 		}
 	}
