@@ -23,6 +23,7 @@ public class LuckPermsProvider implements IMetadataProvider {
 	}
 
 	private CachedMetaData getMetaData(GameProfile player) {
+
 		if (this.luckPerms == null) {
 			return null;
 		} else {
@@ -31,17 +32,18 @@ public class LuckPermsProvider implements IMetadataProvider {
 		}
 	}
 
-        @Override
+	@Override
 	public String[] getPlayerPrefixAndSuffix(GameProfile player) {
-		if (this.getMetaData(player) != null){
-			try {
+
+		try {
+			if (this.getMetaData(player) != null) {
 				CachedMetaData metaData = this.getMetaData(player);
 				return new String[]{metaData.getPrefix(), metaData.getSuffix()};
-			} catch(IllegalStateException | NullPointerException e) {
-				BetterForgeChat.LOGGER.warn("Caught Exception: {} /n If {} is a fake player (added by mod) this warning can be ignored",e,player);
+			}else{
 				return null;
 			}
-		}else{
+		} catch(IllegalStateException | NullPointerException e) {
+			BetterForgeChat.LOGGER.warn("Caught Exception: {} /n If {} is a fake player (added by mod) this warning can be ignored",e,player);
 			return null;
 		}
 	}
