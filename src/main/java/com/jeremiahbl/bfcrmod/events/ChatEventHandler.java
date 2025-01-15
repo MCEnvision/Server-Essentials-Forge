@@ -27,7 +27,8 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 public class ChatEventHandler implements IReloadable {
 	private SimpleDateFormat timestampFormat = null;
 	private boolean markdownEnabled = false;
-	private String chatMessageFormat = "";
+	private static String chatMessageFormat = "";
+	private static String chatMessageColor = "";
 	private boolean loaded = false;
 	
         @Override
@@ -36,9 +37,16 @@ public class ChatEventHandler implements IReloadable {
 		timestampFormat = ConfigHandler.config.enableTimestamp.get() ? new SimpleDateFormat(ConfigHandler.config.timestampFormat.get()) : null;
 		markdownEnabled = ConfigHandler.config.enableMarkdown.get();
 		chatMessageFormat = ConfigHandler.config.chatMessageFormat.get();
+		chatMessageColor = ConfigHandler.config.chatMessageColor.get();
 		loaded = true;
 	}
-	
+
+	public static String getChatMessageColor() {
+		BetterForgeChat.LOGGER.debug("Chat color from config: {}",chatMessageColor);
+		String color = chatMessageColor;
+		return color;
+	}
+
 	public Style getHoverClickEventStyle(Component old) {
 		if(old instanceof TranslatableContents tcmp) {
             Object[] args = tcmp.getArgs();
