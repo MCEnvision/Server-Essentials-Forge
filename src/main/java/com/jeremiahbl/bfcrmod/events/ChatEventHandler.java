@@ -7,6 +7,8 @@ import java.util.UUID;
 import com.jeremiahbl.bfcrmod.BetterForgeChat;
 import com.jeremiahbl.bfcrmod.MarkdownFormatter;
 import com.jeremiahbl.bfcrmod.TextFormatter;
+import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
+import com.jeremiahbl.bfcrmod.chat.ChatReplyHandler;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.IReloadable;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
@@ -14,7 +16,9 @@ import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -69,6 +73,12 @@ public class ChatEventHandler implements IReloadable {
 		if(e == null || player == null) return;
         String msg = e.getMessage().getString();
 		if(msg == null || (msg).isEmpty()) return;
+
+		// Apply word filters if enabled
+		if(ConfigHandler.config.enableFilterSystem.get() && CommandRegistrationHandler.getFilterManager() != null) {
+			msg = CommandRegistrationHandler.getFilterManager().applyFilters(msg);
+		}
+
 		String tstamp = timestampFormat == null ? "" : timestampFormat.format(new Date());
 		String name = BetterForgeChatUtilities.getRawPreferredPlayerName(profile);
 		String fmat = chatMessageFormat.replace("$time", tstamp).replace("$name", name);
@@ -94,7 +104,7 @@ public class ChatEventHandler implements IReloadable {
 			msg = MarkdownFormatter.markdownStringToFormattedString(msg);
 
 		// Start generating the main TextComponent
-		MutableComponent msgComp = TextFormatter.stringToFormattedText(msg, enableColor, enableStyle);
+		MutableComponent msgComp = TextFormatter.stringToFormattedText(msg, enableColor, enableStyle, uuid);
 
 		// Append the hover and click event crap
 		Style sty = getHoverClickEventStyle(e.getMessage());
@@ -105,9 +115,31 @@ public class ChatEventHandler implements IReloadable {
 		
 		MutableComponent newMessage = beforeMsg.append(msgComp.append(afterMsg));
 		
+		// Record the message and get its ID for the reply system
+		final String finalMsg = msg;
+		final String formattedName = name; // name already includes prefix/suffix from getRawPreferredPlayerName
+		final String rawName = profile.getName(); // raw username without prefix/suffix
 		player.server.execute(() -> {
-			BetterForgeChat.LOGGER.info("[CHAT] "+newMessage.getString());
-			ServerMessageEvent.broadcastMessage(player.level(), newMessage);
+			// Record message for /ans reply system if enabled
+			long messageId = -1;
+			if(ConfigHandler.config.enableChatReplies.get()) {
+				messageId = ChatMessageManager.recordMessage(uuid, rawName, formattedName, finalMsg);
+			}
+
+			// Make message clickable if chat replies are enabled
+			MutableComponent clickableMessage;
+			if(ConfigHandler.config.enableChatReplies.get() && messageId > 0) {
+				final long msgId = messageId;
+				clickableMessage = newMessage.withStyle(style -> style
+					.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ans " + msgId + " "))
+					.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+						TextFormatter.stringToFormattedText("&eClick to reply"))));
+			} else {
+				clickableMessage = newMessage;
+			}
+
+			BetterForgeChat.LOGGER.info("[CHAT] "+clickableMessage.getString());
+			ServerMessageEvent.broadcastMessage(player.level(), clickableMessage);
 		});
 		
     }

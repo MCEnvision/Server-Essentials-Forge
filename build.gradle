@@ -3,16 +3,20 @@ buildscript {
         // These repositories are only for Gradle plugins, put any other repositories in the repository block further below
         maven { url = 'https://maven.minecraftforge.net' }
         mavenCentral()
+        maven { url = 'https://repo.spongepowered.org/maven' }
     }
     dependencies {
         classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '6.0.+', changing: true
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
     }
 }
 plugins {
     id 'eclipse'
     id 'maven-publish'
+    // mixin plugin applied below via apply plugin after buildscript classpath is available
 }
 apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
 
 version = "${minecraft_version}-${mod_version}"
 group = 'com.jeremiahbl.bfcrmod'
@@ -220,4 +224,14 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
+
+mixin {
+    add sourceSets.main, "bfcrmod.mixins.json"
+}
+
+jar {
+    manifest {
+        attributes "MixinConfigs": "bfcrmod.mixins.json"
+    }
 }

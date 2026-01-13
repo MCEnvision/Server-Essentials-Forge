@@ -5,6 +5,14 @@ import com.jeremiahbl.bfcrmod.events.ChatEventHandler;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
+
+import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
 
 public final class TextFormatter {
 	public static final String RESET_ALL_FORMAT = "&r";
@@ -32,54 +40,111 @@ public final class TextFormatter {
 	public static final String COLOR_YELLOW =       "&e";
 	public static final String COLOR_WHITE =        "&f";
 
+	private static final Pattern HEX_PATTERN = Pattern.compile("#([0-9a-fA-F]{6})");
+
 	public static MutableComponent stringToFormattedText(String msg) {
 		return stringToFormattedText(msg, true, true);
 	}
 	public static MutableComponent stringToFormattedText(String msg, boolean enableColors, boolean enableStyles) {
-		ChatFormatting curColor= ChatFormatting.WHITE;
-		String DefaultColor = ChatEventHandler.getChatMessageColor();
-		BetterForgeChat.LOGGER.debug("default Color: {}",DefaultColor);
-		if (!DefaultColor.isEmpty())curColor = ChatFormatting.getByName(DefaultColor);
-		if (curColor==null){
-			curColor=ChatFormatting.WHITE;
-			BetterForgeChat.LOGGER.error("Chat color in Config is invalid, please check BFCR config file");
-			BetterForgeChat.LOGGER.error("Resetting Global chat message color to White");
-		}
-		BetterForgeChat.LOGGER.debug("final chat color: {}",curColor.getName());
-		if(msg == null) return null;
-		MutableComponent newMsg = Component.empty();
-		boolean nextIsStyle = false;
-		StringBuilder curStr = new StringBuilder();
-		byte curStyle = 0;
-		for(int i = 0; i < ((CharSequence) msg).length(); i++) {
-			char c = ((CharSequence) msg).charAt(i);
-			if(c == '&') {
-				if(nextIsStyle) {
-					nextIsStyle = false;
-					curStr.append("&");
-				} else nextIsStyle = true;
-			} else if(nextIsStyle) {
-				MutableComponent tmp = BitwiseStyling.makeEncapsulatingTextComponent(curStr.toString(), enableStyles ? curStyle : 0);
-				tmp.withStyle(curColor);
-				newMsg.append(tmp);
-				if(enableColors)
-					curColor = getColor(c, curColor);
-				curStr = new StringBuilder();
-
-				if(c == 'r') {
-					curColor = ChatFormatting.getByName(DefaultColor);
-					curStyle = 0;
-				} else curStyle |= BitwiseStyling.getStyleBit(c);
-				nextIsStyle = false;
-			} else curStr.append(c);
-		}
-		if(!curStr.isEmpty()) {
-			MutableComponent tmp = BitwiseStyling.makeEncapsulatingTextComponent(curStr.toString(), enableStyles ? curStyle : 0);
-			tmp.withStyle(curColor);
-			newMsg.append(tmp);
-		}
-		return newMsg;
+		return stringToFormattedText(msg, enableColors, enableStyles, null);
 	}
+
+	public static MutableComponent stringToFormattedText(String msg, boolean enableColors, boolean enableStyles, UUID permissionUuid) {
+        if(msg == null) return null;
+        Style defaultStyle = Style.EMPTY;
+        String DefaultColor = ChatEventHandler.getChatMessageColor();
+        BetterForgeChat.LOGGER.debug("default Color: {}", DefaultColor);
+        if (!DefaultColor.isEmpty()) {
+            ChatFormatting cfg = ChatFormatting.getByName(DefaultColor);
+            if(cfg != null) defaultStyle = defaultStyle.withColor(TextColor.fromLegacyFormat(cfg));
+        }
+        Style curStyle = defaultStyle;
+        MutableComponent newMsg = Component.empty();
+        boolean nextIsStyle = false;
+        StringBuilder curStr = new StringBuilder();
+        byte curMask = 0;
+
+        for(int i = 0; i < msg.length(); i++) {
+            char ch = msg.charAt(i);
+            if(ch == '&') {
+                if(nextIsStyle) {
+                    nextIsStyle = false;
+                    curStr.append("&");
+                } else nextIsStyle = true;
+                continue;
+            }
+
+            if(nextIsStyle) {
+                if(curStr.length() > 0) {
+                    MutableComponent tmp = BitwiseStyling.makeEncapsulatingTextComponent(curStr.toString(), enableStyles ? curMask : 0);
+                    tmp.withStyle(curStyle);
+                    newMsg.append(tmp);
+                    curStr = new StringBuilder();
+                }
+
+                if(ch == '#') {
+                    int start = i + 1;
+                    int end = start + 6;
+                    if(end <= msg.length()) {
+                        String hexStr = msg.substring(start, end);
+                        Matcher m = HEX_PATTERN.matcher("#" + hexStr);
+                        if(m.matches() && enableColors && (permissionUuid == null || PermissionsHandler.playerHasPermission(permissionUuid, PermissionsHandler.hexChatNode))) {
+                            curStyle = curStyle.withColor(Integer.parseInt(hexStr, 16));
+                            i = end - 1; // skip over the hex digits consumed
+                            // leave styles unchanged
+                            nextIsStyle = false;
+                            continue;
+                        }
+                    }
+                }
+
+                if(enableColors) {
+                    Style next = applyLegacyColor(ch, curStyle, permissionUuid);
+                    if(next != null) curStyle = next;
+                }
+                if(ch == 'r') {
+                    curStyle = defaultStyle;
+                    curMask = 0;
+                } else curMask |= BitwiseStyling.getStyleBit(ch);
+                nextIsStyle = false;
+            } else {
+                curStr.append(ch);
+            }
+        }
+
+        if(curStr.length() > 0) {
+            MutableComponent tmp = BitwiseStyling.makeEncapsulatingTextComponent(curStr.toString(), enableStyles ? curMask : 0);
+            tmp.withStyle(curStyle);
+            newMsg.append(tmp);
+        }
+        return newMsg;
+    }
+
+    private static Style applyLegacyColor(char c, Style cur, UUID permissionUuid) {
+        ChatFormatting fmt = switch (c) {
+            case '0' -> ChatFormatting.BLACK;
+            case '1' -> ChatFormatting.DARK_BLUE;
+            case '2' -> ChatFormatting.DARK_GREEN;
+            case '3' -> ChatFormatting.DARK_AQUA;
+            case '4' -> ChatFormatting.DARK_RED;
+            case '5' -> ChatFormatting.DARK_PURPLE;
+            case '6' -> ChatFormatting.GOLD;
+            case '7' -> ChatFormatting.GRAY;
+            case '8' -> ChatFormatting.DARK_GRAY;
+            case '9' -> ChatFormatting.BLUE;
+            case 'a' -> ChatFormatting.GREEN;
+            case 'b' -> ChatFormatting.AQUA;
+            case 'c' -> ChatFormatting.RED;
+            case 'd' -> ChatFormatting.LIGHT_PURPLE;
+            case 'e' -> ChatFormatting.YELLOW;
+            case 'f', 'r' -> ChatFormatting.WHITE;
+            default -> null;
+        };
+        if(fmt == null) return cur;
+        if(permissionUuid != null && !PermissionsHandler.playerHasColorPermission(permissionUuid, c)) return cur;
+        return cur.withColor(TextColor.fromLegacyFormat(fmt));
+    }
+
 	public static String removeTextFormatting(String msg) {
 		if(msg == null) return null;
 		StringBuilder newMsg = new StringBuilder();
@@ -126,37 +191,15 @@ public final class TextFormatter {
                        """;
 	}
 
-	private static ChatFormatting getColor(char c, ChatFormatting cur) {
-            return switch (c) {
-                case '0' -> ChatFormatting.BLACK;
-                case '1' -> ChatFormatting.DARK_BLUE;
-                case '2' -> ChatFormatting.DARK_GREEN;
-                case '3' -> ChatFormatting.DARK_AQUA;
-                case '4' -> ChatFormatting.DARK_RED;
-                case '5' -> ChatFormatting.DARK_PURPLE;
-                case '6' -> ChatFormatting.GOLD;
-                case '7' -> ChatFormatting.GRAY;
-                case '8' -> ChatFormatting.DARK_GRAY;
-                case '9' -> ChatFormatting.BLUE;
-                case 'a' -> ChatFormatting.GREEN;
-                case 'b' -> ChatFormatting.AQUA;
-                case 'c' -> ChatFormatting.RED;
-                case 'd' -> ChatFormatting.LIGHT_PURPLE;
-                case 'e' -> ChatFormatting.YELLOW;
-                case 'f', 'r' -> ChatFormatting.WHITE;
-                default -> cur;
-            }; // Reset
+    private static boolean isColorOrStyle(char c) {
+        return isColor(c) || isStyle(c);
     }
-	private static boolean isColorOrStyle(char c) {
-		return isColor(c) || isStyle(c);
-	}
 	private static boolean isColor(char c) {
 		if(c >= '0' && c <= '9') return true;
         return c >= 'a' && c <= 'f';
     }
     private static boolean isStyle(char c) {
-    	if(c >= 'k' && c <= 'o') return true;
+     if(c >= 'k' && c <= 'o') return true;
         return c == 'r';
     }
-    
 }

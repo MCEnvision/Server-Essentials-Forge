@@ -4,6 +4,8 @@ import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.IReloadable;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
 import com.jeremiahbl.bfcrmod.config.PlayerData;
+import com.jeremiahbl.bfcrmod.tab.TabPlaceholderRenderer;
+import com.jeremiahbl.bfcrmod.tab.TabAnimationManager;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.jeremiahbl.bfcrmod.BetterForgeChat;
 import com.mojang.authlib.GameProfile;
@@ -13,16 +15,23 @@ import net.minecraftforge.event.entity.player.PlayerEvent.LoadFromFile;
 import net.minecraftforge.event.entity.player.PlayerEvent.NameFormat;
 import net.minecraftforge.event.entity.player.PlayerEvent.SaveToFile;
 import net.minecraftforge.event.entity.player.PlayerEvent.TabListNameFormat;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
+import net.minecraftforge.event.server.ServerStartedEvent;
+import net.minecraftforge.event.TickEvent;
 
 import java.io.IOException;
+
+import com.jeremiahbl.bfcrmod.commands.MsgCommands;
+import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
 
 @EventBusSubscriber
 public class PlayerEventHandler implements IReloadable {
 	private boolean enableNicknamesInTabList = false;
 	private boolean enableMetadataInTabList = false;
-	
+	private static final TabAnimationManager TAB_ANIM = new TabAnimationManager();
+
         @Override
 	public void reloadConfigOptions() {
 		enableNicknamesInTabList = ConfigHandler.config.enableNicknamesInTabList.get();
@@ -59,4 +68,26 @@ public class PlayerEventHandler implements IReloadable {
 		BetterForgeChat.LOGGER.debug("Loading all Player Data");
 		PlayerData.loadFromDir(e.getPlayerDirectory());
 	}
+
+	@SubscribeEvent
+	public void onPlayerLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent e) {
+        if(e.getEntity() instanceof ServerPlayer sp) {
+            MsgCommands.handleLogout(sp.getUUID());
+            ChatMessageManager.handleLogout(sp.getUUID());
+        }
+    }
+
+	@SubscribeEvent
+	public void onServerStarted(ServerStartedEvent e) {
+        // load tab animations when server starts
+        TAB_ANIM.load(e.getServer(), net.luckperms.api.LuckPermsProvider.get());
+        TabPlaceholderRenderer.applyHeaderFooter(e.getServer());
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onServerTick(TickEvent.ServerTickEvent e) {
+        if(e.phase != TickEvent.Phase.END) return;
+        TAB_ANIM.tick(e.getServer());
+        TabPlaceholderRenderer.applyHeaderFooter(e.getServer());
+    }
 }
