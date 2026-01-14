@@ -21,8 +21,6 @@ import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.TickEvent;
 
-import java.io.IOException;
-
 import com.jeremiahbl.bfcrmod.commands.MsgCommands;
 import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
 

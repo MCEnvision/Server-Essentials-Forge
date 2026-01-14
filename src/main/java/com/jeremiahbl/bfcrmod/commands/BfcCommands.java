@@ -7,7 +7,6 @@ import com.jeremiahbl.bfcrmod.TextFormatter;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.ConfigurationEventHandler;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
-import com.jeremiahbl.bfcrmod.filter.FilterDataStore;
 import com.jeremiahbl.bfcrmod.filter.FilterManager;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -18,15 +17,13 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.server.permission.nodes.PermissionNode;
 
 public class BfcCommands {
-	private static final Iterable<String> bfcrmodSubCommands = Arrays.asList(new String[] { 
+	private static final Iterable<String> bfcrmodSubCommands = Arrays.asList(
 			"info", "colors", "test", "reload"
-	});
-	
+	);
+
 	private static FilterManager filterManager;
 
 	protected static boolean checkPermission(CommandSourceStack c, PermissionNode<Boolean> node) {
@@ -46,15 +43,15 @@ public class BfcCommands {
 	}
 	
 	public static void register(CommandDispatcher<CommandSourceStack> disp) {
-		disp.register(Commands.literal("bfcr").requires((c) -> {
-				return checkPermission(c, PermissionsHandler.bfcrmodCommand);
-			}).then(Commands.argument("mode", StringArgumentType.greedyString())
+		disp.register(Commands.literal("bfcrr")
+			.requires(c -> checkPermission(c, PermissionsHandler.bfcrmodCommand))
+			.then(Commands.argument("mode", StringArgumentType.greedyString())
 					.suggests((context, builder) -> SharedSuggestionProvider.suggest(bfcrmodSubCommands, builder))
-					.executes(ctx -> modCommand(ctx))));
+					.executes(BfcCommands::modCommand)));
 		if(ConfigHandler.config.enableColorsCommand.get()) {
-			disp.register(Commands.literal("colors").requires((c) -> {
-					return checkPermission(c, PermissionsHandler.coloredChatNode);
-				}).executes(ctx -> colorCommand(ctx)));
+			disp.register(Commands.literal("colors")
+				.requires(c -> checkPermission(c, PermissionsHandler.coloredChatNode))
+				.executes(BfcCommands::colorCommand));
 		}
 
 		// Register filter commands if enabled
@@ -69,9 +66,6 @@ public class BfcCommands {
 		filterManager = manager;
 	}
 
-	public static FilterManager getFilterManager() {
-		return filterManager;
-	}
 
 	private static void registerFilterCommands(CommandDispatcher<CommandSourceStack> disp) {
 		SuggestionProvider<CommandSourceStack> caseSensitiveSuggest = (c, b) -> {
@@ -87,10 +81,10 @@ public class BfcCommands {
 			return b.buildFuture();
 		};
 
-		disp.register(Commands.literal("bfcr")
+		disp.register(Commands.literal("bfcrr")
 			.requires(src -> src.hasPermission(2))
 			.then(Commands.literal("filter")
-				// /bfcr filter add <id> <caseSensitive yes/no> <wordToFilter> [replacement]
+				// /bfcrr filter add <id> <caseSensitive yes/no> <wordToFilter> [replacement]
 				.then(Commands.literal("add")
 					.then(Commands.argument("id", StringArgumentType.word())
 						.then(Commands.argument("caseSensitive", StringArgumentType.word()).suggests(caseSensitiveSuggest)
@@ -100,14 +94,16 @@ public class BfcCommands {
 									.executes(ctx -> filterAdd(ctx, false)))
 								// Without replacement (just remove the word)
 								.executes(ctx -> filterAdd(ctx, true))))))
-				// /bfcr filter remove <id>
+				// /bfcrr filter remove <id>
 				.then(Commands.literal("remove")
 					.then(Commands.argument("id", StringArgumentType.word())
 						.suggests(filterIdSuggest)
-						.executes(ctx -> filterRemove(ctx))))
-				// /bfcr filter list
+						.executes(BfcCommands::filterRemove)))
+				// /bfcrr filter list
 				.then(Commands.literal("list")
-					.executes(ctx -> filterList(ctx)))));
+					.executes(ctx -> filterList(ctx, 1))
+					.then(Commands.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
+						.executes(ctx -> filterList(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "page")))))));
 	}
 
 	private static int filterAdd(CommandContext<CommandSourceStack> ctx, boolean noReplacement) {
@@ -149,30 +145,80 @@ public class BfcCommands {
 		return removed ? 1 : 0;
 	}
 
-	private static int filterList(CommandContext<CommandSourceStack> ctx) {
+	private static final int FILTER_ITEMS_PER_PAGE = 5; // 5 items * 3 lines = 15 + header/footer = ~18 lines
+
+	private static int filterList(CommandContext<CommandSourceStack> ctx, int page) {
 		if(filterManager == null) {
 			ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cFilter system not initialized"));
 			return 0;
 		}
 
-		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━ Word Filters ━━━━━━━━"), false);
-
 		var filters = filterManager.list();
 		if(filters.isEmpty()) {
+			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━ Word Filters ━━━━━━━━"), false);
 			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&7No filters configured"), false);
-		} else {
-			filters.forEach((id, rec) -> {
-				String caseSensitive = rec.caseSensitive() ? "&a[case-sensitive]" : "&e[case-insensitive]";
-				String replacement = rec.replacement().isEmpty() ? "&c(removed)" : "&f" + rec.replacement();
-				ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-					"&e" + id + " " + caseSensitive + "\n" +
-					"  &7Word: &f" + rec.wordToFilter() + "\n" +
-					"  &7Replacement: " + replacement
-				), false);
-			});
+			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), false);
+			return 1;
 		}
 
-		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"), false);
+		java.util.List<java.util.Map.Entry<String, com.jeremiahbl.bfcrmod.filter.FilterDataStore.FilterRecord>> filterList = new java.util.ArrayList<>(filters.entrySet());
+		int totalPages = (int) Math.ceil((double) filterList.size() / FILTER_ITEMS_PER_PAGE);
+		if(page > totalPages) page = totalPages;
+		if(page < 1) page = 1;
+
+		int startIdx = (page - 1) * FILTER_ITEMS_PER_PAGE;
+		int endIdx = Math.min(startIdx + FILTER_ITEMS_PER_PAGE, filterList.size());
+
+		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━ Word Filters ━━━━━━━━"), false);
+
+		for(int i = startIdx; i < endIdx; i++) {
+			var entry = filterList.get(i);
+			String id = entry.getKey();
+			var rec = entry.getValue();
+			String caseSensitive = rec.caseSensitive() ? "&a[case-sensitive]" : "&e[case-insensitive]";
+			String replacement = rec.replacement().isEmpty() ? "&c(removed)" : "&f" + rec.replacement();
+			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&e" + id + " " + caseSensitive), false);
+			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("  &7Word: &f" + rec.wordToFilter()), false);
+			ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("  &7Replacement: " + replacement), false);
+		}
+
+		// Footer with navigation arrows
+		final int currentPage = page;
+		final int finalTotalPages = totalPages;
+
+		net.minecraft.network.chat.MutableComponent footer = TextFormatter.stringToFormattedText("&6━━━━");
+
+		// Left arrow (previous page)
+		if(currentPage > 1) {
+			net.minecraft.network.chat.MutableComponent leftArrow = TextFormatter.stringToFormattedText("&e&l[◄]");
+			leftArrow = leftArrow.withStyle(style -> style
+				.withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/bfcrr filter list " + (currentPage - 1)))
+				.withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+					TextFormatter.stringToFormattedText("&7Previous page"))));
+			footer = footer.append(leftArrow);
+		} else {
+			footer = footer.append(TextFormatter.stringToFormattedText("&8[◄]"));
+		}
+
+		footer = footer.append(TextFormatter.stringToFormattedText("&6━━&f" + currentPage + "/" + finalTotalPages + "&6━━"));
+
+		// Right arrow (next page)
+		if(currentPage < finalTotalPages) {
+			net.minecraft.network.chat.MutableComponent rightArrow = TextFormatter.stringToFormattedText("&e&l[►]");
+			rightArrow = rightArrow.withStyle(style -> style
+				.withClickEvent(new net.minecraft.network.chat.ClickEvent(net.minecraft.network.chat.ClickEvent.Action.RUN_COMMAND, "/bfcrr filter list " + (currentPage + 1)))
+				.withHoverEvent(new net.minecraft.network.chat.HoverEvent(net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+					TextFormatter.stringToFormattedText("&7Next page"))));
+			footer = footer.append(rightArrow);
+		} else {
+			footer = footer.append(TextFormatter.stringToFormattedText("&8[►]"));
+		}
+
+		footer = footer.append(TextFormatter.stringToFormattedText("&6━━━━"));
+
+		final net.minecraft.network.chat.MutableComponent finalFooter = footer;
+		ctx.getSource().sendSuccess(() -> finalFooter, false);
+
 		return 1;
 	}
 

@@ -130,6 +130,9 @@ repositories {
     // Put repositories for dependencies here
     // ForgeGradle automatically adds the Forge maven and Maven Central for you
 
+    // SpongePowered for Mixin
+    maven { url = 'https://repo.spongepowered.org/maven' }
+
     // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
      flatDir {
@@ -144,6 +147,9 @@ dependencies {
     // If the group id is "net.minecraft" and the artifact id is one of ["client", "server", "joined"],
     // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+
+    // Mixin annotation processor for refmap generation
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
 
     // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
     // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
@@ -227,11 +233,12 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 mixin {
-    add sourceSets.main, "bfcrmod.mixins.json"
+    add sourceSets.main, "bfcrrmod.refmap.json"
+    config "bfcrrmod.mixins.json"
 }
 
 jar {
     manifest {
-        attributes "MixinConfigs": "bfcrmod.mixins.json"
+        attributes "MixinConfigs": "bfcrrmod.mixins.json"
     }
 }

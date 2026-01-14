@@ -7,8 +7,10 @@ import java.util.UUID;
 import com.jeremiahbl.bfcrmod.BetterForgeChat;
 import com.jeremiahbl.bfcrmod.MarkdownFormatter;
 import com.jeremiahbl.bfcrmod.TextFormatter;
+import com.jeremiahbl.bfcrmod.chat.AdminChatHandler;
 import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
 import com.jeremiahbl.bfcrmod.chat.ChatReplyHandler;
+import com.jeremiahbl.bfcrmod.commands.MsgCommands;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.IReloadable;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
@@ -64,8 +66,10 @@ public class ChatEventHandler implements IReloadable {
 		return null;
 	}
 	
-	@SubscribeEvent
+	@SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.HIGHEST, receiveCanceled = false)
     public void onServerChat(ServerChatEvent e) {
+		// Early exit if event is already cancelled
+		if(e.isCanceled()) return;
 		if(!loaded) return; // Just do nothing until everything's ready to go!
     	ServerPlayer player = e.getPlayer();
         GameProfile profile = player.getGameProfile();
@@ -73,6 +77,40 @@ public class ChatEventHandler implements IReloadable {
 		if(e == null || player == null) return;
         String msg = e.getMessage().getString();
 		if(msg == null || (msg).isEmpty()) return;
+
+		// IMPORTANT: Check if this should be a private/admin message FIRST
+		// We need to BOTH cancel the event AND execute the command
+		// This ensures Discord doesn't see it while still processing the message
+
+		// Check if player has admin chat toggled
+		if(ConfigHandler.config.enableAdminChat.get() && AdminChatHandler.isAdminChatToggled(uuid)) {
+			// Execute the /ac command directly
+			BetterForgeChat.LOGGER.info("[BFCRR] Intercepting admin chat from {}: {}", profile.getName(), msg);
+			player.getServer().getCommands().performPrefixedCommand(
+				player.createCommandSourceStack(),
+				"ac " + msg
+			);
+			e.setCanceled(true);
+			return;
+		}
+
+		// Check if player has private chat toggled
+		if(ConfigHandler.config.enableMessagingSystem.get() && MsgCommands.isPrivateChatToggled(uuid)) {
+			java.util.UUID partnerUUID = MsgCommands.getPrivateChatPartner(uuid);
+			if(partnerUUID != null) {
+				ServerPlayer partner = player.getServer().getPlayerList().getPlayer(partnerUUID);
+				if(partner != null) {
+					BetterForgeChat.LOGGER.info("[BFCRR] Intercepting private chat from {} to {}: {}",
+						profile.getName(), partner.getGameProfile().getName(), msg);
+					player.getServer().getCommands().performPrefixedCommand(
+						player.createCommandSourceStack(),
+						"msg " + partner.getGameProfile().getName() + " " + msg
+					);
+					e.setCanceled(true);
+					return;
+				}
+			}
+		}
 
 		// Apply word filters if enabled
 		if(ConfigHandler.config.enableFilterSystem.get() && CommandRegistrationHandler.getFilterManager() != null) {

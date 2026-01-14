@@ -13,48 +13,103 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
 import net.minecraftforge.server.permission.PermissionAPI;
 import net.minecraftforge.server.permission.events.PermissionGatherEvent.Nodes;
-import net.minecraftforge.server.permission.nodes.PermissionDynamicContext;
 import net.minecraftforge.server.permission.nodes.PermissionNode;
 import net.minecraftforge.server.permission.nodes.PermissionTypes;
 
+@SuppressWarnings("unused") // Fields are accessed via reflection in registerPermissionNodes
 @EventBusSubscriber
 public class PermissionsHandler {	
-	public static PermissionNode<Boolean> coloredChatNode = 
+	// Chat Permissions
+	public static PermissionNode<Boolean> coloredChatNode =
 			ezyPermission("chat.colors", true, "Chat colors", "Enables/Disables colors in chat");
 	public static PermissionNode<Boolean> styledChatNode = 
 			ezyPermission("chat.styles", true, "Chat styles", "Enables/Disables styles in chat");
 	public static PermissionNode<Boolean> markdownChatNode = 
 			ezyPermission("chat.styles.md", true, "Chat markdown styling", "Enables/Disables markdown styling in chat");
-	public static PermissionNode<Boolean> tabListNicknameNode = 
+
+	// Tab List Permissions
+	public static PermissionNode<Boolean> tabListNicknameNode =
 			ezyPermission("tablist.nickname", true, "Tab list nicknames", "Enables/Disables nicknames showing in the tab list");
 	public static PermissionNode<Boolean> tabListMetadataNode = 
 			ezyPermission("tablist.metadata", true, "Tab list metadata", "Enables/Disables prefixes&suffixes showing in the tab list");
 	
+	// Core Command Permissions
 	public static PermissionNode<Boolean> colorsCommand =
 			ezyPermission("commands.colors", true, "Colors command", "Enables/Disables the \"/colors\" command");
 	public static PermissionNode<Boolean> bfcrmodCommand = 
-			ezyPermission("commands.bfcr.allowed", true, "BetterForgeChat command", "Enables/Disables the \"/bfc\" command");
-	public static PermissionNode<Boolean> bfcrmodCommandColorsSubCommand = 
-			ezyPermission("commands.bfcr.colors", true, "BetterForgeChat colors sub-command", "Enables/Disables the \"/bfc colors\" sub-command");
-	public static PermissionNode<Boolean> bfcrmodCommandInfoSubCommand = 
-			ezyPermission("commands.bfcr.info", true, "BetterForgeChat info sub-command", "Enables/Disables the \"/bfc info\" sub-command");
+			ezyPermission("commands.bfcrr.allowed", true, "BetterForgeChatRR command", "Enables/Disables the \"/bfcrr\" command");
+	public static PermissionNode<Boolean> bfcrmodCommandColorsSubCommand =
+			ezyPermission("commands.bfcrr.colors", true, "BetterForgeChatRR colors sub-command", "Enables/Disables the \"/bfcrr colors\" sub-command");
+	public static PermissionNode<Boolean> bfcrmodCommandInfoSubCommand =
+			ezyPermission("commands.bfcrr.info", true, "BetterForgeChatRR info sub-command", "Enables/Disables the \"/bfcrr info\" sub-command");
 	public static PermissionNode<Boolean> bfcrmodCommandReloadSubCommand =
-			ezyPermission("commands.bfcr.reload", true, "BetterForgeChat reload sub-command", "Enables/Disables the \"/bfc reload\" sub-command");
+			ezyPermission("commands.bfcrr.reload", true, "BetterForgeChatRR reload sub-command", "Enables/Disables the \"/bfcrr reload\" sub-command");
+
+	// Private Messaging Permissions
 	public static PermissionNode<Boolean> msgCommand =
 			ezyPermission("commands.msg", true, "Private messages", "Allows using /msg, /r and aliases");
+	public static PermissionNode<Boolean> msgReceive =
+			ezyPermission("msg.receive", true, "Receive messages", "Allows receiving private messages");
+	public static PermissionNode<Boolean> msgSendToOffline =
+			ezyPermission("msg.sendoffline", false, "Message offline", "Allows sending messages to offline players (queued)");
 
-	public static PermissionNode<Boolean> whoisCommand = 
+	// Nickname Permissions
+	public static PermissionNode<Boolean> whoisCommand =
 			ezyPermission("commands.whois", true, "Nickname", "Enables/Disables the \"/whois <nickname>\" command");
 	public static PermissionNode<Boolean> nickCommand = 
 			ezyPermission("commands.nick", true, "Nickname", "Enables/Disables the \"/nick <nickname>\" command");
 	public static PermissionNode<Boolean> nickOthersCommand = 
 			ezyPermission("commands.nick.others", true, "Modify nicknames", "Enables/Disables the \"/nick <username> <nickname>\" command");
-	
-	public static final Map<Character, PermissionNode<Boolean>> perColorChatNodes = new HashMap<>();
-	public static PermissionNode<Boolean> hexChatNode =
-			ezyPermission("chat.colors.hex", false, "Chat hex colors", "Allows usage of hex colors and gradients in chat");
+	public static PermissionNode<Boolean> nickColorsAllowed =
+			ezyPermission("nick.colors", false, "Nickname colors", "Allows using color codes in nicknames");
+	public static PermissionNode<Boolean> nickStylesAllowed =
+			ezyPermission("nick.styles", false, "Nickname styles", "Allows using style codes in nicknames");
+
+	// Chat Reply Permissions
+	public static PermissionNode<Boolean> ansCommand =
+			ezyPermission("commands.ans", true, "Reply command", "Allows using the /ans reply command");
+	public static PermissionNode<Boolean> ansReceiveNotification =
+			ezyPermission("ans.notify", true, "Reply notifications", "Receive sound when someone replies to you");
+
+	// HelpOp Permissions
+	public static PermissionNode<Boolean> helpOpSend =
+			ezyPermission("helpop.send", true, "Send HelpOp", "Allows sending /helpop requests");
+	public static PermissionNode<Boolean> helpOpReceive =
+			ezyPermission("helpop.receive", false, "Receive HelpOp", "Receives HelpOp messages (operators)");
+	public static PermissionNode<Boolean> helpOpReply =
+			ezyPermission("helpop.reply", false, "Reply HelpOp", "Allows using /helpopop to reply");
+
+	// Admin Chat Permissions
+	public static PermissionNode<Boolean> adminChatUse =
+			ezyPermission("adminchat.use", false, "Use Admin Chat", "Allows using admin chat");
+	public static PermissionNode<Boolean> adminChatSee =
+			ezyPermission("adminchat.see", false, "See Admin Chat", "Can see admin chat messages");
+
+	// Announcement Permissions
+	public static PermissionNode<Boolean> announcementManage =
+			ezyPermission("announcements.manage", false, "Manage announcements", "Allows adding/removing announcements");
+	public static PermissionNode<Boolean> announcementToggle =
+			ezyPermission("announcements.toggle", true, "Toggle announcements", "Allows toggling announcements on/off");
+	public static PermissionNode<Boolean> announcementBypass =
+			ezyPermission("announcements.bypass", false, "Bypass announcements", "Receives announcements even if toggled off");
+	public static PermissionNode<Boolean> titleAnnouncementUse =
+			ezyPermission("announcements.title", false, "Title announcements", "Allows using /titleannouncement");
+
+	// Filter Permissions
+	public static PermissionNode<Boolean> filterManage =
+			ezyPermission("filter.manage", false, "Manage filters", "Allows managing word filters");
+	public static PermissionNode<Boolean> filterBypass =
+			ezyPermission("filter.bypass", false, "Bypass filters", "Messages bypass word filter");
+
+	// Sign and Misc Permissions
 	public static PermissionNode<Boolean> signColorNode =
 			ezyPermission("sign.colors", false, "Sign colors", "Allows usage of colors on signs");
+	public static PermissionNode<Boolean> signStylesNode =
+			ezyPermission("sign.styles", false, "Sign styles", "Allows usage of styles on signs");
+
+	// Color Permissions
+	public static final Map<Character, PermissionNode<Boolean>> perColorChatNodes = new HashMap<>();
+	public static PermissionNode<Boolean> hexChatNode;
 
 	static {
         // Allow hex by default? set to true for convenience
@@ -91,8 +146,7 @@ public class PermissionsHandler {
 	public static boolean playerHasPermission(UUID uuid, PermissionNode<Boolean> node) {
 		boolean bool = false;
 		try {
-			bool = PermissionAPI.getOfflinePermission(uuid, node, new PermissionDynamicContext[0]);
-			//bool = PermissionAPI.getPermission(player, node, new PermissionDynamicContext[0]);
+			bool = PermissionAPI.getOfflinePermission(uuid, node);
 		} catch(IllegalStateException ise) {
 			BetterForgeChat.LOGGER.trace("IllegalStateException when getting player tab list permissions, assuming false",ise);
 		}

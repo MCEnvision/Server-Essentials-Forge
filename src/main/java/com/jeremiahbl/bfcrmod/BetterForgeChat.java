@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 
 import com.jeremiahbl.bfcrmod.commands.NickCommands;
 import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
+import com.jeremiahbl.bfcrmod.chat.OpBulletinHandler;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.ConfigurationEventHandler;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
@@ -11,7 +12,6 @@ import com.jeremiahbl.bfcrmod.events.ChatEventHandler;
 import com.jeremiahbl.bfcrmod.events.CommandRegistrationHandler;
 import com.jeremiahbl.bfcrmod.events.ExternalModLoadingEvent;
 import com.jeremiahbl.bfcrmod.events.PlayerEventHandler;
-import com.jeremiahbl.bfcrmod.tab.TabAnimationManager;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.jeremiahbl.bfcrmod.utils.IMetadataProvider;
 import com.jeremiahbl.bfcrmod.utils.INicknameProvider;
@@ -24,11 +24,12 @@ import net.minecraftforge.fml.event.lifecycle.FMLLoadCompleteEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 
 // The value here should match an entry in the META-INF/mods.toml file
+@SuppressWarnings("FieldCanBeLocal") // Fields are kept as fields for event bus registration
 @Mod(BetterForgeChat.MODID )
 public class BetterForgeChat {
 	public static final String CHAT_ID_STR = 
-			"&cBetter &9&lForge&r &eChat&r &d(c) Jeremiah Lowe, Disa Kandria 2022-2026&r\n";
-	public static final String MODID = "bfcrmod";
+			"&cBetter &9&lForge&r &eChat &bReborn Reworked&r &d(c) EnVy 2022-2026&r\n";
+	public static final String MODID = "bfcrrmod";
 	public static final String VERSION = "V4.0.0";
     public static final Logger LOGGER = LogUtils.getLogger();
     public static BetterForgeChat instance;
@@ -41,7 +42,6 @@ public class BetterForgeChat {
     private final PlayerEventHandler playerEventHandler = new PlayerEventHandler();
     private final PermissionsHandler permissionsHandler = new PermissionsHandler();
     private final CommandRegistrationHandler commandRegistrator = new CommandRegistrationHandler();
-    private final ConfigurationEventHandler configurationHandler = new ConfigurationEventHandler();
 
     @SuppressWarnings("removal")
     public BetterForgeChat() {
@@ -53,8 +53,7 @@ public class BetterForgeChat {
             BetterForgeChatUtilities.reloadConfig();
         });
         ConfigurationEventHandler.registerReloadable(() -> BetterForgeChat.LOGGER.info("Configuration options loaded!"));
-        loader.register(configurationHandler);
-        
+
         loader.MlContext(true); // Set mod to ignore whether the other side has it (we only care about the server side - but this works on the client's side too)
         loader.MLConfig("COMMON", ConfigHandler.spec);//set config type and config to register
         loader.register(permissionsHandler); //register permissions handler
@@ -81,10 +80,31 @@ public class BetterForgeChat {
         if(ConfigHandler.config.enableChatReplies.get()) {
             ChatMessageManager.init(ev.getServer());
         }
+        // Initialize Op Bulletin
+        OpBulletinHandler.init(ev.getServer());
+        // Initialize Banned Items system
+        if(ConfigHandler.config.enableBannedItems.get()) {
+            CommandRegistrationHandler.getBannedItemsManager().load(ev.getServer());
+        }
+        // Initialize MOTD system
+        if(ConfigHandler.config.enableMotdSystem.get()) {
+            java.nio.file.Path configDir = ev.getServer().getServerDirectory().toPath().resolve("config").resolve("bfcrr");
+            CommandRegistrationHandler.initMotdManager(configDir);
+            // Apply MOTD on startup if configured
+            if(ConfigHandler.config.applyMotdOnStartup.get()) {
+                CommandRegistrationHandler.getMotdManager().applyToServer(ev.getServer());
+            }
+        }
     }
     @SubscribeEvent
     public void onServerTick(net.minecraftforge.event.TickEvent.ServerTickEvent ev) {
-        if(ev.phase == net.minecraftforge.event.TickEvent.Phase.END && ConfigHandler.config.enableAnnouncements.get())
-            CommandRegistrationHandler.getAnnouncementManager().tick(ev.getServer());
+        if(ev.phase == net.minecraftforge.event.TickEvent.Phase.END) {
+            if(ConfigHandler.config.enableAnnouncements.get()) {
+                CommandRegistrationHandler.getAnnouncementManager().tick(ev.getServer());
+            }
+            if(ConfigHandler.config.enableBannedItems.get()) {
+                CommandRegistrationHandler.getBannedItemsManager().tick(ev.getServer(), ev.getServer().getTickCount());
+            }
+        }
     }
 }
