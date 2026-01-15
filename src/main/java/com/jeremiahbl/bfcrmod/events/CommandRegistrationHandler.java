@@ -72,9 +72,9 @@ public class CommandRegistrationHandler {
             BannedItemsCommands.register(e.getDispatcher());
         }
 
-        // Register MOTD commands
-        if(MOTD_MANAGER != null && ConfigHandler.config.enableMotdSystem.get()) {
-            MotdCommands.register(e.getDispatcher(), MOTD_MANAGER);
+        // Register MOTD commands - always register, manager will be set later
+        if(ConfigHandler.config.enableMotdSystem.get()) {
+            MotdCommands.register(e.getDispatcher());
         }
     }
 }

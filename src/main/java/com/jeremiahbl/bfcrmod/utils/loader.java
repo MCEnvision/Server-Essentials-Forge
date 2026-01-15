@@ -24,7 +24,8 @@ public class loader {
     }
     // Register mod configuration & permissions
     public static void MLConfig(String cType, IConfigSpec<?> config){
-        mlc.registerConfig(ModConfig.Type.valueOf(cType), config);
+        // Register with custom path: bfcrr/common.toml
+        mlc.registerConfig(ModConfig.Type.valueOf(cType), config, "bfcrr/common.toml");
     }
 
 

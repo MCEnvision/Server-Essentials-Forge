@@ -1,6 +1,5 @@
 package com.jeremiahbl.bfcrmod.config;
 
-import com.jeremiahbl.bfcrmod.BetterForgeChat;
 import com.electronwill.nightconfig.core.file.CommentedFileConfig;
 import com.electronwill.nightconfig.core.io.WritingMode;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -13,7 +12,10 @@ public class ConfigHandler {
 
     public static void reloadFromDisk() {
         // Re-read the common config from disk and apply to the spec
-        java.nio.file.Path path = FMLPaths.CONFIGDIR.get().resolve(BetterForgeChat.MODID + "-common.toml");
+        java.nio.file.Path path = FMLPaths.CONFIGDIR.get().resolve("bfcrr").resolve("common.toml");
+        try {
+            java.nio.file.Files.createDirectories(path.getParent());
+        } catch (java.io.IOException ignored) {}
         CommentedFileConfig cfg = CommentedFileConfig.builder(path)
                 .sync()
                 .autosave()
