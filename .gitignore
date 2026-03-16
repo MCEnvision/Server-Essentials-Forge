@@ -9,6 +9,8 @@
 !README.md
 !DOCUMENTATION.md
 !AGENTS.md
+!src
 !src/main
+!src/main/**
 !lib
 !screenshots
