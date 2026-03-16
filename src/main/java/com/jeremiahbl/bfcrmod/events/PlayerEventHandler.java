@@ -23,6 +23,7 @@ import net.minecraftforge.event.TickEvent;
 
 import com.jeremiahbl.bfcrmod.commands.MsgCommands;
 import com.jeremiahbl.bfcrmod.chat.ChatMessageManager;
+import net.minecraftforge.fml.ModList;
 
 @EventBusSubscriber
 public class PlayerEventHandler implements IReloadable {
@@ -77,8 +78,18 @@ public class PlayerEventHandler implements IReloadable {
 
 	@SubscribeEvent
 	public void onServerStarted(ServerStartedEvent e) {
-        // load tab animations when server starts
-        TAB_ANIM.load(e.getServer(), net.luckperms.api.LuckPermsProvider.get());
+        // Guard LuckPermsProvider.get() — it throws IllegalStateException if LuckPerms is absent.
+        // FMLEnvironment.dist is CLIENT on integrated (singleplayer / LAN) servers, so LuckPerms
+        // may not be present at all. Always check isLoaded() first.
+        net.luckperms.api.LuckPerms luckPerms = null;
+        if (ModList.get().isLoaded("luckperms")) {
+            try {
+                luckPerms = net.luckperms.api.LuckPermsProvider.get();
+            } catch (IllegalStateException ex) {
+                BetterForgeChat.LOGGER.warn("[BFCRR] LuckPerms detected but API not ready; tab animations will run without it.", ex);
+            }
+        }
+        TAB_ANIM.load(e.getServer(), luckPerms);
         TabPlaceholderRenderer.applyHeaderFooter(e.getServer());
     }
 

@@ -123,6 +123,39 @@ if (ConfigHandler.config.enableMyFeature.get()) {
 }
 ```
 
+## 🔴 Rule 3 — Singleplayer & LAN Compatibility
+
+**The mod must work in singleplayer worlds and Open-to-LAN worlds, not only on dedicated servers.**
+
+Key facts about the Forge runtime environment:
+- `FMLEnvironment.dist` is **`CLIENT`** on an integrated (singleplayer / LAN) server.  
+  **Never** use `FMLEnvironment.dist.isDedicatedServer()` to gate any feature — it returns `false` in singleplayer even though an integrated server is running.
+- Use `MinecraftServer.isDedicatedServer()` (from the event) only when a behavior genuinely differs between integrated and dedicated servers.
+- `ServerStartedEvent`, `ServerChatEvent`, `TickEvent.ServerTickEvent` all fire on the integrated server — they work correctly in singleplayer and LAN without any special handling.
+
+### Optional-mod guards (LuckPerms, FTB Essentials, etc.)
+
+Always check `ModList.get().isLoaded("modid")` **before** calling any API from an optional mod.  
+`LuckPermsProvider.get()` throws `IllegalStateException` if LuckPerms is absent — wrap it:
+
+```java
+// ✅ correct
+net.luckperms.api.LuckPerms luckPerms = null;
+if (ModList.get().isLoaded("luckperms")) {
+    try { luckPerms = net.luckperms.api.LuckPermsProvider.get(); }
+    catch (IllegalStateException ex) { LOGGER.warn("LuckPerms API not ready", ex); }
+}
+someManager.init(server, luckPerms); // accept null gracefully
+
+// ❌ wrong — crashes on singleplayer without LuckPerms
+someManager.init(server, net.luckperms.api.LuckPermsProvider.get());
+```
+
+### Null-provider pattern
+
+`BetterForgeChat.instance.metadataProvider` and `.nicknameProvider` are **nullable by design**.  
+All consumers already null-check them — do not assume they are non-null in new code.
+
 ---
 
 ## Config Files at Runtime
