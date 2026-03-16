@@ -2,7 +2,13 @@
 !gradle.properties
 !build.gradle
 !gradlew
+!gradlew.bat
 !gradle
+!settings.gradle
 !LICENSE
+!README.md
+!DOCUMENTATION.md
+!AGENTS.md
 !src/main
 !lib
+!screenshots
