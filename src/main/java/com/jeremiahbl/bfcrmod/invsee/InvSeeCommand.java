@@ -17,16 +17,15 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.fml.ModList;
 
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.Map;
 
 /**
  * Custom /invsee command that shows a player's inventory, armor, offhand,
- * and Curios slots in a double-chest GUI with pagination support.
+ * and Curios slots in a double-chest GUI with glass pane separators.
+ * All slots are editable - changes sync directly to the target player's inventory.
  *
  * If FTB Essentials is detected and invSeeDisableFtbInvsee is true,
  * this command overrides FTB's /invsee by removing their command node first.
@@ -53,7 +52,7 @@ public class InvSeeCommand {
                 .executes(ctx -> {
                     ServerPlayer viewer = ctx.getSource().getPlayerOrException();
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
-                    return openInvSee(viewer, target);
+                    return openInvSee(viewer, target, 0);
                 })));
     }
 
@@ -82,13 +81,18 @@ public class InvSeeCommand {
         }
     }
 
-    private static int openInvSee(ServerPlayer viewer, ServerPlayer target) {
-        // Build the layout
-        List<ItemStack> allItems = InvSeeLayout.buildAllItems(target);
-        List<ItemStack[]> pages = InvSeeLayout.paginate(allItems);
-
+    /**
+     * Opens the InvSee GUI for the viewer showing the target's inventory.
+     * @param viewer The admin viewing the inventory
+     * @param target The player whose inventory is being viewed/edited
+     * @param page 0 = main inventory, 1+ = curios pages
+     */
+    public static int openInvSee(ServerPlayer viewer, ServerPlayer target, int page) {
         String titleStr = ConfigHandler.config.invSeeTitle.get()
             .replace("$player", target.getGameProfile().getName());
+        if (page > 0) {
+            titleStr += " &7(Curios)";
+        }
         Component title = TextFormatter.stringToFormattedText(titleStr);
 
         viewer.openMenu(new MenuProvider() {
@@ -99,12 +103,10 @@ public class InvSeeCommand {
 
             @Override
             public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player p) {
-                return new InvSeeContainer(id, playerInventory, pages);
+                return new InvSeeContainer(id, playerInventory, target, page);
             }
         });
 
         return 1;
     }
 }
-
-
