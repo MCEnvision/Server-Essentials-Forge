@@ -77,6 +77,19 @@ public class PlayerEventHandler implements IReloadable {
     }
 
 	@SubscribeEvent
+	public void onPlayerLogin(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) {
+        if(e.getEntity() instanceof ServerPlayer sp) {
+            // Record login for alt tracking
+            if(ConfigHandler.config.enableCheckAlts.get()) {
+                com.jeremiahbl.bfcrmod.alts.AltTracker tracker = CommandRegistrationHandler.getAltTracker();
+                if(tracker != null) {
+                    tracker.recordLogin(sp);
+                }
+            }
+        }
+    }
+
+	@SubscribeEvent
 	public void onServerStarted(ServerStartedEvent e) {
         // Guard LuckPermsProvider.get() — it throws IllegalStateException if LuckPerms is absent.
         // FMLEnvironment.dist is CLIENT on integrated (singleplayer / LAN) servers, so LuckPerms

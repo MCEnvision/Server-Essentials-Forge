@@ -72,6 +72,8 @@ Files that are specific to each world:
 | `banned_items.json` | Banned item list |
 | `banned_config.json` | Banned items scan settings |
 | `bulletin.json` | Operator bulletin items |
+| `alt_data.json` | Alt tracker IP/account data |
+| `warns.json` | Player warning entries |
 
 ### Logs (`logs/chat/`)
 Chat logs for the reply system:
@@ -140,6 +142,12 @@ All message formats support `&` color codes and the listed placeholders.
 | `enableHelpOp` | `true` | Enable the `/helpop` command for player-to-operator communication |
 | `enableAdminChat` | `true` | Enable the admin chat system (`/chat admin`, `/ac`) |
 | `enableBannedItems` | `true` | Enable the banned items system (`/banned` commands) |
+| `enableClearChat` | `true` | Enable the clear chat system (`/cc`, `/clearchat`) |
+| `enableSudo` | `true` | Enable the sudo system (`/sudo`) |
+| `enableInvLock` | `true` | Enable the inventory lock system (`/invlock`) |
+| `enableDisableBuilding` | `true` | Enable the disable building system (`/disablebuilding`, `/db`) |
+| `enableCheckAlts` | `true` | Enable the alt checking system (`/checkalts`) |
+| `enableWarnSystem` | `true` | Enable the warning system (`/warn`, `/warns`) |
 
 ### Sound Notifications
 
@@ -503,6 +511,163 @@ Remove all MOTDs.
 
 ---
 
+### Clear Chat
+
+**Config:** `enableClearChat`
+
+Clear a player's chat (or all non-OP players' chat).
+
+#### `/cc [player]`
+Clear chat for a specific player, or all non-OPs if no player is specified.
+- **Alias:** `/clearchat`
+- **Permission:** `bfcrrmod.commands.clearchat` (default: `false`)
+- Sends configurable number of blank lines (`clearChatLineCount`, default: 100)
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `clearChatLineCount` | `100` | Number of blank lines to send |
+| `clearChatSuccessMsg` | `&aChat cleared for $player.` | Message to admin (placeholder: `$player`) |
+| `clearChatAllSuccessMsg` | `&aChat cleared for all non-OP players by $admin.` | Message for clearing all (placeholder: `$admin`) |
+| `clearChatSelfMsg` | `&7Your chat has been cleared by an operator.` | Message to the player |
+
+---
+
+### Sudo
+
+**Config:** `enableSudo`
+
+Force a player to execute a command.
+
+#### `/sudo <player> <command>`
+Forces the target player to execute a command as if they typed it themselves.
+- **Permission:** `bfcrrmod.commands.sudo` (default: `false`)
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `sudoExecutedMsg` | `&aForced $player to execute: &7/$command` | Message to admin (placeholders: `$player`, `$command`, `$admin`) |
+| `sudoNotifyMsg` | `&c$admin forced you to run: &7/$command` | Message to target (placeholders: `$admin`, `$command`) |
+
+---
+
+### Inventory Lock
+
+**Config:** `enableInvLock`
+
+Lock a player's inventory, preventing them from opening containers, picking up items, or using items.
+
+#### `/invlock <player>`
+Toggle inventory lock for the target player.
+- **Permission:** `bfcrrmod.commands.invlock` (default: `false`)
+- Locked players cannot:
+  - Open containers (chests, furnaces, etc.)
+  - Pick up items
+  - Use items (right-click)
+- Lock is runtime-only (clears on server restart)
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `invLockLockedMsg` | `&c$admin has locked your inventory.` | Message to player when locked (placeholder: `$admin`) |
+| `invLockUnlockedMsg` | `&a$admin has unlocked your inventory.` | Message to player when unlocked (placeholder: `$admin`) |
+| `invLockAdminLockMsg` | `&eLocked inventory for $player.` | Message to admin (placeholder: `$player`) |
+| `invLockAdminUnlockMsg` | `&eUnlocked inventory for $player.` | Message to admin (placeholder: `$player`) |
+| `invLockBlockedMsg` | `&cYour inventory is locked.` | Message when locked player tries to interact |
+
+---
+
+### Disable Building
+
+**Config:** `enableDisableBuilding`
+
+Toggle building restrictions for a player, preventing them from placing or breaking blocks.
+
+#### `/disablebuilding <player>`
+Toggle building restrictions for the target player.
+- **Alias:** `/db`
+- **Permission:** `bfcrrmod.commands.disablebuilding` (default: `false`)
+- Restricted players cannot:
+  - Break blocks
+  - Place blocks
+  - Mine blocks (left-click)
+- Restriction is runtime-only (clears on server restart)
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `dbEnabledMsg` | `&cBuilding disabled for $player by $admin.` | Message to admin when disabling (placeholders: `$player`, `$admin`) |
+| `dbDisabledMsg` | `&aBuilding re-enabled for $player by $admin.` | Message to admin when re-enabling (placeholders: `$player`, `$admin`) |
+| `dbPlayerNotifyMsg` | `&cYour building privileges have been $status by $admin.` | Message to player (placeholders: `$status`, `$admin`) |
+| `dbBlockedMsg` | `&cYou are not allowed to build.` | Message when restricted player tries to build |
+
+---
+
+### Check Alts
+
+**Config:** `enableCheckAlts`
+
+Check if a player has alternate accounts by looking up their IP address. Tracks all logins and records IP-to-account associations.
+
+#### `/checkalts <player>`
+Lists all accounts that have logged in from the same IP address as the target player.
+- **Permission:** `bfcrrmod.commands.checkalts` (default: `false`)
+- Data persists to `<world>/serverconfig/bfcrr/alt_data.json`
+- Skips recording for local/LAN connections (singleplayer safety)
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `checkAltsHeaderFormat` | `&6━━━━ Alts for $player ($ip) ━━━━` | Header (placeholders: `$player`, `$ip`) |
+| `checkAltsEntryFormat` | `&7- &e$name &7($uuid) Last seen: $lastseen` | Each entry (placeholders: `$name`, `$uuid`, `$lastseen`) |
+| `checkAltsNoAltsMsg` | `&7No alternate accounts found for $player.` | No alts message (placeholder: `$player`) |
+
+---
+
+### Warn System
+
+**Config:** `enableWarnSystem`
+
+A full warning management system for operators. Warnings persist to JSON and support expiration durations. Expired warnings are kept in the list but marked as "(expired)".
+
+#### `/warn <player> add <duration> <reason>`
+Add a warning to a player.
+- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- **Duration formats:** `30s`, `5m`, `1h`, `7d`, `permanent` (or `perm`, `forever`, `inf`)
+- If only a reason is provided (no valid duration), the warning is permanent
+- Notifies the warned player with a configurable message and optional sound
+
+#### `/warn <player> check`
+View all warnings for a player (including expired ones).
+- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- Expired warnings show the configurable expired tag (default: `(expired)`)
+
+#### `/warn <player> remove <id>`
+Remove a specific warning by its ID number.
+- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- Soft-deletes the warning (hidden from lists)
+
+#### `/warns`
+Players can check their own warnings.
+- **Permission:** `bfcrrmod.commands.warns` (default: `true`)
+- Shows all warnings including expired ones
+
+**Data Storage:** `<world>/serverconfig/bfcrr/warns.json`
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `warnAddedMsg` | `&aWarning #$id added for $player: &7$reason &e(Duration: $duration)` | Admin confirmation (placeholders: `$player`, `$reason`, `$admin`, `$id`, `$duration`) |
+| `warnRemovedMsg` | `&eWarning #$id removed for $player.` | Remove confirmation (placeholders: `$player`, `$id`) |
+| `warnListHeaderFormat` | `&6━━━━ Warnings for $player ━━━━` | List header (placeholder: `$player`) |
+| `warnEntryFormat` | `&7#$id &f$reason &7(by $admin, $date)$expired` | Each entry (placeholders: `$id`, `$reason`, `$admin`, `$date`, `$expired`) |
+| `warnExpiredTag` | ` &c(expired)` | Text appended for expired warnings |
+| `warnNoWarnsMsg` | `&7$player has no warnings.` | No warnings message (placeholder: `$player`) |
+| `warnNotifyPlayerMsg` | `&c⚠ You have been warned by $admin: &f$reason` | Message to warned player (placeholders: `$admin`, `$reason`) |
+| `warnPlaySound` | `true` | Play a sound when a player is warned |
+
+---
+
 #### `/nick <nickname>`
 Set your own nickname.
 - **Permission:** `bfcrrmod.commands.nick`
@@ -797,6 +962,24 @@ The following commands require **OP level 2** (or equivalent permission node):
 - `/bfcrr filter` - requires `bfcrrmod.filter.manage` or OP
 - `/helpopop <player> <message>` - requires `bfcrrmod.helpop.reply` or OP
 - `/chat admin` / `/ac` - requires `bfcrrmod.adminchat.use` or OP
+- `/cc` / `/clearchat` - requires `bfcrrmod.commands.clearchat` or OP
+- `/sudo` - requires `bfcrrmod.commands.sudo` or OP
+- `/invlock` - requires `bfcrrmod.commands.invlock` or OP
+- `/disablebuilding` / `/db` - requires `bfcrrmod.commands.disablebuilding` or OP
+- `/checkalts` - requires `bfcrrmod.commands.checkalts` or OP
+- `/warn` - requires `bfcrrmod.commands.warn` or OP
+
+### Moderation Permissions
+
+| Permission | Default | Description |
+|------------|---------|-------------|
+| `bfcrrmod.commands.clearchat` | `false` | Can use `/cc` and `/clearchat` |
+| `bfcrrmod.commands.sudo` | `false` | Can use `/sudo` to force commands |
+| `bfcrrmod.commands.invlock` | `false` | Can use `/invlock` to lock inventories |
+| `bfcrrmod.commands.disablebuilding` | `false` | Can use `/disablebuilding` and `/db` |
+| `bfcrrmod.commands.checkalts` | `false` | Can use `/checkalts` |
+| `bfcrrmod.commands.warn` | `false` | Can add/check/remove warnings on others |
+| `bfcrrmod.commands.warns` | `true` | Can check own warnings with `/warns` |
 
 ---
 
@@ -1018,6 +1201,17 @@ When enabled, you can use:
 | `/banned scantime` | View/set item scan interval | OP Level 2 |
 | `/banned scantimeblocks` | View/set block scan interval | OP Level 2 |
 | `/banned scan` | Manually scan self | OP Level 2 |
+| `/cc [player]` | Clear chat (all non-OPs or specific player) | `bfcrrmod.commands.clearchat` |
+| `/clearchat [player]` | Alias for `/cc` | `bfcrrmod.commands.clearchat` |
+| `/sudo <player> <cmd>` | Force player to execute command | `bfcrrmod.commands.sudo` |
+| `/invlock <player>` | Toggle inventory lock | `bfcrrmod.commands.invlock` |
+| `/disablebuilding <player>` | Toggle building restrictions | `bfcrrmod.commands.disablebuilding` |
+| `/db <player>` | Alias for `/disablebuilding` | `bfcrrmod.commands.disablebuilding` |
+| `/checkalts <player>` | List alternate accounts | `bfcrrmod.commands.checkalts` |
+| `/warn <player> add <dur> <reason>` | Add a warning | `bfcrrmod.commands.warn` |
+| `/warn <player> check` | Check player warnings | `bfcrrmod.commands.warn` |
+| `/warn <player> remove <id>` | Remove a warning | `bfcrrmod.commands.warn` |
+| `/warns` | Check own warnings | `bfcrrmod.commands.warns` |
 
 ### All Config Sections
 
@@ -1029,6 +1223,12 @@ When enabled, you can use:
 | `systemMessages` | Customizable feedback messages |
 | `hoverText` | Customizable hover tooltips |
 | `announcementFormatting` | Announcement display formatting |
+| `clearChat` | Clear chat system settings |
+| `sudo` | Sudo system settings |
+| `invLock` | Inventory lock system settings |
+| `disableBuilding` | Building restriction settings |
+| `checkAlts` | Alt checking system settings |
+| `warnSystem` | Warning system settings |
 
 ### All Permission Categories
 
@@ -1044,6 +1244,12 @@ When enabled, you can use:
 | Announcements | `bfcrrmod.announcements.*` | Announcement system |
 | Filters | `bfcrrmod.filter.*` | Word filter system |
 | Signs | `bfcrrmod.sign.*` | Sign formatting |
+| Clear Chat | `bfcrrmod.commands.clearchat` | Clear chat command |
+| Sudo | `bfcrrmod.commands.sudo` | Sudo command |
+| InvLock | `bfcrrmod.commands.invlock` | Inventory lock command |
+| Building | `bfcrrmod.commands.disablebuilding` | Building restrictions |
+| Alts | `bfcrrmod.commands.checkalts` | Alt checking |
+| Warns | `bfcrrmod.commands.warn` / `bfcrrmod.commands.warns` | Warning system |
 
 ---
 

@@ -101,6 +101,32 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> freezeNotify =
 			ezyPermission("freeze.notify", false, "Freeze notifications", "Receives notifications when players are frozen/unfrozen");
 
+	// Clear Chat Permissions
+	public static PermissionNode<Boolean> clearChatCommand =
+			ezyPermission("commands.clearchat", false, "Clear Chat command", "Allows using /cc and /clearchat to clear chat");
+
+	// Sudo Permissions
+	public static PermissionNode<Boolean> sudoCommand =
+			ezyPermission("commands.sudo", false, "Sudo command", "Allows using /sudo to force a player to execute a command");
+
+	// Inventory Lock Permissions
+	public static PermissionNode<Boolean> invLockCommand =
+			ezyPermission("commands.invlock", false, "InvLock command", "Allows using /invlock to lock/unlock a player's inventory");
+
+	// Disable Building Permissions
+	public static PermissionNode<Boolean> disableBuildingCommand =
+			ezyPermission("commands.disablebuilding", false, "Disable Building command", "Allows using /disablebuilding to toggle building restrictions");
+
+	// Check Alts Permissions
+	public static PermissionNode<Boolean> checkAltsCommand =
+			ezyPermission("commands.checkalts", false, "Check Alts command", "Allows using /checkalts to list alternate accounts");
+
+	// Warn System Permissions
+	public static PermissionNode<Boolean> warnCommand =
+			ezyPermission("commands.warn", false, "Warn command", "Allows using /warn to add/check/remove warnings on players");
+	public static PermissionNode<Boolean> warnsSelfCommand =
+			ezyPermission("commands.warns", true, "Warns self command", "Allows using /warns to check own warnings");
+
 	// Announcement Permissions
 	public static PermissionNode<Boolean> announcementManage =
 			ezyPermission("announcements.manage", false, "Manage announcements", "Allows adding/removing announcements");

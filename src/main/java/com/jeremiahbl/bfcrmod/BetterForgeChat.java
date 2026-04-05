@@ -97,6 +97,14 @@ public class BetterForgeChat {
                 CommandRegistrationHandler.getMotdManager().applyToServer(ev.getServer());
             }
         }
+        // Initialize Alt Tracker
+        if(ConfigHandler.config.enableCheckAlts.get()) {
+            CommandRegistrationHandler.getAltTracker().load(ev.getServer());
+        }
+        // Initialize Warn System
+        if(ConfigHandler.config.enableWarnSystem.get()) {
+            CommandRegistrationHandler.getWarnManager().load(ev.getServer());
+        }
     }
     @SubscribeEvent
     public void onServerTick(net.minecraftforge.event.TickEvent.ServerTickEvent ev) {
@@ -115,5 +123,7 @@ public class BetterForgeChat {
     @SubscribeEvent
     public void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent ev) {
         FreezeManager.clear();
+        com.jeremiahbl.bfcrmod.invlock.InvLockManager.clear();
+        com.jeremiahbl.bfcrmod.disablebuilding.DisableBuildingManager.clear();
     }
 }

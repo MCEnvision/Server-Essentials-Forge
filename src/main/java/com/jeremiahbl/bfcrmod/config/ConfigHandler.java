@@ -87,6 +87,50 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<String> invSeePrevPageLabel;
 		public final ForgeConfigSpec.ConfigValue<Boolean> invSeeReadOnly;
 
+		// Clear Chat System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableClearChat;
+		public final ForgeConfigSpec.ConfigValue<Integer> clearChatLineCount;
+		public final ForgeConfigSpec.ConfigValue<String> clearChatSuccessMsg;
+		public final ForgeConfigSpec.ConfigValue<String> clearChatAllSuccessMsg;
+		public final ForgeConfigSpec.ConfigValue<String> clearChatSelfMsg;
+
+		// Sudo System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableSudo;
+		public final ForgeConfigSpec.ConfigValue<String> sudoExecutedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> sudoNotifyMsg;
+
+		// Inventory Lock System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableInvLock;
+		public final ForgeConfigSpec.ConfigValue<String> invLockLockedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> invLockUnlockedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> invLockAdminLockMsg;
+		public final ForgeConfigSpec.ConfigValue<String> invLockAdminUnlockMsg;
+		public final ForgeConfigSpec.ConfigValue<String> invLockBlockedMsg;
+
+		// Disable Building System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableDisableBuilding;
+		public final ForgeConfigSpec.ConfigValue<String> dbEnabledMsg;
+		public final ForgeConfigSpec.ConfigValue<String> dbDisabledMsg;
+		public final ForgeConfigSpec.ConfigValue<String> dbPlayerNotifyMsg;
+		public final ForgeConfigSpec.ConfigValue<String> dbBlockedMsg;
+
+		// Check Alts System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableCheckAlts;
+		public final ForgeConfigSpec.ConfigValue<String> checkAltsHeaderFormat;
+		public final ForgeConfigSpec.ConfigValue<String> checkAltsEntryFormat;
+		public final ForgeConfigSpec.ConfigValue<String> checkAltsNoAltsMsg;
+
+		// Warn System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableWarnSystem;
+		public final ForgeConfigSpec.ConfigValue<String> warnAddedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> warnRemovedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> warnListHeaderFormat;
+		public final ForgeConfigSpec.ConfigValue<String> warnEntryFormat;
+		public final ForgeConfigSpec.ConfigValue<String> warnExpiredTag;
+		public final ForgeConfigSpec.ConfigValue<String> warnNoWarnsMsg;
+		public final ForgeConfigSpec.ConfigValue<String> warnNotifyPlayerMsg;
+		public final ForgeConfigSpec.ConfigValue<Boolean> warnPlaySound;
+
 		// Freeze System
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableFreezeSystem;
 		public final ForgeConfigSpec.ConfigValue<String> freezeMessageToPlayer;
@@ -230,6 +274,69 @@ public class ConfigHandler {
 			invSeePrevPageLabel = builder.comment("  Name shown on the previous page arrow item").define("invSeePrevPageLabel", "&e<<< Previous Page");
 			invSeeReadOnly = builder.comment("  When true, players cannot move items in the InvSee GUI (view-only mode)").define("invSeeReadOnly", true);
 			builder.pop(); // invSee
+
+			// Clear Chat System
+			builder.comment("Clear Chat System",
+					"  /cc and /clearchat commands to clear player chat.").push("clearChat");
+			enableClearChat = builder.comment("  Enable the /cc and /clearchat commands").define("enableClearChat", true);
+			clearChatLineCount = builder.comment("  Number of blank lines to send to clear chat").defineInRange("clearChatLineCount", 100, 1, 500);
+			clearChatSuccessMsg = builder.comment("  Message shown to admin when clearing a specific player's chat. Placeholder: $player").define("clearChatSuccessMsg", "&aChat cleared for $player.");
+			clearChatAllSuccessMsg = builder.comment("  Message shown to admin when clearing all non-OP chats. Placeholder: $admin").define("clearChatAllSuccessMsg", "&aChat cleared for all non-OP players by $admin.");
+			clearChatSelfMsg = builder.comment("  Message shown to the player whose chat was cleared").define("clearChatSelfMsg", "&7Your chat has been cleared by an operator.");
+			builder.pop(); // clearChat
+
+			// Sudo System
+			builder.comment("Sudo System",
+					"  /sudo command to force a player to execute a command.").push("sudo");
+			enableSudo = builder.comment("  Enable the /sudo command").define("enableSudo", true);
+			sudoExecutedMsg = builder.comment("  Message shown to the admin. Placeholders: $player, $command, $admin").define("sudoExecutedMsg", "&aForced $player to execute: &7/$command");
+			sudoNotifyMsg = builder.comment("  Message shown to the target player. Placeholders: $admin, $command").define("sudoNotifyMsg", "&c$admin forced you to run: &7/$command");
+			builder.pop(); // sudo
+
+			// Inventory Lock System
+			builder.comment("Inventory Lock System",
+					"  /invlock command to lock/unlock a player's inventory.").push("invLock");
+			enableInvLock = builder.comment("  Enable the /invlock command").define("enableInvLock", true);
+			invLockLockedMsg = builder.comment("  Message shown to the player when their inventory is locked. Placeholder: $admin").define("invLockLockedMsg", "&c$admin has locked your inventory.");
+			invLockUnlockedMsg = builder.comment("  Message shown to the player when their inventory is unlocked. Placeholder: $admin").define("invLockUnlockedMsg", "&a$admin has unlocked your inventory.");
+			invLockAdminLockMsg = builder.comment("  Message shown to admin when locking. Placeholder: $player").define("invLockAdminLockMsg", "&eLocked inventory for $player.");
+			invLockAdminUnlockMsg = builder.comment("  Message shown to admin when unlocking. Placeholder: $player").define("invLockAdminUnlockMsg", "&eUnlocked inventory for $player.");
+			invLockBlockedMsg = builder.comment("  Message shown when a locked player tries to use their inventory").define("invLockBlockedMsg", "&cYour inventory is locked.");
+			builder.pop(); // invLock
+
+			// Disable Building System
+			builder.comment("Disable Building System",
+					"  /disablebuilding command to toggle building restrictions for a player.").push("disableBuilding");
+			enableDisableBuilding = builder.comment("  Enable the /disablebuilding and /db commands").define("enableDisableBuilding", true);
+			dbEnabledMsg = builder.comment("  Message shown to admin when disabling building. Placeholders: $player, $admin").define("dbEnabledMsg", "&cBuilding disabled for $player by $admin.");
+			dbDisabledMsg = builder.comment("  Message shown to admin when re-enabling building. Placeholders: $player, $admin").define("dbDisabledMsg", "&aBuilding re-enabled for $player by $admin.");
+			dbPlayerNotifyMsg = builder.comment("  Message shown to the player. Placeholders: $status (disabled/enabled), $admin").define("dbPlayerNotifyMsg", "&cYour building privileges have been $status by $admin.");
+			dbBlockedMsg = builder.comment("  Message shown when a player with building disabled tries to build").define("dbBlockedMsg", "&cYou are not allowed to build.");
+			builder.pop(); // disableBuilding
+
+			// Check Alts System
+			builder.comment("Check Alts System",
+					"  /checkalts command to check alternate accounts by IP.").push("checkAlts");
+			enableCheckAlts = builder.comment("  Enable the /checkalts command").define("enableCheckAlts", true);
+			checkAltsHeaderFormat = builder.comment("  Header for alts list. Placeholders: $player, $ip").define("checkAltsHeaderFormat", "&6━━━━ Alts for $player ($ip) ━━━━");
+			checkAltsEntryFormat = builder.comment("  Format for each alt entry. Placeholders: $name, $uuid, $lastseen").define("checkAltsEntryFormat", "&7- &e$name &7($uuid) Last seen: $lastseen");
+			checkAltsNoAltsMsg = builder.comment("  Message when no alts found. Placeholder: $player").define("checkAltsNoAltsMsg", "&7No alternate accounts found for $player.");
+			builder.pop(); // checkAlts
+
+			// Warn System
+			builder.comment("Warn System",
+					"  /warn and /warns commands for player warning management.",
+					"  Warns persist to JSON and support expiration durations.").push("warnSystem");
+			enableWarnSystem = builder.comment("  Enable the warning system (/warn, /warns commands)").define("enableWarnSystem", true);
+			warnAddedMsg = builder.comment("  Message to admin when warning added. Placeholders: $player, $reason, $admin, $id, $duration").define("warnAddedMsg", "&aWarning #$id added for $player: &7$reason &e(Duration: $duration)");
+			warnRemovedMsg = builder.comment("  Message to admin when warning removed. Placeholders: $player, $id").define("warnRemovedMsg", "&eWarning #$id removed for $player.");
+			warnListHeaderFormat = builder.comment("  Header for warnings list. Placeholder: $player").define("warnListHeaderFormat", "&6━━━━ Warnings for $player ━━━━");
+			warnEntryFormat = builder.comment("  Format for each warning entry. Placeholders: $id, $reason, $admin, $date, $expired").define("warnEntryFormat", "&7#$id &f$reason &7(by $admin, $date)$expired");
+			warnExpiredTag = builder.comment("  Text appended for expired warnings").define("warnExpiredTag", " &c(expired)");
+			warnNoWarnsMsg = builder.comment("  Message when player has no warnings. Placeholder: $player").define("warnNoWarnsMsg", "&7$player has no warnings.");
+			warnNotifyPlayerMsg = builder.comment("  Message shown to the warned player. Placeholders: $admin, $reason").define("warnNotifyPlayerMsg", "&c⚠ You have been warned by $admin: &f$reason");
+			warnPlaySound = builder.comment("  Play a sound when a player is warned").define("warnPlaySound", true);
+			builder.pop(); // warnSystem
 
 			// Freeze System
 			builder.comment("Freeze System",
