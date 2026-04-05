@@ -15,6 +15,7 @@ import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.IReloadable;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
+import com.jeremiahbl.bfcrmod.utils.moddeps.FTBMuteChecker;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.ChatFormatting;
@@ -77,6 +78,30 @@ public class ChatEventHandler implements IReloadable {
 		if(e == null || player == null) return;
         String msg = e.getMessage().getString();
 		if(msg == null || (msg).isEmpty()) return;
+
+		// Check if player is muted via FTB Essentials
+		if(ConfigHandler.config.enableFtbMuteIntegration.get() && FTBMuteChecker.isMuted(player)) {
+			// Send muted message to the player
+			player.sendSystemMessage(TextFormatter.stringToFormattedText(
+				ConfigHandler.config.mutedPlayerMessage.get()));
+
+			// Optionally relay to operators
+			if(ConfigHandler.config.sendMutedMessageToOps.get()) {
+				String opFormat = ConfigHandler.config.mutedMessageOpFormat.get()
+					.replace("$username", profile.getName())
+					.replace("$message", msg);
+				MutableComponent opMsg = TextFormatter.stringToFormattedText(opFormat);
+				for(ServerPlayer op : player.getServer().getPlayerList().getPlayers()) {
+					if(PermissionsHandler.playerHasPermission(op.getUUID(), PermissionsHandler.muteSeeBlocked)) {
+						op.sendSystemMessage(opMsg);
+					}
+				}
+			}
+
+			e.setCanceled(true);
+			BetterForgeChat.LOGGER.info("[MUTED] {} tried to say: {}", profile.getName(), msg);
+			return;
+		}
 
 		// IMPORTANT: Check if this should be a private/admin message FIRST
 		// We need to BOTH cancel the event AND execute the command

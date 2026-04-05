@@ -69,6 +69,24 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableMotdSystem;
 		public final ForgeConfigSpec.ConfigValue<Boolean> applyMotdOnStartup;
 
+		// FTB Mute Integration
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableFtbMuteIntegration;
+		public final ForgeConfigSpec.ConfigValue<String> mutedPlayerMessage;
+		public final ForgeConfigSpec.ConfigValue<String> mutedMessageOpFormat;
+		public final ForgeConfigSpec.ConfigValue<Boolean> sendMutedMessageToOps;
+
+		// InvSee System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableInvSee;
+		public final ForgeConfigSpec.ConfigValue<Boolean> invSeeDisableFtbInvsee;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeTitle;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeArmorLabel;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeOffhandLabel;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeCuriosLabel;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeMainInvLabel;
+		public final ForgeConfigSpec.ConfigValue<String> invSeeNextPageLabel;
+		public final ForgeConfigSpec.ConfigValue<String> invSeePrevPageLabel;
+		public final ForgeConfigSpec.ConfigValue<Boolean> invSeeReadOnly;
+
 		// Message Format Options
 		public final ForgeConfigSpec.ConfigValue<String> msgSentFormat;
 		public final ForgeConfigSpec.ConfigValue<String> msgReceivedFormat;
@@ -172,6 +190,33 @@ public class ConfigHandler {
 			enableMotdSystem = builder.comment("  Enable the MOTD system (/bfcrr motd commands)").define("enableMotdSystem", true);
 			applyMotdOnStartup = builder.comment("  Automatically apply the configured MOTD when the server starts").define("applyMotdOnStartup", true);
 
+			// FTB Mute Integration
+			builder.comment("FTB Essentials Mute Integration",
+					"  Requires FTB Essentials to be installed.",
+					"  When a player is muted via /mute, their chat messages will be blocked by this mod's chat system.").push("ftbMuteIntegration");
+			enableFtbMuteIntegration = builder.comment("  Enable checking FTB Essentials mute status to block muted players from chatting").define("enableFtbMuteIntegration", true);
+			mutedPlayerMessage = builder.comment("  Message shown to the muted player when they try to chat").define("mutedPlayerMessage", "&cYou are muted and cannot send messages.");
+			sendMutedMessageToOps = builder.comment("  When true, muted messages are relayed to online operators so they can see what the muted player tried to say").define("sendMutedMessageToOps", true);
+			mutedMessageOpFormat = builder.comment("  Format for relaying muted messages to operators. Placeholders: $username, $message").define("mutedMessageOpFormat", "&c&lMuted Message &7From $username:&r $message");
+			builder.pop(); // ftbMuteIntegration
+
+			// InvSee System
+			builder.comment("InvSee System",
+					"  Custom /invsee command with Curios mod support.",
+					"  If FTB Essentials is installed and invSeeDisableFtbInvsee is true,",
+					"  this mod's /invsee will override FTB's version.").push("invSee");
+			enableInvSee = builder.comment("  Enable the custom /invsee command").define("enableInvSee", true);
+			invSeeDisableFtbInvsee = builder.comment("  When true and FTB Essentials is loaded, override FTB's /invsee with ours").define("invSeeDisableFtbInvsee", true);
+			invSeeTitle = builder.comment("  Title of the InvSee GUI. Placeholder: $player").define("invSeeTitle", "&e$player's Inventory");
+			invSeeArmorLabel = builder.comment("  Name shown on the glass pane separator for armor section").define("invSeeArmorLabel", "&9Armor");
+			invSeeOffhandLabel = builder.comment("  Name shown on the glass pane separator for offhand section").define("invSeeOffhandLabel", "&6Offhand");
+			invSeeCuriosLabel = builder.comment("  Name shown on the glass pane separator for curios section").define("invSeeCuriosLabel", "&dCurios");
+			invSeeMainInvLabel = builder.comment("  Name shown on the glass pane separator for main inventory section").define("invSeeMainInvLabel", "&aInventory");
+			invSeeNextPageLabel = builder.comment("  Name shown on the next page arrow item").define("invSeeNextPageLabel", "&eNext Page >>>");
+			invSeePrevPageLabel = builder.comment("  Name shown on the previous page arrow item").define("invSeePrevPageLabel", "&e<<< Previous Page");
+			invSeeReadOnly = builder.comment("  When true, players cannot move items in the InvSee GUI (view-only mode)").define("invSeeReadOnly", true);
+			builder.pop(); // invSee
+
 			// Message Formats
 			builder.comment("Message Format Customization",
 					"  Available placeholders vary by message type:",
@@ -216,7 +261,7 @@ public class ConfigHandler {
 			builder.comment("System Messages - Customize all feedback messages").push("systemMessages");
 			adminChatEnabledMsg = builder.comment("  Message when admin chat is enabled").define("adminChatEnabledMsg", "&aAdmin chat enabled. &7Your messages will only be seen by operators.");
 			adminChatDisabledMsg = builder.comment("  Message when admin chat is disabled").define("adminChatDisabledMsg", "&cAdmin chat disabled. &7You are now in public chat.");
-			helpOpSentMsg = builder.comment("  Message when helpop is sent. Placeholder: $count").define("helpOpSentMsg", "&aYour help request has been sent to $count operator(s)");
+			helpOpSentMsg = builder.comment("  Message when helpop is sent. Optional placeholder: $count (number of operators online, use with caution - may reveal vanished operators)").define("helpOpSentMsg", "&aMessage sent to all online operators. If there is no one online make a discord ticket.");
 			helpOpReplySentMsg = builder.comment("  Message when helpop reply is sent. Placeholder: $player").define("helpOpReplySentMsg", "&aReply sent to $player");
 			noReplyTargetMsg = builder.comment("  Message when there's no one to reply to").define("noReplyTargetMsg", "&cNo one to reply to.");
 			playerOfflineMsg = builder.comment("  Message when target player is offline").define("playerOfflineMsg", "&cThat player is offline.");

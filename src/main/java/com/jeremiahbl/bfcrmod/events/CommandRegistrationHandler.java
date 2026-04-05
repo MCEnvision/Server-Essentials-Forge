@@ -11,6 +11,7 @@ import com.jeremiahbl.bfcrmod.commands.BfcCommands;
 import com.jeremiahbl.bfcrmod.commands.MsgCommands;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.filter.FilterManager;
+import com.jeremiahbl.bfcrmod.invsee.InvSeeCommand;
 import com.jeremiahbl.bfcrmod.motd.MotdCommands;
 import com.jeremiahbl.bfcrmod.motd.MotdManager;
 
@@ -75,6 +76,18 @@ public class CommandRegistrationHandler {
         // Register MOTD commands - always register, manager will be set later
         if(ConfigHandler.config.enableMotdSystem.get()) {
             MotdCommands.register(e.getDispatcher());
+        }
+    }
+
+    /**
+     * Register InvSee at LOW priority so it runs AFTER FTB Essentials'
+     * command registration, allowing us to override their /invsee node.
+     */
+    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOW)
+    public void registerInvSeeCommand(RegisterCommandsEvent e) {
+        // Register custom /invsee command if enabled
+        if(ConfigHandler.config.enableInvSee.get()) {
+            InvSeeCommand.register(e.getDispatcher());
         }
     }
 }

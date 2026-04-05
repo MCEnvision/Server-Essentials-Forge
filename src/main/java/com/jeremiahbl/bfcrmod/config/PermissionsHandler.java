@@ -85,6 +85,14 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> adminChatSee =
 			ezyPermission("adminchat.see", false, "See Admin Chat", "Can see admin chat messages");
 
+	// Mute System Permissions
+	public static PermissionNode<Boolean> muteSeeBlocked =
+			ezyPermission("mute.seeblocked", false, "See muted messages", "Receives muted player messages relayed to operators");
+
+	// InvSee Permissions
+	public static PermissionNode<Boolean> invSeeCommand =
+			ezyPermission("commands.invsee", false, "InvSee command", "Allows using /invsee to view another player's inventory");
+
 	// Announcement Permissions
 	public static PermissionNode<Boolean> announcementManage =
 			ezyPermission("announcements.manage", false, "Manage announcements", "Allows adding/removing announcements");
