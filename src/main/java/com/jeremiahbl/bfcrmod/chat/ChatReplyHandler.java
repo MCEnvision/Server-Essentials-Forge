@@ -4,6 +4,7 @@ import com.jeremiahbl.bfcrmod.BetterForgeChat;
 import com.jeremiahbl.bfcrmod.TextFormatter;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
+import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -66,15 +67,21 @@ public class ChatReplyHandler {
             summary = summary.substring(0, maxLen) + "...";
         }
 
+        // Get the replier's formatted name (with rank/prefix/suffix)
+        String replierFormattedName = BetterForgeChatUtilities.getRawPreferredPlayerName(replier.getGameProfile());
+
         // Build reply header
         String headerFormat = ConfigHandler.config.replyHeaderFormat.get()
-            .replace("$replier", replier.getGameProfile().getName())
+            .replace("$replier", replierFormattedName)
             .replace("$original_sender", original.formattedName())
             .replace("$summary", summary);
         MutableComponent header = TextFormatter.stringToFormattedText(headerFormat);
 
-        // Build reply message
-        MutableComponent replyMsg = TextFormatter.stringToFormattedText(reply);
+        // Build reply body with the replier's full name
+        String bodyFormat = ConfigHandler.config.replyBodyFormat.get()
+            .replace("$replier", replierFormattedName)
+            .replace("$message", reply);
+        MutableComponent replyMsg = TextFormatter.stringToFormattedText(bodyFormat);
         MutableComponent fullReply = header.append("\n").append(replyMsg);
 
         // Send to original sender

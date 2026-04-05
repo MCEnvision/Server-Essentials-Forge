@@ -149,6 +149,7 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<String> msgSentFormat;
 		public final ForgeConfigSpec.ConfigValue<String> msgReceivedFormat;
 		public final ForgeConfigSpec.ConfigValue<String> replyHeaderFormat;
+		public final ForgeConfigSpec.ConfigValue<String> replyBodyFormat;
 		public final ForgeConfigSpec.ConfigValue<String> helpOpRequestFormat;
 		public final ForgeConfigSpec.ConfigValue<String> helpOpReplyFormat;
 		public final ForgeConfigSpec.ConfigValue<String> adminChatFormat;
@@ -383,6 +384,10 @@ public class ConfigHandler {
 			replyHeaderFormat = builder
 					.comment("  Format for reply header. Placeholders: $replier, $original_sender, $summary")
 					.define("replyHeaderFormat", "    &f&l┌────&r &7Replying to $original_sender&7: &7$summary");
+			replyBodyFormat = builder
+					.comment("  Format for the reply body line (the replier's message). Placeholders: $replier, $message",
+							 "  $replier will include the player's rank/prefix/suffix from LuckPerms if available")
+					.define("replyBodyFormat", "$replier&7: &r$message");
 			helpOpRequestFormat = builder
 					.comment("  Format for HelpOp requests to operators. Placeholders: $sender, $message")
 					.define("helpOpRequestFormat", "&l&cHelpOp &fFrom &e$sender&7:&r&7 $message");
