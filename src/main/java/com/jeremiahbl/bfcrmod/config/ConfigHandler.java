@@ -87,6 +87,20 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<String> invSeePrevPageLabel;
 		public final ForgeConfigSpec.ConfigValue<Boolean> invSeeReadOnly;
 
+		// Freeze System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableFreezeSystem;
+		public final ForgeConfigSpec.ConfigValue<String> freezeMessageToPlayer;
+		public final ForgeConfigSpec.ConfigValue<String> freezeReasonFormat;
+		public final ForgeConfigSpec.ConfigValue<String> freezeReminderFormat;
+		public final ForgeConfigSpec.ConfigValue<Integer> freezeReminderIntervalSeconds;
+		public final ForgeConfigSpec.ConfigValue<String> freezeAdminNotifyFormat;
+		public final ForgeConfigSpec.ConfigValue<String> unfreezeMessageToPlayer;
+		public final ForgeConfigSpec.ConfigValue<String> unfreezeAdminNotifyFormat;
+		public final ForgeConfigSpec.ConfigValue<String> freezeCommandBlockedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> freezeActionBlockedMsg;
+		public final ForgeConfigSpec.ConfigValue<Boolean> freezePlaySound;
+		public final ForgeConfigSpec.ConfigValue<Boolean> freezeAllowChat;
+
 		// Message Format Options
 		public final ForgeConfigSpec.ConfigValue<String> msgSentFormat;
 		public final ForgeConfigSpec.ConfigValue<String> msgReceivedFormat;
@@ -216,6 +230,34 @@ public class ConfigHandler {
 			invSeePrevPageLabel = builder.comment("  Name shown on the previous page arrow item").define("invSeePrevPageLabel", "&e<<< Previous Page");
 			invSeeReadOnly = builder.comment("  When true, players cannot move items in the InvSee GUI (view-only mode)").define("invSeeReadOnly", true);
 			builder.pop(); // invSee
+
+			// Freeze System
+			builder.comment("Freeze System",
+					"  /freeze command to lock a player in place.",
+					"  Frozen players cannot move, look around, jump, mine, break, place, or use commands.",
+					"  They CAN still type in chat to respond to the admin.").push("freezeSystem");
+			enableFreezeSystem = builder.comment("  Enable the /freeze command").define("enableFreezeSystem", true);
+			freezeMessageToPlayer = builder.comment("  Message sent to the player when they are frozen. Placeholders: $reason, $admin, $duration")
+					.define("freezeMessageToPlayer", "&c&l⚠ YOU HAVE BEEN FROZEN ⚠\n&7Reason: &f$reason\n&7Frozen by: &e$admin\n&7Duration: &e$duration\n&7&oPlease respond to the admin in chat.");
+			freezeReasonFormat = builder.comment("  Format of the reason displayed. Placeholder: $reason")
+					.define("freezeReasonFormat", "&c&lFROZEN &7- &f$reason");
+			freezeReminderFormat = builder.comment("  Periodic reminder message to frozen players. Placeholders: $reason, $admin")
+					.define("freezeReminderFormat", "&c&l⚠ You are still frozen! &7Reason: &f$reason &7- Please respond in chat.");
+			freezeReminderIntervalSeconds = builder.comment("  How often (seconds) to remind frozen players (0 = no reminders)")
+					.defineInRange("freezeReminderIntervalSeconds", 15, 0, 3600);
+			freezeAdminNotifyFormat = builder.comment("  Notification sent to admins when a player is frozen. Placeholders: $player, $admin, $reason, $duration")
+					.define("freezeAdminNotifyFormat", "&e$admin &7has frozen &e$player &7for &e$duration&7. Reason: &f$reason");
+			unfreezeMessageToPlayer = builder.comment("  Message sent to the player when unfrozen. Placeholder: $admin")
+					.define("unfreezeMessageToPlayer", "&a&lYou have been unfrozen by &e$admin&a&l.");
+			unfreezeAdminNotifyFormat = builder.comment("  Notification sent to admins when a player is unfrozen. Placeholders: $player, $admin")
+					.define("unfreezeAdminNotifyFormat", "&e$admin &7has unfrozen &e$player&7.");
+			freezeCommandBlockedMsg = builder.comment("  Message when a frozen player tries to use a command")
+					.define("freezeCommandBlockedMsg", "&cYou are frozen and cannot use commands. Please respond in chat.");
+			freezeActionBlockedMsg = builder.comment("  Message when a frozen player tries to interact/mine/etc")
+					.define("freezeActionBlockedMsg", "&cYou are frozen and cannot do that.");
+			freezePlaySound = builder.comment("  Play a sound when a player is frozen").define("freezePlaySound", true);
+			freezeAllowChat = builder.comment("  Allow frozen players to chat (so they can respond to the admin)").define("freezeAllowChat", true);
+			builder.pop(); // freezeSystem
 
 			// Message Formats
 			builder.comment("Message Format Customization",

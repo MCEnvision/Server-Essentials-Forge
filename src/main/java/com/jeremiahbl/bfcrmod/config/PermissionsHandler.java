@@ -93,6 +93,14 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> invSeeCommand =
 			ezyPermission("commands.invsee", false, "InvSee command", "Allows using /invsee to view another player's inventory");
 
+	// Freeze Permissions
+	public static PermissionNode<Boolean> freezeCommand =
+			ezyPermission("commands.freeze", false, "Freeze command", "Allows using /freeze to freeze a player in place");
+	public static PermissionNode<Boolean> unfreezeCommand =
+			ezyPermission("commands.unfreeze", false, "Unfreeze command", "Allows using /unfreeze to unfreeze a player");
+	public static PermissionNode<Boolean> freezeNotify =
+			ezyPermission("freeze.notify", false, "Freeze notifications", "Receives notifications when players are frozen/unfrozen");
+
 	// Announcement Permissions
 	public static PermissionNode<Boolean> announcementManage =
 			ezyPermission("announcements.manage", false, "Manage announcements", "Allows adding/removing announcements");

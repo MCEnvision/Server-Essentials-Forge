@@ -11,6 +11,7 @@ import com.jeremiahbl.bfcrmod.commands.BfcCommands;
 import com.jeremiahbl.bfcrmod.commands.MsgCommands;
 import com.jeremiahbl.bfcrmod.config.ConfigHandler;
 import com.jeremiahbl.bfcrmod.filter.FilterManager;
+import com.jeremiahbl.bfcrmod.freeze.FreezeCommand;
 import com.jeremiahbl.bfcrmod.invsee.InvSeeCommand;
 import com.jeremiahbl.bfcrmod.motd.MotdCommands;
 import com.jeremiahbl.bfcrmod.motd.MotdManager;
@@ -76,6 +77,11 @@ public class CommandRegistrationHandler {
         // Register MOTD commands - always register, manager will be set later
         if(ConfigHandler.config.enableMotdSystem.get()) {
             MotdCommands.register(e.getDispatcher());
+        }
+
+        // Register /freeze and /unfreeze commands if enabled
+        if(ConfigHandler.config.enableFreezeSystem.get()) {
+            FreezeCommand.register(e.getDispatcher());
         }
     }
 

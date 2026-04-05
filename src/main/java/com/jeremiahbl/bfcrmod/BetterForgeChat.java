@@ -1,4 +1,4 @@
-package com.jeremiahbl.bfcrmod;
+ package com.jeremiahbl.bfcrmod;
 
 import org.slf4j.Logger;
 
@@ -12,6 +12,8 @@ import com.jeremiahbl.bfcrmod.events.ChatEventHandler;
 import com.jeremiahbl.bfcrmod.events.CommandRegistrationHandler;
 import com.jeremiahbl.bfcrmod.events.ExternalModLoadingEvent;
 import com.jeremiahbl.bfcrmod.events.PlayerEventHandler;
+import com.jeremiahbl.bfcrmod.freeze.FreezeEventHandler;
+import com.jeremiahbl.bfcrmod.freeze.FreezeManager;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.jeremiahbl.bfcrmod.utils.IMetadataProvider;
 import com.jeremiahbl.bfcrmod.utils.INicknameProvider;
@@ -105,6 +107,13 @@ public class BetterForgeChat {
             if(ConfigHandler.config.enableBannedItems.get()) {
                 CommandRegistrationHandler.getBannedItemsManager().tick(ev.getServer(), ev.getServer().getTickCount());
             }
+            if(ConfigHandler.config.enableFreezeSystem.get()) {
+                FreezeManager.tick(ev.getServer());
+            }
         }
+    }
+    @SubscribeEvent
+    public void onServerStopping(net.minecraftforge.event.server.ServerStoppingEvent ev) {
+        FreezeManager.clear();
     }
 }
