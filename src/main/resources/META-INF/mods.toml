@@ -65,5 +65,6 @@ project= "betterforgechatrebornreworked"
     ordering="BEFORE"
     side="BOTH"
 
-[[mixins]]
-    config="bfcrrmod.mixins.json"
+# Mixins disabled — no mixin classes currently exist
+# [[mixins]]
+#     config="bfcrrmod.mixins.json"

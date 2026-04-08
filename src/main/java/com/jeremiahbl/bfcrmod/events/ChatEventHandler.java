@@ -16,6 +16,7 @@ import com.jeremiahbl.bfcrmod.config.IReloadable;
 import com.jeremiahbl.bfcrmod.config.PermissionsHandler;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.jeremiahbl.bfcrmod.utils.moddeps.FTBMuteChecker;
+import com.jeremiahbl.bfcrmod.mute.MuteManager;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.ChatFormatting;
@@ -78,6 +79,40 @@ public class ChatEventHandler implements IReloadable {
 		if(e == null || player == null) return;
         String msg = e.getMessage().getString();
 		if(msg == null || (msg).isEmpty()) return;
+
+		// Check if player is muted via persistent MuteManager (our own system)
+		if(ConfigHandler.config.enableMuteSystem.get()) {
+			MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
+			if(muteManager != null && muteManager.isMuted(uuid)) {
+				MuteManager.MuteEntry muteEntry = muteManager.getMuteEntry(uuid);
+				// Show muted message with remaining time if applicable
+				String muteMsg;
+				if(muteEntry != null && !muteEntry.isPermanent()) {
+					muteMsg = ConfigHandler.config.mutedPlayerChatMsgWithRemaining.get()
+						.replace("$remaining", muteEntry.getRemainingString());
+				} else {
+					muteMsg = ConfigHandler.config.mutedPlayerChatMsg.get();
+				}
+				player.sendSystemMessage(TextFormatter.stringToFormattedText(muteMsg));
+
+				// Optionally relay to operators
+				if(ConfigHandler.config.sendMutedMessageToOps.get()) {
+					String opFormat = ConfigHandler.config.mutedMessageOpFormat.get()
+						.replace("$username", profile.getName())
+						.replace("$message", msg);
+					MutableComponent opMsg = TextFormatter.stringToFormattedText(opFormat);
+					for(ServerPlayer op : player.getServer().getPlayerList().getPlayers()) {
+						if(PermissionsHandler.playerHasPermission(op.getUUID(), PermissionsHandler.muteSeeBlocked)) {
+							op.sendSystemMessage(opMsg);
+						}
+					}
+				}
+
+				e.setCanceled(true);
+				BetterForgeChat.LOGGER.info("[MUTED] {} tried to say: {}", profile.getName(), msg);
+				return;
+			}
+		}
 
 		// Check if player is muted via FTB Essentials
 		if(ConfigHandler.config.enableFtbMuteIntegration.get() && FTBMuteChecker.isMuted(player)) {

@@ -88,6 +88,12 @@ public class PermissionsHandler {
 	// Mute System Permissions
 	public static PermissionNode<Boolean> muteSeeBlocked =
 			ezyPermission("mute.seeblocked", false, "See muted messages", "Receives muted player messages relayed to operators");
+	public static PermissionNode<Boolean> muteCommand =
+			ezyPermission("commands.mute", false, "Mute command", "Allows using /mute to mute a player");
+	public static PermissionNode<Boolean> unmuteCommand =
+			ezyPermission("commands.unmute", false, "Unmute command", "Allows using /unmute to unmute a player");
+	public static PermissionNode<Boolean> muteNotify =
+			ezyPermission("mute.notify", false, "Mute notifications", "Receives notifications when players are muted/unmuted");
 
 	// InvSee Permissions
 	public static PermissionNode<Boolean> invSeeCommand =

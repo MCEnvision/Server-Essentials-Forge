@@ -14,6 +14,7 @@ import com.jeremiahbl.bfcrmod.events.ExternalModLoadingEvent;
 import com.jeremiahbl.bfcrmod.events.PlayerEventHandler;
 import com.jeremiahbl.bfcrmod.freeze.FreezeEventHandler;
 import com.jeremiahbl.bfcrmod.freeze.FreezeManager;
+import com.jeremiahbl.bfcrmod.mute.MuteManager;
 import com.jeremiahbl.bfcrmod.utils.BetterForgeChatUtilities;
 import com.jeremiahbl.bfcrmod.utils.IMetadataProvider;
 import com.jeremiahbl.bfcrmod.utils.INicknameProvider;
@@ -105,6 +106,10 @@ public class BetterForgeChat {
         if(ConfigHandler.config.enableWarnSystem.get()) {
             CommandRegistrationHandler.getWarnManager().load(ev.getServer());
         }
+        // Initialize Persistent Mute System
+        if(ConfigHandler.config.enableMuteSystem.get()) {
+            CommandRegistrationHandler.getMuteManager().load(ev.getServer());
+        }
     }
     @SubscribeEvent
     public void onServerTick(net.minecraftforge.event.TickEvent.ServerTickEvent ev) {
@@ -118,6 +123,9 @@ public class BetterForgeChat {
             if(ConfigHandler.config.enableFreezeSystem.get()) {
                 FreezeManager.tick(ev.getServer());
             }
+            if(ConfigHandler.config.enableMuteSystem.get()) {
+                CommandRegistrationHandler.getMuteManager().tick(ev.getServer());
+            }
         }
     }
     @SubscribeEvent
@@ -125,5 +133,9 @@ public class BetterForgeChat {
         FreezeManager.clear();
         com.jeremiahbl.bfcrmod.invlock.InvLockManager.clear();
         com.jeremiahbl.bfcrmod.disablebuilding.DisableBuildingManager.clear();
+        // Save mute data on server stop (persist across restarts)
+        if(ConfigHandler.config.enableMuteSystem.get()) {
+            CommandRegistrationHandler.getMuteManager().shutdown();
+        }
     }
 }

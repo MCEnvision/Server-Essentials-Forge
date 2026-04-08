@@ -20,6 +20,8 @@ import com.jeremiahbl.bfcrmod.invlock.InvLockCommand;
 import com.jeremiahbl.bfcrmod.invsee.InvSeeCommand;
 import com.jeremiahbl.bfcrmod.motd.MotdCommands;
 import com.jeremiahbl.bfcrmod.motd.MotdManager;
+import com.jeremiahbl.bfcrmod.mute.MuteCommand;
+import com.jeremiahbl.bfcrmod.mute.MuteManager;
 import com.jeremiahbl.bfcrmod.sudo.SudoCommand;
 import com.jeremiahbl.bfcrmod.warn.WarnCommand;
 import com.jeremiahbl.bfcrmod.warn.WarnManager;
@@ -35,6 +37,7 @@ public class CommandRegistrationHandler {
     private static final BannedItemsManager BANNED_ITEMS_MANAGER = new BannedItemsManager();
     private static final AltTracker ALT_TRACKER = new AltTracker();
     private static final WarnManager WARN_MANAGER = new WarnManager();
+    private static final MuteManager MUTE_MANAGER = new MuteManager();
     private static MotdManager MOTD_MANAGER = null;
 
     public static AnnouncementManager getAnnouncementManager() { return ANNOUNCEMENT_MANAGER; }
@@ -43,6 +46,7 @@ public class CommandRegistrationHandler {
     public static MotdManager getMotdManager() { return MOTD_MANAGER; }
     public static AltTracker getAltTracker() { return ALT_TRACKER; }
     public static WarnManager getWarnManager() { return WARN_MANAGER; }
+    public static MuteManager getMuteManager() { return MUTE_MANAGER; }
 
     public static void initMotdManager(java.nio.file.Path configDir) {
         MOTD_MANAGER = new MotdManager(configDir);
@@ -124,6 +128,11 @@ public class CommandRegistrationHandler {
         // Register /warn and /warns commands if enabled
         if(ConfigHandler.config.enableWarnSystem.get()) {
             WarnCommand.register(e.getDispatcher());
+        }
+
+        // Register /mute, /unmute, /mutelist commands if enabled
+        if(ConfigHandler.config.enableMuteSystem.get()) {
+            MuteCommand.register(e.getDispatcher());
         }
     }
 

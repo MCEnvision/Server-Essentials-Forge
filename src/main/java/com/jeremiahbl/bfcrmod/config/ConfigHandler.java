@@ -75,6 +75,22 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<String> mutedMessageOpFormat;
 		public final ForgeConfigSpec.ConfigValue<Boolean> sendMutedMessageToOps;
 
+		// Persistent Mute System
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableMuteSystem;
+		public final ForgeConfigSpec.ConfigValue<String> muteNotifyPlayerFormat;
+		public final ForgeConfigSpec.ConfigValue<String> muteAdminNotifyFormat;
+		public final ForgeConfigSpec.ConfigValue<String> unmuteNotifyPlayerFormat;
+		public final ForgeConfigSpec.ConfigValue<String> unmuteAdminNotifyFormat;
+		public final ForgeConfigSpec.ConfigValue<String> muteConfirmFormat;
+		public final ForgeConfigSpec.ConfigValue<String> unmuteConfirmFormat;
+		public final ForgeConfigSpec.ConfigValue<String> muteAlreadyMutedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> muteNotMutedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> muteListHeaderFormat;
+		public final ForgeConfigSpec.ConfigValue<String> muteListEntryFormat;
+		public final ForgeConfigSpec.ConfigValue<String> muteListEmptyMsg;
+		public final ForgeConfigSpec.ConfigValue<String> mutedPlayerChatMsg;
+		public final ForgeConfigSpec.ConfigValue<String> mutedPlayerChatMsgWithRemaining;
+
 		// InvSee System
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableInvSee;
 		public final ForgeConfigSpec.ConfigValue<Boolean> invSeeDisableFtbInvsee;
@@ -258,6 +274,41 @@ public class ConfigHandler {
 			sendMutedMessageToOps = builder.comment("  When true, muted messages are relayed to online operators so they can see what the muted player tried to say").define("sendMutedMessageToOps", true);
 			mutedMessageOpFormat = builder.comment("  Format for relaying muted messages to operators. Placeholders: $username, $message").define("mutedMessageOpFormat", "&c&lMuted Message &7From $username:&r $message");
 			builder.pop(); // ftbMuteIntegration
+
+			// Persistent Mute System
+			builder.comment("Persistent Mute System",
+					"  /mute and /unmute commands with persistent, tick-based mute tracking.",
+					"  Mutes survive player disconnects and server restarts.",
+					"  Duration counts in server ticks (stops when server is off).",
+					"  Data stored in <world>/serverconfig/bfcrr/mutes.json").push("muteSystem");
+			enableMuteSystem = builder.comment("  Enable the persistent /mute and /unmute commands").define("enableMuteSystem", true);
+			muteNotifyPlayerFormat = builder.comment("  Message sent to the player when muted. Placeholders: $admin, $reason, $duration")
+					.define("muteNotifyPlayerFormat", "&c&l⚠ YOU HAVE BEEN MUTED ⚠\\n&7Reason: &f$reason\\n&7Muted by: &e$admin\\n&7Duration: &e$duration");
+			muteAdminNotifyFormat = builder.comment("  Notification sent to admins when a player is muted. Placeholders: $player, $admin, $reason, $duration")
+					.define("muteAdminNotifyFormat", "&e$admin &7has muted &e$player &7for &e$duration&7. Reason: &f$reason");
+			unmuteNotifyPlayerFormat = builder.comment("  Message sent to the player when unmuted. Placeholder: $admin")
+					.define("unmuteNotifyPlayerFormat", "&a&lYou have been unmuted by &e$admin&a&l.");
+			unmuteAdminNotifyFormat = builder.comment("  Notification sent to admins when a player is unmuted. Placeholders: $player, $admin")
+					.define("unmuteAdminNotifyFormat", "&e$admin &7has unmuted &e$player&7.");
+			muteConfirmFormat = builder.comment("  Confirmation message to the admin who muted. Placeholders: $player, $admin, $reason, $duration")
+					.define("muteConfirmFormat", "&aMuted &e$player &afor &e$duration&a. Reason: &7$reason");
+			unmuteConfirmFormat = builder.comment("  Confirmation message to the admin who unmuted. Placeholders: $player, $admin")
+					.define("unmuteConfirmFormat", "&aUnmuted &e$player&a.");
+			muteAlreadyMutedMsg = builder.comment("  Message when trying to mute an already muted player. Placeholder: $player")
+					.define("muteAlreadyMutedMsg", "&c$player is already muted.");
+			muteNotMutedMsg = builder.comment("  Message when trying to unmute a player who isn't muted. Placeholder: $player")
+					.define("muteNotMutedMsg", "&c$player is not muted.");
+			muteListHeaderFormat = builder.comment("  Header for /mutelist. No placeholders.")
+					.define("muteListHeaderFormat", "&6━━━━ Currently Muted Players ━━━━");
+			muteListEntryFormat = builder.comment("  Format for each muted player entry. Placeholders: $player, $admin, $reason, $remaining, $duration")
+					.define("muteListEntryFormat", "&7- &e$player &7by &e$admin &7| Reason: &f$reason &7| Remaining: &e$remaining &7/ &e$duration");
+			muteListEmptyMsg = builder.comment("  Message when no one is currently muted")
+					.define("muteListEmptyMsg", "&7No players are currently muted.");
+			mutedPlayerChatMsg = builder.comment("  Message shown to a muted player when they try to chat (permanent mute). No placeholders.")
+					.define("mutedPlayerChatMsg", "&cYou are muted and cannot send messages.");
+			mutedPlayerChatMsgWithRemaining = builder.comment("  Message shown to a muted player when they try to chat (timed mute). Placeholder: $remaining")
+					.define("mutedPlayerChatMsgWithRemaining", "&cYou are muted and cannot send messages. &7Time remaining: &e$remaining");
+			builder.pop(); // muteSystem
 
 			// InvSee System
 			builder.comment("InvSee System",
