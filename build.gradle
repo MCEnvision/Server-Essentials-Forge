@@ -238,11 +238,13 @@ tasks.withType(JavaCompile).configureEach {
 
 mixin {
     add sourceSets.main, "bfcrrmod.refmap.json"
-    config "bfcrrmod.mixins.json"
+    // No mixin classes currently exist — do NOT register the config
+    // config "bfcrrmod.mixins.json"
 }
 
-jar {
-    manifest {
-        attributes "MixinConfigs": "bfcrrmod.mixins.json"
-    }
-}
+// Mixin JAR manifest disabled — no mixin classes in use
+// jar {
+//     manifest {
+//         attributes "MixinConfigs": "bfcrrmod.mixins.json"
+//     }
+// }
