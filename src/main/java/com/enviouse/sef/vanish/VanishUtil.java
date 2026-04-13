@@ -75,9 +75,9 @@ public class VanishUtil {
 	/**
 	 * Determines if the subject (observer) is allowed to see the otherPlayer (actor).
 	 * Uses the 3-level permission system — NO OP fallback, purely permission-based:
-	 * - vmod.vanishsee.1 can see ALL vanished (level 1, 2, 3)
-	 * - vmod.vanishsee.2 can see level 2 and 3
-	 * - vmod.vanishsee.3 can see only level 3
+	 * - sef.vanishsee.1 can see ALL vanished (level 1, 2, 3)
+	 * - sef.vanishsee.2 can see level 2 and 3
+	 * - sef.vanishsee.3 can see only level 3
 	 */
 	public static boolean playerAllowedToSeeOther(Entity subject, Entity otherPlayer, boolean isSubjectVanished, boolean isOtherVanished) {
 		if (subject.equals(otherPlayer))
@@ -101,7 +101,7 @@ public class VanishUtil {
 	 * Checks if the observer entity can see vanished players at the given level.
 	 * Purely permission-based via Forge PermissionAPI (compatible with LuckPerms).
 	 * NO OP fallback — even operators cannot see vanished players without explicit permission.
-	 * To see a player vanished at level N, the observer needs vmod.vanishsee.N (or a lower number like .1).
+	 * To see a player vanished at level N, the observer needs sef.vanishsee.N (or a lower number like .1).
 	 */
 	public static boolean canSeeVanishedAtLevel(Entity entity, int vanishLevel) {
 		if (vanishLevel <= 0)
@@ -109,7 +109,7 @@ public class VanishUtil {
 
 		if (entity instanceof ServerPlayer player) {
 			// Check from the most powerful permission (1) up to the target level
-			// Having vmod.vanishsee.1 lets you see all; vmod.vanishsee.2 lets you see 2+3; etc.
+			// Having sef.vanishsee.1 lets you see all; sef.vanishsee.2 lets you see 2+3; etc.
 			for (int checkLevel = 1; checkLevel <= vanishLevel; checkLevel++) {
 				PermissionNode<Boolean> node = Vanishmod.VANISH_SEE_NODES.get(checkLevel);
 				if (node != null) {
@@ -126,16 +126,16 @@ public class VanishUtil {
 		return false;
 	}
 
-	/** Checks if the observer can see ANY vanished player (has at least vmod.vanishsee.3). */
+	/** Checks if the observer can see ANY vanished player (has at least sef.vanishsee.3). */
 	public static boolean canSeeAnyVanished(Entity entity) {
 		return canSeeVanishedAtLevel(entity, 3);
 	}
 
 	/**
 	 * Checks if the player has permission to vanish at the given level.
-	 * Having vmod.vanish.1 allows vanishing at 1, 2, or 3.
-	 * Having vmod.vanish.2 allows vanishing at 2 or 3.
-	 * Having vmod.vanish.3 allows vanishing at 3 only.
+	 * Having sef.vanish.1 allows vanishing at 1, 2, or 3.
+	 * Having sef.vanish.2 allows vanishing at 2 or 3.
+	 * Having sef.vanish.3 allows vanishing at 3 only.
 	 */
 	public static boolean canVanishAtLevel(ServerPlayer player, int level) {
 		if (level < 1 || level > 3) return false;
@@ -153,7 +153,7 @@ public class VanishUtil {
 
 	/**
 	 * Returns the best (most powerful / lowest number) vanish level this player can use.
-	 * Returns 1 if they have vmod.vanish.1, 2 if vmod.vanish.2, 3 if vmod.vanish.3, or 0 if none.
+	 * Returns 1 if they have sef.vanish.1, 2 if sef.vanish.2, 3 if sef.vanish.3, or 0 if none.
 	 */
 	public static int getBestVanishLevel(ServerPlayer player) {
 		for (int level = 1; level <= 3; level++) {

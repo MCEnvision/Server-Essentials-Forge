@@ -66,7 +66,7 @@ public class VanishCommand {
 						.then(Commands.literal("disable").executes(ctx -> setTrace(ctx, null, false))));
 	}
 
-	/** Check if the command source has any vmod.vanish.N permission. */
+	/** Check if the command source has any sef.vanish.N permission. */
 	private static boolean hasAnyVanishPermission(CommandSourceStack source) {
 		try {
 			ServerPlayer player = source.getPlayerOrException();
