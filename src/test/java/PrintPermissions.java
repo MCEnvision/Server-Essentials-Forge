@@ -1,4 +1,4 @@
-import com.jeremiahbl.bfcrmod.config.PlayerData;
+import com.enviouse.sef.config.PlayerData;
 
 
 public class PrintPermissions {

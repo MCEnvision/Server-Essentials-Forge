@@ -1,3 +1,4 @@
+# ServerEssentialsForge (SEF) — mods.toml
 # This is an example mods.toml file. It contains the data relating to the loading mods.
 # There are several mandatory fields (#mandatory), and many more that are optional (#optional).
 # The overall format is standard TOML format, v0.5.0.
@@ -15,13 +16,13 @@ license="All rights reserved"
 # A list of mods - how many allowed here is determined by the individual mod loader
 [[mods]] #mandatory
 # The modid of the mod
-modId="bfcrrmod" #mandatory
+modId="sef" #mandatory
 # The version number of the mod - there's a few well known ${} variables useable here or just hardcode it
 # ${file.jarVersion} will substitute the value of the Implementation-Version as read from the mod's JAR file metadata
 # see the associated build.gradle script for how to populate this completely automatically during a build
 version="4.0.0" #mandatory
  # A display name for the mod
-displayName="Better Forge Chat Reborn Reworked" #mandatory
+displayName="ServerEssentialsForge" #mandatory
 # A URL to query for updates for this mod. See the JSON update specification https://mcforge.readthedocs.io/en/latest/gettingstarted/autoupdate/
 #updateJSONURL="https://change.me.example.invalid/updates.json" #optional
 # A URL for the "homepage" for this mod, displayed in the mod UI
@@ -34,12 +35,12 @@ credits="(c) EnVy 2022-2026" #optional
 authors="EnVy" #optional
 # The description text for the mod (multi line!) (#mandatory)
 description='''
-A better chat mod for Forge.
-(with LuckPerms and FTB Essentials integration)
+A server essentials mod for Forge.
+(with LuckPerms integration, vanish system, chat formatting, and more)
 '''
-project= "betterforgechatrebornreworked"
+project="serveressentialsforge"
 # A dependency - use the . to indicate dependency for a specific modid. Dependencies are optional.
-[[dependencies.bfcrrmod]] #optional
+[[dependencies.sef]] #optional
     # the modid of the dependency
     modId="forge" #mandatory
     # Does this dependency have to exist - if not, ordering below must be specified
@@ -51,20 +52,18 @@ project= "betterforgechatrebornreworked"
     # Side this dependency is applied on - BOTH, CLIENT or SERVER
     side="BOTH"
 # Here's another dependency
-[[dependencies.bfcrrmod]]
+[[dependencies.sef]]
     modId="minecraft"
     mandatory=true
 # This version range declares a minimum of the current minecraft version up to but not including the next major version
     versionRange="1.20.1"
     ordering="NONE"
     side="BOTH"
-[[dependencies.bfcrrmod]]
+[[dependencies.sef]]
     modId="luckperms"
     mandatory=false
     versionRange="5.4,"
     ordering="BEFORE"
     side="BOTH"
-
-# Mixins disabled — no mixin classes currently exist
-# [[mixins]]
-#     config="bfcrrmod.mixins.json"
+[[mixins]]
+    config="sef.mixins.json"

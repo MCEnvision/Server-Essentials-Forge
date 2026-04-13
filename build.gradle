@@ -19,10 +19,10 @@ apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'org.spongepowered.mixin'
 
 version = "${minecraft_version}-${mod_version}"
-group = 'com.jeremiahbl.bfcrmod'
+group = 'com.enviouse.sef'
 
 base {
-    archivesName = 'bfcrmod'
+    archivesName = 'sef'
 }
 
 // Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
@@ -67,6 +67,7 @@ minecraft {
     // This default location is a best practice to automatically put the file in the right place in the final jar.
     // See https://docs.minecraftforge.net/en/latest/advanced/accesstransformers/ for more information.
     // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
     // Default run configurations.
     // These can be tweaked, removed, or duplicated as needed.
@@ -237,14 +238,12 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 mixin {
-    add sourceSets.main, "bfcrrmod.refmap.json"
-    // No mixin classes currently exist — do NOT register the config
-    // config "bfcrrmod.mixins.json"
+    add sourceSets.main, "sef.refmap.json"
+    config "sef.mixins.json"
 }
 
-// Mixin JAR manifest disabled — no mixin classes in use
-// jar {
-//     manifest {
-//         attributes "MixinConfigs": "bfcrrmod.mixins.json"
-//     }
-// }
+jar {
+    manifest {
+        attributes "MixinConfigs": "sef.mixins.json"
+    }
+}
