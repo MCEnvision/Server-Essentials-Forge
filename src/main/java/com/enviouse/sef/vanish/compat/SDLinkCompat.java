@@ -15,7 +15,7 @@ import org.apache.logging.log4j.Logger;
  * and sends fake join/leave Discord messages on vanish/unvanish.
  */
 public class SDLinkCompat {
-	private static final Logger LOGGER = LogManager.getLogger("Vanishmod/SDLink");
+	private static final Logger LOGGER = LogManager.getLogger("SEF/SDLink");
 
 	private static boolean initialized = false;
 

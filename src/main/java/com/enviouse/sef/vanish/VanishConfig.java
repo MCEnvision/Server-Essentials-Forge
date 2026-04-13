@@ -53,7 +53,7 @@ public class VanishConfig {
 
 		Config(ForgeConfigSpec.Builder builder) {
 			hidePlayersFromWorld = builder
-					.comment(" --- Vanishmod Config File --- ",
+					.comment(" --- SEF Vanish Config --- ",
 							"",
 							"Should vanished players be physically hidden from the world?",
 							"If this config option is enabled, sounds and particles by vanished players will be suppressed and they will not be targeted by monsters, among other things.",

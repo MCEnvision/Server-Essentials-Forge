@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.ChatType;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
@@ -25,7 +24,7 @@ import net.minecraftforge.server.permission.nodes.PermissionNode;
 public class VanishUtil {
 	/** Maps vanished player UUID to their vanish level (1=highest/most hidden, 3=lowest). */
 	public static final Map<UUID, Integer> VANISHED_PLAYERS = new HashMap<>();
-	public static final MutableComponent VANISHMOD_PREFIX = Component.literal("").append(Component.literal("[").withStyle(ChatFormatting.WHITE)).append(Component.literal("Vanishmod").withStyle(s -> s.applyFormat(ChatFormatting.GRAY).withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://www.curseforge.com/minecraft/mc-mods/vanishmod")))).append(Component.literal("] ").withStyle(ChatFormatting.WHITE));
+	public static final MutableComponent VANISHMOD_PREFIX = Component.literal("").append(Component.literal("[").withStyle(ChatFormatting.WHITE)).append(Component.literal("SEF-Vanish").withStyle(s -> s.applyFormat(ChatFormatting.GRAY))).append(Component.literal("] ").withStyle(ChatFormatting.WHITE));
 
 	/** ThreadLocal tracking which entity is currently being ticked (for sound/event suppression). */
 	public static final ThreadLocal<Entity> ACTIVE_ENTITY = ThreadLocal.withInitial(() -> null);

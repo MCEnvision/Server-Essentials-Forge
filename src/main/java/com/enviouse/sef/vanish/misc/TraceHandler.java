@@ -41,7 +41,7 @@ public class TraceHandler {
 		int vanishLevel = VanishUtil.getVanishLevel(player);
 		List<String> permissionText = new ArrayList<>();
 
-		permissionText.add("Players with vmod.vanishsee." + vanishLevel + " (or lower number) permission");
+		permissionText.add("Players with sef.vanishsee." + vanishLevel + " (or lower number) permission");
 
 		if (VanishConfig.CONFIG.seeVanishedTeamPlayers.get())
 			permissionText.add("Members of your team");

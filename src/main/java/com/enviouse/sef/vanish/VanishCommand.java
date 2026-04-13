@@ -10,7 +10,6 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
@@ -19,7 +18,7 @@ import com.enviouse.sef.vanish.misc.TraceHandler;
 
 public class VanishCommand {
 	private static final Component HELP_TEXT = VanishUtil.VANISHMOD_PREFIX.copy().append(Component.literal(
-				"\u00A77\u00A7nVanishmod\u00A7r is a mod that allows you to become completely undetectable for other players. Most features can be accessed using the \u00A77/vanish\u00A7r (or \u00A77/v\u00A7r) command.\n" +
+				"\u00A77\u00A7nSEF Vanish\u00A7r allows you to become completely undetectable for other players. Most features can be accessed using the \u00A77/vanish\u00A7r (or \u00A77/v\u00A7r) command.\n" +
 				"\u00A7nCommand Usage\u00A7r:\n" +
 				"\u00A77/v get [<player>]\u00A7r: Queries the current vanished status of the given player.\n" +
 				"\u00A77/v help\u00A7r: Shows this message.\n" +
@@ -28,14 +27,13 @@ public class VanishCommand {
 				"\u00A77/v toggle [<player>] [<level>]\u00A7r: Vanishes or unvanishes the given player at the specified level.\n" +
 				"\u00A77/v trace\u00A7r: Enables and disables tracing.\n\n" +
 				"\u00A7nVanish Levels\u00A7r:\n" +
-				"Level 1 = Most hidden. Only players with \u00A77vmod.vanishsee.1\u00A7r can see you. Even OPs cannot see you without the permission.\n" +
-				"Level 2 = Mid. Players with \u00A77vmod.vanishsee.1\u00A7r or \u00A77vmod.vanishsee.2\u00A7r can see you.\n" +
-				"Level 3 = Least hidden. Players with any \u00A77vmod.vanishsee\u00A7r permission can see you.\n\n" +
+				"Level 1 = Most hidden. Only players with \u00A77sef.vanishsee.1\u00A7r can see you. Even OPs cannot see you without the permission.\n" +
+				"Level 2 = Mid. Players with \u00A77sef.vanishsee.1\u00A7r or \u00A77sef.vanishsee.2\u00A7r can see you.\n" +
+				"Level 3 = Least hidden. Players with any \u00A77sef.vanishsee\u00A7r permission can see you.\n\n" +
 				"\u00A7nPermissions\u00A7r:\n" +
-				"\u00A77vmod.vanish.1\u00A7r: Can vanish at any level (1, 2, 3).\n" +
-				"\u00A77vmod.vanish.2\u00A7r: Can vanish at level 2 or 3.\n" +
-				"\u00A77vmod.vanish.3\u00A7r: Can vanish at level 3 only.\n\n" +
-				"If you have a suggestion or found a bug, feel free to open an issue in")).append(Component.literal(" \u00A77\u00A7nthe mod's GitHub repository\u00A7r.").withStyle(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, "https://github.com/RedstoneDubstep/Vanishmod"))));
+				"\u00A77sef.vanish.1\u00A7r: Can vanish at any level (1, 2, 3).\n" +
+				"\u00A77sef.vanish.2\u00A7r: Can vanish at level 2 or 3.\n" +
+				"\u00A77sef.vanish.3\u00A7r: Can vanish at level 3 only."));
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
 		dispatcher.register(alias("v"));
@@ -138,7 +136,7 @@ public class VanishCommand {
 			int bestLevel = VanishUtil.getBestVanishLevel(player);
 
 			if (bestLevel == 0) {
-				ctx.getSource().sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append("You don't have permission to vanish! Requires vmod.vanish.1, vmod.vanish.2, or vmod.vanish.3"));
+				ctx.getSource().sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append("You don't have permission to vanish! Requires sef.vanish.1, sef.vanish.2, or sef.vanish.3"));
 				return 0;
 			}
 

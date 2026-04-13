@@ -100,7 +100,7 @@ public class PlayerData {
                 for (PlayerData pdata : playerlist) {
                     if (pdata != null) {
                         map.put(pdata.uuid, pdata);
-                        ServerEssentialsForge.LOGGER.debug("loaded playerData \n {} from bfcr.playerData", pdata);
+                        ServerEssentialsForge.LOGGER.debug("loaded playerData \n {} from sef.playerdata", pdata);
                     }
                 }
 			}
