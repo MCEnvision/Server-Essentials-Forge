@@ -104,17 +104,32 @@ public class SDLinkCompat {
 
 	/**
 	 * Called when vanish status changes. Hides/shows player in SDLink's HiddenPlayersManager.
+	 * @deprecated Use {@link SDLinkHideTracker} instead to properly reference-count hide reasons.
 	 */
+	@Deprecated
 	public static void onVanishChange(ServerPlayer player, boolean vanished) {
+		setHidden(player.getStringUUID(), player.getName().getString(), vanished);
+	}
+
+	/**
+	 * Low-level hide/unhide from SDLink's HiddenPlayersManager.
+	 * Callers should generally use {@link SDLinkHideTracker} instead of calling this directly,
+	 * so that multiple hide reasons (vanish, admin chat, private msg) don't conflict.
+	 *
+	 * @param identifier  The player UUID string
+	 * @param displayName The player display name (only needed when hiding, may be null for unhide)
+	 * @param hide        true to hide, false to unhide
+	 */
+	public static void setHidden(String identifier, String displayName, boolean hide) {
 		init();
 		try {
 			if (hiddenPlayersManager == null) return;
-			if (vanished) {
+			if (hide) {
 				if (hidePlayerMethod != null)
-					hidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID(), player.getName().getString(), "vanish");
+					hidePlayerMethod.invoke(hiddenPlayersManager, identifier, displayName != null ? displayName : "Unknown", "sef");
 			} else {
 				if (unhidePlayerMethod != null)
-					unhidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID());
+					unhidePlayerMethod.invoke(hiddenPlayersManager, identifier);
 			}
 		} catch (Exception e) {
 			LOGGER.debug("Failed to update SDLink hidden player status: {}", e.getMessage());
@@ -123,38 +138,13 @@ public class SDLinkCompat {
 
 	/**
 	 * Sends a fake join or leave message to Discord via SDLink's DiscordMessage API.
-	 * Also hides/unhides the player in the HiddenPlayersManager.
-	 *
-	 * For LEAVE: send message FIRST (while player is still visible), then hide.
-	 * For JOIN: unhide FIRST, then send message (so player is visible when message arrives).
+	 * NOTE: This method only sends the Discord message. Hide/unhide is now managed
+	 * by {@link SDLinkHideTracker} to prevent conflicts between vanish, admin chat,
+	 * and private message toggle hide reasons.
 	 */
 	public static void sendFakeJoinLeave(ServerPlayer player, boolean leaving) {
 		init();
-
-		if (leaving) {
-			// LEAVING: send Discord leave message first, THEN hide the player
-			sendDiscordJoinLeaveMessage(player, true);
-			hideUnhidePlayer(player, true);
-		} else {
-			// JOINING: unhide the player first, THEN send Discord join message
-			hideUnhidePlayer(player, false);
-			sendDiscordJoinLeaveMessage(player, false);
-		}
-	}
-
-	private static void hideUnhidePlayer(ServerPlayer player, boolean hide) {
-		try {
-			if (hiddenPlayersManager == null) return;
-			if (hide) {
-				if (hidePlayerMethod != null)
-					hidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID(), player.getName().getString(), "vanish");
-			} else {
-				if (unhidePlayerMethod != null)
-					unhidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID());
-			}
-		} catch (Exception e) {
-			LOGGER.warn("Failed to update SDLink hidden player status for {}: {}", player.getName().getString(), e.getMessage());
-		}
+		sendDiscordJoinLeaveMessage(player, leaving);
 	}
 
 	private static void sendDiscordJoinLeaveMessage(ServerPlayer player, boolean leaving) {

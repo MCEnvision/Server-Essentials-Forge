@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.CommandNode;
@@ -129,6 +130,8 @@ public class MsgCommands {
                 }
                 if (privateChatToggled.containsKey(sender.getUUID())) {
                     privateChatToggled.remove(sender.getUUID());
+                    // Remove private msg hide reason from SDLink tracker
+                    SDLinkHideTracker.removeReason(sender, SDLinkHideTracker.HideReason.PRIVATE_MSG);
                     sender.sendSystemMessage(TextFormatter.stringToFormattedText("&7Private chat mode disabled."));
                     return 1;
                 }
@@ -149,9 +152,13 @@ public class MsgCommands {
                     UUID senderUuid = sender.getUUID();
                     if (privateChatToggled.containsKey(senderUuid)) {
                         privateChatToggled.remove(senderUuid);
+                        // Remove private msg hide reason from SDLink tracker
+                        SDLinkHideTracker.removeReason(sender, SDLinkHideTracker.HideReason.PRIVATE_MSG);
                         sender.sendSystemMessage(TextFormatter.stringToFormattedText("&7Private chat mode disabled."));
                     } else {
                         privateChatToggled.put(senderUuid, target.getUUID());
+                        // Add private msg hide reason to SDLink tracker to prevent Discord leaks
+                        SDLinkHideTracker.addReason(sender, SDLinkHideTracker.HideReason.PRIVATE_MSG);
                         sender.sendSystemMessage(TextFormatter.stringToFormattedText(
                             "&dPrivate chat mode enabled with &e" + target.getGameProfile().getName() +
                             "&d. All messages will be sent privately. Type &7/pchat &dto toggle off."));

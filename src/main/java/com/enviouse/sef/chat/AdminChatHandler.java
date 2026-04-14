@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -24,6 +25,14 @@ public class AdminChatHandler {
 
     public static boolean isAdminChatToggled(UUID uuid) {
         return toggledPlayers.contains(uuid);
+    }
+
+    /**
+     * Clean up admin chat toggle for a player logging out.
+     * Removes the toggle so SDLinkHideTracker.clearAll can properly clean up.
+     */
+    public static void handleLogout(UUID uuid) {
+        toggledPlayers.remove(uuid);
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -63,10 +72,14 @@ public class AdminChatHandler {
                     UUID uuid = player.getUUID();
                     if (toggledPlayers.contains(uuid)) {
                         toggledPlayers.remove(uuid);
+                        // Unhide from SDLink (remove admin chat hide reason)
+                        SDLinkHideTracker.removeReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
                         player.sendSystemMessage(TextFormatter.stringToFormattedText(
                             ConfigHandler.config.adminChatDisabledMsg.get()));
                     } else {
                         toggledPlayers.add(uuid);
+                        // Hide from SDLink (add admin chat hide reason) so messages don't leak to Discord
+                        SDLinkHideTracker.addReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
                         player.sendSystemMessage(TextFormatter.stringToFormattedText(
                             ConfigHandler.config.adminChatEnabledMsg.get()));
                     }

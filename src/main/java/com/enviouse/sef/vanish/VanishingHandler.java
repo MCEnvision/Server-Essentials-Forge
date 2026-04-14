@@ -22,6 +22,7 @@ import com.enviouse.sef.vanish.api.PlayerVanishEvent;
 import com.enviouse.sef.vanish.compat.Mc2DiscordCompat;
 import com.enviouse.sef.vanish.compat.PlaytimeCompat;
 import com.enviouse.sef.vanish.compat.SDLinkCompat;
+import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
 
 public class VanishingHandler {
@@ -129,9 +130,14 @@ public class VanishingHandler {
 		if (ServerEssentialsForge.mc2discordDetected)
 			Mc2DiscordCompat.hidePlayer(player, vanished);
 
-		// Always hide/unhide from SDLink's player list (even if fake messages are disabled)
-		if (ServerEssentialsForge.sdlinkDetected)
-			SDLinkCompat.onVanishChange(player, vanished);
+		// Always hide/unhide from SDLink's player list via the tracker (reference-counted)
+		if (ServerEssentialsForge.sdlinkDetected) {
+			if (vanished) {
+				SDLinkHideTracker.addReason(player, SDLinkHideTracker.HideReason.VANISH);
+			} else {
+				SDLinkHideTracker.removeReason(player, SDLinkHideTracker.HideReason.VANISH);
+			}
+		}
 
 		SoundSuppressionHelper.updateVanishedPlayerMap(player, vanished);
 	}

@@ -22,7 +22,9 @@ import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.TickEvent;
 
 import com.enviouse.sef.commands.MsgCommands;
+import com.enviouse.sef.chat.AdminChatHandler;
 import com.enviouse.sef.chat.ChatMessageManager;
+import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import net.minecraftforge.fml.ModList;
 
 @EventBusSubscriber
@@ -71,8 +73,15 @@ public class PlayerEventHandler implements IReloadable {
 	@SubscribeEvent
 	public void onPlayerLogout(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent e) {
         if(e.getEntity() instanceof ServerPlayer sp) {
+            // Clean up admin chat toggle state
+            AdminChatHandler.handleLogout(sp.getUUID());
+            // Clean up private msg toggle and /r tracking
             MsgCommands.handleLogout(sp.getUUID());
+            // Clean up chat message history
             ChatMessageManager.handleLogout(sp.getUUID());
+            // Clear ALL SDLink hide reasons (vanish, admin chat, private msg) to prevent
+            // stale hidden-player entries that would keep the player invisible in Discord.
+            SDLinkHideTracker.clearAll(sp.getUUID());
         }
     }
 
