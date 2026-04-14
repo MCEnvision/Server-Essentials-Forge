@@ -1,9 +1,10 @@
 package com.enviouse.sef.vanish.mixin.interaction;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.server.level.ChunkMap;
@@ -22,9 +23,9 @@ public abstract class ChunkMapMixin {
 	}
 
 	// Prevent mob spawning near vanished players
-	@Redirect(method = "playerIsCloseEnoughForSpawning", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;isSpectator()Z"))
-	public boolean vanishmod$preventMobSpawning(ServerPlayer player) {
-		return player.isSpectator() || (VanishConfig.CONFIG.preventMobSpawning.get() && VanishUtil.isVanished(player));
+	@WrapOperation(method = "playerIsCloseEnoughForSpawning", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;isSpectator()Z"))
+	public boolean vanishmod$preventMobSpawning(ServerPlayer player, Operation<Boolean> original) {
+		return original.call(player) || (VanishConfig.CONFIG.preventMobSpawning.get() && VanishUtil.isVanished(player));
 	}
 }
 

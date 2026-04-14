@@ -1,10 +1,11 @@
 package com.enviouse.sef.vanish.mixin.world;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import org.jetbrains.annotations.Nullable;
@@ -25,18 +26,18 @@ public abstract class ServerLevelMixin {
 	public abstract Entity getEntity(int id);
 
 	// Hide block breaking progress from players who can't see the vanished breaker
-	@Redirect(method = "destroyBlockProgress", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;send(Lnet/minecraft/network/protocol/Packet;)V"))
-	public void vanishmod$hideBlockDestroyProgress(ServerGamePacketListenerImpl packetListener, Packet<?> packet) {
+	@WrapOperation(method = "destroyBlockProgress", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/network/ServerGamePacketListenerImpl;send(Lnet/minecraft/network/protocol/Packet;)V"))
+	public void vanishmod$hideBlockDestroyProgress(ServerGamePacketListenerImpl packetListener, Packet<?> packet, Operation<Void> original) {
 		if (packet instanceof ClientboundBlockDestructionPacket destructionPacket) {
 			Entity entity = this.getEntity(destructionPacket.getId());
 			if (entity instanceof ServerPlayer breaker && VanishUtil.isVanished(breaker, packetListener.player)) {
 				return; // Don't send the packet
 			}
 		}
-		packetListener.send(packet);
+		original.call(packetListener, packet);
 	}
 
-	// Track active entity during tickNonPassenger for sound/event suppression
+	// ...existing code...
 	@Inject(method = "tickNonPassenger", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;tick()V"))
 	public void vanishmod$beforeEntityTick(Entity entity, CallbackInfo ci) {
 		VanishUtil.ACTIVE_ENTITY.set(entity);

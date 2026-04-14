@@ -1,9 +1,10 @@
 package com.enviouse.sef.vanish.mixin.world;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.core.particles.ParticleOptions;
@@ -47,19 +48,19 @@ public abstract class LivingEntityMixin extends Entity {
 	}
 
 	//This mixin ensures that the serverside invisibility induced by this mod is not synced to the client side, by directly checking with the active effects map (which is not modified by this mod)
-	@Redirect(method = "updateInvisibilityStatus", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;hasEffect(Lnet/minecraft/world/effect/MobEffect;)Z"))
-	private boolean vanishmod$correctInvisibilityStatus(LivingEntity entity, MobEffect effect) {
+	@WrapOperation(method = "updateInvisibilityStatus", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;hasEffect(Lnet/minecraft/world/effect/MobEffect;)Z"))
+	private boolean vanishmod$correctInvisibilityStatus(LivingEntity entity, MobEffect effect, Operation<Boolean> original) {
 		if (effect == MobEffects.INVISIBILITY && VanishConfig.CONFIG.spoofVanishedPlayerInvisibility.get() && VanishUtil.isVanished(entity))
 			return entity.getActiveEffectsMap().containsKey(MobEffects.INVISIBILITY);
 
-		return entity.hasEffect(effect);
+		return original.call(entity, effect);
 	}
 
 	// Suppress falling particles for vanished players
-	@Redirect(method = "checkFallDamage", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;sendParticles(Lnet/minecraft/core/particles/ParticleOptions;DDDIDDDD)I"))
-	public <T extends ParticleOptions> int vanishmod$hideFallingParticles(ServerLevel level, T particleOptions, double x, double y, double z, int count, double dx, double dy, double dz, double speed) {
+	@WrapOperation(method = "checkFallDamage", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;sendParticles(Lnet/minecraft/core/particles/ParticleOptions;DDDIDDDD)I"))
+	public <T extends ParticleOptions> int vanishmod$hideFallingParticles(ServerLevel level, T particleOptions, double x, double y, double z, int count, double dx, double dy, double dz, double speed, Operation<Integer> original) {
 		if (VanishUtil.isVanished(this))
 			return 0;
-		return level.sendParticles(particleOptions, x, y, z, count, dx, dy, dz, speed);
+		return original.call(level, particleOptions, x, y, z, count, dx, dy, dz, speed);
 	}
 }

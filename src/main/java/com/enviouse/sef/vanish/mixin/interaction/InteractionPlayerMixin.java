@@ -2,10 +2,11 @@ package com.enviouse.sef.vanish.mixin.interaction;
 
 import java.util.List;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.world.damagesource.DamageSource;
@@ -21,11 +22,11 @@ import com.enviouse.sef.vanish.VanishUtil;
 public abstract class InteractionPlayerMixin {
 
 	// Prevent vanished players from picking up entities (arrows, XP, items, tridents)
-	@Redirect(method = "touch", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;playerTouch(Lnet/minecraft/world/entity/player/Player;)V"))
-	private void vanishmod$preventPickup(Entity entity, Player player) {
+	@WrapOperation(method = "touch", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;playerTouch(Lnet/minecraft/world/entity/player/Player;)V"))
+	private void vanishmod$preventPickup(Entity entity, Player player, Operation<Void> original) {
 		if (VanishUtil.isVanished(player) && VanishConfig.CONFIG.preventEntityPickup.get())
 			return; // Don't touch/pick up
-		entity.playerTouch(player);
+		original.call(entity, player);
 	}
 
 	// Prevent projectiles from hitting vanished players
@@ -43,11 +44,11 @@ public abstract class InteractionPlayerMixin {
 	}
 
 	// Prevent sweeping edge from hitting vanished players
-	@Redirect(method = "attack", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntitiesOfClass(Ljava/lang/Class;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
-	private List<LivingEntity> vanishmod$preventSweepingEdge(Level level, Class<LivingEntity> entityClass, AABB aabb) {
+	@WrapOperation(method = "attack", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntitiesOfClass(Ljava/lang/Class;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
+	private List<LivingEntity> vanishmod$preventSweepingEdge(Level level, Class<LivingEntity> entityClass, AABB aabb, Operation<List<LivingEntity>> original) {
 		if (VanishConfig.CONFIG.preventEntityCollisions.get())
 			return level.getEntitiesOfClass(entityClass, aabb, VanishUtil.NO_SPECTATORS_AND_NO_VANISH);
-		return level.getEntitiesOfClass(entityClass, aabb);
+		return original.call(level, entityClass, aabb);
 	}
 }
 
