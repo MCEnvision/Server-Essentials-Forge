@@ -4,6 +4,9 @@
   "package": "com.enviouse.sef.vanish.mixin",
   "compatibilityLevel": "JAVA_17",
   "refmap": "sef.refmap.json",
+  "mixinextras": {
+    "minVersion": "0.5.3"
+  },
   "mixins": [
     "PlayerListMixin",
     "ServerGamePacketListenerImplMixin",
