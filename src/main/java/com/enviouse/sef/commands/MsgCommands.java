@@ -6,6 +6,8 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.tree.CommandNode;
+import com.mojang.brigadier.tree.RootCommandNode;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -17,10 +19,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 /**
  * Private messaging commands: /msg, /tell, /w, /r, and private-chat toggle.
+ * These commands do NOT require permissions to USE — they are available to everyone.
+ * Permissions can DENY access (set sef.commands.msg to false to block a player).
  */
 public class MsgCommands {
     /** Tracks the last person each player messaged (for /r). */
@@ -44,17 +49,17 @@ public class MsgCommands {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // /msg <player> <message>
+        // Remove vanilla /msg, /tell, /w command nodes to prevent conflicts
+        removeCommandNode(dispatcher, "msg");
+        removeCommandNode(dispatcher, "tell");
+        removeCommandNode(dispatcher, "w");
+
+        // /msg <player> <message> — no .requires() so it always shows in tab complete
         dispatcher.register(Commands.literal("msg")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.msgCommand);
-                } catch (Exception e) { return true; }
-            })
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
+                        if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message);
@@ -62,15 +67,10 @@ public class MsgCommands {
 
         // /tell (alias for /msg)
         dispatcher.register(Commands.literal("tell")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.msgCommand);
-                } catch (Exception e) { return true; }
-            })
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
+                        if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message);
@@ -78,31 +78,28 @@ public class MsgCommands {
 
         // /w (alias for /msg)
         dispatcher.register(Commands.literal("w")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.msgCommand);
-                } catch (Exception e) { return true; }
-            })
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
+                        if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message);
                     }))));
 
-        // /r <message> (reply to last person)
+        // /r <message> (reply to last person) — no .requires()
         dispatcher.register(Commands.literal("r")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.msgCommand);
-                } catch (Exception e) { return true; }
-            })
             .then(Commands.argument("message", StringArgumentType.greedyString())
                 .executes(ctx -> {
-                    ServerPlayer sender = ctx.getSource().getPlayerOrException();
+                    if (!checkPermission(ctx.getSource())) return 0;
+                    // Handle console — console can't use /r
+                    ServerPlayer sender;
+                    try {
+                        sender = ctx.getSource().getPlayerOrException();
+                    } catch (Exception e) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThis command can only be used by players."));
+                        return 0;
+                    }
                     UUID lastTarget = lastMessaged.get(sender.getUUID());
                     if (lastTarget == null) {
                         ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
@@ -119,17 +116,17 @@ public class MsgCommands {
                     return sendPrivateMessage(ctx.getSource(), target, message);
                 })));
 
-        // /pchat <player> (toggle private chat with someone)
+        // /pchat <player> (toggle private chat with someone) — no .requires()
         dispatcher.register(Commands.literal("pchat")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.msgCommand);
-                } catch (Exception e) { return true; }
-            })
             .executes(ctx -> {
-                // Toggle off
-                ServerPlayer sender = ctx.getSource().getPlayerOrException();
+                if (!checkPermission(ctx.getSource())) return 0;
+                ServerPlayer sender;
+                try {
+                    sender = ctx.getSource().getPlayerOrException();
+                } catch (Exception e) {
+                    ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThis command can only be used by players."));
+                    return 0;
+                }
                 if (privateChatToggled.containsKey(sender.getUUID())) {
                     privateChatToggled.remove(sender.getUUID());
                     sender.sendSystemMessage(TextFormatter.stringToFormattedText("&7Private chat mode disabled."));
@@ -140,7 +137,14 @@ public class MsgCommands {
             })
             .then(Commands.argument("target", EntityArgument.player())
                 .executes(ctx -> {
-                    ServerPlayer sender = ctx.getSource().getPlayerOrException();
+                    if (!checkPermission(ctx.getSource())) return 0;
+                    ServerPlayer sender;
+                    try {
+                        sender = ctx.getSource().getPlayerOrException();
+                    } catch (Exception e) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThis command can only be used by players."));
+                        return 0;
+                    }
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                     UUID senderUuid = sender.getUUID();
                     if (privateChatToggled.containsKey(senderUuid)) {
@@ -154,6 +158,24 @@ public class MsgCommands {
                     }
                     return 1;
                 })));
+    }
+
+    /**
+     * Checks if the source has permission to use messaging commands.
+     * Console always has permission. Players are checked against the msgCommand permission node.
+     * Returns true if allowed, false if denied (sends deny message).
+     */
+    private static boolean checkPermission(CommandSourceStack source) {
+        try {
+            ServerPlayer player = source.getPlayerOrException();
+            if (!PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.msgCommand)) {
+                source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+                return false;
+            }
+        } catch (Exception e) {
+            // Console — always allowed
+        }
+        return true;
     }
 
     private static int sendPrivateMessage(CommandSourceStack source, ServerPlayer target, String message) {
@@ -209,6 +231,29 @@ public class MsgCommands {
 
         ServerEssentialsForge.LOGGER.info("[MSG] {} -> {}: {}", senderName, receiverName, message);
         return 1;
+    }
+
+    /**
+     * Removes a command node from the dispatcher's root using reflection.
+     * Needed to fully replace vanilla /msg, /tell, /w registrations.
+     */
+    @SuppressWarnings("unchecked")
+    private static void removeCommandNode(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
+        try {
+            RootCommandNode<CommandSourceStack> root = dispatcher.getRoot();
+            Field childrenField = CommandNode.class.getDeclaredField("children");
+            childrenField.setAccessible(true);
+            Map<String, CommandNode<CommandSourceStack>> children =
+                (Map<String, CommandNode<CommandSourceStack>>) childrenField.get(root);
+            children.remove(name);
+
+            Field literalsField = CommandNode.class.getDeclaredField("literals");
+            literalsField.setAccessible(true);
+            Map<String, ?> literals = (Map<String, ?>) literalsField.get(root);
+            literals.remove(name);
+        } catch (Exception e) {
+            ServerEssentialsForge.LOGGER.warn("[SEF] Could not remove existing /{} command node: {}", name, e.getMessage());
+        }
     }
 }
 

@@ -4,7 +4,6 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
-import com.enviouse.sef.events.ServerMessageEvent;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -36,7 +35,7 @@ public class AdminChatHandler {
                 try {
                     return PermissionsHandler.playerHasPermission(
                         src.getPlayerOrException().getUUID(), PermissionsHandler.adminChatUse);
-                } catch (Exception e) { return true; }
+                } catch (Exception e) { return true; } // Console always allowed
             })
             .then(Commands.argument("message", StringArgumentType.greedyString())
                 .executes(ctx -> {
@@ -44,17 +43,23 @@ public class AdminChatHandler {
                     return sendAdminMessage(ctx.getSource(), msg);
                 })));
 
-        // /chat admin (toggle)
+        // /chat admin (toggle) — requires player, console gets an error message
         dispatcher.register(Commands.literal("chat")
             .then(Commands.literal("admin")
                 .requires(src -> {
                     try {
                         return PermissionsHandler.playerHasPermission(
                             src.getPlayerOrException().getUUID(), PermissionsHandler.adminChatUse);
-                    } catch (Exception e) { return true; }
+                    } catch (Exception e) { return true; } // Console always allowed
                 })
                 .executes(ctx -> {
-                    ServerPlayer player = ctx.getSource().getPlayerOrException();
+                    ServerPlayer player;
+                    try {
+                        player = ctx.getSource().getPlayerOrException();
+                    } catch (Exception e) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cAdmin chat toggle can only be used by players. Use /ac <message> instead."));
+                        return 0;
+                    }
                     UUID uuid = player.getUUID();
                     if (toggledPlayers.contains(uuid)) {
                         toggledPlayers.remove(uuid);
@@ -68,17 +73,22 @@ public class AdminChatHandler {
                     return 1;
                 })));
 
-        // /helpop <message>
+        // /helpop <message> — no .requires() so it always shows in tab complete
+        // Permission check is inside the executor
         if (ConfigHandler.config.enableHelpOp.get()) {
             dispatcher.register(Commands.literal("helpop")
-                .requires(src -> {
-                    try {
-                        return PermissionsHandler.playerHasPermission(
-                            src.getPlayerOrException().getUUID(), PermissionsHandler.helpOpSend);
-                    } catch (Exception e) { return true; }
-                })
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
+                        // Check permission in executor body — deny with message
+                        try {
+                            ServerPlayer player = ctx.getSource().getPlayerOrException();
+                            if (!PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.helpOpSend)) {
+                                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+                                return 0;
+                            }
+                        } catch (Exception e) {
+                            // Console — always allowed
+                        }
                         String msg = StringArgumentType.getString(ctx, "message");
                         return sendHelpOp(ctx.getSource(), msg);
                     })));
@@ -89,7 +99,7 @@ public class AdminChatHandler {
                     try {
                         return PermissionsHandler.playerHasPermission(
                             src.getPlayerOrException().getUUID(), PermissionsHandler.helpOpReply);
-                    } catch (Exception e) { return true; }
+                    } catch (Exception e) { return true; } // Console always allowed
                 })
                 .then(Commands.argument("player", StringArgumentType.word())
                     .then(Commands.argument("message", StringArgumentType.greedyString())
@@ -142,18 +152,16 @@ public class AdminChatHandler {
             .replace("$message", message);
         MutableComponent component = TextFormatter.stringToFormattedText(format);
 
-        int count = 0;
         for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
             if (PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.helpOpReceive)) {
                 player.sendSystemMessage(component);
                 if (ConfigHandler.config.enableHelpOpSound.get()) {
                     player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.MASTER, 1.0f, 1.0f);
                 }
-                count++;
             }
         }
 
-        String sentMsg = ConfigHandler.config.helpOpSentMsg.get().replace("$count", String.valueOf(count));
+        String sentMsg = ConfigHandler.config.helpOpSentMsg.get();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(sentMsg), false);
         ServerEssentialsForge.LOGGER.info("[HELPOP] {}: {}", senderName, message);
         return 1;

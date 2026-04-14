@@ -63,10 +63,6 @@ public class CommandRegistrationHandler {
             BfcCommands.initFilterManager(FILTER_MANAGER);
         }
 
-        // Register messaging commands if enabled
-        if(ConfigHandler.config.enableMessagingSystem.get()) {
-            MsgCommands.register(e.getDispatcher());
-        }
 
         // Register announcement commands if enabled
         if(ConfigHandler.config.enableAnnouncements.get()) {
@@ -137,14 +133,18 @@ public class CommandRegistrationHandler {
     }
 
     /**
-     * Register InvSee at LOW priority so it runs AFTER FTB Essentials'
-     * command registration, allowing us to override their /invsee node.
+     * Register commands at LOW priority so they run AFTER vanilla and FTB Essentials'
+     * command registration, allowing us to override their command nodes.
      */
     @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOW)
-    public void registerInvSeeCommand(RegisterCommandsEvent e) {
+    public void registerLowPriorityCommands(RegisterCommandsEvent e) {
         // Register custom /invsee command if enabled
         if(ConfigHandler.config.enableInvSee.get()) {
             InvSeeCommand.register(e.getDispatcher());
+        }
+        // Register messaging commands at LOW priority to override vanilla /msg, /tell, /w
+        if(ConfigHandler.config.enableMessagingSystem.get()) {
+            MsgCommands.register(e.getDispatcher());
         }
     }
 }

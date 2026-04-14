@@ -466,7 +466,7 @@ public class ConfigHandler {
 			builder.comment("System Messages - Customize all feedback messages").push("systemMessages");
 			adminChatEnabledMsg = builder.comment("  Message when admin chat is enabled").define("adminChatEnabledMsg", "&aAdmin chat enabled. &7Your messages will only be seen by operators.");
 			adminChatDisabledMsg = builder.comment("  Message when admin chat is disabled").define("adminChatDisabledMsg", "&cAdmin chat disabled. &7You are now in public chat.");
-			helpOpSentMsg = builder.comment("  Message when helpop is sent. Optional placeholder: $count (number of operators online, use with caution - may reveal vanished operators)").define("helpOpSentMsg", "&aMessage sent to all online operators. If there is no one online make a discord ticket.");
+			helpOpSentMsg = builder.comment("  Message when helpop is sent. No placeholders.").define("helpOpSentMsg", "&aMessage sent to all online operators. If there is no one online make a discord ticket.");
 			helpOpReplySentMsg = builder.comment("  Message when helpop reply is sent. Placeholder: $player").define("helpOpReplySentMsg", "&aReply sent to $player");
 			noReplyTargetMsg = builder.comment("  Message when there's no one to reply to").define("noReplyTargetMsg", "&cNo one to reply to.");
 			playerOfflineMsg = builder.comment("  Message when target player is offline").define("playerOfflineMsg", "&cThat player is offline.");

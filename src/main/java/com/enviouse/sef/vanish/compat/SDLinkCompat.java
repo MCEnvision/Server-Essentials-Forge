@@ -124,29 +124,49 @@ public class SDLinkCompat {
 	/**
 	 * Sends a fake join or leave message to Discord via SDLink's DiscordMessage API.
 	 * Also hides/unhides the player in the HiddenPlayersManager.
+	 *
+	 * For LEAVE: send message FIRST (while player is still visible), then hide.
+	 * For JOIN: unhide FIRST, then send message (so player is visible when message arrives).
 	 */
 	public static void sendFakeJoinLeave(ServerPlayer player, boolean leaving) {
 		init();
 
-		// Hide/unhide in HiddenPlayersManager
+		if (leaving) {
+			// LEAVING: send Discord leave message first, THEN hide the player
+			sendDiscordJoinLeaveMessage(player, true);
+			hideUnhidePlayer(player, true);
+		} else {
+			// JOINING: unhide the player first, THEN send Discord join message
+			hideUnhidePlayer(player, false);
+			sendDiscordJoinLeaveMessage(player, false);
+		}
+	}
+
+	private static void hideUnhidePlayer(ServerPlayer player, boolean hide) {
 		try {
-			if (hiddenPlayersManager != null) {
-				if (leaving) {
-					if (hidePlayerMethod != null)
-						hidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID(), player.getName().getString(), "vanish");
-				} else {
-					if (unhidePlayerMethod != null)
-						unhidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID());
-				}
+			if (hiddenPlayersManager == null) return;
+			if (hide) {
+				if (hidePlayerMethod != null)
+					hidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID(), player.getName().getString(), "vanish");
+			} else {
+				if (unhidePlayerMethod != null)
+					unhidePlayerMethod.invoke(hiddenPlayersManager, player.getStringUUID());
 			}
 		} catch (Exception e) {
-			LOGGER.debug("Failed to update SDLink hidden player status: {}", e.getMessage());
+			LOGGER.warn("Failed to update SDLink hidden player status for {}: {}", player.getName().getString(), e.getMessage());
 		}
+	}
 
-		// Send the actual Discord join/leave message
-		if (!messageApiAvailable) return;
+	private static void sendDiscordJoinLeaveMessage(ServerPlayer player, boolean leaving) {
+		if (!messageApiAvailable) {
+			LOGGER.warn("SDLink DiscordMessage API not available — cannot send fake {} message for {}", leaving ? "leave" : "join", player.getName().getString());
+			return;
+		}
 		try {
-			if (!isBotReady()) return;
+			if (!isBotReady()) {
+				LOGGER.warn("SDLink bot not ready — cannot send fake {} message for {}", leaving ? "leave" : "join", player.getName().getString());
+				return;
+			}
 			if (!shouldSendFakeJoinLeave()) return;
 			if (leaving && !isChatConfigFlag("playerLeave")) return;
 			if (!leaving && !isChatConfigFlag("playerJoin")) return;
@@ -174,7 +194,7 @@ public class SDLinkCompat {
 
 			LOGGER.debug("Sent fake {} message to Discord for {}", leaving ? "leave" : "join", player.getName().getString());
 		} catch (Exception e) {
-			LOGGER.debug("Failed to send fake join/leave to SDLink: {}", e.getMessage());
+			LOGGER.warn("Failed to send fake {} message to SDLink for {}: {}", leaving ? "leave" : "join", player.getName().getString(), e.getMessage());
 		}
 	}
 

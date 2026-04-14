@@ -237,7 +237,7 @@ public class ChatEventHandler implements IReloadable {
 			}
 
 			ServerEssentialsForge.LOGGER.info("[CHAT] "+clickableMessage.getString());
-			ServerMessageEvent.broadcastMessage(player.level(), clickableMessage);
+			ServerMessageEvent.broadcastMessageVanishAware(player.level(), clickableMessage, player);
 		});
 		
     }

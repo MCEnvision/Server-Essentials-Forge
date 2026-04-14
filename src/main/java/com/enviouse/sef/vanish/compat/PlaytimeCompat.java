@@ -1,21 +1,24 @@
 package com.enviouse.sef.vanish.compat;
 
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 import net.minecraft.server.level.ServerPlayer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /**
  * Compatibility with the Playtime mod.
- * When a player vanishes, we simulate a disconnect so playtime stops accumulating.
- * When they unvanish, we simulate a reconnect so playtime resumes.
+ * When a player vanishes, we pause their session so playtime stops accumulating.
+ * When they unvanish, we resume tracking.
  * Uses reflection to avoid compile-time dependency on Playtime.
  */
 public class PlaytimeCompat {
+	private static final Logger LOGGER = LogManager.getLogger("SEF/Playtime");
 	private static boolean initialized = false;
-	private static Object sessionTracker = null;
 	private static Method getSessionTracker = null;
-	private static Method onPlayerLeave = null;
-	private static Method onPlayerJoin = null;
+	private static Method pauseSessionMethod = null;
+	private static Method resumeSessionMethod = null;
 
 	private static void init() {
 		if (initialized) return;
@@ -24,10 +27,11 @@ public class PlaytimeCompat {
 			Class<?> playtimeClass = Class.forName("com.enviouse.playtime.Playtime");
 			getSessionTracker = playtimeClass.getMethod("getSessionTracker");
 			Class<?> sessionTrackerClass = Class.forName("com.enviouse.playtime.service.SessionTracker");
-			onPlayerLeave = sessionTrackerClass.getMethod("onPlayerLeave", net.minecraft.server.MinecraftServer.class, ServerPlayer.class);
-			onPlayerJoin = sessionTrackerClass.getMethod("onPlayerJoin", net.minecraft.server.MinecraftServer.class, ServerPlayer.class);
+			pauseSessionMethod = sessionTrackerClass.getMethod("pauseSession", UUID.class);
+			resumeSessionMethod = sessionTrackerClass.getMethod("resumeSession", UUID.class);
+			LOGGER.info("Playtime pause/resume API loaded successfully");
 		} catch (Exception e) {
-			// Playtime mod API not available
+			LOGGER.warn("Playtime mod API not available for vanish integration: {}", e.getMessage());
 		}
 	}
 
@@ -39,16 +43,20 @@ public class PlaytimeCompat {
 			if (tracker == null) return;
 
 			if (vanished) {
-				// Simulate player leaving - stops playtime tracking
-				if (onPlayerLeave != null)
-					onPlayerLeave.invoke(tracker, player.getServer(), player);
+				// Pause session — stops playtime accumulation without heavy join/leave lifecycle
+				if (pauseSessionMethod != null) {
+					pauseSessionMethod.invoke(tracker, player.getUUID());
+					LOGGER.debug("Paused playtime tracking for vanished player {}", player.getGameProfile().getName());
+				}
 			} else {
-				// Simulate player joining - resumes playtime tracking
-				if (onPlayerJoin != null)
-					onPlayerJoin.invoke(tracker, player.getServer(), player);
+				// Resume session — resumes playtime tracking
+				if (resumeSessionMethod != null) {
+					resumeSessionMethod.invoke(tracker, player.getUUID());
+					LOGGER.debug("Resumed playtime tracking for unvanished player {}", player.getGameProfile().getName());
+				}
 			}
 		} catch (Exception e) {
-			// Silently ignore if Playtime mod API changed or is unavailable
+			LOGGER.warn("Failed to update Playtime tracking on vanish change for {}: {}", player.getGameProfile().getName(), e.getMessage());
 		}
 	}
 }
