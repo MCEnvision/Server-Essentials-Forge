@@ -43,18 +43,20 @@ public class VanishCommand {
 	private static LiteralArgumentBuilder<CommandSourceStack> alias(String prefix) {
 		return Commands.literal(prefix).requires(VanishCommand::hasAnyVanishPermission)
 				// /v — vanish self at best level
-				.executes(ctx -> vanishSelf(ctx, 0))
+				.executes(ctx -> vanishSelfConsoleAware(ctx, 0))
 				// /v <level> — vanish self at specific level
 				.then(Commands.argument("level", IntegerArgumentType.integer(1, 3))
-						.executes(ctx -> vanishSelf(ctx, IntegerArgumentType.getInteger(ctx, "level"))))
-				.then(Commands.literal("get").executes(ctx -> getVanishedStatus(ctx, ctx.getSource().getPlayerOrException()))
+						.executes(ctx -> vanishSelfConsoleAware(ctx, IntegerArgumentType.getInteger(ctx, "level"))))
+				.then(Commands.literal("get")
+						.executes(VanishCommand::getVanishedStatusSelf)
 						.then(Commands.argument("player", EntityArgument.player()).executes(ctx -> getVanishedStatus(ctx, EntityArgument.getPlayer(ctx, "player")))))
 				.then(Commands.literal("help").executes(VanishCommand::sendHelpText))
-				.then(Commands.literal("queue").executes(ctx -> queue(ctx, ctx.getSource().getPlayerOrException().getGameProfile().getName()))
+				.then(Commands.literal("queue")
+						.executes(VanishCommand::queueSelf)
 						.then(Commands.argument("player", StringArgumentType.word()).executes(ctx -> queue(ctx, StringArgumentType.getString(ctx, "player")))))
 				.then(Commands.literal("toggle")
 						// /v toggle — vanish self at best level
-						.executes(ctx -> vanishSelf(ctx, 0))
+						.executes(ctx -> vanishSelfConsoleAware(ctx, 0))
 						.then(Commands.argument("player", EntityArgument.player())
 								// /v toggle <player> — vanish target at best level
 								.executes(ctx -> vanish(ctx, EntityArgument.getPlayer(ctx, "player"), 0))
@@ -62,8 +64,53 @@ public class VanishCommand {
 										// /v toggle <player> <level>
 										.executes(ctx -> vanish(ctx, EntityArgument.getPlayer(ctx, "player"), IntegerArgumentType.getInteger(ctx, "level"))))))
 				.then(Commands.literal("trace")
-						.then(Commands.literal("enable").executes(ctx -> setTrace(ctx, null, true)))
-						.then(Commands.literal("disable").executes(ctx -> setTrace(ctx, null, false))));
+						.then(Commands.literal("enable").executes(ctx -> setTraceConsoleAware(ctx, true)))
+						.then(Commands.literal("disable").executes(ctx -> setTraceConsoleAware(ctx, false))));
+	}
+
+	private static int failConsoleOnly(CommandSourceStack source, String commandDesc) {
+		source.sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append(commandDesc + " can only be used by players."));
+		return 0;
+	}
+
+	private static int vanishSelfConsoleAware(CommandContext<CommandSourceStack> ctx, int requestedLevel) {
+		try {
+			return vanishSelf(ctx, requestedLevel);
+		} catch (CommandSyntaxException e) {
+			return failConsoleOnly(ctx.getSource(), "/vanish (self)");
+		}
+	}
+
+	private static int getVanishedStatusSelf(CommandContext<CommandSourceStack> ctx) {
+		ServerPlayer self;
+		try {
+			self = ctx.getSource().getPlayerOrException();
+		} catch (CommandSyntaxException e) {
+			return failConsoleOnly(ctx.getSource(), "/vanish get (without player)");
+		}
+		return getVanishedStatus(ctx, self);
+	}
+
+	private static int queueSelf(CommandContext<CommandSourceStack> ctx) {
+		String name;
+		try {
+			name = ctx.getSource().getPlayerOrException().getGameProfile().getName();
+		} catch (CommandSyntaxException e) {
+			return failConsoleOnly(ctx.getSource(), "/vanish queue (without player)");
+		}
+		try {
+			return queue(ctx, name);
+		} catch (CommandSyntaxException e) {
+			return 0;
+		}
+	}
+
+	private static int setTraceConsoleAware(CommandContext<CommandSourceStack> ctx, boolean shouldTrace) {
+		try {
+			return setTrace(ctx, null, shouldTrace);
+		} catch (CommandSyntaxException e) {
+			return failConsoleOnly(ctx.getSource(), "/vanish trace");
+		}
 	}
 
 	/** Check if the command source has any sef.vanish.N permission. */

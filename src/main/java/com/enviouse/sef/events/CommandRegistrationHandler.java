@@ -2,8 +2,11 @@ package com.enviouse.sef.events;
 
 import com.enviouse.sef.alts.AltTracker;
 import com.enviouse.sef.alts.CheckAltsCommand;
-import com.enviouse.sef.announcements.AnnouncementCommands;
 import com.enviouse.sef.announcements.AnnouncementManager;
+import com.enviouse.sef.announcements.CommandAnnouncementCommand;
+import com.enviouse.sef.announcements.TextAnnouncementCommand;
+import com.enviouse.sef.announcements.TitleAnnouncementCommand;
+import com.enviouse.sef.announcements.ToggleCommand;
 import com.enviouse.sef.banned.BannedItemsCommands;
 import com.enviouse.sef.banned.BannedItemsManager;
 import com.enviouse.sef.chat.AdminChatHandler;
@@ -66,7 +69,11 @@ public class CommandRegistrationHandler {
 
         // Register announcement commands if enabled
         if(ConfigHandler.config.enableAnnouncements.get()) {
-            AnnouncementCommands.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
+            TextAnnouncementCommand.setManager(ANNOUNCEMENT_MANAGER);
+            TextAnnouncementCommand.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
+            CommandAnnouncementCommand.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
+            TitleAnnouncementCommand.register(e.getDispatcher());
+            ToggleCommand.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
         }
 
         // Register /ans chat reply command if enabled

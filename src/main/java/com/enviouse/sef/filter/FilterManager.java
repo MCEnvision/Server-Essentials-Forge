@@ -6,6 +6,7 @@ import net.minecraft.server.MinecraftServer;
 
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class FilterManager {
@@ -44,7 +45,7 @@ public class FilterManager {
             } else {
                 message = message.replaceAll(
                     "(?i)" + Pattern.quote(rec.wordToFilter()),
-                    rec.replacement()
+                    Matcher.quoteReplacement(rec.replacement())
                 );
             }
         }

@@ -138,7 +138,9 @@ public class NickCommands {
 				return 0;
 			}
 		}
-		ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cUnknown error!&r"));
+		// /nick from console — no self and no target given
+		ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+				"&c/nick can only be used by players. Use &f/nickfor <player> [nickname]&c for other players.&r"));
 		return 0;
 	}
 }

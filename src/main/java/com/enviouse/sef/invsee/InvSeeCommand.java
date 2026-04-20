@@ -50,8 +50,15 @@ public class InvSeeCommand {
             })
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> {
-                    ServerPlayer viewer = ctx.getSource().getPlayerOrException();
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer viewer;
+                    try {
+                        viewer = ctx.getSource().getPlayerOrException();
+                    } catch (Exception e) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                            "&c/invsee can only be used by players — it opens a GUI."));
+                        return 0;
+                    }
                     return openInvSee(viewer, target, 0);
                 })));
     }

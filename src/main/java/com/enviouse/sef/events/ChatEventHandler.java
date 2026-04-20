@@ -74,9 +74,9 @@ public class ChatEventHandler implements IReloadable {
 		if(e.isCanceled()) return;
 		if(!loaded) return; // Just do nothing until everything's ready to go!
     	ServerPlayer player = e.getPlayer();
+		if(player == null) return;
         GameProfile profile = player.getGameProfile();
     	UUID uuid = profile.getId();
-		if(e == null || player == null) return;
         String msg = e.getMessage().getString();
 		if(msg == null || (msg).isEmpty()) return;
 
@@ -180,8 +180,14 @@ public class ChatEventHandler implements IReloadable {
 		String tstamp = timestampFormat == null ? "" : timestampFormat.format(new Date());
 		String name = SEFUtilities.getRawPreferredPlayerName(profile);
 		String fmat = chatMessageFormat.replace("$time", tstamp).replace("$name", name);
-		MutableComponent beforeMsg = TextFormatter.stringToFormattedText(fmat.substring(0, fmat.indexOf("$msg")));
-		MutableComponent afterMsg = TextFormatter.stringToFormattedText(fmat.substring(fmat.indexOf("$msg") + 4));
+		int msgIdx = fmat.indexOf("$msg");
+		if(msgIdx < 0) {
+			ServerEssentialsForge.LOGGER.warn("[SEF] chatMessageFormat is missing '$msg' placeholder — appending to end. Current format: {}", chatMessageFormat);
+			fmat = fmat + "$msg";
+			msgIdx = fmat.indexOf("$msg");
+		}
+		MutableComponent beforeMsg = TextFormatter.stringToFormattedText(fmat.substring(0, msgIdx));
+		MutableComponent afterMsg = TextFormatter.stringToFormattedText(fmat.substring(msgIdx + 4));
 		boolean enableColor = PermissionsHandler.playerHasPermission(uuid, PermissionsHandler.coloredChatNode);
 		boolean enableStyle = PermissionsHandler.playerHasPermission(uuid, PermissionsHandler.styledChatNode);
 		
@@ -204,11 +210,6 @@ public class ChatEventHandler implements IReloadable {
 		// Start generating the main TextComponent
 		MutableComponent msgComp = TextFormatter.stringToFormattedText(msg, enableColor, enableStyle, uuid);
 
-		// Append the hover and click event crap
-		Style sty = getHoverClickEventStyle(e.getMessage());
-		MutableComponent ecmp = Component.empty();
-		if(sty != null && sty.getHoverEvent() != null)
-			ecmp.setStyle(sty);
 		e.setCanceled(true);
 		
 		MutableComponent newMessage = beforeMsg.append(msgComp.append(afterMsg));
