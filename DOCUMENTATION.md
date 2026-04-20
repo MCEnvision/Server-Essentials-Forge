@@ -1,4 +1,4 @@
-# Better Forge Chat Reborn Reworked - Documentation
+# ServerEssentialsForge (SEF) - Documentation
 
 **Version:** 4.0.0  
 **Author:** EnVy  
@@ -23,16 +23,23 @@
 
 ## Overview
 
-Better Forge Chat Reborn is a comprehensive chat management mod for Minecraft Forge servers. It provides:
+ServerEssentialsForge is a comprehensive server management and chat mod for Minecraft Forge. It provides:
 
-- **Custom Chat Formatting** - Colors, styles, markdown support
+- **Custom Chat Formatting** - Colors, styles, hex colors, markdown support
 - **LuckPerms Integration** - Prefixes, suffixes, and group-based permissions
-- **FTB Essentials Integration** - Nickname support
-- **Private Messaging System** - `/msg`, `/r`, and aliases
-- **Announcement System** - Scheduled text and command announcements
+- **FTB Essentials Integration** - Nickname support, mute integration, enhanced `/invsee`
+- **Private Messaging System** - `/msg`, `/r`, and aliases with toggle mode
+- **Vanish System** - Full vanish with fake join/leave, SDLink integration, packet-level hiding
+- **Mute System** - Persistent, tick-based mutes that survive relogs and restarts
+- **Freeze System** - Lock players in place with configurable reasons
+- **InvSee System** - View and edit player inventories including Curios slots
+- **Announcement System** - Scheduled text, command, and title announcements
 - **Word Filter System** - Filter and replace words in chat
 - **Chat Reply System** - Click-to-reply functionality with chat logging
+- **Warning System** - Persistent warnings with expiration
+- **Moderation Tools** - Clear chat, sudo, inventory lock, disable building, alt detection
 - **Tab List Customization** - Custom headers, footers, and player display
+- **MOTD Manager** - Create and hot-swap server list MOTDs
 
 ---
 
@@ -41,19 +48,21 @@ Better Forge Chat Reborn is a comprehensive chat management mod for Minecraft Fo
 1. Download the mod JAR file
 2. Place it in your server's `mods/` folder
 3. Start the server to generate the config file
-4. Configure `config/bfcrr/common.toml` as needed
-5. Restart the server or use `/bfcrr reload`
+4. Configure `config/sef/common.toml` as needed
+5. Restart the server or use `/sef reload`
 
 ### Optional Dependencies
 
 - **LuckPerms** - For prefix/suffix and advanced permissions
-- **FTB Essentials** - For nickname integration
+- **FTB Essentials** - For nickname integration and mute integration
+- **Curios** - For Curios slot support in `/invsee` and banned item scanning
+- **Simple Discord Link (SDLink)** - For Discord integration (vanish, private chat hiding)
 
 ---
 
 ## File Structure
 
-### Server-Wide Config (`config/bfcrr/`)
+### Server-Wide Config (`config/sef/`)
 Files that persist across all worlds:
 
 | File | Description |
@@ -61,7 +70,7 @@ Files that persist across all worlds:
 | `common.toml` | Main mod configuration |
 | `motd.json` | Server MOTD settings |
 
-### Per-World Data (`<world>/serverconfig/bfcrr/`)
+### Per-World Data (`<world>/serverconfig/sef/`)
 Files that are specific to each world:
 
 | File | Description |
@@ -74,6 +83,7 @@ Files that are specific to each world:
 | `bulletin.json` | Operator bulletin items |
 | `alt_data.json` | Alt tracker IP/account data |
 | `warns.json` | Player warning entries |
+| `mutes.json` | Persistent mute data |
 
 ### Logs (`logs/chat/`)
 Chat logs for the reply system:
@@ -86,7 +96,7 @@ Chat logs for the reply system:
 
 ## Configuration
 
-Configuration file: `config/bfcrrmod-common.toml`
+Configuration file: `config/sef-common.toml`
 
 ### Chat Formatting
 
@@ -220,19 +230,19 @@ All system messages support `&` color codes.
 
 ### Core Commands
 
-#### `/bfcrr <subcommand>`
+#### `/sef <subcommand>`
 Main mod command.
 
 | Subcommand | Permission | Description |
 |------------|------------|-------------|
-| `info` | `bfcrrmod.commands.bfcrr.info` | Show mod information and integration status |
-| `colors` | `bfcrrmod.commands.bfcrr.colors` | Display color code reference |
+| `info` | `sef.commands.sef.info` | Show mod information and integration status |
+| `colors` | `sef.commands.sef.colors` | Display color code reference |
 | `test` | - | Test color and styling rendering |
-| `reload` | `bfcrrmod.commands.bfcrr.reload` | Reload configuration from disk |
+| `reload` | `sef.commands.sef.reload` | Reload configuration from disk |
 
 #### `/colors`
 Display color code reference chart.
-- **Permission:** `bfcrrmod.commands.colors`
+- **Permission:** `sef.commands.colors`
 - **Config:** `enableColorsCommand`
 
 ---
@@ -242,20 +252,20 @@ Display color code reference chart.
 #### `/msg <player> <message>`
 Send a private message to a player.
 - **Aliases:** `/m`, `/tell`, `/w`, `/pm`
-- **Permission:** `bfcrrmod.commands.msg`
+- **Permission:** `sef.commands.msg`
 - **Config:** `enableMessagingSystem`
 
 #### `/msg <player>` (no message)
 Toggle private chat mode with that player. All your messages will be sent only to them.
-- **Permission:** `bfcrrmod.commands.msg`
+- **Permission:** `sef.commands.msg`
 
 #### `/msg` or `/r` (no arguments)
 Disable private chat mode and return to public chat.
-- **Permission:** `bfcrrmod.commands.msg`
+- **Permission:** `sef.commands.msg`
 
 #### `/r <message>`
 Reply to the last person who messaged you.
-- **Permission:** `bfcrrmod.commands.msg`
+- **Permission:** `sef.commands.msg`
 - **Config:** `enableMessagingSystem`
 - **Note:** Only works after receiving a message (not just sending)
 
@@ -272,7 +282,7 @@ Reply to the last person who messaged you.
 
 #### `/ans <messageId> <message>`
 Reply to a specific chat message.
-- **Permission:** `bfcrrmod.commands.ans` (default: `true`)
+- **Permission:** `sef.commands.ans` (default: `true`)
 - **Config:** `enableChatReplies`
 
 **How it works:**
@@ -296,7 +306,7 @@ Configurable via `replyHeaderFormat`. Default:
 **Sound Notifications:**
 - When someone replies to your message (`/ans`), you hear the note block pling sound
   - Configurable via `enableReplySound`
-  - Requires `bfcrrmod.ans.notify` permission (default: `true`)
+  - Requires `sef.ans.notify` permission (default: `true`)
 - When you receive a private message (`/msg`), you hear the chicken egg plop sound
   - Configurable via `enableMsgSound`
 
@@ -315,15 +325,15 @@ The HelpOp system allows players to request help from server operators.
 
 #### `/helpop <message>`
 Send a help request to all online operators.
-- **Permission:** `bfcrrmod.helpop.send` (default: `true`)
+- **Permission:** `sef.helpop.send` (default: `true`)
 - **Format to operators:** Configurable via `helpOpRequestFormat`
 - **Sound:** Chicken egg plop sound plays for operators (configurable via `enableHelpOpSound`)
 - **Click to reply:** Operators can click the message to auto-fill `/helpopop <player>`
-- **Who receives:** OP Level 2+ or players with `bfcrrmod.helpop.receive`
+- **Who receives:** OP Level 2+ or players with `sef.helpop.receive`
 
 #### `/helpopop <player> <message>`
 Operators reply to a player's help request anonymously.
-- **Permission:** `bfcrrmod.helpop.reply` or OP Level 2+
+- **Permission:** `sef.helpop.reply` or OP Level 2+
 - **Format to player:** Configurable via `helpOpReplyFormat`
 - **Sound:** Chicken egg plop sound plays for the player (configurable via `enableHelpOpSound`)
 
@@ -339,15 +349,15 @@ Private chat channel visible only to operators and players with admin chat permi
 
 #### `/chat admin`
 Toggle admin chat mode on/off. When enabled, all your normal chat messages are intercepted and sent only to admin chat.
-- **Permission:** `bfcrrmod.adminchat.use` or OP Level 2+
+- **Permission:** `sef.adminchat.use` or OP Level 2+
 - **Alias:** `/ac`
 
 #### `/chat admin <message>` or `/ac <message>`
 Send a single message to admin chat without toggling.
-- **Permission:** `bfcrrmod.adminchat.use` or OP Level 2+
+- **Permission:** `sef.adminchat.use` or OP Level 2+
 - **Format:** Configurable via `adminChatFormat`
 - **Sound:** Note block pling sound plays for all operators (configurable via `enableAdminChatSound`, default: off)
-- **Who sees:** OP Level 2+ or players with `bfcrrmod.adminchat.see`
+- **Who sees:** OP Level 2+ or players with `sef.adminchat.see`
 
 ---
 
@@ -455,42 +465,42 @@ Manually scan yourself for banned items.
 
 Manage the server's Message of the Day (MOTD) that appears in the server list.
 
-#### `/bfcrr motd list [page]`
+#### `/sef motd list [page]`
 View all configured MOTDs with pagination.
 - **Permission:** OP Level 2+
 - Click on an MOTD to edit it
 - Click [Activate] to set it as the current MOTD
 - Click [X] to remove it
 
-#### `/bfcrr motd add <text>`
+#### `/sef motd add <text>`
 Add a new MOTD.
 - **Permission:** OP Level 2+
 - Supports color codes: `&a`, `&b`, `&c`, etc.
 - Supports line breaks: `<br>`
-- Example: `/bfcrr motd add &a&lMy Server<br>&7Welcome!`
+- Example: `/sef motd add &a&lMy Server<br>&7Welcome!`
 
-#### `/bfcrr motd set <index> <text>`
+#### `/sef motd set <index> <text>`
 Modify an existing MOTD.
 - **Permission:** OP Level 2+
 - If modifying the active MOTD, changes are applied immediately
 
-#### `/bfcrr motd remove <index>`
+#### `/sef motd remove <index>`
 Remove an MOTD by index.
 - **Permission:** OP Level 2+
 
-#### `/bfcrr motd activate <index>`
+#### `/sef motd activate <index>`
 Set which MOTD is active and apply it to the server.
 - **Permission:** OP Level 2+
 
-#### `/bfcrr motd apply`
+#### `/sef motd apply`
 Force apply the current MOTD to the server.
 - **Permission:** OP Level 2+
 
-#### `/bfcrr motd preview <index>`
+#### `/sef motd preview <index>`
 Preview how an MOTD will look.
 - **Permission:** OP Level 2+
 
-#### `/bfcrr motd clear`
+#### `/sef motd clear`
 Remove all MOTDs.
 - **Permission:** OP Level 2+
 
@@ -520,7 +530,7 @@ Clear a player's chat (or all non-OP players' chat).
 #### `/cc [player]`
 Clear chat for a specific player, or all non-OPs if no player is specified.
 - **Alias:** `/clearchat`
-- **Permission:** `bfcrrmod.commands.clearchat` (default: `false`)
+- **Permission:** `sef.commands.clearchat` (default: `false`)
 - Sends configurable number of blank lines (`clearChatLineCount`, default: 100)
 
 **Config Options:**
@@ -541,7 +551,7 @@ Force a player to execute a command.
 
 #### `/sudo <player> <command>`
 Forces the target player to execute a command as if they typed it themselves.
-- **Permission:** `bfcrrmod.commands.sudo` (default: `false`)
+- **Permission:** `sef.commands.sudo` (default: `false`)
 
 **Config Options:**
 | Config Key | Default | Description |
@@ -559,7 +569,7 @@ Lock a player's inventory, preventing them from opening containers, picking up i
 
 #### `/invlock <player>`
 Toggle inventory lock for the target player.
-- **Permission:** `bfcrrmod.commands.invlock` (default: `false`)
+- **Permission:** `sef.commands.invlock` (default: `false`)
 - Locked players cannot:
   - Open containers (chests, furnaces, etc.)
   - Pick up items
@@ -586,7 +596,7 @@ Toggle building restrictions for a player, preventing them from placing or break
 #### `/disablebuilding <player>`
 Toggle building restrictions for the target player.
 - **Alias:** `/db`
-- **Permission:** `bfcrrmod.commands.disablebuilding` (default: `false`)
+- **Permission:** `sef.commands.disablebuilding` (default: `false`)
 - Restricted players cannot:
   - Break blocks
   - Place blocks
@@ -611,8 +621,8 @@ Check if a player has alternate accounts by looking up their IP address. Tracks 
 
 #### `/checkalts <player>`
 Lists all accounts that have logged in from the same IP address as the target player.
-- **Permission:** `bfcrrmod.commands.checkalts` (default: `false`)
-- Data persists to `<world>/serverconfig/bfcrr/alt_data.json`
+- **Permission:** `sef.commands.checkalts` (default: `false`)
+- Data persists to `<world>/serverconfig/sef/alt_data.json`
 - Skips recording for local/LAN connections (singleplayer safety)
 
 **Config Options:**
@@ -632,27 +642,27 @@ A full warning management system for operators. Warnings persist to JSON and sup
 
 #### `/warn <player> add <duration> <reason>`
 Add a warning to a player.
-- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- **Permission:** `sef.commands.warn` (default: `false`)
 - **Duration formats:** `30s`, `5m`, `1h`, `7d`, `permanent` (or `perm`, `forever`, `inf`)
 - If only a reason is provided (no valid duration), the warning is permanent
 - Notifies the warned player with a configurable message and optional sound
 
 #### `/warn <player> check`
 View all warnings for a player (including expired ones).
-- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- **Permission:** `sef.commands.warn` (default: `false`)
 - Expired warnings show the configurable expired tag (default: `(expired)`)
 
 #### `/warn <player> remove <id>`
 Remove a specific warning by its ID number.
-- **Permission:** `bfcrrmod.commands.warn` (default: `false`)
+- **Permission:** `sef.commands.warn` (default: `false`)
 - Soft-deletes the warning (hidden from lists)
 
 #### `/warns`
 Players can check their own warnings.
-- **Permission:** `bfcrrmod.commands.warns` (default: `true`)
+- **Permission:** `sef.commands.warns` (default: `true`)
 - Shows all warnings including expired ones
 
-**Data Storage:** `<world>/serverconfig/bfcrr/warns.json`
+**Data Storage:** `<world>/serverconfig/sef/warns.json`
 
 **Config Options:**
 | Config Key | Default | Description |
@@ -668,18 +678,117 @@ Players can check their own warnings.
 
 ---
 
+### Vanish System
+
+**Built-in vanish module** — fully integrated, no separate mod needed.
+
+#### `/v` or `/vanish`
+Toggle vanish mode for yourself.
+- **Permission:** OP Level 2+ (or configurable)
+- Sends a **fake leave message** when vanishing and a **fake join message** when unvanishing
+- While vanished:
+  - Hidden from tab list and entity selectors
+  - No collision with other players
+  - Mobs do not target you
+  - Minecarts do not collide with you
+  - Projectiles pass through you
+  - Server player count in the status response is reduced
+- **SDLink integration:** vanished players are hidden from Discord relay (fake leave/join messages sent)
+- **Playtime integration:** vanished players do not accumulate playtime
+
+---
+
+### Mute System
+
+**Config:** `enableMuteSystem`
+
+A persistent mute system that actually blocks chat messages. Mute timers are **tick-based** — they only count down while the server is running. Mutes persist across player relogs and server restarts.
+
+#### `/mute <player> <duration> [reason]`
+Mute a player for a specified duration.
+- **Permission:** `sef.commands.mute` (default: `false`) or OP Level 2+
+- **Duration formats:** `30s`, `5m`, `1h`, `7d`, `permanent` (or `perm`, `forever`, `inf`)
+- Muted players see a configurable message when they try to chat
+- **Operator relay:** If `sendMutedMessageToOps` is enabled, operators see muted messages formatted as: `&c&lMuted Message &7From {username}:&r {message}`
+
+#### `/unmute <player>`
+Unmute a player before the timer expires.
+- **Permission:** `sef.commands.unmute` (default: `false`) or OP Level 2+
+
+**Data Storage:** `<world>/serverconfig/sef/mutes.json`
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `enableMuteSystem` | `true` | Enable the mute system |
+| `sendMutedMessageToOps` | `true` | Relay muted messages to operators |
+| `mutedMessageToOpsFormat` | `&c&lMuted Message &7From $player:&r $message` | Format for relayed muted messages (placeholders: `$player`, `$message`) |
+| `mutedPlayerChatMsg` | `&cYou are muted. Time remaining: $remaining` | Message shown to muted player (placeholder: `$remaining`) |
+| `muteNotifyFormat` | `&e$admin muted $player for $duration: &7$reason` | Notification format (placeholders: `$admin`, `$player`, `$duration`, `$reason`) |
+| `unmuteNotifyFormat` | `&e$admin unmuted $player.` | Unmute notification (placeholders: `$admin`, `$player`) |
+
+---
+
+### Freeze System
+
+**Config:** `enableFreezeSystem`
+
+Freezes a player in place completely — they cannot move, look around, jump, mine, break, place, or use commands. They **can** still type in chat (so they can respond to the admin). A configurable message is displayed telling the player why they were frozen.
+
+#### `/freeze <player> <duration> <reason>`
+Freeze a player.
+- **Permission:** `sef.commands.freeze` (default: `false`) or OP Level 2+
+- **Duration formats:** `30s`, `5m`, `1h`, `infinite` (or `inf`)
+- The player sees a chat message with the reason they were frozen
+- Frozen players cannot use any commands
+
+#### `/unfreeze <player>`
+Unfreeze a player before the timer expires.
+- **Permission:** `sef.commands.unfreeze` (default: `false`) or OP Level 2+
+
+**Config Options:**
+| Config Key | Default | Description |
+|------------|---------|-------------|
+| `enableFreezeSystem` | `true` | Enable the freeze system |
+| `freezeNotifyFormat` | `&c⚠ You have been frozen by $admin. Reason: &f$reason` | Message to frozen player (placeholders: `$admin`, `$reason`) |
+| `freezeAdminMsg` | `&aFroze $player for $duration. Reason: &7$reason` | Admin confirmation (placeholders: `$player`, `$duration`, `$reason`) |
+| `unfreezeNotifyFormat` | `&a⚠ You have been unfrozen.` | Message to unfrozen player |
+| `unfreezeAdminMsg` | `&aUnfroze $player.` | Admin confirmation (placeholder: `$player`) |
+| `freezeBlockedCommandMsg` | `&cYou cannot use commands while frozen.` | Message when frozen player tries a command |
+
+---
+
+### InvSee System
+
+View and **edit** another player's inventory, including armor, offhand, and Curios slots.
+
+#### `/invsee <player>`
+Open a player's inventory in a double-chest GUI.
+- **Permission:** `sef.commands.invsee` (default: `false`) or OP Level 2+
+- Sections are separated by **glass panes** for clarity:
+  - Main inventory (27 slots)
+  - Hotbar (9 slots)
+  - Armor slots (4 slots)
+  - Offhand slot (1 slot)
+  - Curios slots (if Curios mod is installed)
+- All slots are **fully editable** — you can take, place, and swap items
+- If FTB Essentials is detected, SEF replaces its `/invsee` with the enhanced version
+- Clickable page arrows if the inventory exceeds one page
+
+---
+
 #### `/nick <nickname>`
 Set your own nickname.
-- **Permission:** `bfcrrmod.commands.nick`
+- **Permission:** `sef.commands.nick`
 - **Config:** `enableIntegratedNicknames` or `autoIntegratedNicknames`
 
 #### `/nick <player> <nickname>`
 Set another player's nickname.
-- **Permission:** `bfcrrmod.commands.nick.others`
+- **Permission:** `sef.commands.nick.others`
 
 #### `/whois <nickname>`
 Look up who owns a nickname.
-- **Permission:** `bfcrrmod.commands.whois`
+- **Permission:** `sef.commands.whois`
 - **Config:** `enableWhoisCommand`
 
 ---
@@ -844,7 +953,7 @@ Toggle announcements on/off for yourself.
 
 **Config:** `enableFilterSystem`
 
-#### `/bfcrr filter add <id> <yes|no> "<word>" [replacement]`
+#### `/sef filter add <id> <yes|no> "<word>" [replacement]`
 Add a word filter.
 
 | Parameter | Description |
@@ -856,130 +965,144 @@ Add a word filter.
 
 **Examples:**
 ```
-/bfcrr filter add badword no "badword" "****"
-/bfcrr filter add spam no "spamtext"
+/sef filter add badword no "badword" "****"
+/sef filter add spam no "spamtext"
 ```
 
-#### `/bfcrr filter remove <id>`
+#### `/sef filter remove <id>`
 Remove a word filter.
 
-#### `/bfcrr filter list`
+#### `/sef filter list`
 List all configured word filters.
 
 ---
 
 ## Permissions
 
-All permissions use the prefix `bfcrrmod.` and default to `true` unless otherwise noted.
+All permissions use the prefix `sef.` and default to `true` unless otherwise noted.
 
 ### Chat Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.chat.colors` | `true` | Use color codes in chat |
-| `bfcrrmod.chat.styles` | `true` | Use style codes in chat (bold, italic, etc.) |
-| `bfcrrmod.chat.styles.md` | `true` | Use markdown styling in chat |
-| `bfcrrmod.chat.colors.hex` | `true` | Use hex colors and gradients |
-| `bfcrrmod.chat.colors.0-f` | `true` | Per-color permissions (0-9, a-f) |
-| `bfcrrmod.sign.colors` | `false` | Use colors on signs |
-| `bfcrrmod.sign.styles` | `false` | Use styles on signs |
+| `sef.chat.colors` | `true` | Use color codes in chat |
+| `sef.chat.styles` | `true` | Use style codes in chat (bold, italic, etc.) |
+| `sef.chat.styles.md` | `true` | Use markdown styling in chat |
+| `sef.chat.colors.hex` | `true` | Use hex colors and gradients |
+| `sef.chat.colors.0-f` | `true` | Per-color permissions (0-9, a-f) |
+| `sef.sign.colors` | `false` | Use colors on signs |
+| `sef.sign.styles` | `false` | Use styles on signs |
 
 ### Tab List Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.tablist.nickname` | `true` | Show nickname in tab list |
-| `bfcrrmod.tablist.metadata` | `true` | Show prefix/suffix in tab list |
+| `sef.tablist.nickname` | `true` | Show nickname in tab list |
+| `sef.tablist.metadata` | `true` | Show prefix/suffix in tab list |
 
 ### Command Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.commands.colors` | `true` | Use `/colors` command |
-| `bfcrrmod.commands.bfcrr.allowed` | `true` | Use `/bfcrr` command |
-| `bfcrrmod.commands.bfcrr.colors` | `true` | Use `/bfcrr colors` |
-| `bfcrrmod.commands.bfcrr.info` | `true` | Use `/bfcrr info` |
-| `bfcrrmod.commands.bfcrr.reload` | `true` | Use `/bfcrr reload` |
-| `bfcrrmod.commands.msg` | `true` | Use `/msg`, `/r`, and aliases |
-| `bfcrrmod.commands.whois` | `true` | Use `/whois` command |
-| `bfcrrmod.commands.nick` | `true` | Use `/nick` on self |
-| `bfcrrmod.commands.nick.others` | `true` | Use `/nick` on others |
-| `bfcrrmod.commands.ans` | `true` | Use `/ans` reply command |
+| `sef.commands.colors` | `true` | Use `/colors` command |
+| `sef.commands.sef.allowed` | `true` | Use `/sef` command |
+| `sef.commands.sef.colors` | `true` | Use `/sef colors` |
+| `sef.commands.sef.info` | `true` | Use `/sef info` |
+| `sef.commands.sef.reload` | `true` | Use `/sef reload` |
+| `sef.commands.msg` | `true` | Use `/msg`, `/r`, and aliases |
+| `sef.commands.whois` | `true` | Use `/whois` command |
+| `sef.commands.nick` | `true` | Use `/nick` on self |
+| `sef.commands.nick.others` | `true` | Use `/nick` on others |
+| `sef.commands.ans` | `true` | Use `/ans` reply command |
 
 ### Private Messaging Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.msg.receive` | `true` | Can receive private messages |
-| `bfcrrmod.msg.sendoffline` | `false` | Can send messages to offline players (queued) |
-| `bfcrrmod.ans.notify` | `true` | Receive sound when someone replies |
+| `sef.msg.receive` | `true` | Can receive private messages |
+| `sef.msg.sendoffline` | `false` | Can send messages to offline players (queued) |
+| `sef.ans.notify` | `true` | Receive sound when someone replies |
 
 ### Nickname Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.nick.colors` | `false` | Use color codes in nicknames |
-| `bfcrrmod.nick.styles` | `false` | Use style codes in nicknames |
+| `sef.nick.colors` | `false` | Use color codes in nicknames |
+| `sef.nick.styles` | `false` | Use style codes in nicknames |
 
 ### HelpOp Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.helpop.send` | `true` | Can send /helpop requests |
-| `bfcrrmod.helpop.receive` | `false` | Receives HelpOp messages (for non-OP staff) |
-| `bfcrrmod.helpop.reply` | `false` | Can use /helpopop to reply |
+| `sef.helpop.send` | `true` | Can send /helpop requests |
+| `sef.helpop.receive` | `false` | Receives HelpOp messages (for non-OP staff) |
+| `sef.helpop.reply` | `false` | Can use /helpopop to reply |
 
 ### Admin Chat Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.adminchat.use` | `false` | Can use admin chat commands |
-| `bfcrrmod.adminchat.see` | `false` | Can see admin chat messages |
+| `sef.adminchat.use` | `false` | Can use admin chat commands |
+| `sef.adminchat.see` | `false` | Can see admin chat messages |
 
 ### Announcement Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.announcements.manage` | `false` | Can add/remove announcements |
-| `bfcrrmod.announcements.toggle` | `true` | Can toggle announcements on/off |
-| `bfcrrmod.announcements.bypass` | `false` | Receives announcements even if toggled off |
-| `bfcrrmod.announcements.title` | `false` | Can use /titleannouncement |
+| `sef.announcements.manage` | `false` | Can add/remove announcements |
+| `sef.announcements.toggle` | `true` | Can toggle announcements on/off |
+| `sef.announcements.bypass` | `false` | Receives announcements even if toggled off |
+| `sef.announcements.title` | `false` | Can use /titleannouncement |
 
 ### Filter Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.filter.manage` | `false` | Can manage word filters |
-| `bfcrrmod.filter.bypass` | `false` | Messages bypass word filter |
+| `sef.filter.manage` | `false` | Can manage word filters |
+| `sef.filter.bypass` | `false` | Messages bypass word filter |
 
 ### Admin Commands
 
 The following commands require **OP level 2** (or equivalent permission node):
 
-- `/textannouncement` - requires `bfcrrmod.announcements.manage` or OP
-- `/commandannouncement` - requires `bfcrrmod.announcements.manage` or OP
-- `/titleannouncement` - requires `bfcrrmod.announcements.title` or OP
-- `/bfcrr filter` - requires `bfcrrmod.filter.manage` or OP
-- `/helpopop <player> <message>` - requires `bfcrrmod.helpop.reply` or OP
-- `/chat admin` / `/ac` - requires `bfcrrmod.adminchat.use` or OP
-- `/cc` / `/clearchat` - requires `bfcrrmod.commands.clearchat` or OP
-- `/sudo` - requires `bfcrrmod.commands.sudo` or OP
-- `/invlock` - requires `bfcrrmod.commands.invlock` or OP
-- `/disablebuilding` / `/db` - requires `bfcrrmod.commands.disablebuilding` or OP
-- `/checkalts` - requires `bfcrrmod.commands.checkalts` or OP
-- `/warn` - requires `bfcrrmod.commands.warn` or OP
+- `/textannouncement` - requires `sef.announcements.manage` or OP
+- `/commandannouncement` - requires `sef.announcements.manage` or OP
+- `/titleannouncement` - requires `sef.announcements.title` or OP
+- `/sef filter` - requires `sef.filter.manage` or OP
+- `/helpopop <player> <message>` - requires `sef.helpop.reply` or OP
+- `/chat admin` / `/ac` - requires `sef.adminchat.use` or OP
+- `/cc` / `/clearchat` - requires `sef.commands.clearchat` or OP
+- `/sudo` - requires `sef.commands.sudo` or OP
+- `/invlock` - requires `sef.commands.invlock` or OP
+- `/disablebuilding` / `/db` - requires `sef.commands.disablebuilding` or OP
+- `/checkalts` - requires `sef.commands.checkalts` or OP
+- `/warn` - requires `sef.commands.warn` or OP
+- `/mute` - requires `sef.commands.mute` or OP
+- `/unmute` - requires `sef.commands.unmute` or OP
+- `/freeze` - requires `sef.commands.freeze` or OP
+- `/unfreeze` - requires `sef.commands.unfreeze` or OP
+- `/invsee` - requires `sef.commands.invsee` or OP
+- `/vanish` / `/v` - requires OP Level 2+
 
 ### Moderation Permissions
 
 | Permission | Default | Description |
 |------------|---------|-------------|
-| `bfcrrmod.commands.clearchat` | `false` | Can use `/cc` and `/clearchat` |
-| `bfcrrmod.commands.sudo` | `false` | Can use `/sudo` to force commands |
-| `bfcrrmod.commands.invlock` | `false` | Can use `/invlock` to lock inventories |
-| `bfcrrmod.commands.disablebuilding` | `false` | Can use `/disablebuilding` and `/db` |
-| `bfcrrmod.commands.checkalts` | `false` | Can use `/checkalts` |
-| `bfcrrmod.commands.warn` | `false` | Can add/check/remove warnings on others |
-| `bfcrrmod.commands.warns` | `true` | Can check own warnings with `/warns` |
+| `sef.commands.clearchat` | `false` | Can use `/cc` and `/clearchat` |
+| `sef.commands.sudo` | `false` | Can use `/sudo` to force commands |
+| `sef.commands.invlock` | `false` | Can use `/invlock` to lock inventories |
+| `sef.commands.disablebuilding` | `false` | Can use `/disablebuilding` and `/db` |
+| `sef.commands.checkalts` | `false` | Can use `/checkalts` |
+| `sef.commands.warn` | `false` | Can add/check/remove warnings on others |
+| `sef.commands.warns` | `true` | Can check own warnings with `/warns` |
+| `sef.commands.mute` | `false` | Can use `/mute` to mute a player |
+| `sef.commands.unmute` | `false` | Can use `/unmute` to unmute a player |
+| `sef.mute.seeblocked` | `false` | Receives muted player messages relayed to operators |
+| `sef.mute.notify` | `false` | Receives notifications when players are muted/unmuted |
+| `sef.commands.freeze` | `false` | Can use `/freeze` to freeze a player |
+| `sef.commands.unfreeze` | `false` | Can use `/unfreeze` to unfreeze a player |
+| `sef.freeze.notify` | `false` | Receives notifications when players are frozen/unfrozen |
+| `sef.commands.invsee` | `false` | Can use `/invsee` to view/edit another player's inventory |
 
 ---
 
@@ -1028,13 +1151,13 @@ When enabled, you can use:
 ## Data Storage
 
 ### Announcements
-- **Location:** `<world>/serverconfig/bfcrr_announcements/`
+- **Location:** `<world>/serverconfig/SEF_announcements/`
 - **Files:**
   - `announcements.json` - Announcement definitions
   - `toggle_prefs.json` - Player toggle preferences
 
 ### Word Filters
-- **Location:** `<world>/serverconfig/bfcrr_filters/`
+- **Location:** `<world>/serverconfig/SEF_filters/`
 - **Files:**
   - `filters.json` - Filter definitions
 
@@ -1050,10 +1173,10 @@ When enabled, you can use:
 ## Changelog
 
 ### Version 4.0.0
-- **Renamed mod from BFCR to BFCRR** (Better Forge Chat Reborn Reworked)
-  - All commands changed from `/bfcr` to `/bfcrr`
-  - Mod ID: `bfcrrmod`
-  - Config file: `bfcrrmod-common.toml`
+- **Renamed mod from SEF to SEF** (ServerEssentialsForge (SEF))
+  - All commands changed from `/SEF` to `/sef`
+  - Mod ID: `sef`
+  - Config file: `sef-common.toml`
 - Added **Chat Reply System** (`/ans` command)
   - Click any chat message to reply
   - Shows formatted reply headers with player ranks
@@ -1061,7 +1184,7 @@ When enabled, you can use:
   - Note block pling sound when someone replies to your message
   - Configurable reply summary length (`replySummaryLength`)
   - Strips "[Reply to X]" prefix from reply summaries
-- Added **Word Filter System** (`/bfcrr filter` commands)
+- Added **Word Filter System** (`/sef filter` commands)
   - Case-sensitive or insensitive matching
   - Replace or remove filtered words
 - Added **Private Messaging System** (`/msg`, `/r`)
@@ -1133,7 +1256,7 @@ When enabled, you can use:
 - Added pagination with arrows to all list commands
   - `/textannouncement list [page]`
   - `/commandannouncement list [page]`
-  - `/bfcrr filter list [page]`
+  - `/sef filter list [page]`
   - `/opbulletin [page]`
   - `/banned [page]`
 - Added **Banned Items System** (`/banned` commands)
@@ -1162,22 +1285,22 @@ When enabled, you can use:
 
 | Command | Description | Permission |
 |---------|-------------|------------|
-| `/bfcrr info` | Show mod info | `bfcrrmod.commands.bfcrr.info` |
-| `/bfcrr colors` | Show color codes | `bfcrrmod.commands.bfcrr.colors` |
-| `/bfcrr reload` | Reload config | `bfcrrmod.commands.bfcrr.reload` |
-| `/colors` | Show color codes | `bfcrrmod.commands.colors` |
-| `/msg <player> <msg>` | Private message | `bfcrrmod.commands.msg` |
-| `/msg <player>` | Toggle private chat with player | `bfcrrmod.commands.msg` |
-| `/msg` or `/r` | Exit private chat mode | `bfcrrmod.commands.msg` |
-| `/r <msg>` | Reply to last message | `bfcrrmod.commands.msg` |
-| `/ans <id> <msg>` | Reply to chat message | `bfcrrmod.commands.ans` |
-| `/nick <name>` | Set your nickname | `bfcrrmod.commands.nick` |
-| `/nick <player> <name>` | Set other's nickname | `bfcrrmod.commands.nick.others` |
-| `/whois <nickname>` | Look up nickname | `bfcrrmod.commands.whois` |
-| `/helpop <msg>` | Request help | `bfcrrmod.helpop.send` |
-| `/helpopop <player> <msg>` | Reply to helpop | `bfcrrmod.helpop.reply` or OP |
-| `/chat admin` | Toggle admin chat | `bfcrrmod.adminchat.use` or OP |
-| `/ac <msg>` | Send admin chat | `bfcrrmod.adminchat.use` or OP |
+| `/sef info` | Show mod info | `sef.commands.sef.info` |
+| `/sef colors` | Show color codes | `sef.commands.sef.colors` |
+| `/sef reload` | Reload config | `sef.commands.sef.reload` |
+| `/colors` | Show color codes | `sef.commands.colors` |
+| `/msg <player> <msg>` | Private message | `sef.commands.msg` |
+| `/msg <player>` | Toggle private chat with player | `sef.commands.msg` |
+| `/msg` or `/r` | Exit private chat mode | `sef.commands.msg` |
+| `/r <msg>` | Reply to last message | `sef.commands.msg` |
+| `/ans <id> <msg>` | Reply to chat message | `sef.commands.ans` |
+| `/nick <name>` | Set your nickname | `sef.commands.nick` |
+| `/nick <player> <name>` | Set other's nickname | `sef.commands.nick.others` |
+| `/whois <nickname>` | Look up nickname | `sef.commands.whois` |
+| `/helpop <msg>` | Request help | `sef.helpop.send` |
+| `/helpopop <player> <msg>` | Reply to helpop | `sef.helpop.reply` or OP |
+| `/chat admin` | Toggle admin chat | `sef.adminchat.use` or OP |
+| `/ac <msg>` | Send admin chat | `sef.adminchat.use` or OP |
 | `/textannouncement add` | Add text announcement | OP Level 2 |
 | `/textannouncement ontime` | One-time announcement | OP Level 2 |
 | `/textannouncement modify` | Modify announcement | OP Level 2 |
@@ -1187,10 +1310,10 @@ When enabled, you can use:
 | `/commandannouncement remove` | Remove command announcement | OP Level 2 |
 | `/commandannouncement list` | List command announcements | OP Level 2 |
 | `/titleannouncement` | Send title to players | OP Level 2 |
-| `/toggle [id]` | Toggle announcement | `bfcrrmod.announcements.toggle` |
-| `/bfcrr filter add` | Add word filter | OP Level 2 |
-| `/bfcrr filter remove` | Remove word filter | OP Level 2 |
-| `/bfcrr filter list` | List word filters | OP Level 2 |
+| `/toggle [id]` | Toggle announcement | `sef.announcements.toggle` |
+| `/sef filter add` | Add word filter | OP Level 2 |
+| `/sef filter remove` | Remove word filter | OP Level 2 |
+| `/sef filter list` | List word filters | OP Level 2 |
 | `/opbulletin` | View bulletin board | OP Level 2 |
 | `/opbulletin add <text>` | Add bulletin item | OP Level 2 |
 | `/opbulletin remove <id>` | Remove bulletin item | OP Level 2 |
@@ -1201,23 +1324,29 @@ When enabled, you can use:
 | `/banned scantime` | View/set item scan interval | OP Level 2 |
 | `/banned scantimeblocks` | View/set block scan interval | OP Level 2 |
 | `/banned scan` | Manually scan self | OP Level 2 |
-| `/cc [player]` | Clear chat (all non-OPs or specific player) | `bfcrrmod.commands.clearchat` |
-| `/clearchat [player]` | Alias for `/cc` | `bfcrrmod.commands.clearchat` |
-| `/sudo <player> <cmd>` | Force player to execute command | `bfcrrmod.commands.sudo` |
-| `/invlock <player>` | Toggle inventory lock | `bfcrrmod.commands.invlock` |
-| `/disablebuilding <player>` | Toggle building restrictions | `bfcrrmod.commands.disablebuilding` |
-| `/db <player>` | Alias for `/disablebuilding` | `bfcrrmod.commands.disablebuilding` |
-| `/checkalts <player>` | List alternate accounts | `bfcrrmod.commands.checkalts` |
-| `/warn <player> add <dur> <reason>` | Add a warning | `bfcrrmod.commands.warn` |
-| `/warn <player> check` | Check player warnings | `bfcrrmod.commands.warn` |
-| `/warn <player> remove <id>` | Remove a warning | `bfcrrmod.commands.warn` |
-| `/warns` | Check own warnings | `bfcrrmod.commands.warns` |
+| `/cc [player]` | Clear chat (all non-OPs or specific player) | `sef.commands.clearchat` |
+| `/clearchat [player]` | Alias for `/cc` | `sef.commands.clearchat` |
+| `/sudo <player> <cmd>` | Force player to execute command | `sef.commands.sudo` |
+| `/invlock <player>` | Toggle inventory lock | `sef.commands.invlock` |
+| `/disablebuilding <player>` | Toggle building restrictions | `sef.commands.disablebuilding` |
+| `/db <player>` | Alias for `/disablebuilding` | `sef.commands.disablebuilding` |
+| `/checkalts <player>` | List alternate accounts | `sef.commands.checkalts` |
+| `/warn <player> add <dur> <reason>` | Add a warning | `sef.commands.warn` |
+| `/warn <player> check` | Check player warnings | `sef.commands.warn` |
+| `/warn <player> remove <id>` | Remove a warning | `sef.commands.warn` |
+| `/warns` | Check own warnings | `sef.commands.warns` |
+| `/vanish` or `/v` | Toggle vanish mode | OP Level 2+ |
+| `/mute <player> <duration> [reason]` | Mute a player | `sef.commands.mute` |
+| `/unmute <player>` | Unmute a player | `sef.commands.unmute` |
+| `/freeze <player> <duration> <reason>` | Freeze a player in place | `sef.commands.freeze` |
+| `/unfreeze <player>` | Unfreeze a player | `sef.commands.unfreeze` |
+| `/invsee <player>` | View/edit player inventory | `sef.commands.invsee` |
 
 ### All Config Sections
 
 | Section | Description |
 |---------|-------------|
-| `BetterForgeChatModConfig` | Main configuration |
+| `ServerEssentialsForgeConfig` | Main configuration |
 | `messageFormats` | Customizable message formats |
 | `sounds` | Sound notification toggles |
 | `systemMessages` | Customizable feedback messages |
@@ -1229,27 +1358,33 @@ When enabled, you can use:
 | `disableBuilding` | Building restriction settings |
 | `checkAlts` | Alt checking system settings |
 | `warnSystem` | Warning system settings |
+| `muteSystem` | Mute system settings |
+| `freezeSystem` | Freeze system settings |
+| `vanish` | Vanish system settings |
 
 ### All Permission Categories
 
 | Category | Prefix | Description |
 |----------|--------|-------------|
-| Chat | `bfcrrmod.chat.*` | Chat colors, styles, markdown |
-| Tab List | `bfcrrmod.tablist.*` | Tab list display |
-| Commands | `bfcrrmod.commands.*` | Command access |
-| Messaging | `bfcrrmod.msg.*` | Private messaging features |
-| Nicknames | `bfcrrmod.nick.*` | Nickname features |
-| HelpOp | `bfcrrmod.helpop.*` | HelpOp system |
-| Admin Chat | `bfcrrmod.adminchat.*` | Admin chat features |
-| Announcements | `bfcrrmod.announcements.*` | Announcement system |
-| Filters | `bfcrrmod.filter.*` | Word filter system |
-| Signs | `bfcrrmod.sign.*` | Sign formatting |
-| Clear Chat | `bfcrrmod.commands.clearchat` | Clear chat command |
-| Sudo | `bfcrrmod.commands.sudo` | Sudo command |
-| InvLock | `bfcrrmod.commands.invlock` | Inventory lock command |
-| Building | `bfcrrmod.commands.disablebuilding` | Building restrictions |
-| Alts | `bfcrrmod.commands.checkalts` | Alt checking |
-| Warns | `bfcrrmod.commands.warn` / `bfcrrmod.commands.warns` | Warning system |
+| Chat | `sef.chat.*` | Chat colors, styles, markdown |
+| Tab List | `sef.tablist.*` | Tab list display |
+| Commands | `sef.commands.*` | Command access |
+| Messaging | `sef.msg.*` | Private messaging features |
+| Nicknames | `sef.nick.*` | Nickname features |
+| HelpOp | `sef.helpop.*` | HelpOp system |
+| Admin Chat | `sef.adminchat.*` | Admin chat features |
+| Announcements | `sef.announcements.*` | Announcement system |
+| Filters | `sef.filter.*` | Word filter system |
+| Signs | `sef.sign.*` | Sign formatting |
+| Clear Chat | `sef.commands.clearchat` | Clear chat command |
+| Sudo | `sef.commands.sudo` | Sudo command |
+| InvLock | `sef.commands.invlock` | Inventory lock command |
+| Building | `sef.commands.disablebuilding` | Building restrictions |
+| Alts | `sef.commands.checkalts` | Alt checking |
+| Warns | `sef.commands.warn` / `sef.commands.warns` | Warning system |
+| Mute | `sef.commands.mute` / `sef.mute.*` | Mute system |
+| Freeze | `sef.commands.freeze` / `sef.freeze.*` | Freeze system |
+| InvSee | `sef.commands.invsee` | Inventory viewer |
 
 ---
 
