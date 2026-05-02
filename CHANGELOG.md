@@ -37,3 +37,11 @@
 - `bannedBlockScanInterval` default lowered from `200` → `40` ticks (2 s).
 - `bannedBlockScanRadius` default raised from `5` → `6`.
 - `banned_items.json` schema upgraded to a structured object (entries / bypassed / excepted / settings). Old flat-array files are auto-migrated on first load.
+
+### `/countdown` system (new)
+- `/countdown <time> [message] [color] [chat_too]` — broadcasts a timed countdown as a title + colored-time subtitle to every online player, with an optional chat line. Op-only by default (`sef.commands.countdown`).
+- Time accepts plain seconds (`90`), or compound forms (`1m30s`, `1h`, `1d2h30m`).
+- Color accepts vanilla legacy codes (`&c`) and hex (`&#FF5500` / `#FF5500`); both routed through the existing `TextFormatter`.
+- Beat schedule: start, every minute mark on the way down, 10s (if total > 10), then 5/4/3/2/1/0.
+- New config keys `enableCountdown`, `countdownTitleFormat`, `countdownSubtitleFormat`, `countdownChatFormat` (placeholders: `$message`, `$time`, `$colored_time`, `$color` — blank uses built-in defaults).
+- Multiple countdowns can run concurrently; all are cleared on server stop.

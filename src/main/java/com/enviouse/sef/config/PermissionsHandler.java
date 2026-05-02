@@ -155,6 +155,10 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> bannedBypassNode =
 			ezyPermission("banned.bypass", false, "Bypass banned items", "Player is exempt from banned-item confiscation and banned-block sweeps");
 
+	// Countdown Permissions
+	public static PermissionNode<Boolean> countdownCommand =
+			ezyPermission("commands.countdown", false, "Countdown command", "Allows using /countdown to broadcast a timed countdown");
+
 	// Sign and Misc Permissions
 	public static PermissionNode<Boolean> signColorNode =
 			ezyPermission("sign.colors", false, "Sign colors", "Allows usage of colors on signs");

@@ -182,6 +182,9 @@ public class ServerEssentialsForge {
             if(ConfigHandler.config.enableMuteSystem.get()) {
                 CommandRegistrationHandler.getMuteManager().tick(ev.getServer());
             }
+            if(ConfigHandler.config.enableCountdown.get()) {
+                com.enviouse.sef.countdown.CountdownManager.tick(ev.getServer());
+            }
         }
     }
     @SubscribeEvent
@@ -196,6 +199,7 @@ public class ServerEssentialsForge {
         if(ConfigHandler.config.enableBannedItems.get()) {
             CommandRegistrationHandler.getBannedItemsManager().save();
         }
+        com.enviouse.sef.countdown.CountdownManager.clear();
         // Clear vanished player list on server stop
         com.enviouse.sef.vanish.VanishUtil.VANISHED_PLAYERS.clear();
     }

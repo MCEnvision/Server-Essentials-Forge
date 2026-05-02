@@ -16,6 +16,7 @@ import com.enviouse.sef.clearchat.ClearChatCommand;
 import com.enviouse.sef.commands.BfcCommands;
 import com.enviouse.sef.commands.MsgCommands;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.countdown.CountdownCommand;
 import com.enviouse.sef.disablebuilding.DisableBuildingCommand;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.freeze.FreezeCommand;
@@ -136,6 +137,11 @@ public class CommandRegistrationHandler {
         // Register /mute, /unmute, /mutelist commands if enabled
         if(ConfigHandler.config.enableMuteSystem.get()) {
             MuteCommand.register(e.getDispatcher());
+        }
+
+        // Register /countdown command if enabled
+        if(ConfigHandler.config.enableCountdown.get()) {
+            CountdownCommand.register(e.getDispatcher());
         }
     }
 

@@ -68,6 +68,10 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<Integer> bannedBlockScanInterval;
 		public final ForgeConfigSpec.ConfigValue<String> bannedItemRemovedMsg;
 		public final ForgeConfigSpec.ConfigValue<String> bannedAnnounceFormat;
+		public final ForgeConfigSpec.ConfigValue<Boolean> enableCountdown;
+		public final ForgeConfigSpec.ConfigValue<String> countdownTitleFormat;
+		public final ForgeConfigSpec.ConfigValue<String> countdownSubtitleFormat;
+		public final ForgeConfigSpec.ConfigValue<String> countdownChatFormat;
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableMotdSystem;
 		public final ForgeConfigSpec.ConfigValue<Boolean> applyMotdOnStartup;
 
@@ -274,6 +278,22 @@ public class ConfigHandler {
 				"  Placeholders: $player, $item, $reason.",
 				"  Leave empty to use the built-in default."
 			).define("bannedAnnounceFormat", "");
+			enableCountdown = builder.comment("  Enable the /countdown command for broadcasting timed countdowns").define("enableCountdown", true);
+			countdownTitleFormat = builder.comment(
+				"  Format for the title shown to players on each countdown beat.",
+				"  Placeholders: $message, $time, $colored_time, $color.",
+				"  Leave empty to use the built-in default ($message)."
+			).define("countdownTitleFormat", "");
+			countdownSubtitleFormat = builder.comment(
+				"  Format for the subtitle shown to players on each countdown beat.",
+				"  Placeholders: $message, $time, $colored_time, $color.",
+				"  Leave empty to use the built-in default ($colored_time)."
+			).define("countdownSubtitleFormat", "");
+			countdownChatFormat = builder.comment(
+				"  Chat-line format used when /countdown's chat_too argument is true.",
+				"  Placeholders: $message, $time, $colored_time, $color.",
+				"  Leave empty to use the built-in default."
+			).define("countdownChatFormat", "");
 			enableMotdSystem = builder.comment("  Enable the MOTD system (/sef motd commands)").define("enableMotdSystem", true);
 			applyMotdOnStartup = builder.comment("  Automatically apply the configured MOTD when the server starts").define("applyMotdOnStartup", true);
 
