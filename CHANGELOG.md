@@ -14,6 +14,7 @@
 - **Pattern matching.** Bans accept exact registry ids (`minecraft:diamond`), mod-wide wildcards (`mekanism:*`), and tag references (`#forge:ores`) for both items and blocks.
 - **Full `/banned` subcommand suite (op-only mutations):**
   - `/banned add <item> [duration] [announce] [reason...]`
+  - `/banned addhand [duration] [announce] [reason...]` — bans the item currently in the executing player's main hand
   - `/banned remove <item>` (Brigadier suggests from the current ban list)
   - `/banned update <item> [duration] [announce] [reason...]`
   - `/banned list` / `/banned clear` / `/banned reload`

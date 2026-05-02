@@ -100,6 +100,20 @@ public class BannedItemsCommands {
                                 BoolArgumentType.getBool(ctx, "announce"),
                                 StringArgumentType.getString(ctx, "reason"))))))));
 
+        // /banned addhand [duration] [announce] [reason...]
+        // Bans whatever item the executing player holds in their main hand.
+        root.then(Commands.literal("addhand").requires(BannedItemsCommands::isOp)
+            .executes(ctx -> doAddHand(ctx, "infinite", false, ""))
+            .then(Commands.argument("duration", StringArgumentType.word())
+                .suggests(SUGGEST_DURATION)
+                .executes(ctx -> doAddHand(ctx, dur(ctx), false, ""))
+                .then(Commands.argument("announce", BoolArgumentType.bool())
+                    .executes(ctx -> doAddHand(ctx, dur(ctx), BoolArgumentType.getBool(ctx, "announce"), ""))
+                    .then(Commands.argument("reason", StringArgumentType.greedyString())
+                        .executes(ctx -> doAddHand(ctx, dur(ctx),
+                            BoolArgumentType.getBool(ctx, "announce"),
+                            StringArgumentType.getString(ctx, "reason")))))));
+
         // /banned remove <item>
         root.then(Commands.literal("remove").requires(BannedItemsCommands::isOp)
             .then(Commands.argument("item", StringArgumentType.greedyString())
@@ -265,6 +279,42 @@ public class BannedItemsCommands {
         }
         BannedEntry e = manager.getEntry(item);
         ctx.getSource().sendSuccess(() -> fmt("&aBanned &e" + item
+            + "&a — &7duration: &f" + (e != null ? e.getDurationString() : durationStr)
+            + " &7| announce: &f" + announce
+            + " &7| reason: &f" + (reason == null || reason.isEmpty() ? "—" : reason)), true);
+        return 1;
+    }
+
+    private static int doAddHand(CommandContext<CommandSourceStack> ctx, String durationStr,
+                                 boolean announce, String reason) {
+        ServerPlayer player;
+        try {
+            player = ctx.getSource().getPlayerOrException();
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(fmt("&c/banned addhand can only be used by a player."));
+            return 0;
+        }
+        net.minecraft.world.item.ItemStack stack = player.getMainHandItem();
+        if (stack.isEmpty()) {
+            ctx.getSource().sendFailure(fmt("&cYour main hand is empty — nothing to ban."));
+            return 0;
+        }
+        net.minecraft.resources.ResourceLocation rl =
+            net.minecraftforge.registries.ForgeRegistries.ITEMS.getKey(stack.getItem());
+        if (rl == null) {
+            ctx.getSource().sendFailure(fmt("&cCould not resolve registry id for the held item."));
+            return 0;
+        }
+        String item = rl.toString();
+        long durMs = parseDurationMs(durationStr);
+        String issuer = sourceName(ctx.getSource());
+        boolean added = manager.addBan(item, reason == null ? "" : reason, durMs, issuer, announce);
+        if (!added) {
+            ctx.getSource().sendFailure(fmt("&cAlready banned: &e" + item));
+            return 0;
+        }
+        BannedEntry e = manager.getEntry(item);
+        ctx.getSource().sendSuccess(() -> fmt("&aBanned (from hand) &e" + item
             + "&a — &7duration: &f" + (e != null ? e.getDurationString() : durationStr)
             + " &7| announce: &f" + announce
             + " &7| reason: &f" + (reason == null || reason.isEmpty() ? "—" : reason)), true);
