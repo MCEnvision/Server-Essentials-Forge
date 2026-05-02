@@ -66,6 +66,8 @@ public class ConfigHandler {
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableBannedBlockScanning;
 		public final ForgeConfigSpec.ConfigValue<Integer> bannedBlockScanRadius;
 		public final ForgeConfigSpec.ConfigValue<Integer> bannedBlockScanInterval;
+		public final ForgeConfigSpec.ConfigValue<String> bannedItemRemovedMsg;
+		public final ForgeConfigSpec.ConfigValue<String> bannedAnnounceFormat;
 		public final ForgeConfigSpec.ConfigValue<Boolean> enableMotdSystem;
 		public final ForgeConfigSpec.ConfigValue<Boolean> applyMotdOnStartup;
 
@@ -260,8 +262,18 @@ public class ConfigHandler {
 			enableAdminChat = builder.comment("  Enable the admin chat system (/chat admin)").define("enableAdminChat", true);
 			enableBannedItems = builder.comment("  Enable the banned items system (/banned commands)").define("enableBannedItems", true);
 			enableBannedBlockScanning = builder.comment("  Enable scanning for banned blocks placed in the world (may affect TPS slightly)").define("enableBannedBlockScanning", true);
-			bannedBlockScanRadius = builder.comment("  Radius around players to scan for banned blocks (smaller = less TPS impact)").defineInRange("bannedBlockScanRadius", 5, 1, 20);
-			bannedBlockScanInterval = builder.comment("  How often to scan for banned blocks in ticks (200 = every 10 seconds, higher = less TPS impact)").defineInRange("bannedBlockScanInterval", 200, 20, 6000);
+			bannedBlockScanRadius = builder.comment("  Default radius around players to scan for banned blocks (smaller = less TPS impact). Override at runtime with /banned setradius").defineInRange("bannedBlockScanRadius", 6, 1, 20);
+			bannedBlockScanInterval = builder.comment("  Default interval in ticks between banned-block sweeps. Override at runtime with /banned setinterval. 20 = 1s, 40 = 2s.").defineInRange("bannedBlockScanInterval", 40, 1, 24000);
+			bannedItemRemovedMsg = builder.comment(
+				"  Message shown to a player when a banned item is confiscated.",
+				"  Placeholders: $item, $reason, $by, $remaining.",
+				"  Leave empty to use the built-in default."
+			).define("bannedItemRemovedMsg", "");
+			bannedAnnounceFormat = builder.comment(
+				"  Server-wide message format when a banned entry has announce=true and a hit occurs.",
+				"  Placeholders: $player, $item, $reason.",
+				"  Leave empty to use the built-in default."
+			).define("bannedAnnounceFormat", "");
 			enableMotdSystem = builder.comment("  Enable the MOTD system (/sef motd commands)").define("enableMotdSystem", true);
 			applyMotdOnStartup = builder.comment("  Automatically apply the configured MOTD when the server starts").define("applyMotdOnStartup", true);
 

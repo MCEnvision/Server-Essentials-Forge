@@ -149,6 +149,12 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> filterBypass =
 			ezyPermission("filter.bypass", false, "Bypass filters", "Messages bypass word filter");
 
+	// Banned Items Permissions
+	public static PermissionNode<Boolean> bannedCommand =
+			ezyPermission("commands.banned", false, "Banned command", "Allows using /banned subcommands (add/remove/etc)");
+	public static PermissionNode<Boolean> bannedBypassNode =
+			ezyPermission("banned.bypass", false, "Bypass banned items", "Player is exempt from banned-item confiscation and banned-block sweeps");
+
 	// Sign and Misc Permissions
 	public static PermissionNode<Boolean> signColorNode =
 			ezyPermission("sign.colors", false, "Sign colors", "Allows usage of colors on signs");

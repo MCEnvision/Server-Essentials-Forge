@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 /**
  * Utility to read and write Curios inventory items from a player.
@@ -104,5 +105,41 @@ public class CuriosInventoryHelper {
         });
 
         return result;
+    }
+
+    /**
+     * Iterates every Curios slot and clears the stacks for which {@code shouldRemove}
+     * returns {@code true}. The callback receives the {@link ItemStack} actually held
+     * in the slot — implementations may inspect the stack's registry id, NBT, etc.
+     *
+     * <p>Returns the number of stacks that were cleared. {@code 0} if Curios is
+     * not installed or the player has no curios inventory yet.
+     */
+    public static int clearMatching(ServerPlayer player, Predicate<ItemStack> shouldRemove) {
+        if (!ModList.get().isLoaded("curios")) return 0;
+        try {
+            return doClearMatching(player, shouldRemove);
+        } catch (Throwable e) {
+            ServerEssentialsForge.LOGGER.trace("[SEF] Error clearing Curios slots", e);
+            return 0;
+        }
+    }
+
+    private static int doClearMatching(ServerPlayer player, Predicate<ItemStack> shouldRemove) {
+        int[] removed = {0};
+        top.theillusivec4.curios.api.CuriosApi.getCuriosInventory(player).ifPresent(handler -> {
+            Map<String, top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler> curios = handler.getCurios();
+            for (Map.Entry<String, top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler> entry : curios.entrySet()) {
+                IItemHandlerModifiable stacks = entry.getValue().getStacks();
+                for (int i = 0; i < stacks.getSlots(); i++) {
+                    ItemStack stack = stacks.getStackInSlot(i);
+                    if (!stack.isEmpty() && shouldRemove.test(stack)) {
+                        stacks.setStackInSlot(i, ItemStack.EMPTY);
+                        removed[0]++;
+                    }
+                }
+            }
+        });
+        return removed[0];
     }
 }

@@ -39,7 +39,7 @@ public class ServerEssentialsForge {
 	public static final String CHAT_ID_STR = 
 			"&e&lServer&6Essentials&bForge&r &d(c) EnVy 2022-2026&r\n";
 	public static final String MODID = "sef";
-	public static final String VERSION = "V4.0.0";
+	public static final String VERSION = "V1.1";
     public static final Logger LOGGER = LogUtils.getLogger();
     public static ServerEssentialsForge instance;
 
@@ -192,6 +192,9 @@ public class ServerEssentialsForge {
         // Save mute data on server stop (persist across restarts)
         if(ConfigHandler.config.enableMuteSystem.get()) {
             CommandRegistrationHandler.getMuteManager().shutdown();
+        }
+        if(ConfigHandler.config.enableBannedItems.get()) {
+            CommandRegistrationHandler.getBannedItemsManager().save();
         }
         // Clear vanished player list on server stop
         com.enviouse.sef.vanish.VanishUtil.VANISHED_PLAYERS.clear();
