@@ -1,62 +1,99 @@
 package com.enviouse.sef.vanish.compat;
 
+import com.enviouse.sef.ServerEssentialsForge;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.fml.ModList;
+
 import java.lang.reflect.Method;
 import java.util.UUID;
 
-import net.minecraft.server.level.ServerPlayer;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 /**
- * Compatibility with the Playtime mod.
- * When a player vanishes, we pause their session so playtime stops accumulating.
- * When they unvanish, we resume tracking.
- * Uses reflection to avoid compile-time dependency on Playtime.
+ * Vanish ↔ Playtime integration.
+ *
+ * <p>When a player vanishes we call {@code SessionTracker.pauseSession(UUID)}
+ * to stop their playtime clock without dragging them through the heavy
+ * leave/join lifecycle (which would broadcast first-join messages,
+ * re-evaluate ranks, re-trigger LP sync, etc.). Unvanish calls
+ * {@code resumeSession(UUID)}.
+ *
+ * <p>All Playtime access is reflective so SEF builds without a compile-time
+ * dependency on Playtime, and gracefully no-ops when:
+ * <ul>
+ *   <li>Playtime is not installed at all (silent — normal case),</li>
+ *   <li>Playtime is installed but predates the pause/resume API (single WARN
+ *       on first attempt, telling the user to update),</li>
+ *   <li>The session tracker isn't ready yet (e.g. server still starting).</li>
+ * </ul>
  */
-public class PlaytimeCompat {
-	private static final Logger LOGGER = LogManager.getLogger("SEF/Playtime");
-	private static boolean initialized = false;
-	private static Method getSessionTracker = null;
-	private static Method pauseSessionMethod = null;
-	private static Method resumeSessionMethod = null;
+public final class PlaytimeCompat {
+    private static final org.slf4j.Logger LOGGER =
+            org.slf4j.LoggerFactory.getLogger("SEF/Playtime");
 
-	private static void init() {
-		if (initialized) return;
-		initialized = true;
-		try {
-			Class<?> playtimeClass = Class.forName("com.enviouse.playtime.Playtime");
-			getSessionTracker = playtimeClass.getMethod("getSessionTracker");
-			Class<?> sessionTrackerClass = Class.forName("com.enviouse.playtime.service.SessionTracker");
-			pauseSessionMethod = sessionTrackerClass.getMethod("pauseSession", UUID.class);
-			resumeSessionMethod = sessionTrackerClass.getMethod("resumeSession", UUID.class);
-			LOGGER.info("Playtime pause/resume API loaded successfully");
-		} catch (Exception e) {
-			LOGGER.warn("Playtime mod API not available for vanish integration: {}", e.getMessage());
-		}
-	}
+    private static final String PLAYTIME_MODID = "playtime";
 
-	public static void onVanishChange(ServerPlayer player, boolean vanished) {
-		init();
-		try {
-			if (getSessionTracker == null) return;
-			Object tracker = getSessionTracker.invoke(null);
-			if (tracker == null) return;
+    /** Lifecycle of the reflection probe. */
+    private enum State { UNCHECKED, READY, MOD_ABSENT, API_TOO_OLD, BROKEN }
+    private static volatile State state = State.UNCHECKED;
 
-			if (vanished) {
-				// Pause session — stops playtime accumulation without heavy join/leave lifecycle
-				if (pauseSessionMethod != null) {
-					pauseSessionMethod.invoke(tracker, player.getUUID());
-					LOGGER.debug("Paused playtime tracking for vanished player {}", player.getGameProfile().getName());
-				}
-			} else {
-				// Resume session — resumes playtime tracking
-				if (resumeSessionMethod != null) {
-					resumeSessionMethod.invoke(tracker, player.getUUID());
-					LOGGER.debug("Resumed playtime tracking for unvanished player {}", player.getGameProfile().getName());
-				}
-			}
-		} catch (Exception e) {
-			LOGGER.warn("Failed to update Playtime tracking on vanish change for {}: {}", player.getGameProfile().getName(), e.getMessage());
-		}
-	}
+    private static Method getSessionTracker;
+    private static Method pauseSessionMethod;
+    private static Method resumeSessionMethod;
+
+    private PlaytimeCompat() {}
+
+    private static synchronized void init() {
+        if (state != State.UNCHECKED) return;
+
+        if (!ModList.get().isLoaded(PLAYTIME_MODID)) {
+            state = State.MOD_ABSENT;
+            return;
+        }
+
+        try {
+            Class<?> playtimeClass = Class.forName("com.enviouse.playtime.Playtime");
+            getSessionTracker = playtimeClass.getMethod("getSessionTracker");
+            Class<?> sessionTrackerClass =
+                    Class.forName("com.enviouse.playtime.service.SessionTracker");
+            try {
+                pauseSessionMethod = sessionTrackerClass.getMethod("pauseSession", UUID.class);
+                resumeSessionMethod = sessionTrackerClass.getMethod("resumeSession", UUID.class);
+            } catch (NoSuchMethodException e) {
+                state = State.API_TOO_OLD;
+                LOGGER.warn(
+                    "Playtime is installed but does not expose pauseSession(UUID) / "
+                  + "resumeSession(UUID). Vanish integration is disabled until Playtime "
+                  + "is updated. Missing method: {}", e.getMessage());
+                return;
+            }
+            state = State.READY;
+            LOGGER.info("Playtime pause/resume API bound — vanish integration active.");
+        } catch (Throwable t) {
+            state = State.BROKEN;
+            LOGGER.warn("Playtime API binding failed; vanish integration disabled: {}",
+                    t.toString());
+            ServerEssentialsForge.LOGGER.trace("Playtime binding stack trace", t);
+        }
+    }
+
+    /** Called by VanishingHandler when a player's vanish state changes. */
+    public static void onVanishChange(ServerPlayer player, boolean vanished) {
+        init();
+        if (state != State.READY) return;
+        if (player == null) return;
+
+        try {
+            Object tracker = getSessionTracker.invoke(null);
+            if (tracker == null) return; // Playtime not ready yet (server still starting)
+            UUID uuid = player.getUUID();
+            if (vanished) {
+                pauseSessionMethod.invoke(tracker, uuid);
+            } else {
+                resumeSessionMethod.invoke(tracker, uuid);
+            }
+        } catch (Throwable t) {
+            LOGGER.warn("Playtime tracking update failed for {}: {}",
+                    player.getGameProfile().getName(), t.toString());
+            ServerEssentialsForge.LOGGER.trace("Playtime invocation stack trace", t);
+        }
+    }
 }
