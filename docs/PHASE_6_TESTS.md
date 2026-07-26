@@ -173,19 +173,27 @@ Use two command actors and one observer.
 
 ## Completion record
 
-Automated and headless results must be recorded here after the final source commit, including:
+Automated and headless verification was recorded on 2026-07-26:
 
-1. Commit.
-2. Artifact path and SHA-256.
-3. Java, Minecraft, and NeoForge versions.
-4. Optional integration set.
-5. Configuration used.
-6. Unit-test count and result.
-7. GameTest count and result.
-8. Build result.
-9. Dedicated-server startup and shutdown result.
-10. Diagnostics output summary.
-11. JAR and dependency inspection.
-12. Remaining manual rows.
+1. Implementation commit: `8c94ac4`.
+2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
+3. JAR SHA-256: `cf041540f7f122f31355203b35cec964d1dc23ea450349f25d1ec47f4995b33c`.
+4. Java: OpenJDK `21.0.11`.
+5. Minecraft: `1.21.1`.
+6. NeoForge: `21.1.233`.
+7. Optional integrations: absent for the recorded final headless run.
+8. Configuration: ignored development `run` directory, offline mode, default Phase 6 modules, and file logging disabled.
+9. Unit tests: 181 passed through `./gradlew test`.
+10. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+11. Build: `./gradlew build` completed successfully.
+12. Dedicated server: two final `./gradlew runServer` cycles reached `Done`, accepted diagnostics, and stopped cleanly with all dimensions saved.
+13. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
+14. Logging: `/sef logging status` reported disabled, queue 0 of 8192, and no accepted, written, or dropped records. `run/logs/sef` remained absent.
+15. Storage: `command-spy.json` and `moderation.json` reported their correct missing initial state without recovery or write errors.
+16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and Phase 6 classes were packaged.
+17. Dedicated-server boundary inspection found no `net.minecraft.client` imports in the Phase 6 packages.
+18. Diff inspection found no staged whitespace error, ignored `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run-directory file.
+
+The authenticated moderator matrix, real proxy and external provider adapters, real LuckPerms mutation, MaxLogger coexistence, deliberate disk and shutdown failures, full action-coverage GameTests, and profiler rows remain untested release gates.
 
 Do not approve a public release while a required row is untested or failing.

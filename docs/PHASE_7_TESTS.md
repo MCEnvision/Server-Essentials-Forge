@@ -162,19 +162,27 @@ The GameTest server must pass every registered world fixture. Authenticated tran
 
 ## Completion record
 
-Automated and headless results must be recorded here after the final source commit, including:
+Automated and headless verification was recorded on 2026-07-26:
 
-1. Commit.
-2. Artifact path and SHA-256.
-3. Java, Minecraft, and NeoForge versions.
-4. Optional integration set.
-5. Configuration used.
-6. Unit-test count and result.
-7. GameTest count and result.
-8. Build result.
-9. Dedicated-server and vanilla-client result.
-10. Diagnostics output summary.
-11. JAR and dependency inspection.
-12. Remaining manual rows.
+1. Implementation commit: `8c94ac4`.
+2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
+3. JAR SHA-256: `cf041540f7f122f31355203b35cec964d1dc23ea450349f25d1ec47f4995b33c`.
+4. Java: OpenJDK `21.0.11`.
+5. Minecraft: `1.21.1`.
+6. NeoForge: `21.1.233`.
+7. Optional integrations: absent for the recorded final headless run.
+8. Configuration: ignored development `run` directory, offline mode, and default Phase 7 modules.
+9. Unit tests: 181 passed through `./gradlew test`.
+10. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+11. Build: `./gradlew build` completed successfully.
+12. Dedicated server: two final `./gradlew runServer` cycles reached `Done`, accepted `kit validate`, and stopped cleanly with all dimensions saved.
+13. Kit validation: 0 definitions, 0 invalid definitions, and 0 use records on the empty staging world.
+14. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
+15. Storage: `kits.json` reported its correct missing initial state without recovery or write errors.
+16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and Phase 7 inventory, kit, player, and workstation classes were packaged.
+17. Dedicated-server boundary inspection found no `net.minecraft.client` imports in the Phase 7 packages.
+18. Diff inspection found no staged whitespace error, ignored `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run-directory file.
+
+The authenticated inventory transaction matrix, vanilla-client join, real Curios interaction, missing-registry fixtures, external shortcut collision fixtures, player-driven kit persistence, super-enchant client and server matrix, dirty shutdown race, and profiler rows remain untested release gates.
 
 Do not approve a public release while a required row is untested or failing.
