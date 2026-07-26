@@ -172,16 +172,28 @@ Use one sender, one recipient, and one staff observer. Repeat the visibility cas
 
 ## Completion record
 
-Record:
+Automated and headless verification was recorded on 2026-07-26:
 
-1. Source commit SHA.
-2. JAR SHA-256.
-3. Java, Minecraft, NeoForge, LuckPerms, and FTB Essentials versions.
-4. Configuration snapshot with secrets removed.
-5. Unit-test count and result.
-6. GameTest count and result.
-7. Dedicated-server startup, diagnostics, shutdown, and restart result.
-8. Client types and authenticated usernames used by the three-player matrix.
-9. Every failed or untested row with its log or crash-report path.
+1. Source commit: `bb71df7`.
+2. Phase 4 source commit inherited by this branch: `5712ba3`.
+3. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
+4. JAR SHA-256: `16a5f523fbedb24cc48d03d30b7ba374dbca83fcdb9159476997f9a233f4c935`.
+5. Java: OpenJDK `21.0.11`.
+6. Minecraft: `1.21.1`.
+7. NeoForge: `21.1.233`.
+8. LuckPerms: absent for the recorded headless startup.
+9. FTB Essentials: absent for the recorded headless startup.
+10. Configuration: the ignored development `run` directory, offline mode, default Phase 5 module switches, and no optional integrations.
+11. Unit tests: 149 passed through `./gradlew test`.
+12. GameTests: 3 required tests passed through `./gradlew runGameTestServer`.
+13. Build: `./gradlew build` completed successfully.
+14. Dedicated server: four consecutive `./gradlew runServer` cycles reached `Done`, accepted console commands, and stopped cleanly.
+15. Diagnostics: `sef doctor` reported 71 catalog entries, 238 capabilities, 78 shortcuts, 71 policies, 6 quotas, 4 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
+16. Identity: `sef identity coverage` reported server-projected and authenticated boundaries without claiming the Phase 9 enhanced nametag contract.
+17. Persistence: a reminder created from the console produced a ready 624-byte `social.json`, survived a clean restart, rejected a duplicate create, was deleted, and flushed on shutdown.
+18. Artifact inspection: the JAR contains `META-INF/neoforge.mods.toml`, `sef.mixins.json`, and every Phase 5 social class. Dependency inspection found no `net.minecraft.client` reference from `com.enviouse.sef.social`.
+19. Diff inspection: whitespace, generated-output, ignored-file, absolute-path, debug-output, credential-pattern, client-import, and private-message log scans passed.
+
+The authenticated three-player matrix, vanished-player packet matrix, real LuckPerms and FTB Essentials combinations, mail-retention clock fixture, vanilla-client join, forced dirty shutdown, and profiler rows remain untested release gates. No authenticated usernames or client artifacts were used in the recorded headless run.
 
 Do not approve a public release while a required row is untested or failing.
