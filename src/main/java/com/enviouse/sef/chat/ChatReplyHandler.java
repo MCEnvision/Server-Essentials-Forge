@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.SEFUtilities;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -24,12 +25,7 @@ public class ChatReplyHandler {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         // /ans <messageId> <reply>
         dispatcher.register(Commands.literal("ans")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.ansCommand);
-                } catch (Exception e) { return true; }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.ansCommand))
             .then(Commands.argument("messageId", LongArgumentType.longArg(1))
                 .then(Commands.argument("reply", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -40,6 +36,10 @@ public class ChatReplyHandler {
     }
 
     private static int handleReply(CommandSourceStack source, long messageId, String reply) {
+        if (!PermissionService.has(source, PermissionsHandler.ansCommand)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+            return 0;
+        }
         ServerPlayer replier;
         try {
             replier = source.getPlayerOrException();
@@ -93,9 +93,9 @@ public class ChatReplyHandler {
         // Send confirmation to replier
         replier.sendSystemMessage(fullReply);
 
-        ServerEssentialsForge.LOGGER.info("[REPLY] {} replied to {}'s message #{}: {}",
-            replier.getGameProfile().getName(), original.rawName(), messageId, reply);
+        ServerEssentialsForge.LOGGER.info(
+            "[REPLY] {} replied to message {} from {} with {} characters",
+            replier.getGameProfile().getName(), messageId, original.rawName(), reply.length());
         return 1;
     }
 }
-

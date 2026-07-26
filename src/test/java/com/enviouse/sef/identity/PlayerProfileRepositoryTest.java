@@ -1,0 +1,101 @@
+package com.enviouse.sef.identity;
+
+import com.enviouse.sef.config.PlayerData;
+import com.enviouse.sef.storage.ImportDiagnostics;
+import com.enviouse.sef.storage.repository.StorageRepository;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+class PlayerProfileRepositoryTest {
+    @TempDir
+    Path temporaryDirectory;
+
+    @Test
+    void legacyNicknameDataImportsIntoVersionedPlayerProfileStorage() throws Exception {
+        UUID player = UUID.randomUUID();
+        Path legacy = temporaryDirectory.resolve(PlayerData.legacyPlayerDataFileName);
+        Files.writeString(legacy, """
+                [PlayerDataEntry]
+                UUID: "%s"
+                Nickname: "Captain"
+                """.formatted(player));
+        ImportDiagnostics.clear();
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+
+        repository.load(temporaryDirectory.toFile());
+
+        PlayerProfileRepository.Profile profile = repository.find(player).orElseThrow();
+        assertEquals("Captain", profile.nickname());
+        assertTrue(Files.isRegularFile(temporaryDirectory.resolve(PlayerData.playerDataFileName)));
+        assertEquals(ImportDiagnostics.Result.SUCCESS, ImportDiagnostics.snapshot().getLast().result());
+        try (var backups = Files.list(temporaryDirectory.resolve(".backups"))) {
+            assertEquals(1, backups.count());
+        }
+    }
+
+    @Test
+    void quarantinedProfileDataEntersRecoveryAndCannotBeOverwritten() throws Exception {
+        Path profileFile = temporaryDirectory.resolve(PlayerData.playerDataFileName);
+        Files.writeString(profileFile, "{broken");
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+
+        repository.load(temporaryDirectory.toFile());
+
+        assertEquals(StorageRepository.RepositoryState.RECOVERY, repository.diagnostic().state());
+        assertFalse(repository.setNickname(UUID.randomUUID(), "unsafe write"));
+        assertFalse(Files.exists(profileFile));
+        try (var quarantined = Files.list(temporaryDirectory.resolve(".corrupt"))) {
+            assertEquals(1, quarantined.count());
+        }
+    }
+
+    @Test
+    void malformedProfileEntryEntersRecoveryAndCannotBeOverwritten() throws Exception {
+        Path profileFile = temporaryDirectory.resolve(PlayerData.playerDataFileName);
+        UUID player = UUID.randomUUID();
+        String malformed = """
+                {
+                  "domain": "integrated player identities",
+                  "schemaVersion": 1,
+                  "data": {
+                    "players": {
+                      "%s": []
+                    }
+                  }
+                }
+                """.formatted(player);
+        Files.writeString(profileFile, malformed);
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+
+        repository.load(temporaryDirectory.toFile());
+
+        assertEquals(StorageRepository.RepositoryState.RECOVERY, repository.diagnostic().state());
+        assertFalse(repository.setNickname(player, "unsafe write"));
+        assertEquals(malformed, Files.readString(profileFile));
+    }
+
+    @Test
+    void missingProfileCollectionEntersRecovery() throws Exception {
+        Path profileFile = temporaryDirectory.resolve(PlayerData.playerDataFileName);
+        Files.writeString(profileFile, """
+                {
+                  "domain": "integrated player identities",
+                  "schemaVersion": 1,
+                  "data": {}
+                }
+                """);
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+
+        repository.load(temporaryDirectory.toFile());
+
+        assertEquals(StorageRepository.RepositoryState.RECOVERY, repository.diagnostic().state());
+    }
+}

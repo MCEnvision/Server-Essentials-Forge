@@ -113,6 +113,7 @@ dependencies {
     // --- Unit tests (JUnit 5) — pure-logic invariant tests (e.g. vanish visibility, MC-free) ---
     testImplementation platform('org.junit:junit-bom:5.10.2')
     testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
     // Example mod dependency with JEI

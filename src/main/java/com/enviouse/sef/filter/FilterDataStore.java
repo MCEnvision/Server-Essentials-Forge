@@ -4,13 +4,14 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.storage.StorageService;
 
-import java.io.*;
+import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public class FilterDataStore {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -20,6 +21,7 @@ public class FilterDataStore {
 
     private final Map<String, FilterRecord> filters = new LinkedHashMap<>();
     private Path filePath;
+    private StorageService.Document document;
 
     public void setPath(Path path) {
         this.filePath = path;
@@ -31,11 +33,14 @@ public class FilterDataStore {
 
     public void load() {
         filters.clear();
-        if (filePath == null || !Files.exists(filePath)) return;
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            Map<String, FilterRecord> loaded = GSON.fromJson(reader, MAP_TYPE);
+        if (filePath == null) return;
+        document = StorageService.read(filePath, "filters", 1).orElse(null);
+        if (document == null) return;
+        try {
+            Map<String, FilterRecord> loaded = GSON.fromJson(document.data(), MAP_TYPE);
             if (loaded != null) filters.putAll(loaded);
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} word filter(s)", filters.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load filters", e);
         }
@@ -44,13 +49,9 @@ public class FilterDataStore {
     public void save() {
         if (filePath == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(filters, writer);
-            }
+            StorageService.write(filePath, "filters", 1, GSON.toJsonTree(filters), document, Set.of(""));
         } catch (IOException e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save filters", e);
         }
     }
 }
-

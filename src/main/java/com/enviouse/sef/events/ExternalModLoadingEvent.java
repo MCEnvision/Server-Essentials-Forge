@@ -6,6 +6,9 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.utils.IntegratedNicknameProvider;
 import com.enviouse.sef.utils.moddeps.FTBNicknameProvider;
 import com.enviouse.sef.utils.moddeps.LuckPermsProvider;
+import com.enviouse.sef.permissions.PermissionRefreshBridge;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.utils.moddeps.LuckPermsQuotaProvider;
 
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -13,6 +16,14 @@ import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 
 public class ExternalModLoadingEvent {
+	private static Runnable permissionRefreshCleanup = () -> {};
+
+	public static synchronized void stopOptionalIntegrations() {
+		permissionRefreshCleanup.run();
+		permissionRefreshCleanup = () -> {};
+		KernelServices.resetQuotaProviders();
+	}
+
 	@SubscribeEvent public void onServerStarted(ServerStartedEvent e) {
 		loadLuckPerms();
 		loadFtbEssentials();
@@ -31,20 +42,25 @@ public class ExternalModLoadingEvent {
 	private void loadLuckPerms() {
 			ServerEssentialsForge.LOGGER.info("Detected loaded status of luckperms: " + ModList.get().isLoaded("luckperms"));
 			if (ModList.get().isLoaded("luckperms")) {
-				if (!ConfigHandler.config.enableLuckPerms.get()) {
-					ServerEssentialsForge.LOGGER.info("LuckPerms API was skipped by configuration file!");
+					if (!ConfigHandler.config.enableLuckPerms.get()) {
+						ServerEssentialsForge.LOGGER.info("LuckPerms API was skipped by configuration file!");
 					return;
 				}
 				ServerEssentialsForge.LOGGER.info("Attempting to integrate LuckPerms API!");
 				try {
-					ServerEssentialsForge.instance.metadataProvider = new LuckPermsProvider();
+						net.luckperms.api.LuckPerms api = net.luckperms.api.LuckPermsProvider.get();
+						ServerEssentialsForge.instance.metadataProvider = new LuckPermsProvider();
+						KernelServices.installQuotaProvider(new LuckPermsQuotaProvider(api));
+						PermissionRefreshBridge.start(api);
+						permissionRefreshCleanup = PermissionRefreshBridge::stop;
 					ServerEssentialsForge.LOGGER.info("LuckPerms API found and integrated successfully!");
-				} catch (Exception e) { // Could have a NoClassDefFoundError here!
+					} catch (RuntimeException | LinkageError e) {
+						stopOptionalIntegrations();
 					ServerEssentialsForge.instance.metadataProvider = null;
 					ServerEssentialsForge.LOGGER.warn("Something went wrong — LuckPerms was reported loaded but its API threw; prefix/suffix will not be shown.\nIf you see this warning please submit an issue report.");
 				}
-			} else {
-				ServerEssentialsForge.instance.metadataProvider = null;
+				} else {
+					ServerEssentialsForge.instance.metadataProvider = null;
 				ServerEssentialsForge.LOGGER.info("LuckPerms was not found; prefix/suffix metadata will not be shown.");
 			}
 	}
@@ -60,7 +76,7 @@ public class ExternalModLoadingEvent {
 			try {
 				ServerEssentialsForge.instance.nicknameProvider = new FTBNicknameProvider();
 				ServerEssentialsForge.LOGGER.info("FTB Essentials API found and integrated successfully!");
-			} catch (Error e2) { // Could have a NoClassDefFoundError here!
+				} catch (RuntimeException | LinkageError e2) {
 				ServerEssentialsForge.instance.nicknameProvider = null;
 				ServerEssentialsForge.LOGGER.warn("Something went wrong — FTB Essentials was reported loaded but threw; nicknames will not be shown.\nIf you see this warning please submit an issue report.");
 			}

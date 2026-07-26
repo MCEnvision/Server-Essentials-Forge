@@ -5,6 +5,9 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.storage.StorageService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -13,9 +16,8 @@ import net.minecraft.commands.Commands;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.*;
+import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,6 +30,7 @@ public class OpBulletinHandler {
     private static final Type LIST_TYPE = new TypeToken<List<String>>(){}.getType();
     private static final List<String> bulletins = new ArrayList<>();
     private static Path filePath;
+    private static StorageService.Document document;
 
     public static void init(MinecraftServer server) {
         Path dir = server.getServerDirectory().resolve("serverconfig").resolve("sef");
@@ -37,11 +40,14 @@ public class OpBulletinHandler {
 
     private static void load() {
         bulletins.clear();
-        if (filePath == null || !Files.exists(filePath)) return;
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            List<String> loaded = GSON.fromJson(reader, LIST_TYPE);
+        if (filePath == null) return;
+        document = StorageService.read(filePath, "operator bulletins", 1).orElse(null);
+        if (document == null) return;
+        try {
+            List<String> loaded = GSON.fromJson(document.data(), LIST_TYPE);
             if (loaded != null) bulletins.addAll(loaded);
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} bulletin(s)", bulletins.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load bulletins", e);
         }
@@ -50,10 +56,12 @@ public class OpBulletinHandler {
     private static void save() {
         if (filePath == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(bulletins, writer);
-            }
+            StorageService.write(
+                    filePath,
+                    "operator bulletins",
+                    1,
+                    GSON.toJsonTree(bulletins),
+                    document);
         } catch (IOException e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save bulletins", e);
         }
@@ -61,7 +69,7 @@ public class OpBulletinHandler {
 
     public static void showBulletins(ServerPlayer player) {
         if (bulletins.isEmpty()) return;
-        if (!player.hasPermissions(2)) return; // op-level 2+
+        if (!PermissionService.has(player, PermissionsHandler.opBulletinReceive)) return;
         player.sendSystemMessage(TextFormatter.stringToFormattedText("&6━━━━━━━━ Op Bulletin ━━━━━━━━"));
         for (String b : bulletins) {
             player.sendSystemMessage(TextFormatter.stringToFormattedText("&7• " + b));
@@ -71,7 +79,7 @@ public class OpBulletinHandler {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("opbulletin")
-            .requires(src -> src.hasPermission(2))
+            .requires(src -> PermissionService.has(src, PermissionsHandler.opBulletinManage))
             .then(Commands.literal("add")
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -119,4 +127,3 @@ public class OpBulletinHandler {
                 })));
     }
 }
-

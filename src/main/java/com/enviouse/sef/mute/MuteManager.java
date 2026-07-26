@@ -7,13 +7,13 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.storage.StorageService;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.*;
+import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +43,7 @@ public class MuteManager {
     /** Map of player UUID string → mute entry */
     private final Map<String, MuteEntry> mutes = new ConcurrentHashMap<>();
     private Path filePath;
+    private StorageService.Document document;
 
     // ── Data class ──────────────────────────────────────────────────────────
     public static class MuteEntry {
@@ -109,17 +110,19 @@ public class MuteManager {
     public void load(MinecraftServer server) {
         filePath = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("serverconfig").resolve("sef").resolve("mutes.json");
-        if (!Files.exists(filePath)) {
+        document = StorageService.read(filePath, "mutes", 1).orElse(null);
+        if (document == null) {
             save();
             return;
         }
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            Map<String, MuteEntry> loaded = GSON.fromJson(reader, DATA_TYPE);
+        try {
+            Map<String, MuteEntry> loaded = GSON.fromJson(document.data(), DATA_TYPE);
             if (loaded != null) {
                 mutes.clear();
                 mutes.putAll(loaded);
             }
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} persistent mute(s)", mutes.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load mutes", e);
         }
@@ -128,10 +131,7 @@ public class MuteManager {
     public void save() {
         if (filePath == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(mutes, writer);
-            }
+            StorageService.write(filePath, "mutes", 1, GSON.toJsonTree(mutes), document, Set.of(""));
         } catch (IOException e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save mutes", e);
         }
@@ -309,28 +309,7 @@ public class MuteManager {
      * into ticks.  Returns -1 for permanent/infinite.
      */
     public static long parseDuration(String input) {
-        if (input == null || input.isEmpty()) return -1;
-        String lower = input.trim().toLowerCase();
-        if (lower.equals("infinite") || lower.equals("inf") || lower.equals("forever")
-                || lower.equals("perm") || lower.equals("permanent")) {
-            return -1;
-        }
-        try {
-            if (lower.endsWith("s")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20;
-            } else if (lower.endsWith("m")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 60;
-            } else if (lower.endsWith("h")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 3600;
-            } else if (lower.endsWith("d")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 86400;
-            } else {
-                // Assume seconds if no suffix
-                return Long.parseLong(lower) * 20;
-            }
-        } catch (NumberFormatException e) {
-            return -1;
-        }
+        return com.enviouse.sef.util.DurationParser.toTicks(
+                com.enviouse.sef.util.DurationParser.parse(input, true));
     }
 }
-

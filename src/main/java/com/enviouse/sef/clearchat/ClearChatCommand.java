@@ -3,6 +3,7 @@ package com.enviouse.sef.clearchat;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -26,24 +27,14 @@ public class ClearChatCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         // /cc [player]
         dispatcher.register(Commands.literal("cc")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.clearChatCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.clearChatCommand))
             .executes(ctx -> executeClearAll(ctx.getSource()))
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> executeClearPlayer(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))));
 
         // /clearchat alias
         dispatcher.register(Commands.literal("clearchat")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.clearChatCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.clearChatCommand))
             .executes(ctx -> executeClearAll(ctx.getSource()))
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> executeClearPlayer(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))));
@@ -91,4 +82,3 @@ public class ClearChatCommand {
         }
     }
 }
-

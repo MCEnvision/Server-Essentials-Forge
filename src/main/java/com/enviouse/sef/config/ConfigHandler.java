@@ -30,6 +30,11 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Integer> maxPrefixesDisplayed;
 		public final ModConfigSpec.ConfigValue<Integer> maxSuffixesDisplayed;
 
+		// Master module toggles — defined in the [modules] section (see constructor)
+		public final ModConfigSpec.ConfigValue<Boolean> enableVanishSystem;
+		public final ModConfigSpec.ConfigValue<Boolean> enableChatFormatting;
+		public final ModConfigSpec.ConfigValue<Boolean> enableOpBulletin;
+
 		public final ModConfigSpec.ConfigValue<Boolean> enableTimestamp;
 		public final ModConfigSpec.ConfigValue<Boolean> enableFtbEssentials;
 		public final ModConfigSpec.ConfigValue<Boolean> enableLuckPerms;
@@ -45,9 +50,35 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enableCustomTabHeaderFooter;
 		public final ModConfigSpec.ConfigValue<String> tabHeaderFormat;
 		public final ModConfigSpec.ConfigValue<String> tabFooterFormat;
+		public final ModConfigSpec.ConfigValue<Boolean> enableCraftingTableCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableAnvilCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableEnchantingTableCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSuperEnchantingTableCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableRepairCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableCraftAlias;
+		public final ModConfigSpec.ConfigValue<Boolean> enableAnvilAlias;
+		public final ModConfigSpec.ConfigValue<Boolean> enableEnchantingTableAlias;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSuperEnchantingTableAlias;
+		public final ModConfigSpec.ConfigValue<Integer> craftingTableCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> anvilCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> enchantingTableCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> superEnchantingTableCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> repairCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> superEnchantingMaxLevel;
+		public final ModConfigSpec.ConfigValue<Boolean> superEnchantingAllowUnsafe;
+		public final ModConfigSpec.ConfigValue<String> workstationCooldownMessage;
+		public final ModConfigSpec.ConfigValue<String> repairSuccessMessage;
+		public final ModConfigSpec.ConfigValue<String> repairNotHeldMessage;
+		public final ModConfigSpec.ConfigValue<String> repairNotNeededMessage;
 		public final ModConfigSpec.ConfigValue<Boolean> enableAnnouncements;
 		public final ModConfigSpec.ConfigValue<Integer> announcementIntervalSeconds;
 		public final ModConfigSpec.ConfigValue<Boolean> announcementUseRandomOrder;
+		public final ModConfigSpec.ConfigValue<Boolean> enableCommandAnnouncements;
+		public final ModConfigSpec.ConfigValue<String> commandAnnouncementAllowedCommands;
+		public final ModConfigSpec.ConfigValue<String> commandAnnouncementDeniedCommands;
+		public final ModConfigSpec.ConfigValue<Integer> commandAnnouncementMaximumCommandLength;
+		public final ModConfigSpec.ConfigValue<Boolean> commandAnnouncementAllowLeadingSlash;
+		public final ModConfigSpec.ConfigValue<Boolean> commandAnnouncementAllowSelectors;
 		public final ModConfigSpec.ConfigValue<Boolean> enableFilterSystem;
 		public final ModConfigSpec.ConfigValue<Boolean> enableMessagingSystem;
 		public final ModConfigSpec.ConfigValue<Boolean> enableChatReplies;
@@ -58,6 +89,8 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enableBannedBlockScanning;
 		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanRadius;
 		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanInterval;
+		public final ModConfigSpec.ConfigValue<Integer> bannedInventoryScanInterval;
+		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanBudget;
 		public final ModConfigSpec.ConfigValue<String> bannedItemRemovedMsg;
 		public final ModConfigSpec.ConfigValue<String> bannedAnnounceFormat;
 		public final ModConfigSpec.ConfigValue<Boolean> enableCountdown;
@@ -100,6 +133,7 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<String> invSeeNextPageLabel;
 		public final ModConfigSpec.ConfigValue<String> invSeePrevPageLabel;
 		public final ModConfigSpec.ConfigValue<Boolean> invSeeReadOnly;
+		public final ModConfigSpec.ConfigValue<Boolean> invSeeAuditModifications;
 
 		// Clear Chat System
 		public final ModConfigSpec.ConfigValue<Boolean> enableClearChat;
@@ -112,6 +146,10 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enableSudo;
 		public final ModConfigSpec.ConfigValue<String> sudoExecutedMsg;
 		public final ModConfigSpec.ConfigValue<String> sudoNotifyMsg;
+		public final ModConfigSpec.ConfigValue<String> sudoAllowedCommands;
+		public final ModConfigSpec.ConfigValue<String> sudoDeniedCommands;
+		public final ModConfigSpec.ConfigValue<Boolean> sudoNotifyTarget;
+		public final ModConfigSpec.ConfigValue<Integer> sudoMaximumCommandLength;
 
 		// Inventory Lock System
 		public final ModConfigSpec.ConfigValue<Boolean> enableInvLock;
@@ -133,6 +171,24 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<String> checkAltsHeaderFormat;
 		public final ModConfigSpec.ConfigValue<String> checkAltsEntryFormat;
 		public final ModConfigSpec.ConfigValue<String> checkAltsNoAltsMsg;
+		public final ModConfigSpec.ConfigValue<Boolean> altTrackingCollectAddresses;
+		public final ModConfigSpec.ConfigValue<Integer> altTrackingRetentionDays;
+		public final ModConfigSpec.ConfigValue<Boolean> altTrackingHashAddresses;
+
+		public final ModConfigSpec.ConfigValue<Boolean> nicknameUniqueOnline;
+		public final ModConfigSpec.ConfigValue<Boolean> nicknameUniqueKnownProfiles;
+		public final ModConfigSpec.ConfigValue<Boolean> nicknameAllowDuplicateWithUsernameHover;
+
+		public final ModConfigSpec.ConfigValue<Integer> tabUpdateIntervalTicks;
+		public final ModConfigSpec.ConfigValue<Integer> securityAuditRetentionDays;
+		public final ModConfigSpec.ConfigValue<Integer> securityAuditMaximumFileMiB;
+		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumAliases;
+		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumBundleSteps;
+		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumBundleDepth;
+		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargets;
+		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargetSteps;
+		public final ModConfigSpec.ConfigValue<Integer> kernelLocationHistoryEntries;
+		public final ModConfigSpec.ConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
 
 		// Warn System
 		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
@@ -199,6 +255,55 @@ public class ConfigHandler {
 
 		public ConfigBuilder(ModConfigSpec.Builder builder) {
 			builder.push("ServerEssentialsForgeModConfig");
+
+			// ─────────────────────────────────────────────────────────────────────────────
+			//  MODULES — master on/off switch for every feature & command in SEF.
+			//  Set a value to false to fully disable that part of the mod: its command is not
+			//  registered and its behaviour is skipped. Everything defaults to ON, except a
+			//  few that need extra setup (discord_integration needs a bot token; nickname_command
+			//  conflicts with FTB Essentials' /nick; custom_tab_header_footer is opt-in).
+			//  Fine-grained sub-options (message formats, sounds, markdown, timestamp,
+			//  integrations, scan radius, etc.) live in each feature's own section further down.
+			// ─────────────────────────────────────────────────────────────────────────────
+			builder.push("modules");
+			// Chat & communication
+			enableChatFormatting = builder.comment("  Master toggle for SEF's chat formatting (prefix/suffix/color/timestamp). When false, chat uses the vanilla format. Note: click_to_respond needs this ON to attach clickable replies.").define("chat_formatting", true);
+			enableMessagingSystem = builder.comment("  Private messaging system (/msg, /r, /tell, /w)").define("msg_system", true);
+			enableChatReplies = builder.comment("  Click-to-reply system (/ans, clickable chat messages, chat logging). Requires chat_formatting = true (SEF must own the chat line to make it clickable).").define("click_to_respond", true);
+			enableHelpOp = builder.comment("  /helpop command for players to request operator help").define("helpop", true);
+			enableAdminChat = builder.comment("  Admin chat system (/ac, /chat admin)").define("admin_chat", true);
+			enableOpBulletin = builder.comment("  Operator bulletin system (/opbulletin)").define("op_bulletin", true);
+			enableFilterSystem = builder.comment("  Word filter system (/sef filter ...)").define("filter_system", true);
+			enableColorsCommand = builder.comment("  /colors command").define("colors_command", true);
+			enableTabListIntegration = builder.comment("  Custom tab list information").define("tab_list", true);
+			enableCustomTabHeaderFooter = builder.comment("  Server-side custom tab header/footer rendering (opt-in; configure formats in the tab section)").define("custom_tab_header_footer", false);
+			enableWhoisCommand = builder.comment("  Integrated /whois command (ignored if autoIntegratedNicknames is on)").define("whois_command", true);
+			enableChatNicknameCommand = builder.comment("  Integrated /nick command (off by default; conflicts with FTB Essentials' /nick. Ignored if autoIntegratedNicknames is on)").define("nickname_command", false);
+			enableDiscordBotIntegration = builder.comment("  Discord bot integration (off by default; requires a bot token)").define("discord_integration", false);
+			// Vanish
+			enableVanishSystem = builder.comment("  Vanish system (/vanish, /trace + the vanish hiding mixins). Detailed vanish behaviour lives in sef-vanish-server.toml.").define("vanish_system", true);
+			// Moderation
+			enableMuteSystem = builder.comment("  Persistent mute system (/mute, /unmute, /mutelist)").define("mute_system", true);
+			enableWarnSystem = builder.comment("  Warning system (/warn, /warns)").define("warn_system", true);
+			enableFreezeSystem = builder.comment("  Freeze system (/freeze, /unfreeze)").define("freeze_system", true);
+			enableCheckAlts = builder.comment("  Alt-account checker (/checkalts)").define("check_alts", true);
+			enableBannedItems = builder.comment("  Banned items system (/banned ...)").define("banned_items", true);
+			enableDisableBuilding = builder.comment("  Building restriction system (/disablebuilding, /db)").define("disable_building", true);
+			enableInvLock = builder.comment("  Inventory lock (/invlock)").define("inv_lock", true);
+			enableSudo = builder.comment("  /sudo command").define("sudo", false);
+			// Utility
+			enableInvSee = builder.comment("  Inventory viewer (/invsee)").define("invsee", true);
+			enableClearChat = builder.comment("  Clear chat (/cc, /clearchat)").define("clear_chat", true);
+			enableCountdown = builder.comment("  Countdown broadcaster (/countdown)").define("countdown", true);
+			enableMotdSystem = builder.comment("  MOTD system (/sef motd ...)").define("motd_system", true);
+			enableAnnouncements = builder.comment("  Scheduled announcements + announcement commands").define("announcements", true);
+			enableCraftingTableCommand = builder.comment("  Virtual crafting table (/craft, /c)").define("crafting_table", true);
+			enableAnvilCommand = builder.comment("  Virtual anvil (/anvil, /av)").define("anvil", true);
+			enableEnchantingTableCommand = builder.comment("  Virtual enchanting table (/enchantingtable, /et)").define("enchanting_table", true);
+			enableSuperEnchantingTableCommand = builder.comment("  Super enchanting table (/superenchantingtable, /set)").define("super_enchanting_table", true);
+			enableRepairCommand = builder.comment("  Held item repair command (/repair)").define("repair", true);
+			builder.pop(); // modules
+
 			playerNameFormat = builder
 					.comment("  Controls the chat message format",
 							 "    $prefix is replaced by the user's prefix or nothing if the user has no prefix",
@@ -228,38 +333,67 @@ public class ConfigHandler {
 			enableFtbEssentials = builder.comment("  Enables or disables FTB essentials nickname integration").define("useFtbEssentials", true);
 			enableLuckPerms = builder.comment("  Enables or disables LuckPerms integration").define("useLuckPerms", true);
 			enableMarkdown = builder.comment("  Enables or disables markdown styling").define("markdownEnabled", true);
-			enableTabListIntegration = builder.comment("  Enables or disables custom tab list information").define("tabList", true);
 			enableMetadataInTabList = builder.comment("  Enables or disables prefixes&suffixes in the tab list").define("tabListMetadata", true);
 			enableNicknamesInTabList = builder.comment("  Enables or disables nicknames in the tab list").define("tabListNicknames", true);
-			enableColorsCommand = builder.comment("  Enables or disables the /colors command").define("enableColorsCommand", true);
-			enableWhoisCommand = builder.comment(
-					"  Enables or disables the integrated whois command"
-				  + "    (If autoIntegratedNicknames is true, this setting is ignored) ").define("enableWhoisCommand", true);
-			enableChatNicknameCommand = builder.comment(
-					  "  Enables or disables the integrated nickname command"
-					+ "   (If autoIntegratedNicknames is true, this setting is ignored) ").define("enableIntegratedNicknames", false);
-			enableDiscordBotIntegration = builder.comment("  Enables or disables discord integration").define("enableDiscordIntegraation", false);
-			enableCustomTabHeaderFooter = builder.comment("  Enables custom tab header/footer rendering server-side").define("enableCustomTabHeaderFooter", false);
 			tabHeaderFormat = builder.comment("  Tab header format (placeholders: {server_ip}, {online}, {max})").define("tabHeaderFormat", "");
 			tabFooterFormat = builder.comment("  Tab footer format (placeholders: {server_ip}, {online}, {max})").define("tabFooterFormat", "");
 			autoEnableChatNicknameCommand = builder.comment("  When true, enables the integrated nickname-related commands if FTB essentials is not present").define("autoIntegratedNicknames", true);
 			maximumNicknameLength = builder.comment("  Maximum allowed nickname length (for integrated nickname commands)").defineInRange("maximumNicknameLength", 50, 1, 500);
 			minimumNicknameLength = builder.comment("  Minimum allowed nickname length (for integrated nickname commands)").defineInRange("minimumNicknameLength", 1, 1, 500);
+			nicknameUniqueOnline = builder.comment("  Require nicknames to be unique among online players").define("nicknameUniqueOnline", true);
+			nicknameUniqueKnownProfiles = builder.comment("  Require nicknames to be unique among all profiles known to the integrated nickname store").define("nicknameUniqueKnownProfiles", true);
+			nicknameAllowDuplicateWithUsernameHover = builder.comment("  Reserved enhanced client fallback. Duplicate nickname display remains disabled until username hover projection is implemented.").define("nicknameAllowDuplicateWithUsernameHover", false);
 			maxPrefixesDisplayed = builder.comment("  Maximum number of prefixes to show (weighted order)").defineInRange("maxPrefixesDisplayed", 1, 0, 50);
 			maxSuffixesDisplayed = builder.comment("  Maximum number of suffixes to show (weighted order)").defineInRange("maxSuffixesDisplayed", 1, 0, 50);
-			enableAnnouncements = builder.comment("  Enable scheduled server announcements and announcement commands").define("enableAnnouncements", true);
+			tabUpdateIntervalTicks = builder.comment("  Minimum ticks between tab header and footer refreshes").defineInRange("tabUpdateIntervalTicks", 20, 1, 1200);
+			securityAuditRetentionDays = builder.comment("  Days to retain structured SEF security audit files").defineInRange("securityAuditRetentionDays", 30, 1, 3650);
+			securityAuditMaximumFileMiB = builder.comment("  Maximum size of the active structured security audit file before rotation").defineInRange("securityAuditMaximumFileMiB", 16, 1, 1024);
+
+			builder.comment("Command kernel hard limits").push("commandKernel");
+			kernelMaximumAliases = builder.comment("  Maximum operator alias definitions").defineInRange("maximumAliases", 256, 1, 1024);
+			kernelMaximumBundleSteps = builder.comment("  Maximum steps in one command bundle").defineInRange("maximumBundleSteps", 64, 1, 256);
+			kernelMaximumBundleDepth = builder.comment("  Maximum nested command bundle depth").defineInRange("maximumBundleDepth", 4, 1, 8);
+			kernelMaximumTargets = builder.comment("  Maximum targets resolved by one bundle").defineInRange("maximumTargets", 100, 1, 1000);
+			kernelMaximumTargetSteps = builder.comment("  Maximum expanded target steps in one bundle").defineInRange("maximumTargetSteps", 2000, 1, 100000);
+			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
+			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
+			builder.pop();
+
+			builder.comment("Virtual Workstations",
+					"  These commands open workstations without a placed block.",
+					"  Cooldowns are tracked per player and per command.",
+					"  A cooldown of 0 disables that command's cooldown.").push("virtualWorkstations");
+			enableCraftAlias = builder.comment("  Enable the /c alias for /craft").define("enableCraftAlias", true);
+			enableAnvilAlias = builder.comment("  Enable the /av alias for /anvil").define("enableAnvilAlias", true);
+			enableEnchantingTableAlias = builder.comment("  Enable the /et alias for /enchantingtable").define("enableEnchantingTableAlias", true);
+			enableSuperEnchantingTableAlias = builder.comment("  Enable the /set alias for /superenchantingtable").define("enableSuperEnchantingTableAlias", true);
+			craftingTableCooldownSeconds = builder.comment("  Cooldown for /craft and /c in seconds").defineInRange("craftingTableCooldownSeconds", 0, 0, 86400);
+			anvilCooldownSeconds = builder.comment("  Cooldown for /anvil and /av in seconds").defineInRange("anvilCooldownSeconds", 0, 0, 86400);
+			enchantingTableCooldownSeconds = builder.comment("  Cooldown for /enchantingtable and /et in seconds").defineInRange("enchantingTableCooldownSeconds", 0, 0, 86400);
+			superEnchantingTableCooldownSeconds = builder.comment("  Cooldown for /superenchantingtable and /set in seconds").defineInRange("superEnchantingTableCooldownSeconds", 0, 0, 86400);
+			repairCooldownSeconds = builder.comment("  Cooldown for /repair in seconds").defineInRange("repairCooldownSeconds", 0, 0, 86400);
+			superEnchantingMaxLevel = builder.comment("  Highest level the super enchanting table can apply. Minecraft stores levels up to 255.").defineInRange("superEnchantingMaxLevel", 10, 1, 255);
+			superEnchantingAllowUnsafe = builder.comment("  Show enchantments that do not normally support the held item and allow incompatible combinations").define("superEnchantingAllowUnsafe", false);
+			workstationCooldownMessage = builder.comment("  Message shown during a cooldown. Placeholder: $seconds").define("cooldownMessage", "&cYou must wait &e$seconds &cseconds before using that command again.");
+			repairSuccessMessage = builder.comment("  Message shown after repairing the held item. Placeholder: $item").define("repairSuccessMessage", "&aRepaired &e$item&a.");
+			repairNotHeldMessage = builder.comment("  Message shown when no item is held").define("repairNotHeldMessage", "&cHold the item you want to repair in your main hand.");
+			repairNotNeededMessage = builder.comment("  Message shown when the held item is not damaged").define("repairNotNeededMessage", "&eThat item does not need to be repaired.");
+			builder.pop(); // virtual workstations
+
 			announcementIntervalSeconds = builder.comment("  Interval in seconds between announcements").define("announcementIntervalSeconds", 300);
 			announcementUseRandomOrder = builder.comment("  When true, announcements are chosen randomly; otherwise in order").define("announcementUseRandomOrder", false);
-			enableFilterSystem = builder.comment("  Enable the word filter system (/sef filter commands)").define("enableFilterSystem", true);
-			enableMessagingSystem = builder.comment("  Enable the private messaging system (/msg, /r, /tell, etc)").define("enableMessagingSystem", true);
-			enableChatReplies = builder.comment("  Enable the chat reply system (/ans command, clickable messages, chat logging)").define("enableChatReplies", true);
+			enableCommandAnnouncements = builder.comment("  Allow stored command announcements to execute. Disabled by default because commands run with server authority.").define("enableCommandAnnouncements", false);
+			commandAnnouncementAllowedCommands = builder.comment("  Comma separated command roots allowed for scheduled command announcements. An empty value denies every command.").define("commandAnnouncementAllowedCommands", "");
+			commandAnnouncementDeniedCommands = builder.comment("  Comma separated command roots denied for command announcements even when the allowlist contains them or a wildcard.").define("commandAnnouncementDeniedCommands", "commandannouncement,sudo,execute,op,deop,stop,reload,ban,ban-ip,pardon,pardon-ip,whitelist,luckperms,lp,sef");
+			commandAnnouncementMaximumCommandLength = builder.comment("  Maximum command length accepted for command announcements.").defineInRange("commandAnnouncementMaximumCommandLength", 512, 1, 8192);
+			commandAnnouncementAllowLeadingSlash = builder.comment("  Allow a stored command announcement to begin with a slash").define("commandAnnouncementAllowLeadingSlash", false);
+			commandAnnouncementAllowSelectors = builder.comment("  Allow entity selectors in stored command announcements").define("commandAnnouncementAllowSelectors", false);
 			replySummaryLength = builder.comment("  Maximum length of message summary shown in reply headers (0 = no limit)").defineInRange("replySummaryLength", 50, 0, 500);
-			enableHelpOp = builder.comment("  Enable the /helpop command for players to request help from operators").define("enableHelpOp", true);
-			enableAdminChat = builder.comment("  Enable the admin chat system (/chat admin)").define("enableAdminChat", true);
-			enableBannedItems = builder.comment("  Enable the banned items system (/banned commands)").define("enableBannedItems", true);
-			enableBannedBlockScanning = builder.comment("  Enable scanning for banned blocks placed in the world (may affect TPS slightly)").define("enableBannedBlockScanning", true);
+			enableBannedBlockScanning = builder.comment("  Enable bounded background scanning for banned blocks. Event driven placement enforcement remains active when disabled.").define("enableBannedBlockScanning", false);
 			bannedBlockScanRadius = builder.comment("  Default radius around players to scan for banned blocks (smaller = less TPS impact). Override at runtime with /banned setradius").defineInRange("bannedBlockScanRadius", 6, 1, 20);
 			bannedBlockScanInterval = builder.comment("  Default interval in ticks between banned-block sweeps. Override at runtime with /banned setinterval. 20 = 1s, 40 = 2s.").defineInRange("bannedBlockScanInterval", 40, 1, 24000);
+			bannedInventoryScanInterval = builder.comment("  Minimum ticks between fallback banned inventory scans").defineInRange("bannedInventoryScanInterval", 20, 1, 24000);
+			bannedBlockScanBudget = builder.comment("  Maximum block positions inspected per server tick by the background scanner").defineInRange("bannedBlockScanBudget", 512, 1, 65536);
 			bannedItemRemovedMsg = builder.comment(
 				"  Message shown to a player when a banned item is confiscated.",
 				"  Placeholders: $item, $reason, $by, $remaining.",
@@ -270,7 +404,6 @@ public class ConfigHandler {
 				"  Placeholders: $player, $item, $reason.",
 				"  Leave empty to use the built-in default."
 			).define("bannedAnnounceFormat", "");
-			enableCountdown = builder.comment("  Enable the /countdown command for broadcasting timed countdowns").define("enableCountdown", true);
 			countdownTitleFormat = builder.comment(
 				"  Format for the title shown to players on each countdown beat.",
 				"  Placeholders: $message, $time, $colored_time, $color.",
@@ -286,7 +419,6 @@ public class ConfigHandler {
 				"  Placeholders: $message, $time, $colored_time, $color.",
 				"  Leave empty to use the built-in default."
 			).define("countdownChatFormat", "");
-			enableMotdSystem = builder.comment("  Enable the MOTD system (/sef motd commands)").define("enableMotdSystem", true);
 			applyMotdOnStartup = builder.comment("  Automatically apply the configured MOTD when the server starts").define("applyMotdOnStartup", true);
 
 			// FTB Mute Integration
@@ -305,7 +437,6 @@ public class ConfigHandler {
 					"  Mutes survive player disconnects and server restarts.",
 					"  Duration counts in server ticks (stops when server is off).",
 					"  Data stored in <world>/serverconfig/sef/mutes.json").push("muteSystem");
-			enableMuteSystem = builder.comment("  Enable the persistent /mute and /unmute commands").define("enableMuteSystem", true);
 			muteNotifyPlayerFormat = builder.comment("  Message sent to the player when muted. Placeholders: $admin, $reason, $duration")
 					.define("muteNotifyPlayerFormat", "&c&l⚠ YOU HAVE BEEN MUTED ⚠\\n&7Reason: &f$reason\\n&7Muted by: &e$admin\\n&7Duration: &e$duration");
 			muteAdminNotifyFormat = builder.comment("  Notification sent to admins when a player is muted. Placeholders: $player, $admin, $reason, $duration")
@@ -339,7 +470,6 @@ public class ConfigHandler {
 					"  Custom /invsee command with Curios mod support.",
 					"  If FTB Essentials is installed and invSeeDisableFtbInvsee is true,",
 					"  this mod's /invsee will override FTB's version.").push("invSee");
-			enableInvSee = builder.comment("  Enable the custom /invsee command").define("enableInvSee", true);
 			invSeeDisableFtbInvsee = builder.comment("  When true and FTB Essentials is loaded, override FTB's /invsee with ours").define("invSeeDisableFtbInvsee", true);
 			invSeeTitle = builder.comment("  Title of the InvSee GUI. Placeholder: $player").define("invSeeTitle", "&e$player's Inventory");
 			invSeeArmorLabel = builder.comment("  Name shown on the glass pane separator for armor section").define("invSeeArmorLabel", "&9Armor");
@@ -349,12 +479,12 @@ public class ConfigHandler {
 			invSeeNextPageLabel = builder.comment("  Name shown on the next page arrow item").define("invSeeNextPageLabel", "&eNext Page >>>");
 			invSeePrevPageLabel = builder.comment("  Name shown on the previous page arrow item").define("invSeePrevPageLabel", "&e<<< Previous Page");
 			invSeeReadOnly = builder.comment("  When true, players cannot move items in the InvSee GUI (view-only mode)").define("invSeeReadOnly", false);
+			invSeeAuditModifications = builder.comment("  Write inventory modification metadata to the structured security audit").define("invSeeAuditModifications", true);
 			builder.pop(); // invSee
 
 			// Clear Chat System
 			builder.comment("Clear Chat System",
 					"  /cc and /clearchat commands to clear player chat.").push("clearChat");
-			enableClearChat = builder.comment("  Enable the /cc and /clearchat commands").define("enableClearChat", true);
 			clearChatLineCount = builder.comment("  Number of blank lines to send to clear chat").defineInRange("clearChatLineCount", 100, 1, 500);
 			clearChatSuccessMsg = builder.comment("  Message shown to admin when clearing a specific player's chat. Placeholder: $player").define("clearChatSuccessMsg", "&aChat cleared for $player.");
 			clearChatAllSuccessMsg = builder.comment("  Message shown to admin when clearing all non-OP chats. Placeholder: $admin").define("clearChatAllSuccessMsg", "&aChat cleared for all non-OP players by $admin.");
@@ -364,15 +494,17 @@ public class ConfigHandler {
 			// Sudo System
 			builder.comment("Sudo System",
 					"  /sudo command to force a player to execute a command.").push("sudo");
-			enableSudo = builder.comment("  Enable the /sudo command").define("enableSudo", true);
 			sudoExecutedMsg = builder.comment("  Message shown to the admin. Placeholders: $player, $command, $admin").define("sudoExecutedMsg", "&aForced $player to execute: &7/$command");
 			sudoNotifyMsg = builder.comment("  Message shown to the target player. Placeholders: $admin, $command").define("sudoNotifyMsg", "&c$admin forced you to run: &7/$command");
+			sudoAllowedCommands = builder.comment("  Comma separated command roots allowed through sudo. An empty value denies every command.").define("allowedCommands", "msg,tell,w,r,me");
+			sudoDeniedCommands = builder.comment("  Comma separated command roots denied even when allowedCommands contains them or a wildcard.").define("deniedCommands", "sudo,execute,op,deop,stop,reload,ban,ban-ip,pardon,pardon-ip,whitelist,luckperms,lp,sef");
+			sudoNotifyTarget = builder.comment("  Notify the target when an administrator uses sudo.").define("notifyTarget", true);
+			sudoMaximumCommandLength = builder.comment("  Maximum command length accepted by sudo.").defineInRange("maximumCommandLength", 512, 1, 8192);
 			builder.pop(); // sudo
 
 			// Inventory Lock System
 			builder.comment("Inventory Lock System",
 					"  /invlock command to lock/unlock a player's inventory.").push("invLock");
-			enableInvLock = builder.comment("  Enable the /invlock command").define("enableInvLock", true);
 			invLockLockedMsg = builder.comment("  Message shown to the player when their inventory is locked. Placeholder: $admin").define("invLockLockedMsg", "&c$admin has locked your inventory.");
 			invLockUnlockedMsg = builder.comment("  Message shown to the player when their inventory is unlocked. Placeholder: $admin").define("invLockUnlockedMsg", "&a$admin has unlocked your inventory.");
 			invLockAdminLockMsg = builder.comment("  Message shown to admin when locking. Placeholder: $player").define("invLockAdminLockMsg", "&eLocked inventory for $player.");
@@ -383,7 +515,6 @@ public class ConfigHandler {
 			// Disable Building System
 			builder.comment("Disable Building System",
 					"  /disablebuilding command to toggle building restrictions for a player.").push("disableBuilding");
-			enableDisableBuilding = builder.comment("  Enable the /disablebuilding and /db commands").define("enableDisableBuilding", true);
 			dbEnabledMsg = builder.comment("  Message shown to admin when disabling building. Placeholders: $player, $admin").define("dbEnabledMsg", "&cBuilding disabled for $player by $admin.");
 			dbDisabledMsg = builder.comment("  Message shown to admin when re-enabling building. Placeholders: $player, $admin").define("dbDisabledMsg", "&aBuilding re-enabled for $player by $admin.");
 			dbPlayerNotifyMsg = builder.comment("  Message shown to the player. Placeholders: $status (disabled/enabled), $admin").define("dbPlayerNotifyMsg", "&cYour building privileges have been $status by $admin.");
@@ -393,17 +524,18 @@ public class ConfigHandler {
 			// Check Alts System
 			builder.comment("Check Alts System",
 					"  /checkalts command to check alternate accounts by IP.").push("checkAlts");
-			enableCheckAlts = builder.comment("  Enable the /checkalts command").define("enableCheckAlts", true);
 			checkAltsHeaderFormat = builder.comment("  Header for alts list. Placeholders: $player, $ip").define("checkAltsHeaderFormat", "&6━━━━ Alts for $player ($ip) ━━━━");
 			checkAltsEntryFormat = builder.comment("  Format for each alt entry. Placeholders: $name, $uuid, $lastseen").define("checkAltsEntryFormat", "&7- &e$name &7($uuid) Last seen: $lastseen");
 			checkAltsNoAltsMsg = builder.comment("  Message when no alts found. Placeholder: $player").define("checkAltsNoAltsMsg", "&7No alternate accounts found for $player.");
+			altTrackingCollectAddresses = builder.comment("  Collect address derived alternate account data. This is privacy sensitive and disabled by default.").define("collectAddresses", false);
+			altTrackingRetentionDays = builder.comment("  Days to retain alternate account observations before automatic purge").defineInRange("retentionDays", 30, 1, 3650);
+			altTrackingHashAddresses = builder.comment("  Store a one way server local hash instead of raw addresses").define("hashAddresses", true);
 			builder.pop(); // checkAlts
 
 			// Warn System
 			builder.comment("Warn System",
 					"  /warn and /warns commands for player warning management.",
 					"  Warns persist to JSON and support expiration durations.").push("warnSystem");
-			enableWarnSystem = builder.comment("  Enable the warning system (/warn, /warns commands)").define("enableWarnSystem", true);
 			warnAddedMsg = builder.comment("  Message to admin when warning added. Placeholders: $player, $reason, $admin, $id, $duration").define("warnAddedMsg", "&aWarning #$id added for $player: &7$reason &e(Duration: $duration)");
 			warnRemovedMsg = builder.comment("  Message to admin when warning removed. Placeholders: $player, $id").define("warnRemovedMsg", "&eWarning #$id removed for $player.");
 			warnListHeaderFormat = builder.comment("  Header for warnings list. Placeholder: $player").define("warnListHeaderFormat", "&6━━━━ Warnings for $player ━━━━");
@@ -419,7 +551,6 @@ public class ConfigHandler {
 					"  /freeze command to lock a player in place.",
 					"  Frozen players cannot move, look around, jump, mine, break, place, or use commands.",
 					"  They CAN still type in chat to respond to the admin.").push("freezeSystem");
-			enableFreezeSystem = builder.comment("  Enable the /freeze command").define("enableFreezeSystem", true);
 			freezeMessageToPlayer = builder.comment("  Message sent to the player when they are frozen. Placeholders: $reason, $admin, $duration")
 					.define("freezeMessageToPlayer", "&c&l⚠ YOU HAVE BEEN FROZEN ⚠\n&7Reason: &f$reason\n&7Frozen by: &e$admin\n&7Duration: &e$duration\n&7&oPlease respond to the admin in chat.");
 			freezeReasonFormat = builder.comment("  Format of the reason displayed. Placeholder: $reason")

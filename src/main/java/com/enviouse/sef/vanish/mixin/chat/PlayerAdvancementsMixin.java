@@ -18,8 +18,13 @@ public abstract class PlayerAdvancementsMixin {
 	@Shadow
 	private ServerPlayer player;
 
-	// Hide advancement messages from vanished players
-	@Redirect(method = "award", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
+	// Hide advancement messages from vanished players.
+	// NeoForge 1.21.1: PlayerAdvancements.award moved the announce broadcast into a lambda
+	// (advancement.display().ifPresent(displayInfo -> { ... broadcastSystemMessage(...) })), so the call now
+	// lives in the synthetic instance method lambda$award$2; targeting method="award" scans 0 points and throws
+	// a Critical injection failure. Target the lambda directly (verified against neoforge-21.1.233);
+	// this.player stays accessible because the lambda is a non-static instance method.
+	@Redirect(method = "lambda$award$2", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
 	public void vanishmod$hideAdvancementMessage(PlayerList playerList, Component message, boolean overlay) {
 		if (VanishConfig.CONFIG.hideSystemMessages.get() && VanishUtil.isVanished(this.player)) {
 			// Only send to players who can see the vanished player

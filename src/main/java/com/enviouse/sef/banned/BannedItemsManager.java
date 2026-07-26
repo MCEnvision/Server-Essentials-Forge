@@ -3,6 +3,7 @@ package com.enviouse.sef.banned;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.utils.moddeps.CuriosInventoryHelper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -25,15 +26,13 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.BuiltInRegistries;
 
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -67,7 +66,9 @@ public class BannedItemsManager {
     private int intervalOverride = -1;     // -1 = use config
 
     private Path filePath;
+    private StorageService.Document document;
     private int lastScanTick = 0;
+    private final Map<UUID, BlockScanCursor> blockScanCursors = new ConcurrentHashMap<>();
 
     // ── Persistence ─────────────────────────────────────────────────────────
 
@@ -78,14 +79,13 @@ public class BannedItemsManager {
         entries.clear();
         bypassed.clear();
         excepted.clear();
-        if (!Files.exists(filePath)) {
-            // attempt to migrate the legacy flat-Set format from older builds
-            tryMigrateLegacy(dir);
+        document = StorageService.read(filePath, "banned items", 1).orElse(null);
+        if (document == null) {
             save();
             return;
         }
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            JsonElement root = com.google.gson.JsonParser.parseReader(reader);
+        try {
+            JsonElement root = document.data();
             if (root == null || root.isJsonNull()) return;
             // Legacy: a JSON array of registry-id strings
             if (root.isJsonArray()) {
@@ -130,20 +130,15 @@ public class BannedItemsManager {
             }
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} banned entry(ies), {} bypass, {} excepted",
                     entries.size(), bypassed.size(), excepted.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load banned items", e);
         }
     }
 
-    private void tryMigrateLegacy(Path dir) {
-        Path legacy = dir.resolve("banned_items.json");
-        if (Files.exists(legacy)) return; // load() already handled it
-    }
-
     public void save() {
         if (filePath == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
             JsonObject root = new JsonObject();
             JsonObject ents = new JsonObject();
             for (Map.Entry<String, BannedEntry> e : entries.entrySet()) {
@@ -163,9 +158,7 @@ public class BannedItemsManager {
             s.addProperty("radiusOverride", radiusOverride);
             s.addProperty("intervalOverride", intervalOverride);
             root.add("settings", s);
-            try (Writer w = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(root, w);
-            }
+            StorageService.write(filePath, "banned items", 1, root, document, Set.of("/entries"));
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save banned items", e);
         }
@@ -281,7 +274,7 @@ public class BannedItemsManager {
             // permission-based bypass; falls through to false on any error
             net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> node =
                     com.enviouse.sef.config.PermissionsHandler.bannedBypassNode;
-            if (node != null && net.neoforged.neoforge.server.permission.PermissionAPI.getPermission(player, node)) {
+            if (node != null && com.enviouse.sef.permissions.PermissionService.has(player, node)) {
                 return true;
             }
         } catch (Throwable ignored) {}
@@ -367,7 +360,8 @@ public class BannedItemsManager {
         // Drop expired entries every ~5s so /banned list stays accurate.
         if (tickCount % 100 == 0) purgeExpired();
 
-        if (enabledItems) {
+        int inventoryInterval = Math.max(1, ConfigHandler.config.bannedInventoryScanInterval.get());
+        if (enabledItems && tickCount % inventoryInterval == 0) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (isBypassed(player)) continue;
                 scanInventory(player);
@@ -380,10 +374,62 @@ public class BannedItemsManager {
                 lastScanTick = tickCount;
                 int radius = getEffectiveRadius();
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                    scanBlocksAround(player, radius);
+                    if (!isBypassed(player)) {
+                        blockScanCursors.put(player.getUUID(), new BlockScanCursor(
+                                player.serverLevel().dimension().location().toString(),
+                                player.blockPosition(),
+                                radius));
+                    }
                 }
             }
+            processBlockScanBudget(server);
+        } else {
+            blockScanCursors.clear();
         }
+    }
+
+    private void processBlockScanBudget(MinecraftServer server) {
+        int remaining = Math.max(1, ConfigHandler.config.bannedBlockScanBudget.get());
+        java.util.Set<UUID> online = new java.util.HashSet<>();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            online.add(player.getUUID());
+            BlockScanCursor cursor = blockScanCursors.get(player.getUUID());
+            if (cursor == null || remaining <= 0) continue;
+            if (!cursor.dimension.equals(player.serverLevel().dimension().location().toString())) {
+                blockScanCursors.remove(player.getUUID());
+                continue;
+            }
+            remaining -= processBlockScan(player, cursor, remaining);
+            if (cursor.complete()) blockScanCursors.remove(player.getUUID());
+        }
+        blockScanCursors.keySet().removeIf(uuid -> !online.contains(uuid));
+    }
+
+    private int processBlockScan(ServerPlayer player, BlockScanCursor cursor, int budget) {
+        ServerLevel level = player.serverLevel();
+        int processed = 0;
+        int side = cursor.radius * 2 + 1;
+        int plane = side * side;
+        while (processed < budget && !cursor.complete()) {
+            int index = cursor.index++;
+            int x = index / plane - cursor.radius;
+            int remainder = index % plane;
+            int y = remainder / side - cursor.radius;
+            int z = remainder % side - cursor.radius;
+            BlockPos pos = cursor.center.offset(x, y, z);
+            processed++;
+            if (!level.hasChunkAt(pos) || isExcepted(level, pos)) continue;
+            BlockState state = level.getBlockState(pos);
+            BannedEntry hit = matchBlock(state);
+            if (hit != null) {
+                ResourceLocation id = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                level.destroyBlock(pos, dropOnDestroy);
+                ServerEssentialsForge.LOGGER.info(
+                        "[SEF] Destroyed banned block {} at {} near {}",
+                        id, pos, player.getGameProfile().getName());
+            }
+        }
+        return processed;
     }
 
     // ── Scans ───────────────────────────────────────────────────────────────
@@ -460,7 +506,7 @@ public class BannedItemsManager {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
                     BlockPos pos = center.offset(x, y, z);
-                    if (isExcepted(level, pos)) continue;
+                    if (!level.hasChunkAt(pos) || isExcepted(level, pos)) continue;
                     BlockState state = level.getBlockState(pos);
                     BannedEntry hit = matchBlock(state);
                     if (hit != null) {
@@ -475,6 +521,26 @@ public class BannedItemsManager {
             }
         }
         return destroyed;
+    }
+
+    private static final class BlockScanCursor {
+        private final String dimension;
+        private final BlockPos center;
+        private final int radius;
+        private final int total;
+        private int index;
+
+        private BlockScanCursor(String dimension, BlockPos center, int radius) {
+            this.dimension = dimension;
+            this.center = center.immutable();
+            this.radius = Math.max(1, radius);
+            int side = this.radius * 2 + 1;
+            this.total = side * side * side;
+        }
+
+        private boolean complete() {
+            return index >= total;
+        }
     }
 
     // ── Notification ────────────────────────────────────────────────────────

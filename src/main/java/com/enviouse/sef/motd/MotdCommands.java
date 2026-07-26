@@ -1,7 +1,9 @@
 package com.enviouse.sef.motd;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
@@ -15,8 +17,9 @@ public class MotdCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("sef")
-            .requires(src -> src.hasPermission(2))
+            .requires(src -> PermissionService.has(src, PermissionsHandler.sefCommand))
             .then(Commands.literal("motd")
+                .requires(src -> PermissionService.has(src, PermissionsHandler.motdManage))
                 // /sef motd set <line1> [| line2]
                 .then(Commands.literal("set")
                     .then(Commands.argument("motd", StringArgumentType.greedyString())
@@ -69,4 +72,3 @@ public class MotdCommands {
                     }))));
     }
 }
-

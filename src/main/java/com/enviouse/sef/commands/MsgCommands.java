@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -55,8 +56,8 @@ public class MsgCommands {
         removeCommandNode(dispatcher, "tell");
         removeCommandNode(dispatcher, "w");
 
-        // /msg <player> <message> — no .requires() so it always shows in tab complete
         dispatcher.register(Commands.literal("msg")
+            .requires(MsgCommands::canUse)
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -68,6 +69,7 @@ public class MsgCommands {
 
         // /tell (alias for /msg)
         dispatcher.register(Commands.literal("tell")
+            .requires(MsgCommands::canUse)
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -79,6 +81,7 @@ public class MsgCommands {
 
         // /w (alias for /msg)
         dispatcher.register(Commands.literal("w")
+            .requires(MsgCommands::canUse)
             .then(Commands.argument("target", EntityArgument.player())
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -88,8 +91,8 @@ public class MsgCommands {
                         return sendPrivateMessage(ctx.getSource(), target, message);
                     }))));
 
-        // /r <message> (reply to last person) — no .requires()
         dispatcher.register(Commands.literal("r")
+            .requires(MsgCommands::canUse)
             .then(Commands.argument("message", StringArgumentType.greedyString())
                 .executes(ctx -> {
                     if (!checkPermission(ctx.getSource())) return 0;
@@ -117,8 +120,8 @@ public class MsgCommands {
                     return sendPrivateMessage(ctx.getSource(), target, message);
                 })));
 
-        // /pchat <player> (toggle private chat with someone) — no .requires()
         dispatcher.register(Commands.literal("pchat")
+            .requires(MsgCommands::canUse)
             .executes(ctx -> {
                 if (!checkPermission(ctx.getSource())) return 0;
                 ServerPlayer sender;
@@ -167,20 +170,14 @@ public class MsgCommands {
                 })));
     }
 
-    /**
-     * Checks if the source has permission to use messaging commands.
-     * Console always has permission. Players are checked against the msgCommand permission node.
-     * Returns true if allowed, false if denied (sends deny message).
-     */
+    private static boolean canUse(CommandSourceStack source) {
+        return PermissionService.has(source, PermissionsHandler.msgCommand);
+    }
+
     private static boolean checkPermission(CommandSourceStack source) {
-        try {
-            ServerPlayer player = source.getPlayerOrException();
-            if (!PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.msgCommand)) {
-                source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
-                return false;
-            }
-        } catch (Exception e) {
-            // Console — always allowed
+        if (!canUse(source)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+            return false;
         }
         return true;
     }
@@ -236,7 +233,8 @@ public class MsgCommands {
             lastMessaged.put(target.getUUID(), sender.getUUID());
         }
 
-        ServerEssentialsForge.LOGGER.info("[MSG] {} -> {}: {}", senderName, receiverName, message);
+        ServerEssentialsForge.LOGGER.info(
+            "[MSG] {} sent {} characters to {}", senderName, message.length(), receiverName);
         return 1;
     }
 
@@ -263,5 +261,4 @@ public class MsgCommands {
         }
     }
 }
-
 

@@ -1,0 +1,275 @@
+# SEF 2 Phase 2 and Phase 3 manual acceptance matrix
+
+This matrix verifies behavior that pure JUnit tests cannot prove without a real NeoForge dedicated server, permission provider, player connection, restart, and filesystem.
+
+Do not run destructive recovery cases against a production world. Use a staging copy and keep the original files.
+
+## 1. Test environment
+
+Record:
+
+1. SEF commit and JAR SHA 256.
+2. Minecraft version.
+3. NeoForge version.
+4. Java version.
+5. Operating system and filesystem.
+6. LuckPerms version, when used.
+7. Other installed command owning mods.
+8. `config/sef/common.toml`.
+9. Test player UUIDs and assigned groups.
+
+Use at least these actors:
+
+1. A player with only default permissions.
+2. A staff player with workstation and catalog access.
+3. An administrator with conflict and doctor access.
+4. A target player with no administrative permissions.
+5. The dedicated server console.
+
+Keep these artifacts:
+
+1. `logs/latest.log`.
+2. `<world>/serverconfig/sef/permission-manifest.json`.
+3. `<world>/serverconfig/sef/location-history.json`, when created.
+4. `<world>/serverconfig/sef/cooldowns.json`, when created.
+5. `<world>/playerdata/sef.playerdata.json`.
+6. Relevant `.backups` and `.corrupt` entries.
+7. Screenshots of permission filtered suggestions and diagnostic output.
+
+## 2. Clean startup and server only compatibility
+
+1. Start a dedicated server with SEF and no optional integrations.
+2. Confirm the server reaches the ready state without client class loading errors.
+3. Join with a vanilla compatible client that does not have SEF.
+4. Confirm the player can remain connected and use authorized command mode features.
+5. Stop the server with `stop`.
+
+Pass conditions:
+
+1. No `net.minecraft.client` class loads on the dedicated server.
+2. No optional integration is required.
+3. The player without SEF can join.
+4. Shutdown completes without a repository, configuration lifecycle, packet, or off thread exception.
+
+## 3. Catalog and diagnostic permissions
+
+Grant only `sef.commands.sef.allowed` and `sef.commands.sef.commands` to the default test player.
+
+1. Type `/sef ` and inspect suggestions.
+2. Run `/sef commands`.
+3. Run `/sef conflicts`.
+4. Run `/sef doctor`.
+5. Repeat as the administrator with `sef.commands.sef.conflicts` and `sef.commands.sef.doctor`.
+
+Pass conditions:
+
+1. The default player sees `/sef commands`.
+2. Catalog entries requiring permissions the player lacks are absent.
+3. The default player cannot discover or execute `conflicts` or `doctor`.
+4. The administrator can use both diagnostic commands.
+5. `/sef doctor` reports catalog, capability, policy, quota, profile, repository, import, provider, and recovery status.
+6. Diagnostic use produces metadata only audit output.
+
+## 4. Canonical workstation routes and aliases
+
+Configure a nonzero cooldown for each enabled workstation. Grant only the matching workstation permission for each case.
+
+Test these route sets:
+
+1. `/sef workstation craft`, `/craft`, and `/c`.
+2. `/sef workstation anvil`, `/anvil`, and `/av`.
+3. `/sef workstation enchantingtable`, `/enchantingtable`, and `/et`.
+4. `/sef workstation superenchantingtable`, `/superenchantingtable`, and `/set`.
+5. `/sef workstation repair` and `/repair`.
+
+For each set:
+
+1. Execute one route successfully.
+2. Immediately execute every other route in the same set.
+3. Remove the canonical permission while the player remains online.
+4. Attempt every route again.
+5. Restore permission and wait for the cooldown to expire.
+6. Execute the canonical route.
+
+Pass conditions:
+
+1. All forms reach the same action.
+2. A cooldown acquired through one form blocks the other forms.
+3. Runtime permission removal blocks every form without reconnecting.
+4. No shortcut weakens feature, permission, source, cooldown, or audit policy.
+5. Repair precondition failures do not consume a cooldown.
+
+## 5. Shortcut configuration and conflicts
+
+1. Disable one workstation alias in `config/sef/common.toml`.
+2. Restart the server.
+3. Confirm the long form and canonical route remain available while the disabled alias is absent.
+4. Install a staging mod that owns one convenience root.
+5. Restart and run `/sef conflicts`.
+6. Remove the conflict mod and restart.
+
+Pass conditions:
+
+1. Structural root changes occur only after restart.
+2. A disabled alias does not disable its canonical action.
+3. Conflict output identifies the root, action id, and effective status.
+4. Canonical routes remain available when a convenience root cannot be owned safely.
+
+## 6. LuckPerms optional quota integration
+
+First run without LuckPerms:
+
+1. Start the server.
+2. Run `/sef doctor`.
+3. Confirm startup and diagnostics show no required provider failure.
+
+Then install LuckPerms:
+
+1. Start with no SEF metadata.
+2. Confirm finite defaults remain available to the kernel.
+3. Set one supported metadata key to a valid nonnegative integer.
+4. Reload LuckPerms data and reconnect the player.
+5. Set the same key to a negative number, malformed text, and a number above its hard ceiling in separate runs.
+6. Remove LuckPerms and start the same world again.
+
+Supported keys are:
+
+1. `sef.limit.homes.total`.
+2. `sef.limit.player_warps.total`.
+3. `sef.limit.targets`.
+4. `sef.limit.mail`.
+5. `sef.limit.definitions`.
+
+Pass conditions:
+
+1. LuckPerms absence never prevents startup.
+2. Missing or malformed metadata falls through to a finite permission tier or default.
+3. Negative metadata is ignored.
+4. Valid metadata is selected before finite permission tiers.
+5. No value exceeds the hard ceiling.
+6. Provider exceptions appear in `/sef doctor` without breaking the server.
+7. Removing LuckPerms restores finite fallback behavior.
+
+## 7. Permission manifest and finite quota tiers
+
+Open `<world>/serverconfig/sef/permission-manifest.json`.
+
+Pass conditions:
+
+1. Entries are deterministic and contain no duplicate ids.
+2. Kernel GUI, HUD, panel, target, audience, editor, alias, bundle, profile, bypass, and sensitive data capabilities are present and denied by default.
+3. `commands.sef.commands` is present and allowed by default.
+4. `commands.sef.conflicts` and `commands.sef.doctor` are present and denied by default.
+5. Finite home, player warp, target, mail, and definition tier nodes are present and denied by default.
+6. No finite tier is interpreted as unlimited.
+
+## 8. Cooldown persistence and clean shutdown
+
+Set a workstation cooldown to at least 120 seconds and leave `commandKernel.persistentCooldownMinimumSeconds` at 60.
+
+1. Use the workstation as a player.
+2. Stop the server cleanly before the cooldown expires.
+3. Confirm `<world>/serverconfig/sef/cooldowns.json` exists and uses the `command cooldowns` schema 1 envelope.
+4. Restart immediately.
+5. Attempt the long form and an alias.
+6. Wait for expiry and retry.
+7. Repeat with a cooldown below the persistence threshold.
+
+Pass conditions:
+
+1. The qualifying cooldown survives restart.
+2. Long and short forms share the restored expiry.
+3. An expired cooldown is discarded.
+4. A cooldown below the persistence threshold is not retained.
+5. The stored file contains UUID, canonical action id, and epoch expiry, not a nickname or display name.
+
+## 9. Player profile and legacy nickname migration
+
+On a stopped staging server with no `sef.playerdata.json`:
+
+1. Place a valid legacy `sef.playerdata` file in the world player data directory.
+2. Keep a copy of the source.
+3. Start the server.
+4. Resolve imported identities with `/whois`.
+5. Change one nickname and stop the server.
+6. Inspect the new JSON envelope and `.backups`.
+7. Restart and resolve the identity again.
+
+Pass conditions:
+
+1. Import occurs only when the JSON store is absent.
+2. The source is backed up before migration.
+3. The JSON file uses domain `integrated player identities` and schema 1.
+4. UUID remains authoritative.
+5. Authenticated username and display nickname remain separate.
+6. Existing explicit permission grants are unchanged.
+7. `/sef doctor` reports the profile count and a ready state.
+8. Restart preserves the result.
+
+## 10. Corrupt profile recovery
+
+1. Stop the staging server.
+2. Replace `sef.playerdata.json` with malformed JSON.
+3. Start the server.
+4. Run `/sef doctor` and `/sef storage status`.
+5. Attempt to set a nickname.
+6. Stop the server.
+
+Pass conditions:
+
+1. The malformed file moves under `.corrupt`.
+2. `/sef doctor` reports profile recovery state and returns attention.
+3. The nickname command fails without changing memory.
+4. Shutdown does not recreate or overwrite the original path.
+5. The quarantined evidence remains available for recovery.
+
+## 11. Corrupt and future repository recovery
+
+Run this separately for `location-history.json` and `cooldowns.json`.
+
+1. Stop the staging server.
+2. Preserve the valid file.
+3. Test malformed JSON, a mismatched domain, and a future schema version.
+4. Start the server after each fixture.
+5. Run `/sef doctor` and `/sef storage status`.
+6. Stop the server without editing the file in game.
+
+Pass conditions:
+
+1. Malformed and mismatched files are quarantined.
+2. A future schema remains in place and reports unsupported.
+3. The storage coordinator enters recovery mode.
+4. The repository refuses to replace the source during shutdown.
+5. Location history mutation fails closed.
+6. Runtime cooldown checks may continue, but persistent cooldown recovery remains non writable.
+7. No fixture causes silent data loss or server startup failure.
+
+## 12. Crash simulation
+
+1. Start from valid repository files.
+2. Trigger a qualifying cooldown.
+3. Terminate the staging server process without the normal `stop` command.
+4. Preserve the world before restarting.
+5. Inspect the target, temporary files, backups, journal, and log.
+6. Restart.
+
+Pass conditions:
+
+1. A partially written target is never accepted.
+2. The previous complete target remains readable, or the damaged target is quarantined.
+3. Temporary files do not replace a valid target automatically.
+4. Startup produces an actionable state.
+5. Restoring a known good backup while stopped returns the repository to ready state.
+
+## 13. Final evidence review
+
+Before approval:
+
+1. Run `./gradlew test`.
+2. Run `./gradlew build`.
+3. Confirm the dedicated server starts and stops cleanly.
+4. Search `logs/latest.log` for exceptions, client class loading, private message bodies, raw addresses, tokens, and credentials.
+5. Inspect the final JAR metadata and resources.
+6. Inspect the complete Git diff.
+
+Approval requires every applicable pass condition, no unresolved security regression, and no claim that a later phase feature is already available.

@@ -8,6 +8,8 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.config.PlayerData;
+import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.utils.IntegratedNicknameProvider;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -28,7 +30,7 @@ public class NickCommands {
 	
 	public static boolean nicknameIntegrationEnabled = false;
 	
-	public static void reloadConfig() {
+		public static void reloadConfig() {
 		minNicknameLength = ConfigHandler.config.minimumNicknameLength.get();
 		maxNicknameLength = ConfigHandler.config.maximumNicknameLength.get();
 		if(minNicknameLength > maxNicknameLength) {
@@ -39,11 +41,18 @@ public class NickCommands {
 			ServerEssentialsForge.LOGGER.warn(minNicknameLength + " < nickname.length() < " + maxNicknameLength);
 		}
 		cfgWhoIsEnabled = ConfigHandler.config.enableWhoisCommand.get();
-		cfgNickEnabled = ConfigHandler.config.enableChatNicknameCommand.get();
-	}
-	public static void register(CommandDispatcher<CommandSourceStack> disp) {
-		/* /nick */
-		disp.register(Commands.literal("nick").requires((c) -> {
+			cfgNickEnabled = ConfigHandler.config.enableChatNicknameCommand.get();
+			if(ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()) {
+				ServerEssentialsForge.LOGGER.warn(
+						"[SEF] Duplicate nickname hover disambiguation requires the enhanced identity projection and is ignored during phase 1");
+			}
+		}
+		public static void register(CommandDispatcher<CommandSourceStack> disp) {
+			boolean externalNicknameOwner = net.neoforged.fml.ModList.get().isLoaded("ftbessentials")
+					&& ConfigHandler.config.enableFtbEssentials.get();
+			if(!externalNicknameOwner) {
+			/* /nick */
+			disp.register(Commands.literal("nick").requires((c) -> {
 			return (nicknameIntegrationEnabled || cfgNickEnabled) &&
 				(BfcCommands.checkPermission(c, PermissionsHandler.nickCommand));
 		}).executes((ctx) -> nickCommand(ctx, true, false)));
@@ -54,7 +63,7 @@ public class NickCommands {
 		}).then(Commands.argument("nickname", StringArgumentType.greedyString())
 			.executes((ctx) -> nickCommand(ctx, false, false))));
 		/* /nickfor <username> <nickname> */
-		disp.register(Commands.literal("nickfor").requires((c) -> {
+			disp.register(Commands.literal("nickfor").requires((c) -> {
 				return (nicknameIntegrationEnabled || cfgNickEnabled) &&
 					(BfcCommands.checkPermission(c, PermissionsHandler.nickOthersCommand)); })
 				.then(Commands.argument("username", StringArgumentType.string())
@@ -65,10 +74,11 @@ public class NickCommands {
 		disp.register(Commands.literal("nickfor").requires((c) -> {
 				return (nicknameIntegrationEnabled || cfgNickEnabled) &&
 					(BfcCommands.checkPermission(c, PermissionsHandler.nickOthersCommand)); })
-				.then(Commands.argument("username", StringArgumentType.string())
-				//.suggests((ctx, builder) -> SharedSuggestionProvider.sugg)
-				.executes((ctx) -> nickCommand(ctx, true, true))));
-		/* /whois <nickname> */
+					.then(Commands.argument("username", StringArgumentType.string())
+					//.suggests((ctx, builder) -> SharedSuggestionProvider.sugg)
+					.executes((ctx) -> nickCommand(ctx, true, true))));
+			}
+			/* /whois <nickname> */
 		disp.register(Commands.literal("whois").requires((c) -> {
 				return (nicknameIntegrationEnabled || cfgWhoIsEnabled) && 
 					(BfcCommands.checkPermission(c, PermissionsHandler.whoisCommand));
@@ -79,15 +89,30 @@ public class NickCommands {
 	private static GameProfile lookupGameProfile(String user) {
 		MinecraftServer serv = ServerLifecycleHooks.getCurrentServer();
 		if(serv != null) {
-			user = user.trim().toLowerCase();
+			String normalizedUser = NicknamePolicy.normalizeIdentity(user);
 			List<ServerPlayer> players = serv.getPlayerList().getPlayers();
-			for(ServerPlayer player : players) {
+				for(ServerPlayer player : players) {
 				GameProfile prof = player.getGameProfile();
-                String uname = prof.getName().trim().toLowerCase();
-                if(user.equals(uname)) return prof;
-                String nname = ServerEssentialsForge.instance.nicknameProvider.getPlayerNickname(prof).trim().toLowerCase();
-                if(user.equals(TextFormatter.removeTextFormatting(nname))) return prof;
+                if(normalizedUser.equals(NicknamePolicy.normalizeIdentity(prof.getName()))) return prof;
             }
+			GameProfile nicknameMatch = null;
+			for(ServerPlayer player : players) {
+				GameProfile profile = player.getGameProfile();
+				String nickname = getNickname(profile);
+				if(nickname == null) continue;
+				String normalizedNickname = NicknamePolicy.normalizeIdentity(NicknamePolicy.stripFormatting(nickname));
+				if(!normalizedUser.equals(normalizedNickname)) continue;
+				if(nicknameMatch != null) return null;
+				nicknameMatch = profile;
+				}
+				if(nicknameMatch != null) return nicknameMatch;
+				boolean includeKnownNicknames = ownsIntegratedNicknameData();
+				UUID known = PlayerData.findIdentity(user, includeKnownNicknames).orElse(null);
+				if(known != null) {
+					String knownUsername = PlayerData.getUsername(known);
+					return new GameProfile(known, knownUsername == null ? user : knownUsername);
+				}
+				return null;
 		}
 		return null;
 	}
@@ -102,21 +127,82 @@ public class NickCommands {
 			return 0;
 		}
 	}
-	private static int assignNickname(CommandContext<CommandSourceStack> ctx, UUID uuid, String nick) {
-		if(nick == null) {
-			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
-			PlayerData.setNickname(uuid, null);
-			return 1;
-		} else {
-			if(nick.length() >= minNicknameLength && nick.length() <= maxNicknameLength) {
-				ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
-				PlayerData.setNickname(uuid, nick);
-				return 1;
-			} else {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cNickname must be between 1 and 50 characters!&r"));
+		private static int assignNickname(CommandContext<CommandSourceStack> ctx, UUID uuid, String nick) {
+			if(!ownsIntegratedNicknameData()) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+						"&cNicknames are owned by the configured external provider. Use that provider's nickname command.&r"));
 				return 0;
 			}
+			if(nick == null) {
+			if(!PlayerData.setNickname(uuid, null)) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+						"&cNickname data could not be persisted. No changes were applied.&r"));
+				return 0;
+			}
+			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
+			return 1;
+		} else {
+			if(NicknamePolicy.containsColorFormatting(nick)
+					&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickColorsAllowed)) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname colors.&r"));
+				return 0;
+			}
+			if(NicknamePolicy.containsStyleFormatting(nick)
+					&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickStylesAllowed)) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname styles.&r"));
+				return 0;
+			}
+
+			String visibleNickname = NicknamePolicy.stripFormatting(nick);
+			NicknamePolicy.Validation validation =
+					NicknamePolicy.validate(visibleNickname, minNicknameLength, maxNicknameLength);
+			if(!validation.valid()) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&c" + validation.error() + ".&r"));
+				return 0;
+			}
+			if(hasIdentityCollision(uuid, validation.normalized())) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThat nickname conflicts with another online player's name or nickname.&r"));
+				return 0;
+			}
+
+			if(!PlayerData.setNickname(uuid, nick)) {
+				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+						"&cNickname data could not be persisted. No changes were applied.&r"));
+				return 0;
+			}
+			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
+			return 1;
 		}
+	}
+
+		private static boolean hasIdentityCollision(UUID targetId, String normalizedNickname) {
+			MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+			if(server == null) return false;
+			if(ConfigHandler.config.nicknameUniqueOnline.get()) {
+				for(ServerPlayer player : server.getPlayerList().getPlayers()) {
+					if(player.getUUID().equals(targetId)) continue;
+					GameProfile profile = player.getGameProfile();
+					if(normalizedNickname.equals(NicknamePolicy.normalizeIdentity(profile.getName()))) return true;
+					String existingNickname = getNickname(profile);
+					if(existingNickname != null && normalizedNickname.equals(NicknamePolicy.normalizeIdentity(
+							NicknamePolicy.stripFormatting(existingNickname)))) return true;
+				}
+			}
+			return ConfigHandler.config.nicknameUniqueKnownProfiles.get()
+					&& PlayerData.hasIdentityCollision(targetId, normalizedNickname, ownsIntegratedNicknameData());
+		}
+
+		private static boolean ownsIntegratedNicknameData() {
+			return ServerEssentialsForge.instance == null
+					|| ServerEssentialsForge.instance.nicknameProvider == null
+					|| ServerEssentialsForge.instance.nicknameProvider instanceof IntegratedNicknameProvider;
+		}
+
+	private static String getNickname(GameProfile profile) {
+		if(ServerEssentialsForge.instance == null || ServerEssentialsForge.instance.nicknameProvider == null) {
+			return PlayerData.getNickname(profile.getId());
+		}
+		return ServerEssentialsForge.instance.nicknameProvider.getPlayerNickname(profile);
 	}
 	private static int nickCommand(CommandContext<CommandSourceStack> ctx, boolean reset, boolean other) {
 		ServerPlayer player = null;

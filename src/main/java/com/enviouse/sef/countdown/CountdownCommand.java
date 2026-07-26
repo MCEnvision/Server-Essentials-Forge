@@ -2,6 +2,7 @@ package com.enviouse.sef.countdown;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -52,12 +53,7 @@ public final class CountdownCommand {
     }
 
     private static boolean hasPerm(CommandSourceStack src) {
-        try {
-            return PermissionsHandler.playerHasPermission(
-                src.getPlayerOrException().getUUID(), PermissionsHandler.countdownCommand);
-        } catch (Exception e) {
-            return src.hasPermission(2);
-        }
+        return PermissionService.has(src, PermissionsHandler.countdownCommand);
     }
 
     private static String msg(CommandContext<CommandSourceStack> ctx) {

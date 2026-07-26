@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -36,84 +37,65 @@ public class AdminChatHandler {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        if (!ConfigHandler.config.enableAdminChat.get()) return;
-
-        // /ac <message>
-        dispatcher.register(Commands.literal("ac")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.adminChatUse);
-                } catch (Exception e) { return true; } // Console always allowed
-            })
-            .then(Commands.argument("message", StringArgumentType.greedyString())
-                .executes(ctx -> {
-                    String msg = StringArgumentType.getString(ctx, "message");
-                    return sendAdminMessage(ctx.getSource(), msg);
-                })));
-
-        // /chat admin (toggle) — requires player, console gets an error message
-        dispatcher.register(Commands.literal("chat")
-            .then(Commands.literal("admin")
-                .requires(src -> {
-                    try {
-                        return PermissionsHandler.playerHasPermission(
-                            src.getPlayerOrException().getUUID(), PermissionsHandler.adminChatUse);
-                    } catch (Exception e) { return true; } // Console always allowed
-                })
-                .executes(ctx -> {
-                    ServerPlayer player;
-                    try {
-                        player = ctx.getSource().getPlayerOrException();
-                    } catch (Exception e) {
-                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cAdmin chat toggle can only be used by players. Use /ac <message> instead."));
-                        return 0;
-                    }
-                    UUID uuid = player.getUUID();
-                    if (toggledPlayers.contains(uuid)) {
-                        toggledPlayers.remove(uuid);
-                        // Unhide from SDLink (remove admin chat hide reason)
-                        SDLinkHideTracker.removeReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
-                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                            ConfigHandler.config.adminChatDisabledMsg.get()));
-                    } else {
-                        toggledPlayers.add(uuid);
-                        // Hide from SDLink (add admin chat hide reason) so messages don't leak to Discord
-                        SDLinkHideTracker.addReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
-                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                            ConfigHandler.config.adminChatEnabledMsg.get()));
-                    }
-                    return 1;
-                })));
-
-        // /helpop <message> — no .requires() so it always shows in tab complete
-        // Permission check is inside the executor
-        if (ConfigHandler.config.enableHelpOp.get()) {
-            dispatcher.register(Commands.literal("helpop")
+        // /ac and /chat admin — gated by the admin_chat module, independent of /helpop below.
+        if (ConfigHandler.config.enableAdminChat.get()) {
+            // /ac <message>
+            dispatcher.register(Commands.literal("ac")
+                .requires(src -> PermissionService.has(src, PermissionsHandler.adminChatUse))
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
-                        // Check permission in executor body — deny with message
-                        try {
-                            ServerPlayer player = ctx.getSource().getPlayerOrException();
-                            if (!PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.helpOpSend)) {
-                                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
-                                return 0;
-                            }
-                        } catch (Exception e) {
-                            // Console — always allowed
+                        String msg = StringArgumentType.getString(ctx, "message");
+                        return sendAdminMessage(ctx.getSource(), msg);
+                    })));
+
+            // /chat admin (toggle) — requires player, console gets an error message
+            dispatcher.register(Commands.literal("chat")
+                .requires(src -> PermissionService.has(src, PermissionsHandler.adminChatUse))
+                .then(Commands.literal("admin")
+                    .requires(src -> PermissionService.has(src, PermissionsHandler.adminChatUse))
+                    .executes(ctx -> {
+                        if (!PermissionService.has(ctx.getSource(), PermissionsHandler.adminChatUse)) {
+                            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                ConfigHandler.config.noPermissionMsg.get()));
+                            return 0;
                         }
+                        ServerPlayer player;
+                        try {
+                            player = ctx.getSource().getPlayerOrException();
+                        } catch (Exception e) {
+                            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cAdmin chat toggle can only be used by players. Use /ac <message> instead."));
+                            return 0;
+                        }
+                        UUID uuid = player.getUUID();
+                        if (toggledPlayers.contains(uuid)) {
+                            toggledPlayers.remove(uuid);
+                            // Unhide from SDLink (remove admin chat hide reason)
+                            SDLinkHideTracker.removeReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
+                            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                ConfigHandler.config.adminChatDisabledMsg.get()));
+                        } else {
+                            toggledPlayers.add(uuid);
+                            // Hide from SDLink (add admin chat hide reason) so messages don't leak to Discord
+                            SDLinkHideTracker.addReason(player, SDLinkHideTracker.HideReason.ADMIN_CHAT);
+                            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                ConfigHandler.config.adminChatEnabledMsg.get()));
+                        }
+                        return 1;
+                    })));
+        } // end admin_chat module
+
+        if (ConfigHandler.config.enableHelpOp.get()) {
+            dispatcher.register(Commands.literal("helpop")
+                .requires(src -> PermissionService.has(src, PermissionsHandler.helpOpSend))
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                    .executes(ctx -> {
                         String msg = StringArgumentType.getString(ctx, "message");
                         return sendHelpOp(ctx.getSource(), msg);
                     })));
 
             // /helpopop <player> <message> (reply)
             dispatcher.register(Commands.literal("helpopop")
-                .requires(src -> {
-                    try {
-                        return PermissionsHandler.playerHasPermission(
-                            src.getPlayerOrException().getUUID(), PermissionsHandler.helpOpReply);
-                    } catch (Exception e) { return true; } // Console always allowed
-                })
+                .requires(src -> PermissionService.has(src, PermissionsHandler.helpOpReply))
                 .then(Commands.argument("player", StringArgumentType.word())
                     .then(Commands.argument("message", StringArgumentType.greedyString())
                         .executes(ctx -> {
@@ -125,6 +107,10 @@ public class AdminChatHandler {
     }
 
     private static int sendAdminMessage(CommandSourceStack source, String message) {
+        if (!PermissionService.has(source, PermissionsHandler.adminChatUse)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+            return 0;
+        }
         String senderName;
         try {
             senderName = source.getPlayerOrException().getGameProfile().getName();
@@ -140,7 +126,7 @@ public class AdminChatHandler {
         // Send to all players with adminChatSee permission
         int count = 0;
         for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-            if (PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.adminChatSee)) {
+            if (PermissionService.has(player, PermissionsHandler.adminChatSee)) {
                 player.sendSystemMessage(component);
                 if (ConfigHandler.config.enableAdminChatSound.get()) {
                     player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.MASTER, 1.0f, 1.0f);
@@ -148,11 +134,16 @@ public class AdminChatHandler {
                 count++;
             }
         }
-        ServerEssentialsForge.LOGGER.info("[ADMIN CHAT] {}: {}", senderName, message);
+        ServerEssentialsForge.LOGGER.info(
+            "[ADMIN CHAT] {} sent {} characters", senderName, message.length());
         return count > 0 ? 1 : 0;
     }
 
     private static int sendHelpOp(CommandSourceStack source, String message) {
+        if (!PermissionService.has(source, PermissionsHandler.helpOpSend)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+            return 0;
+        }
         String senderName;
         try {
             senderName = source.getPlayerOrException().getGameProfile().getName();
@@ -166,7 +157,7 @@ public class AdminChatHandler {
         MutableComponent component = TextFormatter.stringToFormattedText(format);
 
         for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-            if (PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.helpOpReceive)) {
+            if (PermissionService.has(player, PermissionsHandler.helpOpReceive)) {
                 player.sendSystemMessage(component);
                 if (ConfigHandler.config.enableHelpOpSound.get()) {
                     player.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.MASTER, 1.0f, 1.0f);
@@ -176,11 +167,16 @@ public class AdminChatHandler {
 
         String sentMsg = ConfigHandler.config.helpOpSentMsg.get();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(sentMsg), false);
-        ServerEssentialsForge.LOGGER.info("[HELPOP] {}: {}", senderName, message);
+        ServerEssentialsForge.LOGGER.info(
+            "[HELPOP] {} sent {} characters", senderName, message.length());
         return 1;
     }
 
     private static int sendHelpOpReply(CommandSourceStack source, String targetName, String message) {
+        if (!PermissionService.has(source, PermissionsHandler.helpOpReply)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
+            return 0;
+        }
         ServerPlayer target = source.getServer().getPlayerList().getPlayerByName(targetName);
         if (target == null) {
             source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.playerOfflineMsg.get()));
@@ -198,4 +194,3 @@ public class AdminChatHandler {
         return 1;
     }
 }
-

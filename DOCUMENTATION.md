@@ -1,0 +1,703 @@
+# SEFPORTED technical documentation
+
+## 1. Scope and source of truth
+
+SEFPORTED is the NeoForge 1.21.1 server essentials implementation that will evolve into SEF 2. Current source and tests define shipped behavior. [sef2.md](sef2.md) defines unfinished product requirements, architecture decisions, security findings, command plans, GUI plans, and phase acceptance criteria.
+
+Use this source order when requirements appear to conflict:
+
+1. The current user approved request.
+2. `sef2.md` for planned behavior and unfinished work.
+3. `gradle.properties`, `build.gradle`, and generated mod metadata for pinned platform versions.
+4. Current implementation and tests for shipped behavior.
+5. This document and `README.md`.
+
+Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
+
+SEF 2 Phases 1 through 3 are complete in the current worktree. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
+
+## 2. Platform and toolchain
+
+The project currently pins:
+
+1. Minecraft `1.21.1`.
+2. NeoForge `21.1.233`.
+3. Java toolchain `21`.
+4. Gradle Wrapper `8.8`.
+5. ModDevGradle `2.0.141`.
+6. Parchment mappings `1.21.1`, export `2024.11.17`.
+7. JUnit `5.10.2`.
+8. LuckPerms API `5.4` as compile only.
+9. FTB Essentials `2101.1.9` as compile only.
+10. Curios `9.5.1` compatible artifact as compile only.
+
+The mod id is `sef`. Preserve it because configuration paths, permission nodes, mixin identifiers, and existing server data depend on that namespace.
+
+The current artifact is server only. Common initialization must never reference `net.minecraft.client` classes. Optional enhanced clients and GUI networking are roadmap work.
+
+## 3. Initialization and lifecycle
+
+`com.enviouse.sef.ServerEssentialsForge` is the `@Mod` entry point.
+
+Construction performs these operations:
+
+1. Stores the singleton instance used by current integration providers.
+2. Registers configuration reload callbacks.
+3. Registers common configuration at `sef/common.toml`.
+4. Registers server vanish configuration at `sef-vanish-server.toml`.
+5. Registers stateful event handler instances on `NeoForge.EVENT_BUS`.
+6. Registers vanish commands and vanish permission nodes.
+
+Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience workstation routes. Server startup opens the location history and cooldown repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
+
+Server ticks update announcements, banned item scans, freeze state, mute state, and countdown state when their modules are enabled. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
+
+Server shutdown stops optional integrations, flushes the player profile repository, atomically flushes qualifying command cooldowns and dirty location history, clears warmups and confirmations, then clears runtime cooldown and vanish state. Persistent feature managers save their owned data according to their current implementation.
+
+## 4. Package map
+
+Important package ownership:
+
+1. `com.enviouse.sef.commands` owns `/sef`, nicknames, whois, and private message command registration.
+2. `com.enviouse.sef.permissions` owns the central permission facade.
+3. `com.enviouse.sef.announcements` owns scheduled announcements and announcement commands.
+4. `com.enviouse.sef.chat` owns chat replies, HelpOp, admin chat, and operator bulletins.
+5. `com.enviouse.sef.vanish` owns vanish state, visibility rules, command handling, events, integrations, and mixins.
+6. `com.enviouse.sef.mute`, `warn`, and `freeze` own moderation state and commands.
+7. `com.enviouse.sef.banned` owns banned item policy and persistence.
+8. `com.enviouse.sef.invsee`, `invlock`, and `disablebuilding` own inventory and interaction administration.
+9. `com.enviouse.sef.workstations` owns virtual workstation commands and cooldown tracking.
+10. `com.enviouse.sef.util` owns shared strict parsing utilities.
+11. `com.enviouse.sef.events.CommandRegistrationHandler` assembles enabled command modules.
+12. `com.enviouse.sef.kernel.command` owns catalog, shortcut, alias, bundle, wrapper, capability, and panel contracts.
+13. `com.enviouse.sef.kernel.policy` owns shared feature, quota, hierarchy, execution, cooldown, warmup, confirmation, and cost policy.
+14. `com.enviouse.sef.kernel.observation` owns immutable observation and sink contracts.
+15. `com.enviouse.sef.identity` owns UUID authoritative profile resolution.
+16. `com.enviouse.sef.message` owns bounded typed message templates and literal field insertion.
+17. `com.enviouse.sef.storage.repository` owns coordinated Phase 3 repositories and recovery states.
+
+Logical server state is authoritative. The current project has no custom client payload protocol.
+
+## 5. Command registration
+
+`CommandRegistrationHandler.registerCommands` registers the normal command set. `registerLowPriorityCommands` registers `/invsee` and private message aliases after vanilla and optional mods so SEF can intentionally replace those roots.
+
+Module values in `ConfigHandler.ConfigBuilder` decide whether feature commands are registered. A disabled module must not leave a working command mutation path behind.
+
+The current top level command families include:
+
+1. `/sef`, `/colors`, `/nick`, `/nickfor`, and `/whois`.
+2. `/msg`, `/tell`, `/w`, `/r`, `/ans`, `/helpop`, `/helpopop`, `/chat`, and `/ac`.
+3. `/textannouncement`, `/commandannouncement`, `/titleannouncement`, and `/countdown`.
+4. `/mute`, `/unmute`, `/mutelist`, `/warn`, `/warns`, `/freeze`, and `/unfreeze`.
+5. `/invsee`, `/invlock`, `/disablebuilding`, `/db`, `/checkalts`, `/cc`, and `/clearchat`.
+6. `/banned`, `/motd`, and `/opbulletin`.
+7. `/vanish`, `/v`, and vanish trace or queue subcommands.
+8. `/craft`, `/c`, `/anvil`, `/av`, `/enchantingtable`, `/et`, `/superenchantingtable`, `/set`, and `/repair`.
+9. `/sef storage status`, `/sef storage export`, `/checkalts purge expired`, `/checkalts purge confirm`, and `/checkalts export`.
+10. `/sef commands [page]`, `/sef conflicts`, and `/sef doctor`.
+11. `/sef workstation craft`, `/sef workstation anvil`, `/sef workstation enchantingtable`, `/sef workstation superenchantingtable`, and `/sef workstation repair`.
+
+`/sudo` is intentionally not registered in Phase 1. An existing `modules.sudo = true` value produces a startup warning and does not expose an execution route.
+
+Aliases must reach the same executor, permission, module toggle, and cooldown policy as their canonical command.
+
+## 6. Permission architecture
+
+### 6.1 Permission service
+
+`PermissionService` is the central facade over NeoForge `PermissionAPI`.
+
+Current source behavior:
+
+1. Online players use `PermissionAPI.getPermission`.
+2. UUID based checks use `PermissionAPI.getOfflinePermission`.
+3. An unavailable permission service fails closed.
+4. Console and RCON sources without an entity require vanilla permission level `4`.
+5. Command blocks and other nonplayer level `2` sources do not receive a general bypass.
+6. LuckPerms remains optional. NeoForge selects the installed permission provider.
+7. Structured permission decisions retain the permission id, outcome, provider source, and reason without exposing player supplied command arguments.
+8. Permission refresh invalidates cached optional provider data and quota policy revisions.
+
+`PermissionsHandler.playerHasPermission` remains as a compatibility method and delegates to `PermissionService`. New implementation should call `PermissionService` directly.
+
+### 6.2 Current sensitive permission defaults
+
+Permission node ids below receive the `sef.` namespace.
+
+Public or low risk defaults:
+
+1. `commands.sef.allowed`, allowed.
+2. `commands.sef.info`, allowed.
+3. `commands.sef.colors`, allowed.
+4. `commands.nick`, allowed.
+5. `commands.whois`, allowed.
+6. `commands.craft`, allowed.
+7. `commands.anvil`, allowed.
+8. `commands.enchantingtable`, allowed.
+
+Administrative defaults:
+
+1. `commands.sef.reload`, denied.
+2. `commands.sef.test`, denied.
+3. `filter.manage`, denied.
+4. `commands.nick.others`, denied.
+5. `commands.sudo`, denied.
+6. `sudo.exempt`, denied.
+7. `sudo.bypass.exempt`, denied.
+8. `commands.vanish.others`, denied.
+9. `commands.vanish.queue`, denied.
+10. `commands.vanish.get.others`, denied.
+11. `vanish.exempt`, denied.
+12. `vanish.bypass.exempt`, denied.
+13. `announcements.command.manage`, denied.
+14. `opbulletin.manage`, denied.
+15. `opbulletin.receive`, denied.
+16. `motd.manage`, denied.
+17. `commands.banned`, denied.
+18. `banned.view`, allowed.
+19. `commands.superenchantingtable`, denied.
+20. `commands.repair`, denied.
+21. `commands.invsee.view`, denied.
+22. `commands.invsee.modify`, denied.
+23. `commands.invsee.offline`, denied.
+24. `commands.invsee.curios`, denied.
+25. `commands.enderchest.others`, denied.
+26. `alts.ip.view`, denied.
+27. `alts.purge`, denied.
+28. `alts.export`, denied.
+29. `storage.status`, denied.
+30. `storage.export`, denied.
+31. `vanish.hierarchy.bypass`, denied.
+32. `commands.sef.commands`, allowed.
+33. `commands.sef.conflicts`, denied.
+34. `commands.sef.doctor`, denied.
+35. `kernel.gui.use`, `kernel.hud.use`, `kernel.panel.use`, `kernel.target.others`, `kernel.audience.broad`, `kernel.editor.use`, `kernel.alias.use`, `kernel.bundle.use`, `kernel.profile.use`, `kernel.bypass.use`, and `kernel.sensitive.view`, denied.
+36. Finite quota tier nodes under `sef.homes.*`, `sef.playerwarps.*`, `sef.targets.*`, `sef.mail.*`, and `sef.definitions.*`, denied.
+
+Vanish level nodes remain `sef.vanish.1`, `sef.vanish.2`, and `sef.vanish.3`. Observer nodes remain `sef.vanishsee.1`, `sef.vanishsee.2`, and `sef.vanishsee.3`. Lower numeric levels are more powerful.
+
+### 6.3 `/sef` authorization
+
+`/sef` uses Brigadier literal children rather than a greedy string argument.
+
+Each child applies its permission in `.requires`, which protects both command execution and Brigadier suggestions. Root access never implies mutation access.
+
+`/sef filter add`, `remove`, and `list` currently share `sef.filter.manage`. A future read only filter node may split list access.
+
+### 6.4 Shared command and policy kernel
+
+Every kernel catalog entry declares a stable action id, canonical route, convenience roots, translation and usage keys, owner, feature id, required permissions, access class, allowed source classes, target behavior, cooldown identity, confirmation requirement, audit class, command fallback, conflict policy, and explicit GUI, HUD, and quota applicability.
+
+The runtime kernel is sealed after registration. Missing capabilities, descriptors, or required metadata prevent sealing. `/sef commands` shows only entries whose complete permission set is currently granted. `/sef conflicts` reports active roots, SEF overrides, canonical only fallbacks, conflicts, and restart required structural changes. `/sef doctor` reports catalog validation, capabilities, policies, quotas, repositories, import failures, optional quota provider failures, and recovery mode.
+
+Workstation commands are the first existing family migrated to the execution pipeline. Canonical and convenience roots revalidate permission at execution and then apply this order:
+
+1. Resolve the current action policy revision.
+2. Recheck the feature gate, source class, permission result, and hard deny state.
+3. Start or validate a warmup when configured.
+4. Validate and consume a confirmation token when configured.
+5. Reserve cost through the configured provider.
+6. Atomically acquire the canonical action cooldown.
+7. Execute the action.
+8. Commit or roll back cost and cooldown state.
+9. Emit a structured result and audit lifecycle event.
+
+`CostService.Disabled` is the active provider, so current actions cannot charge an economy. Warmup and confirmation services are active contracts, but current workstation policies use zero warmup and no confirmation. Failed execution rolls back its newly acquired cooldown and cost reservation. Aliases such as `/c`, `/av`, `/et`, and `/set` resolve to the same canonical cooldown id as their long form.
+
+Alias publication is not exposed as an operator command yet. The Phase 2 compiler and revision registry reject unknown targets, recursive ids, ambiguous roots, unsupported adapters, weaker source or access policy, weaker audit policy, missing additional capabilities, stale revisions, and definition limit overflow. Bundle execution is also not exposed yet. Its compiler rejects raw command steps, unknown action or bundle targets, cycles, excessive nesting, excessive steps, excessive target fan out, and expansion beyond configured bounds. Operator commands and GUI editors for these contracts remain Phase 11 work.
+
+The wrapper contract separates initiator, effective source, root policy, scoped output, silence capability, correlation id, recursion depth, target list, and normalized parameters. It rejects recursive wrapper roots and nested wrapper origins before any dispatcher execution. Phase 2 does not register `/run`, `/silent`, or `/sudo`.
+
+Quota resolution uses this precedence:
+
+1. LuckPerms metadata when LuckPerms is installed and the user is available.
+2. Explicit context metadata supplied by an authorized internal caller.
+3. The highest finite permission tier.
+4. An internal finite override.
+5. The finite default.
+
+All results are clamped to the quota hard ceiling. Reservations are atomic per subject and quota and count against concurrent remaining capacity until committed or closed. Optional provider exceptions are isolated, remove no data, fall back to the next safe source, and appear in `/sef doctor`.
+
+Current quota contracts:
+
+| Quota | Default | Hard ceiling | Permission tiers | LuckPerms metadata |
+| --- | ---: | ---: | --- | --- |
+| `sef:homes` | 1 | 1000 | `sef.homes.3`, `sef.homes.5`, `sef.homes.10` | `sef.limit.homes.total` |
+| `sef:player_warps` | 5 | 1000 | `sef.playerwarps.10`, `sef.playerwarps.25` | `sef.limit.player_warps.total` |
+| `sef:targets` | 1 | 1000 | `sef.targets.10`, `sef.targets.100` | `sef.limit.targets` |
+| `sef:mail` | 100 | 10000 | `sef.mail.500`, `sef.mail.1000` | `sef.limit.mail` |
+| `sef:definitions` | 64 | 1024 | `sef.definitions.256`, `sef.definitions.512` | `sef.limit.definitions` |
+
+LuckPerms metadata accepts a nonnegative integer. `unlimited` is accepted only for quota definitions that explicitly allow it, and the hard ceiling still applies. Missing, negative, malformed, or unavailable metadata falls through to a finite source. LuckPerms is never required for startup.
+
+## 7. Sudo stabilization boundary
+
+Phase 1 does not register `/sudo`. The old implementation class and configuration keys remain only to preserve source and configuration compatibility while the later secured sudo phase is built.
+
+Operational behavior:
+
+1. No Brigadier command node is registered.
+2. No alias, panel, announcement, or indirect SEF route can reach the old executor.
+3. `modules.sudo = true` produces a warning explaining that the value is ignored.
+4. Existing sudo permission nodes and allow or deny configuration values are retained for migration. They do not enable execution.
+5. A dedicated server smoke test verifies that `sudo say should_not_run` returns an unknown command.
+
+Do not expose the legacy `SudoCommand` class from new code. The later sudo phase must implement the split operation permissions, hierarchy, exemptions, confirmation, rate limits, source policy, structured audit, and Brigadier projection specified in `sef2.md`.
+
+## 8. Command announcement containment
+
+Text and command announcements use separate typed record collections in the versioned announcements document. Legacy mixed records are imported into the correct collection during migration.
+
+Current controls:
+
+1. Management uses `sef.announcements.command.manage`, separate from text announcement management.
+2. `commandAnnouncementAllowedCommands` defaults to empty, which denies every command root.
+3. `commandAnnouncementDeniedCommands` always wins over the allowlist.
+4. The same policy runs when a definition is created and every time the scheduled command fires.
+5. Legacy definitions that no longer pass policy remain stored but do not execute.
+6. Commands execute from the server command source only after policy approval.
+7. Audit output records definition id, root, and command length without arguments.
+8. Invalid text announcement targets skip delivery instead of widening to every player.
+9. Interval and offset conversion detects tick overflow.
+10. Command records declare the server source policy explicitly. No player or elevated synthetic source is inferred.
+11. Type specific modification and removal cannot cast a text record to a command record or the reverse.
+
+Future source profiles, hierarchy, and confirmation workflows remain later phase work.
+
+## 9. Nickname policy
+
+Integrated nickname mutation enforces:
+
+1. Self nickname permission and separate other player permission.
+2. Separate color and style permissions.
+3. Visible length after stripping supported `&` and section sign formatting.
+4. Legacy color, legacy style, and six digit hex formatting recognition.
+5. Unicode NFKC normalization and locale independent lowercase comparison.
+6. Rejection of control, Unicode format, surrogate, private use, and unassigned code points.
+7. Collision checks against online and known offline usernames and nicknames.
+8. Exact usernames take precedence during whois and target lookup.
+9. Ambiguous legacy nickname matches do not select the first player silently.
+
+Integrated identities are stored by UUID in `sef.playerdata.json` with the last known username, nickname, and update time. Legacy `sef.playerdata` is backed up, journaled, parsed once, and migrated. `/whois` and `/nickfor` can resolve unambiguous known offline identities. The integrated provider refuses writes when FTB Essentials is selected as nickname owner.
+
+`commands.nick.others` now defaults to denied.
+
+## 10. Duration syntax
+
+`com.enviouse.sef.util.DurationParser` is the canonical parser for announcements, countdowns, mutes, freezes, and warnings.
+
+Accepted finite examples:
+
+```text
+90
+30s
+5m
+1h30m
+2d 4h
+1w2d3h4m5s
+```
+
+Supported units are weeks, days, hours, minutes, and seconds. Bare positive integers remain seconds for compatibility.
+
+Permanent values are accepted only when the caller enables them:
+
+```text
+permanent
+perm
+forever
+infinite
+inf
+```
+
+The parser rejects:
+
+1. Empty input.
+2. Zero and negative values.
+3. Missing or unknown units.
+4. Duplicate units.
+5. Trailing garbage.
+6. Parse overflow.
+7. Tick or millisecond scale overflow.
+8. Permanent values for finite only callers.
+
+Invalid values use `DurationParser.INVALID_VALUE` at legacy manager boundaries. Commands must reject that value before mutating state. Invalid moderation input must never become a permanent punishment.
+
+## 11. Vanish security and reconciliation
+
+Vanish state uses a server map keyed by player UUID plus persisted player NBT fields named `Vanished` and `VanishLevel`.
+
+`VanishPermissionPolicy.reconcileLevel` applies these rules:
+
+1. Persisted unvanished state resolves to level `0`.
+2. No current vanish permission resolves to level `0`.
+3. Invalid stored levels resolve to the strongest currently allowed level.
+4. Loss of a stronger permission lowers concealment to the strongest level still allowed.
+5. Gaining a stronger permission does not silently increase concealment.
+
+Online state is rechecked once per second. It is also rechecked on login, LuckPerms user data refresh, configuration reload, dimension change, and respawn. Permission removal clears persisted vanish or lowers its level and resynchronizes player information and entity visibility.
+
+Administrative target operations have separate permissions for other players, queued targets, and inspecting other players. Exempt targets require the bypass node. A player source cannot act on a higher privilege target unless it has `sef.vanish.hierarchy.bypass`. Console remains authoritative.
+
+Visibility packet decisions remain per observer. `VanishVisibility` and its tests define the core level matrix.
+
+The unsafe offline queue route is disabled. Queue requests for online targets are applied immediately through normal hierarchy and permission checks. A future persistent queue must store authenticated issuer context and revalidate it on application.
+
+When the vanish module is disabled, runtime and persisted vanish state are actively cleared and player visibility is restored. Recipient specific tab filtering builds a new packet for each recipient instead of mutating a shared outbound packet.
+
+### 11.1 Inventory inspection authorization
+
+`/invsee` requires `sef.commands.invsee.view` or the retained legacy root node. The remaining capabilities are independent:
+
+1. `sef.commands.invsee.modify` permits inventory mutation.
+2. `sef.commands.invsee.curios` permits loading and displaying Curios slots.
+3. `sef.commands.invsee.offline` reserves offline target access. Offline inventory loading is not implemented yet.
+4. `sef.commands.enderchest.others` reserves access to another player’s ender chest. That route is not implemented yet.
+
+The menu checks view and Curios permissions while open. It closes when view access is lost or when a Curios page is no longer authorized. Mutation permission is checked on every click, including collect to cursor behavior, and the menu downgrades to read only immediately after revocation. Audit entries identify issuer, target, page, slot, and click type without serializing item NBT.
+
+## 12. Configuration
+
+### 12.1 Common configuration
+
+NeoForge loads `config/sef/common.toml`.
+
+The `modules` section controls feature registration. Detailed sections control messages, cooldowns, chat formatting, nicknames, announcements, moderation, inventory tools, workstations, retained sudo migration values, privacy, audit retention, tab refresh rate, and bounded banned item scanning.
+
+The `commandKernel` section supplies hard limits used by Phase 2 and Phase 3:
+
+| Key | Default | Allowed range | Purpose |
+| --- | ---: | ---: | --- |
+| `maximumAliases` | 256 | 1 to 1024 | Maximum operator alias definitions retained by the revision registry |
+| `maximumBundleSteps` | 64 | 1 to 256 | Maximum direct steps in one bundle |
+| `maximumBundleDepth` | 4 | 1 to 8 | Maximum nested bundle depth |
+| `maximumTargets` | 100 | 1 to 1000 | Maximum resolved targets in one bundle |
+| `maximumTargetSteps` | 2000 | 1 to 100000 | Maximum expanded target and step operations |
+| `locationHistoryEntries` | 20 | 1 to 100 | Maximum retained location records per player |
+| `persistentCooldownMinimumSeconds` | 60 | 0 to 86400 | Minimum remaining cooldown written across restarts |
+
+These values are defensive ceilings, not permission grants. Lowering a structural alias or bundle limit requires a restart because dispatcher shape does not mutate during a configuration reload. Current workstation cooldown durations continue to come from `virtualWorkstations`.
+
+Alternate account collection uses three important values under its section:
+
+1. `collectAddresses`, default `false`.
+2. `hashAddresses`, default `true`.
+3. `retentionDays`, default `30`.
+
+Banned block background scanning defaults to disabled. Event driven enforcement remains active. When enabled, `bannedBlockScanBudget` caps inspected positions per tick, `bannedBlockScanInterval` controls sweep cadence, and unloaded chunks are never forced.
+
+`ConfigurationEventHandler` reacts to NeoForge loading and reloading events. `/sef reload` reapplies the values currently held by NeoForge. It cannot construct NeoForge internal loaded configuration objects and does not force a manual TOML read.
+
+### 12.2 Vanish configuration
+
+NeoForge loads `sef-vanish-server.toml` as a server configuration, normally under the active world `serverconfig` directory.
+
+It controls player list hiding, world hiding, fake join and leave messages, sound behavior, chat behavior, integrations, trace behavior, and related vanish presentation.
+
+The common `modules.vanish_system` value is the master kill switch. When false, vanish mixins treat players as visible, runtime state is cleared, persisted state is cleared for online players, and vanish state is not restored on login.
+
+### 12.3 Validation and upgrades
+
+NeoForge `defineInRange` validates numeric configuration values such as nickname limits, cooldowns, super enchanting level, scan interval, scan budget, privacy retention, audit retention, audit file size, and tab refresh interval.
+
+Existing TOML entries override changed defaults. Operators must review `modules.sudo`, alternate account collection, banned block scanning, and sensitive feature values after upgrading an existing server. A true sudo value remains ignored in this phase.
+
+Configuration reload publishes a new immutable feature and command policy revision, then invalidates quota decisions. Existing in flight confirmation tokens bind to the policy revision that created them and cannot approve a changed action policy.
+
+The configuration system does not yet have the complete SEF 2 schema version and migration report framework. Phase 3 import outcomes are available in memory through `/sef doctor`.
+
+## 13. Persistent data
+
+Current stores include:
+
+1. `<world>/serverconfig/sef/announcements.json`.
+2. `<world>/serverconfig/sef/announcement_prefs.json`.
+3. `<world>/serverconfig/sef/filters.json`.
+4. `<world>/serverconfig/sef/mutes.json`.
+5. `<world>/serverconfig/sef/warns.json`.
+6. `<world>/serverconfig/sef/banned_items.json`.
+7. `<world>/serverconfig/sef/alt_data.json`.
+8. `<world>/serverconfig/sef/bulletin.json`.
+9. `config/sef/motd.json`.
+10. `sef.playerdata.json` under the player data directory used by the integrated nickname loader.
+11. `<world>/serverconfig/sef/permission-manifest.json`.
+12. `<world>/serverconfig/sef/audit/security-audit.jsonl`.
+13. Vanish state in persistent player NBT.
+14. `<world>/serverconfig/sef/location-history.json`.
+15. `<world>/serverconfig/sef/cooldowns.json`.
+
+Managed JSON documents use an envelope with `domain`, `schemaVersion`, and `data`. Unknown fixed record fields survive a load and save cycle. Dynamic maps preserve unknown fields on retained records without restoring records that were intentionally removed.
+
+Storage guarantees:
+
+1. Writes use a same directory temporary file, flush the file channel, and atomically replace the target when the filesystem supports it.
+2. Legacy or older schema input is backed up under `.backups` before migration.
+3. Migrations append a record to `migration-journal.jsonl`.
+4. Oversized, malformed, mismatched, or unreadable envelopes are moved under `.corrupt` instead of being silently overwritten.
+5. Unsupported future schema versions are refused.
+6. Managed documents are limited to 16 MiB.
+7. `/sef storage status` reports path, domain, state, and size.
+8. `/sef storage export` queues a single worker snapshot with a bounded queue of eight.
+9. Snapshot paths are confined under `serverconfig/sef/exports`.
+10. Alternate account data is excluded unless the issuer has both `sef.alts.export` and `sef.alts.ip.view`.
+11. Domain repositories expose `new`, `ready`, `missing`, `recovery`, `unsupported`, `error`, or `closed` state through the storage coordinator.
+12. A repository in `recovery`, `unsupported`, or `error` state refuses persistence so damaged or newer data cannot be overwritten. Location history and player profile mutation also fail closed. Cooldowns may continue as runtime only state, but their repository refuses to replace the source file.
+13. Location history is UUID keyed, capped at 100,000 players, and bounded per player by `commandKernel.locationHistoryEntries`.
+14. Cooldown persistence is capped at 100,000 entries and writes only future expiries meeting `commandKernel.persistentCooldownMinimumSeconds`.
+15. Repository dirty revisions are captured with each snapshot. A concurrent mutation that occurs while a snapshot is written remains dirty and is flushed by the next pass.
+
+The structured audit service writes bounded JSONL events through a 4096 entry queue. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush.
+
+Do not let two integrations own the same nickname state. The current provider selection chooses FTB Essentials when enabled and available, otherwise the integrated provider when automatic integration is enabled.
+
+The integrated profile repository uses authenticated UUID as its authority. Authenticated username, display nickname, and update time are separate fields. It loads from `sef.playerdata.json` under the world player data directory and imports the earlier `sef.playerdata` format once when the JSON file is absent. A successful migration is written through the storage envelope, recorded in import diagnostics, and leaves explicit permission grants unchanged. Failed persistence does not report a successful migration. Profile count, username length, nickname length, timestamps, and legacy import count are bounded. A failed nickname write is rolled back in memory. Quarantined, unsupported, or failed profile storage is visible in `/sef doctor` and cannot be recreated by a later nickname command.
+
+### 13.1 Alternate account privacy
+
+Address correlation is opt in and disabled by default. When enabled:
+
+1. Local addresses are ignored.
+2. The default storage value is a salted SHA 256 hash using a server local 32 byte salt in `alt_tracking.salt`.
+3. Retention is enforced on load, login, and explicit purge.
+4. Storage is capped at 100,000 address groups and 32 profiles per group.
+5. Normal output is redacted. Raw display requires `sef.alts.ip.view` and is possible only if raw storage was explicitly selected.
+6. `/checkalts purge expired` removes records outside retention.
+7. `/checkalts purge confirm` deletes all retained correlation records.
+8. `/checkalts export` requires `sef.alts.export`, runs on the bounded export worker, and includes raw addresses only with the raw view permission.
+9. Audit and ordinary logs contain operation metadata and counts, not addresses.
+
+Operators remain responsible for informing users and following applicable privacy law. Enabling collection should be a deliberate documented policy decision.
+
+## 14. Optional integrations
+
+All optional integrations must be guarded by runtime mod detection and isolated so their absence does not prevent startup.
+
+Current compile only integrations:
+
+1. LuckPerms for metadata and NeoForge permission provider use.
+2. FTB Essentials for nickname and mute related compatibility.
+3. Curios for inventory and banned item support.
+
+Current vanish compatibility code also detects MC2Discord, Playtime, and SDLink by mod id.
+
+Never reference optional implementation classes on an unconditional common initialization path.
+
+Phase 1 dedicated server verification covered:
+
+1. No optional integrations installed.
+2. LuckPerms NeoForge `5.4.140` installed alone.
+3. Curios `9.5.1+1.21.1` installed alone.
+4. FTB Essentials `2101.1.9` with FTB Library `2101.1.30` and Architectury `13.0.8`.
+5. All three integration families installed together.
+
+Every run reached the dedicated server ready state and completed a normal `stop` with all dimensions saved.
+
+## 15. Mixins and access transformation
+
+Vanish relies on narrow mixins declared in `src/main/resources/sef.mixins.json`. They modify player list, entity tracking, chat, sound, combat, advancements, status response, and related visibility behavior.
+
+`src/main/resources/META-INF/accesstransformer.cfg` exposes the minimum internals required by current entity tracking logic.
+
+Changes to mixins or access transformers require:
+
+1. Compilation and unit tests.
+2. Dedicated server startup.
+3. Two player visibility testing.
+4. Login, logout, dimension change, death, respawn, and reconnect checks.
+5. JAR inspection to confirm mixin and access transformer resources.
+
+Prefer a NeoForge event or supported hook when it can provide the same behavior.
+
+## 16. Build and verification
+
+### 16.1 Commands
+
+Linux and macOS:
+
+```bash
+./gradlew test
+./gradlew build
+./gradlew runServer
+./gradlew runClient
+./gradlew runGameTestServer
+./gradlew runData
+```
+
+Windows:
+
+```powershell
+gradlew.bat test
+gradlew.bat build
+gradlew.bat runServer
+gradlew.bat runClient
+gradlew.bat runGameTestServer
+gradlew.bat runData
+```
+
+There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do not claim those checks ran.
+
+### 16.2 Required verification by change type
+
+Pure policy changes:
+
+1. Add or update JUnit tests.
+2. Run `test`.
+3. Run `build`.
+
+Command, permission, configuration, persistence, or common lifecycle changes:
+
+1. Run JUnit tests.
+2. Run `build`.
+3. Start a dedicated server.
+4. Verify command visibility for allowed and denied players.
+5. Verify console behavior.
+6. Inspect logs for exceptions and sensitive argument leakage.
+
+Client, rendering, screen, asset, or future networking changes:
+
+1. Complete common checks.
+2. Start a client.
+3. Test a client with SEF and a client without SEF.
+4. Test protocol negotiation, disconnect, reconnect, and fallback behavior.
+
+Resource or metadata changes:
+
+1. Run data generation when providers are involved.
+2. Inspect generated resource drift.
+3. Open the final JAR and confirm required resources and metadata.
+
+### 16.3 Unit test coverage
+
+Current pure tests cover:
+
+1. Vanish visibility matrix.
+2. Vanish permission reconciliation.
+3. Vanish target hierarchy.
+4. Workstation cooldown independence, expiry, and stale entry pruning.
+5. Strict duration syntax and overflow.
+6. Command root allow and deny policy.
+7. Nickname Unicode, formatting, and normalization policy.
+8. Legacy nickname fixture migration parsing.
+9. Permission manifest duplicate rejection and deterministic ordering.
+10. Atomic storage replacement, backups, quarantine, and bounded recovery behavior.
+11. Storage unknown field preservation without deleted dynamic record resurrection.
+12. Alternate account hashing, local address handling, and redaction.
+13. Catalog completeness, sealing, capability references, and bounded capability metadata.
+14. Deterministic shortcut collision modes and canonical cooldown identity.
+15. Alias unknown target, recursion, ambiguity, stale revision, quota, and policy weakening rejection.
+16. Bundle cycle, raw command, nesting, step, target, and expanded operation rejection.
+17. Wrapper origin and recursive root rejection.
+18. Feature, command policy, hierarchy, cooldown, warmup, confirmation, cost, quota reservation, and provider failure behavior.
+19. Optional LuckPerms quota metadata parsing and finite fallback behavior.
+20. Location history and cooldown repository round trips, corruption recovery, bounded state, and concurrent dirty snapshot preservation.
+21. Legacy nickname profile import through the versioned player profile repository.
+
+Minecraft world behavior that requires real connections remains in the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 operator, permission, restart, and recovery behavior is in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
+
+## 17. Operations and recovery
+
+Before an upgrade:
+
+1. Stop the server cleanly.
+2. Back up the world, `config/sef`, world `serverconfig`, and existing logs.
+3. Record the SEF, NeoForge, Java, and integration versions.
+4. Review changed permission defaults and module toggles.
+
+After an upgrade:
+
+1. Start in a staging environment.
+2. Check startup logs for optional integration failures.
+3. Verify `/sef info`.
+4. Test denied and allowed command suggestions with representative groups.
+5. Verify private messages, moderation duration rejection, nickname collision rejection, vanish permission removal, and workstation cooldowns.
+6. Run `/sef commands`, `/sef conflicts`, `/sef doctor`, and `/sef storage status` with the intended administrator role.
+7. Restart with a workstation cooldown longer than `persistentCooldownMinimumSeconds` and confirm its remaining duration survives.
+8. Inspect saved files before promoting the build.
+
+Rollback:
+
+1. Stop the server.
+2. Restore the previous JAR and matching configuration or data backup.
+3. Do not mix newly migrated data with an older build unless the migration documentation explicitly permits it.
+
+Managed JSON migrations retain timestamped backups and journal entries. Restore the matching backup only while the server is stopped. Audit JSONL and persistent player NBT remain separate recovery domains.
+
+Repository recovery procedure:
+
+1. Stop the server before editing or restoring any SEF data file.
+2. Preserve the current file, its `.corrupt` quarantine copy, `.backups`, and `migration-journal.jsonl`.
+3. Identify the affected repository with `/sef doctor`, `/sef storage status`, and the startup log.
+4. Validate that the file domain and schema match the running build.
+5. Restore the newest known good backup to the exact original path, or remove only the invalid new file when an empty repository is acceptable.
+6. Start a staging copy and confirm the repository reports `ready` or `missing`.
+7. Verify record counts, nickname resolution, cooldown expiry, and location ordering before returning the server to service.
+
+Do not rename a future schema into the current schema or copy records between domains. Recovery mode is intentionally non writable. A crash can leave the previous complete target or an uncommitted temporary file, but atomic replacement prevents a partially written target from being accepted. On clean shutdown, profiles flush before the coordinated location and cooldown repository flush.
+
+## 18. Troubleshooting
+
+Permission appears denied:
+
+1. Confirm the exact `sef.` node.
+2. Confirm the module is enabled.
+3. Confirm LuckPerms is loaded when it is the intended provider.
+4. Test with `/lp user <name> permission check <node>` when LuckPerms is installed.
+5. Remember that generic operator level `2` is not a permission service bypass.
+
+`/sudo` is missing:
+
+This is expected in Phase 1. The command is intentionally unregistered during stabilization. Changing `modules.sudo`, permissions, or the retained allow and deny lists cannot enable it.
+
+Nickname is rejected:
+
+1. Compare visible length with configured limits.
+2. Check color and style nodes.
+3. Remove control or invisible format characters.
+4. Check online and known offline username and nickname collisions.
+
+Vanish is removed after login or permission reload:
+
+This is expected when the player no longer owns a permission compatible with the stored vanish level. Grant an appropriate `sef.vanish.N` node before vanishing again.
+
+Configuration edit appears ignored:
+
+Wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded values and does not force a raw disk read.
+
+## 19. Security and privacy
+
+Trust boundaries include player command input, chat input, optional permission providers, JSON and TOML files, persistent player data, mixin packet filtering, and future client payloads.
+
+Required security rules:
+
+1. Validate every mutating command at execution time.
+2. Apply the same permission to Brigadier suggestions.
+3. Fail closed when a permission provider is unavailable.
+4. Never trust client supplied state.
+5. Never execute stored text as a command unless its type and execution policy explicitly allow it.
+6. Protect high risk targets with exemption and hierarchy policy.
+7. Redact secrets and command arguments from broad logs.
+8. Do not write Discord tokens, credentials, raw IP history, or private messages to documentation or source.
+9. Treat fake message, command announcement, sudo, silent execution, and console execution features as high risk.
+10. Preserve evidence in audit logs without exposing it to ordinary players.
+
+Private messaging, reply, HelpOp, admin chat, and announcement toggle roots use permission filtered Brigadier projection and repeat authorization at execution. Ordinary SEF log records for private messaging, replies, HelpOp, and admin chat retain actor, route metadata, and message length where applicable, but do not contain the message body.
+
+Alternate account collection defaults to off. Enabling it activates retention bounded, salted hash storage by default. Raw display, purge, and export remain separately permissioned and audited. Chat related features can still process private content in memory, so operators must restrict access and follow applicable law.
+
+## 20. Release process
+
+No automated public release workflow is currently documented as complete.
+
+Before an approved release:
+
+1. Update version metadata.
+2. Update `README.md`, this document, and the changelog.
+3. Run all required verification.
+4. Inspect `build/libs` and the complete JAR contents.
+5. Inspect the complete Git diff for secrets, run output, generated caches, absolute paths, and unrelated changes.
+6. Record compatibility and migration notes.
+7. Publish only after explicit approval.
+
+## 21. Roadmap
+
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 are implemented. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

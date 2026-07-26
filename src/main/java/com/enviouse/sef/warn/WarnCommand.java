@@ -5,6 +5,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -42,12 +43,7 @@ public class WarnCommand {
         // /warn <player> check
         // /warn <player> remove <id>
         dispatcher.register(Commands.literal("warn")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.warnCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.warnCommand))
             .then(Commands.argument("player", EntityArgument.player())
                 // /warn <player> add <duration> <reason>
                 .then(Commands.literal("add")
@@ -120,6 +116,11 @@ public class WarnCommand {
         }
 
         long durationMs = WarnManager.parseDuration(durationStr);
+        if (durationMs == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
+            return 0;
+        }
         WarnManager.WarnEntry entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
 
         // Notify admin
@@ -211,4 +212,3 @@ public class WarnCommand {
         return 1;
     }
 }
-

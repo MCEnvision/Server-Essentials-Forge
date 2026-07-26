@@ -31,7 +31,11 @@ public class VanishingHandler {
 	/** Toggle vanish with the player's best available level from permissions. */
 	public static void toggleVanish(ServerPlayer player) {
 		int bestLevel = VanishUtil.getBestVanishLevel(player);
-		toggleVanish(player, bestLevel > 0 ? bestLevel : 3);
+		if (bestLevel <= 0) {
+			player.sendSystemMessage(VanishUtil.VANISHMOD_PREFIX.copy().append("You no longer have permission to vanish."));
+			return;
+		}
+		toggleVanish(player, bestLevel);
 	}
 
 	/** Toggle vanish at a specific level (1=highest/most hidden, 3=lowest). */
@@ -118,6 +122,30 @@ public class VanishingHandler {
 		// Playtime integration: pause/resume tracking
 		if (ServerEssentialsForge.playtimeDetected) {
 			PlaytimeCompat.onVanishChange(player, vanished);
+		}
+	}
+
+	public static void reconcilePermissionLevel(ServerPlayer player, int desiredLevel) {
+		int currentLevel = VanishUtil.getVanishLevel(player);
+		if (currentLevel == desiredLevel) {
+			return;
+		}
+
+		if (desiredLevel <= 0) {
+			updateVanishedStatus(player, false, 0);
+			if (currentLevel > 0) {
+				sendPacketsOnVanish(player, player.serverLevel(), false);
+				player.sendSystemMessage(VanishUtil.VANISHMOD_PREFIX.copy().append(
+						"Vanish was disabled because your permission was removed."));
+			}
+			return;
+		}
+
+		updateVanishedStatus(player, true, desiredLevel);
+		if (currentLevel > 0) {
+			sendPacketsOnVanish(player, player.serverLevel(), true);
+			player.sendSystemMessage(VanishUtil.VANISHMOD_PREFIX.copy().append(
+					"Vanish level changed to match your current permission."));
 		}
 	}
 

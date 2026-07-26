@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
@@ -42,12 +43,7 @@ public class InvSeeCommand {
         }
 
         dispatcher.register(Commands.literal("invsee")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.invSeeCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(InvSeeCommand::canView)
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> {
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
@@ -95,6 +91,19 @@ public class InvSeeCommand {
      * @param page 0 = main inventory, 1+ = curios pages
      */
     public static int openInvSee(ServerPlayer viewer, ServerPlayer target, int page) {
+        if (!canView(viewer.createCommandSourceStack())) {
+            viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cYour inventory view permission was revoked."));
+            viewer.closeContainer();
+            return 0;
+        }
+        boolean mayViewCurios = PermissionService.has(viewer, PermissionsHandler.invSeeCurios);
+        if (page > 0 && !mayViewCurios) {
+            viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cYou do not have permission to view Curios inventories."));
+            return 0;
+        }
+        boolean mayModify = PermissionService.has(viewer, PermissionsHandler.invSeeModify);
         String titleStr = ConfigHandler.config.invSeeTitle.get()
             .replace("$player", target.getGameProfile().getName());
         if (page > 0) {
@@ -110,10 +119,15 @@ public class InvSeeCommand {
 
             @Override
             public AbstractContainerMenu createMenu(int id, Inventory playerInventory, Player p) {
-                return new InvSeeContainer(id, playerInventory, target, page);
+                return new InvSeeContainer(id, playerInventory, target, page, mayModify, mayViewCurios);
             }
         });
 
         return 1;
+    }
+
+    static boolean canView(CommandSourceStack source) {
+        return PermissionService.has(source, PermissionsHandler.invSeeView)
+                || PermissionService.has(source, PermissionsHandler.invSeeCommand);
     }
 }

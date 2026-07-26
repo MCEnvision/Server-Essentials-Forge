@@ -1,4 +1,5 @@
 package com.enviouse.sef.vanish;
+
 import com.enviouse.sef.ServerEssentialsForge;
 
 import net.minecraft.ChatFormatting;
@@ -15,6 +16,8 @@ import net.neoforged.neoforge.event.entity.ProjectileImpactEvent;
 import net.neoforged.neoforge.event.entity.living.LivingChangeTargetEvent;
 import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerChangedDimensionEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerRespawnEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.TabListNameFormat;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.EntityInteract;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent.RightClickBlock;
@@ -22,7 +25,6 @@ import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
 import com.enviouse.sef.vanish.compat.Mc2DiscordCompat;
 import com.enviouse.sef.vanish.misc.FieldHolder;
@@ -38,12 +40,13 @@ public class VanishEventListener {
 
 	@SubscribeEvent
 	public static void onServerStopped(ServerStoppedEvent event) {
-		VanishUtil.VANISHED_PLAYERS.clear();
+		VanishUtil.clearRuntimeState();
 	}
 
 	@SubscribeEvent
 	public static void onPlayerJoin(PlayerLoggedInEvent event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
+			VanishUtil.recheckVanished(player);
 			PlayerList list = player.server.getPlayerList();
 
 			if (VanishUtil.isVanished(player)) {
@@ -69,8 +72,31 @@ public class VanishEventListener {
 	}
 
 	@SubscribeEvent
+	public static void onPlayerChangedDimension(PlayerChangedDimensionEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			VanishUtil.recheckVanished(player);
+			if (VanishUtil.isVanished(player)) {
+				VanishingHandler.sendPacketsOnVanish(player, player.serverLevel(), true);
+			}
+		}
+	}
+
+	@SubscribeEvent
+	public static void onPlayerRespawn(PlayerRespawnEvent event) {
+		if (event.getEntity() instanceof ServerPlayer player) {
+			VanishUtil.recheckVanished(player);
+			if (VanishUtil.isVanished(player)) {
+				VanishingHandler.sendPacketsOnVanish(player, player.serverLevel(), true);
+			}
+		}
+	}
+
+	@SubscribeEvent
 	public static void onPlayerTick(PlayerTickEvent.Post event) {
 		if (event.getEntity() instanceof ServerPlayer player) {
+			if (player.level().getGameTime() % 20 == 0)
+				VanishUtil.recheckVanished(player);
+
 			if (ServerEssentialsForge.mc2discordDetected && VanishConfig.CONFIG.forceSyncHiddenList.get()) {
 				boolean isVanished = VanishUtil.isVanished(player);
 
