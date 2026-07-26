@@ -101,6 +101,17 @@ public final class CommandCatalog {
         return owner == null ? Optional.empty() : Optional.ofNullable(byId.get(owner));
     }
 
+    public synchronized Optional<String> rootOwner(String root) {
+        String normalizedRoot = normalize(root);
+        for (CommandDefinition definition : byId.values()) {
+            String routeRoot = definition.canonicalRoute().split("\\s+", 2)[0];
+            if (routeRoot.equals(normalizedRoot) || definition.convenienceRoots().contains(normalizedRoot)) {
+                return Optional.of(definition.id());
+            }
+        }
+        return Optional.empty();
+    }
+
     public synchronized List<CommandDefinition> entries() {
         return byId.values().stream()
                 .sorted(Comparator.comparing(CommandDefinition::id))

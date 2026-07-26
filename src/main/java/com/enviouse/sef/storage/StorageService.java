@@ -8,6 +8,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -74,12 +76,15 @@ public final class StorageService {
             }
 
             if (!isEnvelope(root)) {
-                Path backup = AtomicFileStore.backup(
+                if (!prepareMigration(
                         normalized,
-                        normalized.getParent().resolve(".backups"),
+                        domain,
+                        0,
+                        currentVersion,
                         "v0.bak",
-                        CLOCK);
-                appendMigrationJournal(normalized, domain, 0, currentVersion, backup);
+                        size)) {
+                    return Optional.empty();
+                }
                 STATUS.put(normalized, new StoreStatus(
                         normalized, domain, 0, size, Instant.now(CLOCK), "legacy"));
                 return Optional.of(new Document(
@@ -114,13 +119,14 @@ public final class StorageService {
             extras.remove("data");
             JsonElement data = object.get("data");
             boolean migrated = version < currentVersion;
-            if (migrated) {
-                Path backup = AtomicFileStore.backup(
+            if (migrated && !prepareMigration(
                         normalized,
-                        normalized.getParent().resolve(".backups"),
+                        domain,
+                        version,
+                        currentVersion,
                         "v" + version + ".bak",
-                        CLOCK);
-                appendMigrationJournal(normalized, domain, version, currentVersion, backup);
+                        size)) {
+                return Optional.empty();
             }
             STATUS.put(normalized, new StoreStatus(
                     normalized,
@@ -321,7 +327,40 @@ public final class StorageService {
         return value.replace("~", "~0").replace("/", "~1");
     }
 
-    private static void appendMigrationJournal(
+    private static boolean prepareMigration(
+            Path source,
+            String domain,
+            int fromVersion,
+            int toVersion,
+            String backupSuffix,
+            long size
+    ) {
+        try {
+            Path backup = AtomicFileStore.backup(
+                    source,
+                    source.getParent().resolve(".backups"),
+                    backupSuffix,
+                    CLOCK);
+            appendMigrationJournal(source, domain, fromVersion, toVersion, backup);
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            STATUS.put(source, new StoreStatus(
+                    source,
+                    domain,
+                    fromVersion,
+                    size,
+                    Instant.now(CLOCK),
+                    "migration preparation failed"));
+            LOGGER.log(
+                    System.Logger.Level.ERROR,
+                    "[SEF] Failed to prepare " + domain + " migration for " + source.getFileName()
+                            + ". The original file was left unchanged",
+                    exception);
+            return false;
+        }
+    }
+
+    private static synchronized void appendMigrationJournal(
             Path source,
             String domain,
             int fromVersion,
@@ -336,12 +375,18 @@ public final class StorageService {
         entry.addProperty("source", source.getFileName().toString());
         entry.addProperty("backup", backup.getFileName().toString());
         Path journal = source.getParent().resolve("migration-journal.jsonl");
-        Files.writeString(
+        byte[] encoded = (GSON.toJson(entry) + System.lineSeparator()).getBytes(StandardCharsets.UTF_8);
+        try (FileChannel channel = FileChannel.open(
                 journal,
-                GSON.toJson(entry) + System.lineSeparator(),
-                StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND);
+                StandardOpenOption.WRITE,
+                StandardOpenOption.APPEND)) {
+            ByteBuffer buffer = ByteBuffer.wrap(encoded);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+            channel.force(true);
+        }
     }
 
     private static void quarantine(Path path, String domain, String reason) {

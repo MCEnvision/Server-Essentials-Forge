@@ -60,6 +60,10 @@ public final class ShortcutRegistry {
         return Optional.ofNullable(shortcuts.get(normalize(root)));
     }
 
+    public synchronized boolean existedBeforeRegistration(String root) {
+        return rootsPresentBeforeSef.contains(normalize(root));
+    }
+
     public synchronized String canonicalAction(String entryRoot) {
         Shortcut shortcut = shortcuts.get(normalize(entryRoot));
         return shortcut == null ? "" : shortcut.actionId();

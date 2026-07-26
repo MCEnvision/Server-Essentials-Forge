@@ -37,6 +37,7 @@ public final class AliasCompiler {
     private final CapabilityManifest capabilities;
     private final Set<String> knownBundleIds;
     private final Map<String, ExternalAdapter> externalAdapters;
+    private final RootOwnershipResolver rootOwnership;
 
     public AliasCompiler(
             CommandCatalog catalog,
@@ -44,10 +45,28 @@ public final class AliasCompiler {
             Set<String> knownBundleIds,
             Map<String, ExternalAdapter> externalAdapters
     ) {
+        this(
+                catalog,
+                capabilities,
+                knownBundleIds,
+                externalAdapters,
+                root -> catalog.rootOwner(root)
+                        .map(owner -> new RootOwnership(RootOwnerKind.CATALOG, owner))
+                        .orElse(null));
+    }
+
+    public AliasCompiler(
+            CommandCatalog catalog,
+            CapabilityManifest capabilities,
+            Set<String> knownBundleIds,
+            Map<String, ExternalAdapter> externalAdapters,
+            RootOwnershipResolver rootOwnership
+    ) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
         this.knownBundleIds = Set.copyOf(Objects.requireNonNull(knownBundleIds, "knownBundleIds"));
         this.externalAdapters = Map.copyOf(Objects.requireNonNull(externalAdapters, "externalAdapters"));
+        this.rootOwnership = Objects.requireNonNull(rootOwnership, "rootOwnership");
     }
 
     public ActionResult<CompiledAlias> compile(AliasDefinition definition) {
@@ -138,6 +157,10 @@ public final class AliasCompiler {
             if (current != null && !current.definition().root().equals(draft.root())) {
                 return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "root change requires restart");
             }
+            ActionResult<Void> rootDecision = compiler.validatePublicationRoot(draft);
+            if (!rootDecision.successful()) {
+                return ActionResult.failure(rootDecision.reason(), rootDecision.detail());
+            }
             boolean ambiguousRoot = published.values().stream().anyMatch(alias ->
                     !alias.definition().id().equals(draft.id())
                             && alias.definition().root().equals(draft.root()));
@@ -155,6 +178,24 @@ public final class AliasCompiler {
         public synchronized Map<String, CompiledAlias> published() {
             return Map.copyOf(published);
         }
+    }
+
+    private ActionResult<Void> validatePublicationRoot(AliasDefinition definition) {
+        RootOwnership ownership = rootOwnership.resolve(definition.root());
+        if (ownership == null) {
+            return ActionResult.success(null);
+        }
+        if (ownership.kind() == RootOwnerKind.EXTERNAL
+                && definition.conflictMode() == CommandDefinition.ConflictPolicy.PREFER_SEF) {
+            return ActionResult.success(null);
+        }
+        String detail = switch (definition.conflictMode()) {
+            case PREFER_EXISTING, CANONICAL_ONLY -> "alias root remains owned by " + ownership.ownerId();
+            case FAIL -> "alias root conflicts with " + ownership.ownerId();
+            case RESTART_REQUIRED -> "alias root collision requires restart";
+            case PREFER_SEF -> "alias cannot replace sef root owned by " + ownership.ownerId();
+        };
+        return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, detail);
     }
 
     public record AliasDefinition(
@@ -233,6 +274,24 @@ public final class AliasCompiler {
             Objects.requireNonNull(schema, "schema");
             sourceTypes = Set.copyOf(Objects.requireNonNull(sourceTypes, "sourceTypes"));
         }
+    }
+
+    @FunctionalInterface
+    public interface RootOwnershipResolver {
+        RootOwnership resolve(String root);
+    }
+
+    public record RootOwnership(RootOwnerKind kind, String ownerId) {
+        public RootOwnership {
+            Objects.requireNonNull(kind, "kind");
+            ownerId = normalize(ownerId);
+        }
+    }
+
+    public enum RootOwnerKind {
+        CATALOG,
+        SHORTCUT,
+        EXTERNAL
     }
 
     public enum AliasKind {

@@ -3,72 +3,103 @@ package com.enviouse.sef.motd;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
+import java.util.Map;
+
 /**
  * Commands: /sef motd set, /sef motd reload, /sef motd show.
  */
-public class MotdCommands {
+public final class MotdCommands {
+    private MotdCommands() {
+    }
 
-    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(Commands.literal("sef")
-            .requires(src -> PermissionService.has(src, PermissionsHandler.sefCommand))
-            .then(Commands.literal("motd")
+    public static void attach(LiteralArgumentBuilder<CommandSourceStack> root) {
+        root.then(Commands.literal("motd")
                 .requires(src -> PermissionService.has(src, PermissionsHandler.motdManage))
                 // /sef motd set <line1> [| line2]
                 .then(Commands.literal("set")
                     .then(Commands.argument("motd", StringArgumentType.greedyString())
                         .executes(ctx -> {
-                            MotdManager mgr = CommandRegistrationHandler.getMotdManager();
-                            if (mgr == null) {
-                                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cMOTD system not initialized"));
-                                return 0;
-                            }
                             String motd = StringArgumentType.getString(ctx, "motd");
                             String[] lines = motd.split("\\|", 2);
-                            String line1 = lines[0].trim();
-                            String line2 = lines.length > 1 ? lines[1].trim() : "";
-                            mgr.setMotd(line1, line2);
-                            mgr.applyToServer(ctx.getSource().getServer());
-                            ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-                                "&aMOTD updated and applied"), false);
-                            return 1;
+                            return KernelCommandExecutor.execute(
+                                    ctx.getSource(),
+                                    "sef:motd.set",
+                                    Map.of(
+                                            "line_count", lines.length > 1 ? "2" : "1",
+                                            "character_count", Integer.toString(motd.length())),
+                                    () -> set(ctx, lines));
                         })))
                 // /sef motd reload
                 .then(Commands.literal("reload")
-                    .executes(ctx -> {
-                        MotdManager mgr = CommandRegistrationHandler.getMotdManager();
-                        if (mgr == null) {
-                            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cMOTD system not initialized"));
-                            return 0;
-                        }
-                        mgr.load();
-                        mgr.applyToServer(ctx.getSource().getServer());
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-                            "&aMOTD reloaded and applied"), false);
-                        return 1;
-                    }))
+                    .executes(ctx -> KernelCommandExecutor.execute(
+                            ctx.getSource(),
+                            "sef:motd.reload",
+                            Map.of(),
+                            () -> reload(ctx))))
                 // /sef motd show
                 .then(Commands.literal("show")
-                    .executes(ctx -> {
-                        MotdManager mgr = CommandRegistrationHandler.getMotdManager();
-                        if (mgr == null) {
-                            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cMOTD system not initialized"));
-                            return 0;
-                        }
-                        var data = mgr.getData();
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-                            "&6Current MOTD:"), false);
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-                            "&7Line 1: &f" + data.line1()), false);
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-                            "&7Line 2: &f" + data.line2()), false);
-                        return 1;
-                    }))));
+                    .executes(ctx -> KernelCommandExecutor.execute(
+                            ctx.getSource(),
+                            "sef:motd.show",
+                            Map.of(),
+                            () -> show(ctx)))));
+    }
+
+    private static int set(CommandContext<CommandSourceStack> context, String[] lines) {
+        MotdManager manager = manager(context.getSource());
+        if (manager == null) {
+            return 0;
+        }
+        String line1 = lines[0].trim();
+        String line2 = lines.length > 1 ? lines[1].trim() : "";
+        manager.setMotd(line1, line2);
+        manager.applyToServer(context.getSource().getServer());
+        context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&aMOTD updated and applied"), false);
+        return 1;
+    }
+
+    private static int reload(CommandContext<CommandSourceStack> context) {
+        MotdManager manager = manager(context.getSource());
+        if (manager == null) {
+            return 0;
+        }
+        manager.load();
+        manager.applyToServer(context.getSource().getServer());
+        context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&aMOTD reloaded and applied"), false);
+        return 1;
+    }
+
+    private static int show(CommandContext<CommandSourceStack> context) {
+        MotdManager manager = manager(context.getSource());
+        if (manager == null) {
+            return 0;
+        }
+        var data = manager.getData();
+        context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&6Current MOTD:"), false);
+        context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Line 1: &f" + data.line1()), false);
+        context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Line 2: &f" + data.line2()), false);
+        return 1;
+    }
+
+    private static MotdManager manager(CommandSourceStack source) {
+        MotdManager manager = CommandRegistrationHandler.getMotdManager();
+        if (manager == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cMOTD system not initialized"));
+        }
+        return manager;
     }
 }

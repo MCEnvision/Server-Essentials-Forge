@@ -98,4 +98,35 @@ class PlayerProfileRepositoryTest {
 
         assertEquals(StorageRepository.RepositoryState.RECOVERY, repository.diagnostic().state());
     }
+
+    @Test
+    void deferredProfileUpdatesFlushDuringBoundedShutdown() {
+        UUID player = UUID.randomUUID();
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+        repository.load(temporaryDirectory.toFile());
+
+        assertTrue(repository.rememberDeferred(player, "EnVy"));
+        assertTrue(repository.shutdown());
+
+        PlayerProfileRepository reloaded = new PlayerProfileRepository();
+        reloaded.load(temporaryDirectory.toFile());
+        assertEquals("EnVy", reloaded.find(player).orElseThrow().authenticatedUsername());
+        assertTrue(reloaded.shutdown());
+    }
+
+    @Test
+    void deferredNicknameUpdatesFlushDuringBoundedShutdown() {
+        UUID player = UUID.randomUUID();
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+        repository.load(temporaryDirectory.toFile());
+
+        assertTrue(repository.rememberDeferred(player, "EnVy"));
+        assertTrue(repository.setNickname(player, "Captain"));
+        assertTrue(repository.shutdown());
+
+        PlayerProfileRepository reloaded = new PlayerProfileRepository();
+        reloaded.load(temporaryDirectory.toFile());
+        assertEquals("Captain", reloaded.find(player).orElseThrow().nickname());
+        assertTrue(reloaded.shutdown());
+    }
 }

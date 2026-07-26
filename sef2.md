@@ -25,9 +25,9 @@ The document is intentionally detailed. It consolidates:
 
 This is a plan, not a statement that every described feature is already implemented. The implementation-status column and phase assignments are authoritative when a feature appears in more than one section.
 
-## Implementation status update, 2026-07-25
+## Implementation status update, 2026-07-26
 
-Phase 1 implementation is complete.
+Phases 1 through 3 have automated implementation coverage in the current phase branch. They are not release complete. The authenticated multiplayer, optional integration, shutdown race, restart, crash recovery, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` and `docs/PHASE_2_3_MANUAL_TESTS.md` remain mandatory approval gates.
 
 Completed security and authorization work:
 
@@ -47,18 +47,16 @@ Completed validation and state work:
 - Legacy nickname fixtures migrate into `sef.playerdata.json`. The integrated provider records UUID, last known username, nickname, and update time without taking ownership when FTB Essentials is selected.
 - Alternate account collection is opt in. It defaults to salted server-local address hashing, retention is enforced, local addresses are ignored, group and profile counts are capped, display is redacted by default, and raw view, purge, and export use separate denied-by-default permissions.
 - `/invsee` has separate view, modify, offline, Curios, and other-player ender chest permissions. Open menus revalidate permissions, close or downgrade after revocation, prevent collect-to-cursor bypasses, and audit mutation metadata without item NBT. Offline inventory and other-player ender chest routes remain reserved but unimplemented.
-- Banned block background scanning defaults off, never forces unloaded chunks, uses an incremental cursor, and respects a configurable per-tick budget. Inventory scans, tab header updates, LuckPerms metadata, chat history, cooldown cleanup, audit writes, storage exports, and alternate account retention have bounded cadence, caches, queues, or collection limits.
+- Banned block background scanning defaults off, never forces unloaded chunks, uses an incremental cursor, and respects a configurable per-tick budget. Inventory scans, tab header updates, LuckPerms metadata, chat history, cooldown cleanup, audit writes, storage exports, and alternate account retention have bounded cadence, caches, queues, or collection limits. Mute and banned item tick paths serialize snapshots in memory, coalesce repeated saves, and perform filesystem writes on bounded daemon workers.
 
-Completed Phase 1 verification:
+Current automated and smoke verification evidence:
 
-- JUnit regression coverage includes permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization, legacy nickname fixtures, vanish visibility, vanish permission reconciliation, vanish hierarchy, workstation cooldown cleanup, storage atomicity, storage quarantine, unknown-field preservation, dynamic deletion semantics, and alternate account privacy.
+- JUnit regression coverage includes real Brigadier authorization, permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization and authenticated username hover, legacy nickname fixtures, vanish visibility, permission reconciliation, hierarchy, workstation cooldown cleanup, shared execution ordering, storage atomicity, migration preparation failure, quarantine, unknown-field preservation, dynamic deletion semantics, announcement type and command policy separation, asynchronous profile and manager persistence, alternate account privacy, and permission refresh authority invalidation.
 - The dedicated NeoForge server reaches ready state with no optional integrations and shuts down through normal `stop` with all dimensions saved.
-- The same dedicated startup and shutdown path passes with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9` with its required libraries, and all three integration families together.
-- `/sef storage status` reports the managed documents during the smoke test.
-- `sudo say should_not_run` is rejected as an unknown command.
 - `README.md` and `DOCUMENTATION.md` describe current behavior, recovery, privacy, permissions, integration boundaries, and remaining roadmap work.
+- LuckPerms, Curios, FTB Essentials, authenticated multiplayer, server list, voice packet, advancement, death message, shutdown race, restart, crash recovery, and profiler results remain unrecorded manual work. No release approval may infer those results from the no integration smoke test.
 
-Phases 2 and 3 are implemented in the current phase branch. The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Versioned location history and persistent cooldown repositories, bounded player profiles, import diagnostics, and recovery mode provide the Phase 3 persistence foundation. Full sudo modes, offline inventory inspection, enhanced client GUIs, homes, teleportation, and the expanded command catalog remain assigned to their later phases.
+The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable `/sef` catalog action enters the shared runtime policy and audit pipeline. Versioned location history and persistent cooldown repositories, bounded player profiles, import diagnostics, and recovery mode provide the Phase 3 persistence foundation. Full sudo modes, offline inventory inspection, enhanced client GUIs, homes, teleportation, and the expanded command catalog remain assigned to their later phases.
 
 ## Source-of-truth order
 
@@ -16078,7 +16076,7 @@ Additional required domain suites:
 
 ## Phase 1. Stabilization and security repair
 
-Status: implemented and verified on `2026-07-25`. The detailed completion record is in the document status section and current operator behavior is in `DOCUMENTATION.md`.
+Status: implementation coverage is present. Release verification remains pending because the authenticated multiplayer, optional integration, shutdown race, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 
@@ -16108,7 +16106,7 @@ Status: implemented and verified on `2026-07-25`. The detailed completion record
 
 ## Phase 2. Shared command and policy kernel
 
-Status: implemented and verified on `2026-07-25`. Current runtime behavior, configuration, quota metadata, diagnostics, and deferred publication boundaries are documented in `DOCUMENTATION.md`.
+Status: implementation coverage is present. Release verification remains pending because the operator, permission provider, restart, and conflict cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 
@@ -16159,7 +16157,7 @@ Status: implemented and verified on `2026-07-25`. Current runtime behavior, conf
 
 ## Phase 3. Storage foundation and player profile
 
-Status: implemented and verified on `2026-07-25`. Current repository paths, bounds, migration behavior, shutdown ordering, and recovery procedure are documented in `DOCUMENTATION.md`.
+Status: implementation coverage is present. Release verification remains pending because the restart, crash simulation, corruption recovery, and operator cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 

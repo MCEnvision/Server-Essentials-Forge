@@ -6,7 +6,9 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.ConfigurationEventHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.filter.FilterManager;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelCommands;
+import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageCommands;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
@@ -19,6 +21,8 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
+
+import java.util.Map;
 
 public class BfcCommands {
 	private static FilterManager filterManager;
@@ -36,13 +40,24 @@ public class BfcCommands {
 		KernelCommands.attach(sefRoot);
 		VirtualWorkstationCommands.attachCanonical(sefRoot);
 		StorageCommands.attach(sefRoot);
+		if(ConfigHandler.config.enableMotdSystem.get()) {
+			MotdCommands.attach(sefRoot);
+		}
 		disp.register(sefRoot);
 
 		if(ConfigHandler.config.enableColorsCommand.get()
 				&& com.enviouse.sef.kernel.KernelServices.shortcuts().isActive("colors")) {
 			disp.register(Commands.literal("colors")
-				.requires(c -> checkPermission(c, PermissionsHandler.colorsCommand))
-				.executes(BfcCommands::colorCommand));
+				.requires(c -> KernelCommandExecutor.canUse(
+						c,
+						"sef:core.colors",
+						PermissionsHandler.colorsCommand))
+				.executes(ctx -> KernelCommandExecutor.execute(
+						ctx.getSource(),
+						"sef:core.colors",
+						Map.of("route", "colors"),
+						() -> colorCommand(ctx),
+						PermissionsHandler.colorsCommand)));
 		}
 
 		NickCommands.register(disp);
@@ -53,16 +68,32 @@ public class BfcCommands {
 			.requires(c -> checkPermission(c, PermissionsHandler.sefCommand))
 			.then(Commands.literal("info")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandInfoSubCommand))
-					.executes(BfcCommands::infoCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.info",
+							Map.of(),
+							() -> infoCommand(ctx))))
 			.then(Commands.literal("colors")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandColorsSubCommand))
-					.executes(BfcCommands::colorCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.colors",
+							Map.of("route", "sef"),
+							() -> colorCommand(ctx))))
 			.then(Commands.literal("test")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandTestSubCommand))
-					.executes(BfcCommands::testCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.test",
+							Map.of(),
+							() -> testCommand(ctx))))
 			.then(Commands.literal("reload")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandReloadSubCommand))
-					.executes(BfcCommands::reloadCommand));
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.reload",
+							Map.of(),
+							() -> reloadCommand(ctx))));
 	}
 	
 	public static void initFilterManager(FilterManager manager) {
@@ -93,19 +124,54 @@ public class BfcCommands {
 							.then(Commands.argument("wordToFilter", StringArgumentType.string())
 								// With replacement
 								.then(Commands.argument("replacement", StringArgumentType.greedyString())
-									.executes(ctx -> filterAdd(ctx, false)))
+									.executes(ctx -> KernelCommandExecutor.execute(
+											ctx.getSource(),
+											"sef:filter.add",
+											filterAddParameters(ctx, false),
+											() -> filterAdd(ctx, false))))
 								// Without replacement (just remove the word)
-								.executes(ctx -> filterAdd(ctx, true))))))
+								.executes(ctx -> KernelCommandExecutor.execute(
+										ctx.getSource(),
+										"sef:filter.add",
+										filterAddParameters(ctx, true),
+										() -> filterAdd(ctx, true)))))))
 				// /sef filter remove <id>
 				.then(Commands.literal("remove")
 					.then(Commands.argument("id", StringArgumentType.word())
 						.suggests(filterIdSuggest)
-						.executes(BfcCommands::filterRemove)))
+						.executes(ctx -> KernelCommandExecutor.execute(
+								ctx.getSource(),
+								"sef:filter.remove",
+								Map.of("id", StringArgumentType.getString(ctx, "id")),
+								() -> filterRemove(ctx)))))
 				// /sef filter list
 				.then(Commands.literal("list")
-					.executes(ctx -> filterList(ctx, 1))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:filter.list",
+							Map.of("page", "1"),
+							() -> filterList(ctx, 1)))
 					.then(Commands.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
-						.executes(ctx -> filterList(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "page"))))));
+						.executes(ctx -> {
+							int page = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "page");
+							return KernelCommandExecutor.execute(
+									ctx.getSource(),
+									"sef:filter.list",
+									Map.of("page", Integer.toString(page)),
+									() -> filterList(ctx, page));
+						}))));
+	}
+
+	private static Map<String, String> filterAddParameters(
+			CommandContext<CommandSourceStack> ctx,
+			boolean noReplacement
+	) {
+		String caseSensitive = StringArgumentType.getString(ctx, "caseSensitive");
+		return Map.of(
+				"id", StringArgumentType.getString(ctx, "id"),
+				"case_sensitive", Boolean.toString(
+						caseSensitive.equalsIgnoreCase("yes") || caseSensitive.equalsIgnoreCase("true")),
+				"replacement_present", Boolean.toString(!noReplacement));
 	}
 
 	private static int filterAdd(CommandContext<CommandSourceStack> ctx, boolean noReplacement) {

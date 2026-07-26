@@ -24,6 +24,11 @@ public final class PermissionService {
         boolean console = source.getEntity() == null && source.hasPermission(4);
         return new Decision(
                 console,
+                node.getNodeName(),
+                "minecraft:command_source",
+                DefaultUse.NOT_USED,
+                Evaluation.NOT_EVALUATED,
+                Evaluation.NOT_EVALUATED,
                 console ? SubjectKind.CONSOLE : SubjectKind.UNSUPPORTED_SOURCE,
                 console ? DenialReason.NONE : DenialReason.SOURCE_NOT_ALLOWED);
     }
@@ -35,13 +40,19 @@ public final class PermissionService {
     public static Decision decide(ServerPlayer player, PermissionNode<Boolean> node) {
         try {
             boolean granted = PermissionAPI.getPermission(player, node);
+            String provider = provider();
             return new Decision(
                     granted,
+                    node.getNodeName(),
+                    provider,
+                    defaultUse(provider),
+                    Evaluation.NOT_EVALUATED,
+                    Evaluation.NOT_EVALUATED,
                     SubjectKind.ONLINE_PLAYER,
                     granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
-        } catch (IllegalStateException exception) {
+        } catch (RuntimeException exception) {
             ServerEssentialsForge.LOGGER.trace("Permission service unavailable for online player", exception);
-            return new Decision(false, SubjectKind.ONLINE_PLAYER, DenialReason.PROVIDER_UNAVAILABLE);
+            return unavailable(node, SubjectKind.ONLINE_PLAYER);
         }
     }
 
@@ -52,13 +63,19 @@ public final class PermissionService {
     public static Decision decide(UUID playerId, PermissionNode<Boolean> node) {
         try {
             boolean granted = PermissionAPI.getOfflinePermission(playerId, node);
+            String provider = provider();
             return new Decision(
                     granted,
+                    node.getNodeName(),
+                    provider,
+                    defaultUse(provider),
+                    Evaluation.NOT_EVALUATED,
+                    Evaluation.NOT_EVALUATED,
                     SubjectKind.OFFLINE_PLAYER,
                     granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
-        } catch (IllegalStateException exception) {
+        } catch (RuntimeException exception) {
             ServerEssentialsForge.LOGGER.trace("Permission service unavailable for offline player", exception);
-            return new Decision(false, SubjectKind.OFFLINE_PLAYER, DenialReason.PROVIDER_UNAVAILABLE);
+            return unavailable(node, SubjectKind.OFFLINE_PLAYER);
         }
     }
 
@@ -66,7 +83,51 @@ public final class PermissionService {
         return source.getEntity() == null && source.hasPermission(4);
     }
 
-    public record Decision(boolean granted, SubjectKind subjectKind, DenialReason denialReason) {
+    private static Decision unavailable(PermissionNode<Boolean> node, SubjectKind subjectKind) {
+        return new Decision(
+                false,
+                node.getNodeName(),
+                "unavailable",
+                DefaultUse.UNKNOWN,
+                Evaluation.NOT_EVALUATED,
+                Evaluation.NOT_EVALUATED,
+                subjectKind,
+                DenialReason.PROVIDER_UNAVAILABLE);
+    }
+
+    private static String provider() {
+        var provider = PermissionAPI.getActivePermissionHandler();
+        return provider == null ? "unavailable" : provider.toString();
+    }
+
+    private static DefaultUse defaultUse(String provider) {
+        return "neoforge:default_handler".equals(provider)
+                ? DefaultUse.USED
+                : DefaultUse.UNKNOWN;
+    }
+
+    public record Decision(
+            boolean granted,
+            String permissionId,
+            String provider,
+            DefaultUse defaultUse,
+            Evaluation hierarchyResult,
+            Evaluation exemptionResult,
+            SubjectKind subjectKind,
+            DenialReason denialReason
+    ) {
+    }
+
+    public enum Evaluation {
+        ALLOWED,
+        DENIED,
+        NOT_EVALUATED
+    }
+
+    public enum DefaultUse {
+        USED,
+        NOT_USED,
+        UNKNOWN
     }
 
     public enum SubjectKind {

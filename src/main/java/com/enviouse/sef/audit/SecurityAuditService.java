@@ -16,21 +16,103 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class SecurityAuditService {
     public record AuditEvent(
+            int schemaVersion,
+            String eventId,
             String timestamp,
-            String category,
-            String action,
-            String issuer,
-            String target,
-            String commandRoot,
+            String serverSessionId,
+            String actorUuid,
+            String actorUsername,
+            String sourceType,
+            String actionId,
+            List<String> targetUuids,
+            Map<String, String> normalizedParameters,
             String result,
-            String reason
+            String reasonCode,
+            long durationMillis,
+            String origin,
+            String parentJobId,
+            String stepCorrelationId,
+            long definitionRevision,
+            long policyRevision,
+            Map<String, String> providerContext,
+            String redactionClass,
+            List<String> appliedRedactionRuleIds,
+            String observerUuid,
+            String previousEventHash,
+            String auditClass
     ) {
+        public AuditEvent {
+            if (schemaVersion != 1) {
+                throw new IllegalArgumentException("Unsupported security audit schema version");
+            }
+            eventId = uuid(eventId, "event id");
+            timestamp = instant(timestamp);
+            serverSessionId = uuid(serverSessionId, "server session id");
+            actorUuid = optionalUuid(actorUuid, "actor id");
+            actorUsername = bounded(actorUsername, 64);
+            sourceType = normalized(sourceType, 64);
+            actionId = normalized(actionId, 128);
+            targetUuids = boundedUuidList(targetUuids, 100);
+            normalizedParameters = boundedMap(normalizedParameters);
+            result = normalized(result, 64);
+            reasonCode = normalized(reasonCode, 128);
+            if (durationMillis < 0L) {
+                throw new IllegalArgumentException("Audit duration cannot be negative");
+            }
+            origin = normalized(origin, 64);
+            parentJobId = optionalUuid(parentJobId, "parent job id");
+            stepCorrelationId = optionalUuid(stepCorrelationId, "step correlation id");
+            if (definitionRevision < 0L || policyRevision < 0L) {
+                throw new IllegalArgumentException("Audit revisions cannot be negative");
+            }
+            providerContext = boundedMap(providerContext);
+            redactionClass = normalized(redactionClass, 64);
+            appliedRedactionRuleIds = boundedList(appliedRedactionRuleIds, 32, 128);
+            observerUuid = optionalUuid(observerUuid, "observer id");
+            previousEventHash = normalized(previousEventHash, 128);
+            auditClass = normalized(auditClass, 64);
+        }
+
+        public static AuditEvent from(AuditService.Event event) {
+            Objects.requireNonNull(event, "event");
+            return new AuditEvent(
+                    event.schemaVersion(),
+                    event.eventId().toString(),
+                    event.timestamp().toString(),
+                    event.sessionId().toString(),
+                    value(event.actorId()),
+                    event.actorName(),
+                    event.sourceType(),
+                    event.actionId(),
+                    event.targetIds().stream().map(UUID::toString).toList(),
+                    event.normalizedParameters(),
+                    event.result().name(),
+                    event.reason().name(),
+                    event.durationMillis(),
+                    event.origin(),
+                    value(event.parentJobId()),
+                    value(event.stepCorrelationId()),
+                    event.definitionRevision(),
+                    event.policyRevision(),
+                    event.providerContext(),
+                    event.redactionClass().name(),
+                    event.appliedRedactionRuleIds(),
+                    value(event.observerId()),
+                    event.previousEventHash(),
+                    event.auditClass().name());
+        }
+
         public static AuditEvent create(
                 String category,
                 String action,
@@ -40,15 +122,34 @@ public final class SecurityAuditService {
                 String result,
                 String reason
         ) {
+            Map<String, String> parameters = target == null || target.isBlank()
+                    ? Map.of()
+                    : Map.of("target", bounded(target, 256));
             return new AuditEvent(
+                    1,
+                    UUID.randomUUID().toString(),
                     Instant.now().toString(),
-                    bounded(category, 64),
-                    bounded(action, 64),
-                    bounded(issuer, 64),
-                    bounded(target, 64),
-                    bounded(commandRoot, 128),
-                    bounded(result, 64),
-                    bounded(reason, 256));
+                    sessionId.toString(),
+                    "",
+                    issuer,
+                    "server",
+                    action,
+                    List.of(),
+                    parameters,
+                    result,
+                    reason,
+                    0L,
+                    commandRoot,
+                    "",
+                    "",
+                    0L,
+                    0L,
+                    Map.of("legacy_category", bounded(category, 64)),
+                    AuditService.RedactionClass.METADATA.name(),
+                    List.of(),
+                    "",
+                    "",
+                    category);
         }
 
         private static String bounded(String value, int maximumLength) {
@@ -63,6 +164,60 @@ public final class SecurityAuditService {
                     ? sanitized
                     : sanitized.substring(0, maximumLength);
         }
+
+        private static String normalized(String value, int maximumLength) {
+            return bounded(value, maximumLength).trim().toLowerCase(Locale.ROOT);
+        }
+
+        private static String uuid(String value, String field) {
+            try {
+                return UUID.fromString(Objects.requireNonNull(value, field)).toString();
+            } catch (IllegalArgumentException exception) {
+                throw new IllegalArgumentException("Invalid audit " + field, exception);
+            }
+        }
+
+        private static String optionalUuid(String value, String field) {
+            return value == null || value.isBlank() ? "" : uuid(value, field);
+        }
+
+        private static String instant(String value) {
+            try {
+                return Instant.parse(Objects.requireNonNull(value, "timestamp")).toString();
+            } catch (RuntimeException exception) {
+                throw new IllegalArgumentException("Invalid audit timestamp", exception);
+            }
+        }
+
+        private static List<String> boundedUuidList(List<String> values, int maximumSize) {
+            Objects.requireNonNull(values, "values");
+            if (values.size() > maximumSize) {
+                throw new IllegalArgumentException("Audit target count exceeds limit");
+            }
+            return values.stream().map(value -> uuid(value, "target id")).toList();
+        }
+
+        private static List<String> boundedList(List<String> values, int maximumSize, int maximumLength) {
+            Objects.requireNonNull(values, "values");
+            if (values.size() > maximumSize) {
+                throw new IllegalArgumentException("Audit list exceeds limit");
+            }
+            return values.stream().map(value -> normalized(value, maximumLength)).toList();
+        }
+
+        private static Map<String, String> boundedMap(Map<String, String> values) {
+            Objects.requireNonNull(values, "values");
+            if (values.size() > 32) {
+                throw new IllegalArgumentException("Audit map exceeds limit");
+            }
+            Map<String, String> bounded = new LinkedHashMap<>();
+            values.forEach((key, value) -> bounded.put(normalized(key, 64), bounded(value, 256)));
+            return Map.copyOf(bounded);
+        }
+
+        private static String value(UUID value) {
+            return value == null ? "" : value.toString();
+        }
     }
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
@@ -73,6 +228,7 @@ public final class SecurityAuditService {
             DateTimeFormatter.ofPattern("uuuuMMddHHmmss").withZone(ZoneOffset.UTC);
     private static volatile boolean running;
     private static volatile Thread writerThread;
+    private static volatile UUID sessionId = UUID.randomUUID();
     private static Path auditDirectory;
     private static Path activeFile;
     private static int retentionDays;
@@ -83,6 +239,8 @@ public final class SecurityAuditService {
 
     public static synchronized void start(Path sefDirectory, int configuredRetentionDays, int maximumFileMiB) {
         shutdown();
+        sessionId = UUID.randomUUID();
+        DROPPED.set(0L);
         auditDirectory = sefDirectory.resolve("audit");
         activeFile = auditDirectory.resolve("security-audit.jsonl");
         retentionDays = Math.max(1, configuredRetentionDays);
@@ -115,6 +273,10 @@ public final class SecurityAuditService {
                     dropped);
         }
         return false;
+    }
+
+    public static UUID currentSessionId() {
+        return sessionId;
     }
 
     public static synchronized void shutdown() {

@@ -176,12 +176,21 @@ public class AnnouncementManager {
     }
 
     private boolean valid(CommandAnnouncement announcement) {
-        return announcement != null
-                && !invalidIdentity(announcement.id())
-                && announcement.command() != null
-                && announcement.intervalSeconds() > 0
-                && announcement.offsetSeconds() >= 0
-                && announcement.sourcePolicy() == CommandSourcePolicy.SERVER;
+        if (announcement == null
+                || invalidIdentity(announcement.id())
+                || announcement.command() == null
+                || announcement.intervalSeconds() <= 0
+                || announcement.offsetSeconds() < 0
+                || announcement.sourcePolicy() != CommandSourcePolicy.SERVER) {
+            return false;
+        }
+        return CommandRootPolicy.evaluate(
+                announcement.command(),
+                ConfigHandler.config.commandAnnouncementAllowedCommands.get(),
+                ConfigHandler.config.commandAnnouncementDeniedCommands.get(),
+                ConfigHandler.config.commandAnnouncementMaximumCommandLength.get(),
+                ConfigHandler.config.commandAnnouncementAllowLeadingSlash.get(),
+                ConfigHandler.config.commandAnnouncementAllowSelectors.get()).allowed();
     }
 
     private static boolean invalidIdentity(String id) {
@@ -331,7 +340,7 @@ public class AnnouncementManager {
         }
     }
 
-    private void fireCommand(MinecraftServer server, CommandAnnouncement announcement) {
+    void fireCommand(MinecraftServer server, CommandAnnouncement announcement) {
         if (!ConfigHandler.config.enableCommandAnnouncements.get()) {
             auditCommand(announcement, "", "denied", "feature disabled");
             return;
@@ -353,16 +362,42 @@ public class AnnouncementManager {
         }
 
         try {
+            java.util.concurrent.atomic.AtomicBoolean outcomeRecorded =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            var source = server.createCommandSourceStack().withCallback((successful, value) -> {
+                if (!outcomeRecorded.compareAndSet(false, true)) {
+                    return;
+                }
+                auditCommand(
+                        announcement,
+                        decision.root(),
+                        successful ? "success" : "failed",
+                        successful ? "result " + value : "command reported failure");
+                if (successful) {
+                    ServerEssentialsForge.LOGGER.info(
+                            "[SEF] Command announcement {} completed root {} with result {}",
+                            announcement.id(),
+                            decision.root(),
+                            value);
+                } else {
+                    ServerEssentialsForge.LOGGER.warn(
+                            "[SEF] Command announcement {} reported failure for root {}",
+                            announcement.id(),
+                            decision.root());
+                }
+            });
             switch (announcement.sourcePolicy()) {
                 case SERVER -> server.getCommands().performPrefixedCommand(
-                        server.createCommandSourceStack(),
+                        source,
                         decision.command());
             }
-            auditCommand(announcement, decision.root(), "success", "dispatched");
-            ServerEssentialsForge.LOGGER.info(
-                    "[SEF] Command announcement {} dispatched root {}",
-                    announcement.id(),
-                    decision.root());
+            if (!outcomeRecorded.get()) {
+                auditCommand(
+                        announcement,
+                        decision.root(),
+                        "outcome_unknown",
+                        "queued without synchronous result");
+            }
         } catch (RuntimeException exception) {
             auditCommand(
                     announcement,

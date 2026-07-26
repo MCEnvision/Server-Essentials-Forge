@@ -7,14 +7,15 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.storage.CoalescedPersistenceWorker;
 import com.enviouse.sef.storage.StorageService;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,11 +40,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MuteManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type DATA_TYPE = new TypeToken<Map<String, MuteEntry>>() {}.getType();
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
 
     /** Map of player UUID string → mute entry */
     private final Map<String, MuteEntry> mutes = new ConcurrentHashMap<>();
     private Path filePath;
     private StorageService.Document document;
+    private CoalescedPersistenceWorker persistenceWorker;
 
     // ── Data class ──────────────────────────────────────────────────────────
     public static class MuteEntry {
@@ -108,8 +111,14 @@ public class MuteManager {
 
     // ── Load / Save ─────────────────────────────────────────────────────────
     public void load(MinecraftServer server) {
+        save();
+        closePersistenceWorker();
         filePath = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("serverconfig").resolve("sef").resolve("mutes.json");
+        persistenceWorker = new CoalescedPersistenceWorker(
+                "sef-mutes",
+                exception -> ServerEssentialsForge.LOGGER.error("[SEF] Failed to save mutes", exception));
+        mutes.clear();
         document = StorageService.read(filePath, "mutes", 1).orElse(null);
         if (document == null) {
             save();
@@ -129,11 +138,17 @@ public class MuteManager {
     }
 
     public void save() {
-        if (filePath == null) return;
+        if (filePath == null || persistenceWorker == null) return;
         try {
-            StorageService.write(filePath, "mutes", 1, GSON.toJsonTree(mutes), document, Set.of(""));
-        } catch (IOException e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save mutes", e);
+            var snapshot = GSON.toJsonTree(mutes);
+            Path destination = filePath;
+            StorageService.Document previousDocument = document;
+            if (!persistenceWorker.submit(() ->
+                    StorageService.write(destination, "mutes", 1, snapshot, previousDocument, Set.of("")))) {
+                ServerEssentialsForge.LOGGER.error("[SEF] Mute save rejected during shutdown");
+            }
+        } catch (Exception e) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to prepare mute save", e);
         }
     }
 
@@ -298,8 +313,22 @@ public class MuteManager {
     /**
      * Called on server stop — save final state (do NOT clear, data persists).
      */
-    public void shutdown() {
+    public boolean shutdown() {
         save();
+        return closePersistenceWorker();
+    }
+
+    private boolean closePersistenceWorker() {
+        CoalescedPersistenceWorker worker = persistenceWorker;
+        persistenceWorker = null;
+        if (worker == null) {
+            return true;
+        }
+        boolean completed = worker.shutdown(SHUTDOWN_TIMEOUT);
+        if (!completed) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Mute shutdown flush did not complete");
+        }
+        return completed;
     }
 
     // ── Duration parser ─────────────────────────────────────────────────────

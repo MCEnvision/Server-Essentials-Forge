@@ -1,6 +1,8 @@
 package com.enviouse.sef.commands;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 import com.enviouse.sef.ServerEssentialsForge;
@@ -23,6 +25,8 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 public class NickCommands {
+	private static final java.util.concurrent.atomic.AtomicBoolean PERMISSION_MIGRATION_WARNING =
+			new java.util.concurrent.atomic.AtomicBoolean();
 	private static boolean cfgWhoIsEnabled = false;
 	private static boolean cfgNickEnabled = false;
 	private static int minNicknameLength = -1;
@@ -42,10 +46,10 @@ public class NickCommands {
 		}
 		cfgWhoIsEnabled = ConfigHandler.config.enableWhoisCommand.get();
 			cfgNickEnabled = ConfigHandler.config.enableChatNicknameCommand.get();
-			if(ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()) {
-				ServerEssentialsForge.LOGGER.warn(
-						"[SEF] Duplicate nickname hover disambiguation requires the enhanced identity projection and is ignored during phase 1");
-			}
+				if(PERMISSION_MIGRATION_WARNING.compareAndSet(false, true)) {
+					ServerEssentialsForge.LOGGER.warn(
+							"[SEF] Nickname changes for other players now default to denied. Existing explicit permission provider grants remain unchanged");
+				}
 		}
 		public static void register(CommandDispatcher<CommandSourceStack> disp) {
 			boolean externalNicknameOwner = net.neoforged.fml.ModList.get().isLoaded("ftbessentials")
@@ -86,36 +90,56 @@ public class NickCommands {
 				.executes(NickCommands::whoisCommand)));
 	}
 
-	private static GameProfile lookupGameProfile(String user) {
-		MinecraftServer serv = ServerLifecycleHooks.getCurrentServer();
-		if(serv != null) {
-			String normalizedUser = NicknamePolicy.normalizeIdentity(user);
-			List<ServerPlayer> players = serv.getPlayerList().getPlayers();
-				for(ServerPlayer player : players) {
-				GameProfile prof = player.getGameProfile();
-                if(normalizedUser.equals(NicknamePolicy.normalizeIdentity(prof.getName()))) return prof;
-            }
-			GameProfile nicknameMatch = null;
-			for(ServerPlayer player : players) {
-				GameProfile profile = player.getGameProfile();
-				String nickname = getNickname(profile);
-				if(nickname == null) continue;
-				String normalizedNickname = NicknamePolicy.normalizeIdentity(NicknamePolicy.stripFormatting(nickname));
-				if(!normalizedUser.equals(normalizedNickname)) continue;
-				if(nicknameMatch != null) return null;
-				nicknameMatch = profile;
-				}
-				if(nicknameMatch != null) return nicknameMatch;
+		private static GameProfile lookupGameProfile(String user) {
+			MinecraftServer serv = ServerLifecycleHooks.getCurrentServer();
+			if(serv != null) {
+				String normalizedUser = NicknamePolicy.normalizeIdentity(user);
+				List<ServerPlayer> players = serv.getPlayerList().getPlayers();
+					Map<UUID, GameProfile> usernameMatches = new LinkedHashMap<>();
+					Map<UUID, GameProfile> nicknameMatches = new LinkedHashMap<>();
+					for(ServerPlayer player : players) {
+						GameProfile profile = player.getGameProfile();
+						String nickname = getNickname(profile);
+						if(normalizedUser.equals(NicknamePolicy.normalizeIdentity(profile.getName()))) {
+							usernameMatches.put(profile.getId(), profile);
+						} else if(normalizedUser.equals(NicknamePolicy.normalizeIdentity(
+								NicknamePolicy.stripFormatting(nickname)))) {
+							nicknameMatches.put(profile.getId(), profile);
+						}
+					}
 				boolean includeKnownNicknames = ownsIntegratedNicknameData();
-				UUID known = PlayerData.findIdentity(user, includeKnownNicknames).orElse(null);
-				if(known != null) {
-					String knownUsername = PlayerData.getUsername(known);
-					return new GameProfile(known, knownUsername == null ? user : knownUsername);
-				}
-				return null;
+				for(PlayerData.ProfileSnapshot profile : PlayerData.profiles()) {
+					boolean usernameMatch = normalizedUser.equals(
+							NicknamePolicy.normalizeIdentity(profile.authenticatedUsername()));
+						boolean nicknameMatch = includeKnownNicknames && normalizedUser.equals(
+								NicknamePolicy.normalizeIdentity(
+										NicknamePolicy.stripFormatting(profile.nickname())));
+						if(usernameMatch) {
+							String username = profile.authenticatedUsername() == null
+									? user
+									: profile.authenticatedUsername();
+							usernameMatches.putIfAbsent(
+									profile.playerId(),
+									new GameProfile(profile.playerId(), username));
+						} else if(nicknameMatch) {
+							String username = profile.authenticatedUsername() == null
+									? user
+									: profile.authenticatedUsername();
+							nicknameMatches.putIfAbsent(
+									profile.playerId(),
+									new GameProfile(profile.playerId(), username));
+						}
+					}
+					if(usernameMatches.size() == 1) {
+						return usernameMatches.values().iterator().next();
+					}
+					if(!usernameMatches.isEmpty()) {
+						return null;
+					}
+					return nicknameMatches.size() == 1 ? nicknameMatches.values().iterator().next() : null;
+			}
+			return null;
 		}
-		return null;
-	}
 	private static int whoisCommand(CommandContext<CommandSourceStack> ctx) {
 		String user = StringArgumentType.getString(ctx, "displayname");
 		GameProfile prof = lookupGameProfile(user);
@@ -134,9 +158,9 @@ public class NickCommands {
 				return 0;
 			}
 			if(nick == null) {
-			if(!PlayerData.setNickname(uuid, null)) {
+			if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, null)) {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-						"&cNickname data could not be persisted. No changes were applied.&r"));
+						"&cNickname data is unavailable. No changes were applied.&r"));
 				return 0;
 			}
 			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
@@ -160,14 +184,15 @@ public class NickCommands {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&c" + validation.error() + ".&r"));
 				return 0;
 			}
-			if(hasIdentityCollision(uuid, validation.normalized())) {
+				if(!ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()
+						&& hasIdentityCollision(uuid, validation.normalized())) {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThat nickname conflicts with another online player's name or nickname.&r"));
 				return 0;
 			}
 
-			if(!PlayerData.setNickname(uuid, nick)) {
+			if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, nick)) {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-						"&cNickname data could not be persisted. No changes were applied.&r"));
+						"&cNickname data is unavailable. No changes were applied.&r"));
 				return 0;
 			}
 			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);

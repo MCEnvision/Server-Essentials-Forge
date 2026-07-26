@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 3 are complete in the current worktree. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
+SEF 2 Phases 1 through 3 have implementation coverage in the current worktree. Release verification is not complete. The authenticated multiplayer, optional integration, restart, crash recovery, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
 
 ## 2. Platform and toolchain
 
@@ -51,9 +51,9 @@ Construction performs these operations:
 
 Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience workstation routes. Server startup opens the location history and cooldown repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
 
-Server ticks update announcements, banned item scans, freeze state, mute state, and countdown state when their modules are enabled. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
+Server ticks update announcements, banned item scans, freeze state, mute state, and countdown state when their modules are enabled. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
 
-Server shutdown stops optional integrations, flushes the player profile repository, atomically flushes qualifying command cooldowns and dirty location history, clears warmups and confirmations, then clears runtime cooldown and vanish state. Persistent feature managers save their owned data according to their current implementation.
+Server shutdown drains mute, banned item, alternate account, player profile, location history, and persistent cooldown writers with bounded waits, stops optional integrations, clears warmups and confirmations, then clears runtime cooldown and vanish state. Location and cooldown repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
 
 ## 4. Package map
 
@@ -117,8 +117,8 @@ Current source behavior:
 4. Console and RCON sources without an entity require vanilla permission level `4`.
 5. Command blocks and other nonplayer level `2` sources do not receive a general bypass.
 6. LuckPerms remains optional. NeoForge selects the installed permission provider.
-7. Structured permission decisions retain the permission id, outcome, provider source, and reason without exposing player supplied command arguments.
-8. Permission refresh invalidates cached optional provider data and quota policy revisions.
+7. Structured permission decisions retain the permission id, outcome, provider source, default use state, hierarchy state, exemption state, subject class, and reason without exposing player supplied command arguments.
+8. Permission refresh invalidates cached optional provider data and quota policy revisions, reconciles vanish state, refreshes the tab name, and sends a newly filtered Brigadier tree to the affected online player.
 
 `PermissionsHandler.playerHasPermission` remains as a compatibility method and delegates to `PermissionService`. New implementation should call `PermissionService` directly.
 
@@ -182,7 +182,7 @@ Vanish level nodes remain `sef.vanish.1`, `sef.vanish.2`, and `sef.vanish.3`. Ob
 
 `/sef` uses Brigadier literal children rather than a greedy string argument.
 
-Each child applies its permission in `.requires`, which protects both command execution and Brigadier suggestions. Root access never implies mutation access.
+Each child applies its permission in `.requires`, which protects both command execution and Brigadier suggestions. Root access never implies mutation access. Every executable current `/sef` action has catalog ownership, including filter management, storage diagnostics and export, MOTD management, kernel diagnostics, and workstation actions.
 
 `/sef filter add`, `remove`, and `list` currently share `sef.filter.manage`. A future read only filter node may split list access.
 
@@ -192,21 +192,23 @@ Every kernel catalog entry declares a stable action id, canonical route, conveni
 
 The runtime kernel is sealed after registration. Missing capabilities, descriptors, or required metadata prevent sealing. `/sef commands` shows only entries whose complete permission set is currently granted. `/sef conflicts` reports active roots, SEF overrides, canonical only fallbacks, conflicts, and restart required structural changes. `/sef doctor` reports catalog validation, capabilities, policies, quotas, repositories, import failures, optional quota provider failures, and recovery mode.
 
-Workstation commands are the first existing family migrated to the execution pipeline. Canonical and convenience roots revalidate permission at execution and then apply this order:
+Every currently executable `/sef` catalog action enters the shared execution pipeline. Canonical and convenience roots revalidate policy at execution and apply this order:
 
 1. Resolve the current action policy revision.
-2. Recheck the feature gate, source class, permission result, and hard deny state.
-3. Start or validate a warmup when configured.
-4. Validate and consume a confirmation token when configured.
-5. Reserve cost through the configured provider.
+2. Recheck the feature gate, source class, and hard deny state.
+3. Recheck every catalog and shortcut permission and capture provider decision context.
+4. Inspect the current canonical cooldown without mutating it.
+5. Start or validate a warmup when configured.
 6. Atomically acquire the canonical action cooldown.
-7. Execute the action.
-8. Commit or roll back cost and cooldown state.
-9. Emit a structured result and audit lifecycle event.
+7. Reserve cost through the configured provider.
+8. Validate and consume a confirmation token when configured.
+9. Execute the action.
+10. Commit or roll back cost and the newly acquired cooldown.
+11. Emit the structured result and full audit lifecycle event.
 
-`CostService.Disabled` is the active provider, so current actions cannot charge an economy. Warmup and confirmation services are active contracts, but current workstation policies use zero warmup and no confirmation. Failed execution rolls back its newly acquired cooldown and cost reservation. Aliases such as `/c`, `/av`, `/et`, and `/set` resolve to the same canonical cooldown id as their long form.
+`CostService.Disabled` is the active provider, so current actions cannot charge an economy. Warmup and confirmation services are active contracts, but current action policies use zero warmup and no confirmation. Rejection after cooldown acquisition clears that acquisition, and rejection after a cost reservation refunds it. Permission provider refresh invalidates quota decisions, active warmups, and confirmation tokens for the affected actor before refreshing vanish and Brigadier command state. Aliases such as `/c`, `/av`, `/et`, and `/set` resolve to the same canonical cooldown id as their long form.
 
-Alias publication is not exposed as an operator command yet. The Phase 2 compiler and revision registry reject unknown targets, recursive ids, ambiguous roots, unsupported adapters, weaker source or access policy, weaker audit policy, missing additional capabilities, stale revisions, and definition limit overflow. Bundle execution is also not exposed yet. Its compiler rejects raw command steps, unknown action or bundle targets, cycles, excessive nesting, excessive steps, excessive target fan out, and expansion beyond configured bounds. Operator commands and GUI editors for these contracts remain Phase 11 work.
+Alias publication is not exposed as an operator command yet. The Phase 2 compiler and revision registry reject unknown targets, recursive ids, ambiguous roots, unsupported adapters, weaker source or access policy, weaker audit policy, missing additional capabilities, stale revisions, and definition limit overflow. Publication resolves ownership across canonical catalog roots, configured shortcuts, and roots captured from the Brigadier dispatcher, then applies the definition conflict mode. A custom alias cannot replace a SEF catalog or shortcut root. `PREFER_SEF` can claim an external root, while canonical only, prefer existing, fail, and restart required collisions remain unpublished. Bundle execution is also not exposed yet. Its compiler rejects raw command steps, unknown action or bundle targets, cycles, excessive nesting, excessive steps, excessive target fan out, and expansion beyond configured bounds. Operator commands and GUI editors for these contracts remain Phase 11 work.
 
 The wrapper contract separates initiator, effective source, root policy, scoped output, silence capability, correlation id, recursion depth, target list, and normalized parameters. It rejects recursive wrapper roots and nested wrapper origins before any dispatcher execution. Phase 2 does not register `/run`, `/silent`, or `/sudo`.
 
@@ -263,6 +265,7 @@ Current controls:
 9. Interval and offset conversion detects tick overflow.
 10. Command records declare the server source policy explicitly. No player or elevated synthetic source is inferred.
 11. Type specific modification and removal cannot cast a text record to a command record or the reverse.
+12. Dispatch is not audited as success. The server command callback records success or failure, and a dispatch without a synchronous callback is recorded as outcome unknown until a callback arrives.
 
 Future source profiles, hierarchy, and confirmation workflows remain later phase work.
 
@@ -279,8 +282,9 @@ Integrated nickname mutation enforces:
 7. Collision checks against online and known offline usernames and nicknames.
 8. Exact usernames take precedence during whois and target lookup.
 9. Ambiguous legacy nickname matches do not select the first player silently.
+10. When `nicknameAllowDuplicateWithUsernameHover` is enabled, duplicate display names are allowed and the vanilla text component hover identifies the authenticated username. Disabling the option restores collision rejection and removes the hover.
 
-Integrated identities are stored by UUID in `sef.playerdata.json` with the last known username, nickname, and update time. Legacy `sef.playerdata` is backed up, journaled, parsed once, and migrated. `/whois` and `/nickfor` can resolve unambiguous known offline identities. The integrated provider refuses writes when FTB Essentials is selected as nickname owner.
+Integrated identities are stored by UUID in `sef.playerdata.json` with the last known username, nickname, and update time. Legacy `sef.playerdata` is backed up, journaled, parsed once, and migrated. `/whois` and `/nickfor` can resolve unambiguous known offline identities. The integrated provider refuses writes when FTB Essentials is selected as nickname owner. Existing explicit grants of `commands.nick.others` remain effective after its default changed, and startup emits a migration warning instead of silently revoking them.
 
 `commands.nick.others` now defaults to denied.
 
@@ -446,12 +450,14 @@ Storage guarantees:
 13. Location history is UUID keyed, capped at 100,000 players, and bounded per player by `commandKernel.locationHistoryEntries`.
 14. Cooldown persistence is capped at 100,000 entries and writes only future expiries meeting `commandKernel.persistentCooldownMinimumSeconds`.
 15. Repository dirty revisions are captured with each snapshot. A concurrent mutation that occurs while a snapshot is written remains dirty and is flushed by the next pass.
+16. Migration backup or journal preparation failure leaves the valid source file untouched, records an error state, and does not misclassify the source as corrupt.
+17. Player profile updates, mute countdown snapshots, and banned item snapshots use coalesced background persistence. Their workers retain only the latest queued snapshot and use bounded shutdown flushing.
 
-The structured audit service writes bounded JSONL events through a 4096 entry queue. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush.
+The structured audit service writes bounded JSONL events through a 4096 entry queue. Each event persists schema version, event and session ids, timestamp, actor UUID and username, source type, action id, target UUIDs, normalized parameters, result, reason, duration, origin, job and step correlation ids, definition and policy revisions, provider context, redaction class and rules, observer UUID, previous hash, and audit class. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush. Legacy call sites are adapted into the same schema rather than a smaller JSON shape.
 
 Do not let two integrations own the same nickname state. The current provider selection chooses FTB Essentials when enabled and available, otherwise the integrated provider when automatic integration is enabled.
 
-The integrated profile repository uses authenticated UUID as its authority. Authenticated username, display nickname, and update time are separate fields. It loads from `sef.playerdata.json` under the world player data directory and imports the earlier `sef.playerdata` format once when the JSON file is absent. A successful migration is written through the storage envelope, recorded in import diagnostics, and leaves explicit permission grants unchanged. Failed persistence does not report a successful migration. Profile count, username length, nickname length, timestamps, and legacy import count are bounded. A failed nickname write is rolled back in memory. Quarantined, unsupported, or failed profile storage is visible in `/sef doctor` and cannot be recreated by a later nickname command.
+The integrated profile repository uses authenticated UUID as its authority. Authenticated username, display nickname, and update time are separate fields. It loads from `sef.playerdata.json` under the world player data directory and imports the earlier `sef.playerdata` format once when the JSON file is absent. A successful migration is written through the storage envelope, recorded in import diagnostics, and leaves explicit permission grants unchanged. Failed persistence does not report a successful migration. Profile count, username length, nickname length, timestamps, and legacy import count are bounded. Normal profile and nickname updates mutate memory immediately and submit a constant time coalesced persistence request. The daemon writer captures the latest immutable snapshot, releases the global profile monitor, and then performs filesystem access. A background failure moves the profile repository into an error state so later mutations fail closed and diagnostics expose the failure. Player save events request persistence. Server shutdown drains the latest revision within a bounded wait and then unloads world scoped profile state. Quarantined, unsupported, or failed profile storage is visible in `/sef doctor` and cannot be recreated by a later nickname command.
 
 ### 13.1 Alternate account privacy
 
@@ -466,6 +472,9 @@ Address correlation is opt in and disabled by default. When enabled:
 7. `/checkalts purge confirm` deletes all retained correlation records.
 8. `/checkalts export` requires `sef.alts.export`, runs on the bounded export worker, and includes raw addresses only with the raw view permission.
 9. Audit and ordinary logs contain operation metadata and counts, not addresses.
+10. Login updates mark a generation dirty and schedule one coalesced background writer. Login no longer serializes and writes the full correlation map on the server event thread.
+11. Server shutdown drains the alternate account writer before the shared storage and audit workers stop.
+12. The cached salt is cleared whenever a storage root loads. An existing salt must be exactly 32 bytes. Missing salt for existing hashed data and corrupt salt enter a fail closed load path and are never silently replaced.
 
 Operators remain responsible for informing users and following applicable privacy law. Enabling collection should be a deliberate documented policy decision.
 
@@ -485,15 +494,15 @@ LuckPerms prefix and suffix metadata uses a one second cache with a hard limit o
 
 Never reference optional implementation classes on an unconditional common initialization path.
 
-Phase 1 dedicated server verification covered:
+Required Phase 1 integration verification includes:
 
 1. No optional integrations installed.
-2. LuckPerms NeoForge `5.4.140` installed alone.
-3. Curios `9.5.1+1.21.1` installed alone.
-4. FTB Essentials `2101.1.9` with FTB Library `2101.1.30` and Architectury `13.0.8`.
+2. LuckPerms NeoForge installed alone.
+3. Curios installed alone.
+4. FTB Essentials with its required dependencies.
 5. All three integration families installed together.
 
-Every run reached the dedicated server ready state and completed a normal `stop` with all dimensions saved.
+The current candidate record proves only the no integration dedicated server path. The installed integration combinations remain manual release blockers and must be recorded in `docs/PHASE_1_MANUAL_TESTS.md`.
 
 ## 15. Mixins and access transformation
 
@@ -600,6 +609,20 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 25. Recipient specific immutable vanish list projection used by player information and server status paths.
 26. Server status and packet lifecycle guards that avoid unloaded configuration access during shutdown.
 27. LuckPerms metadata cache expiry, defensive copies, logout invalidation, and the 2048 entry hard bound.
+28. Full structured audit event persistence without field loss.
+29. Username and nickname ambiguity rejection across known profiles.
+30. Catalog ownership for every executable current `/sef` action.
+31. Alias publication decisions for catalog and external root ownership.
+32. Permission decision provider, default, hierarchy, exemption, and reason fields.
+33. Coalesced alternate account background persistence and corrupt salt preservation.
+34. Typed announcement separation, command root definition policy, execution policy, and callback based audit outcomes.
+35. Migration preparation failure that preserves a valid source and avoids false corruption quarantine.
+36. Authenticated username hover for the configurable duplicate nickname mode.
+37. Permission provider refresh revocation of active actor warmups and confirmations.
+38. Coalesced player profile persistence with bounded shutdown flushing.
+39. Shared command pipeline ordering, cooldown rollback, cost refund, and execution time permission revocation.
+40. Coalesced mute and banned item persistence worker behavior, latest snapshot retention, failure reporting, recovery, shutdown draining, and post shutdown rejection.
+41. Background location history and persistent cooldown shutdown flushing outside the calling thread.
 
 Rendering, client packet observation, authenticated multi-client behavior, and optional integration combinations still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 operator, permission, restart, and recovery behavior is in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
 
@@ -709,4 +732,4 @@ Before an approved release:
 
 ## 21. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 are implemented. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 have implementation coverage, but their manual release gates remain open. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

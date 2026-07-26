@@ -168,6 +168,57 @@ class KernelCommandContractTest {
     }
 
     @Test
+    void aliasPublicationHonorsCatalogAndExternalRootOwnership() {
+        CapabilityManifest capabilities = capabilities("sef.test.use");
+        CommandCatalog catalog = catalog(capabilities);
+        AliasCompiler.Registry catalogRegistry = new AliasCompiler.Registry(
+                new AliasCompiler(catalog, capabilities, Set.of(), Map.of()),
+                8);
+        AliasCompiler.AliasDefinition catalogCollision = alias(
+                "custom:catalog",
+                "sef",
+                "sef:test",
+                CommandDefinition.AccessClass.PLAYER,
+                AuditService.AuditClass.METADATA_ONLY);
+        assertTrue(catalogRegistry.saveDraft(catalogCollision).successful());
+        assertEquals(
+                ActionResult.ReasonCode.CONFLICT,
+                catalogRegistry.publish(catalogCollision.id(), catalogCollision.revision()).reason());
+
+        AliasCompiler externalCompiler = new AliasCompiler(
+                catalog,
+                capabilities,
+                Set.of(),
+                Map.of(),
+                root -> new AliasCompiler.RootOwnership(
+                        AliasCompiler.RootOwnerKind.EXTERNAL,
+                        "example:" + root));
+        AliasCompiler.Registry preferredRegistry = new AliasCompiler.Registry(externalCompiler, 8);
+        AliasCompiler.AliasDefinition preferred = alias(
+                "custom:preferred",
+                "external",
+                "sef:test",
+                CommandDefinition.AccessClass.PLAYER,
+                AuditService.AuditClass.METADATA_ONLY);
+        assertTrue(preferredRegistry.saveDraft(preferred).successful());
+        assertTrue(preferredRegistry.publish(preferred.id(), preferred.revision()).successful());
+
+        AliasCompiler.Registry canonicalRegistry = new AliasCompiler.Registry(externalCompiler, 8);
+        AliasCompiler.AliasDefinition canonicalOnly = withConflictMode(
+                alias(
+                        "custom:canonical",
+                        "external",
+                        "sef:test",
+                        CommandDefinition.AccessClass.PLAYER,
+                        AuditService.AuditClass.METADATA_ONLY),
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        assertTrue(canonicalRegistry.saveDraft(canonicalOnly).successful());
+        assertEquals(
+                ActionResult.ReasonCode.CONFLICT,
+                canonicalRegistry.publish(canonicalOnly.id(), canonicalOnly.revision()).reason());
+    }
+
+    @Test
     void publishedAliasAndItsDraftConsumeOneDefinitionSlot() {
         CapabilityManifest capabilities = capabilities("sef.test.use");
         CommandCatalog catalog = catalog(capabilities);
@@ -437,6 +488,30 @@ class KernelCommandContractTest {
                 auditClass,
                 UUID.randomUUID(),
                 Instant.EPOCH);
+    }
+
+    private static AliasCompiler.AliasDefinition withConflictMode(
+            AliasCompiler.AliasDefinition definition,
+            CommandDefinition.ConflictPolicy conflictMode
+    ) {
+        return new AliasCompiler.AliasDefinition(
+                definition.schemaVersion(),
+                definition.id(),
+                definition.revision(),
+                definition.enabled(),
+                definition.state(),
+                definition.root(),
+                definition.kind(),
+                definition.targetId(),
+                definition.argumentSchema(),
+                definition.fixedArguments(),
+                definition.additionalPermissionId(),
+                definition.sourceTypes(),
+                definition.accessClass(),
+                conflictMode,
+                definition.auditClass(),
+                definition.createdBy(),
+                definition.createdAt());
     }
 
     private static BundleCompiler.BundleDefinition bundle(

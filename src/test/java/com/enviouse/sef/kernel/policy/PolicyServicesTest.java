@@ -6,7 +6,11 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -468,12 +472,82 @@ class PolicyServicesTest {
                 Set.of(),
                 Map.of(),
                 List.of(),
+                1L,
+                Map.of(),
                 "command");
 
         ActionResult<CommandExecutionService.Lease> started = executions.begin(confirmed);
         assertTrue(started.successful());
         assertTrue(started.value().complete(true, null).successful());
         assertEquals(ActionResult.ReasonCode.CONFIRMATION_INVALID, executions.begin(confirmed).reason());
+    }
+
+    @Test
+    void warmupChecksCooldownWithoutAcquiringItBeforeWarmupCompletes() {
+        FeatureGateService gates = new FeatureGateService();
+        gates.publish(new FeatureGateService.Snapshot(2, Map.of("sef.test", true), Map.of(), Map.of()));
+        CommandPolicyService policies = new CommandPolicyService(gates);
+        policies.register(new CommandPolicyService.Policy(
+                "sef:test",
+                "sef.test",
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                false,
+                false,
+                Duration.ofMinutes(5),
+                Duration.ofSeconds(1),
+                BigDecimal.ZERO,
+                AuditService.AuditClass.METADATA_ONLY));
+        MutableClock clock = new MutableClock();
+        CooldownService cooldowns = new CooldownService(clock);
+        CommandExecutionService executions = new CommandExecutionService(
+                policies,
+                cooldowns,
+                new CostService.Disabled(),
+                new WarmupService(clock),
+                new ConfirmationService());
+        UUID actor = UUID.randomUUID();
+        CommandExecutionService.Request request = request(
+                actor,
+                true,
+                new WarmupService.Position("minecraft:overworld", 0, 64, 0, 0, 0));
+
+        assertEquals(ActionResult.ReasonCode.WARMUP_ACTIVE, executions.begin(request).reason());
+        assertTrue(cooldowns.inspect(actor, "sef:test").allowed());
+
+        clock.advance(Duration.ofSeconds(2));
+        ActionResult<CommandExecutionService.Lease> started = executions.begin(request);
+        assertTrue(started.successful());
+        assertFalse(cooldowns.inspect(actor, "sef:test").allowed());
+        assertTrue(started.value().complete(true, null).successful());
+    }
+
+    @Test
+    void rejectedConfirmationRefundsTheCooldownReservation() {
+        FeatureGateService gates = new FeatureGateService();
+        gates.publish(new FeatureGateService.Snapshot(2, Map.of("sef.test", true), Map.of(), Map.of()));
+        CommandPolicyService policies = new CommandPolicyService(gates);
+        policies.register(new CommandPolicyService.Policy(
+                "sef:test",
+                "sef.test",
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                false,
+                true,
+                Duration.ofMinutes(5),
+                Duration.ZERO,
+                BigDecimal.ZERO,
+                AuditService.AuditClass.ADMIN_ACTION));
+        CooldownService cooldowns = new CooldownService();
+        CommandExecutionService executions = new CommandExecutionService(
+                policies,
+                cooldowns,
+                new CostService.Disabled(),
+                new WarmupService(),
+                new ConfirmationService());
+        UUID actor = UUID.randomUUID();
+
+        assertEquals(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, executions.begin(request(actor, true)).reason());
+        assertTrue(cooldowns.inspect(actor, "sef:test").allowed());
+        assertEquals(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, executions.begin(request(actor, true)).reason());
     }
 
     private static QuotaService quotaService() {
@@ -512,6 +586,14 @@ class PolicyServicesTest {
     }
 
     private static CommandExecutionService.Request request(UUID actor, boolean permissionGranted) {
+        return request(actor, permissionGranted, null);
+    }
+
+    private static CommandExecutionService.Request request(
+            UUID actor,
+            boolean permissionGranted,
+            WarmupService.Position position
+    ) {
         return new CommandExecutionService.Request(
                 UUID.randomUUID(),
                 actor,
@@ -524,10 +606,40 @@ class PolicyServicesTest {
                 false,
                 "",
                 null,
-                null,
+                position,
                 Set.of(),
                 Map.of(),
                 List.of(),
+                1L,
+                Map.of(),
                 "command");
+    }
+
+    private static final class MutableClock extends Clock {
+        private long epochMillis = 1_000L;
+
+        @Override
+        public ZoneId getZone() {
+            return ZoneOffset.UTC;
+        }
+
+        @Override
+        public Clock withZone(ZoneId zone) {
+            return this;
+        }
+
+        @Override
+        public Instant instant() {
+            return Instant.ofEpochMilli(epochMillis);
+        }
+
+        @Override
+        public long millis() {
+            return epochMillis;
+        }
+
+        private void advance(Duration duration) {
+            epochMillis += duration.toMillis();
+        }
     }
 }

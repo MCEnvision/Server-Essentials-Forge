@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 3 are implemented. The security baseline, shared command and policy kernel, versioned repositories, player identity store, location history contract, and persistent cooldown foundation are present. Homes, teleportation, later command families, enhanced client GUIs, and the wider EssentialsX parity roadmap remain planned.
+SEF 2 Phases 1 through 3 have implementation coverage in this branch. Public release acceptance remains pending until the authenticated multiplayer, optional integration, restart, crash recovery, and profiler cases in the manual matrices are completed. Homes, teleportation, later command families, enhanced client GUIs, and the wider EssentialsX parity roadmap remain planned.
 
 ## Current features
 
@@ -27,25 +27,25 @@ The current implementation includes:
 
 1. Chat formatting, colors, styles, prefixes, suffixes, timestamps, and optional LuckPerms metadata.
 2. Private messages, replies, clickable reply support, HelpOp, admin chat, and operator bulletins.
-3. Integrated nickname and whois commands, with optional FTB Essentials nickname integration.
+3. Integrated nickname and whois commands, configurable duplicate display names with authenticated username hover, and optional FTB Essentials nickname integration.
 4. Scheduled text and command announcements, title announcements, per player announcement toggles, and countdowns.
-5. Persistent mute and warning systems, freezing, inventory lock, building restrictions, alternate account checks, clear chat, and banned item controls.
+5. Persistent mute and warning systems, freezing, inventory lock, building restrictions, alternate account checks, clear chat, and banned item controls. Mute countdown and banned item saves use coalesced background file writers with bounded shutdown flushing.
 6. Inventory inspection with optional Curios support.
 7. Vanish levels, per observer visibility levels, trace support, sound suppression, tab hiding, and optional Discord bridge compatibility.
 8. MOTD management and configurable word filters.
 9. Virtual `/craft`, `/anvil`, `/enchantingtable`, `/superenchantingtable`, and `/repair` commands with aliases, permissions, and cooldowns.
-10. Central NeoForge permission evaluation, a generated permission manifest, action specific administrative permissions, and runtime permission revocation handling.
+10. Central NeoForge permission evaluation, structured provider decisions, a generated permission manifest, action specific administrative permissions, runtime command tree refresh, and permission revocation handling.
 11. Versioned JSON storage envelopes with atomic replacement, migration backups, a migration journal, corruption quarantine, status diagnostics, and bounded background exports.
-12. Opt in alternate account correlation with salted address hashing, retention, redacted display, separately permissioned raw display, purge, and export operations.
-13. Structured security audit JSONL with bounded asynchronous writes, size rotation, and retention.
+12. Opt in alternate account correlation with salted address hashing, retention, redacted display, separately permissioned raw display, purge, export operations, coalesced background persistence, and corrupt salt refusal.
+13. Structured security audit JSONL with the Phase 2 event schema, bounded asynchronous writes, size rotation, and retention.
 14. Permission filtered Brigadier projection for private messaging, replies, HelpOp, admin chat, and announcement toggles, with message bodies excluded from ordinary SEF log records.
 15. A sealed command catalog with canonical routes, permission requirements, source classes, feature ownership, target behavior, cooldown identity, audit class, fallback metadata, and conflict policy.
 16. Shared feature, permission, target hierarchy, cooldown, warmup, confirmation, cost, audit, quota, message, identity, alias compilation, bundle compilation, panel descriptor, and command wrapper contracts.
 17. `/sef commands [page]`, `/sef conflicts`, and `/sef doctor` diagnostics with permission filtered output.
-18. Canonical workstation routes under `/sef workstation`, with convenience roots and aliases using the same runtime permission, feature, cooldown, cost, warmup, confirmation, and audit pipeline.
+18. Every currently executable `/sef` catalog action uses the same runtime feature, source, permission, cooldown, warmup, cost, confirmation, execution, and audit pipeline. Workstation convenience roots and aliases resolve to their canonical action and cooldown identity.
 19. Finite quota tiers and optional LuckPerms metadata for future homes, player warps, targets, mail, and user definitions, with hard ceilings and reservation based race protection.
 20. Versioned `location-history.json` and `cooldowns.json` repositories with bounded records, atomic writes, recovery mode, and shutdown flushing.
-21. A UUID authoritative player profile repository that imports existing nickname data and retains authenticated usernames separately from display nicknames.
+21. A UUID authoritative player profile repository that imports existing nickname data, retains authenticated usernames separately from display nicknames, coalesces background persistence, and drains through a bounded shutdown flush.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 
@@ -64,7 +64,7 @@ Every exposed command path is expected to use a permission node. The current sec
 9. `/invsee` separates view, modify, Curios, offline, and other player ender chest capabilities. Mutation permission is checked again on every click.
 10. Vanish administration applies exemption and hierarchy checks, then rechecks active state after provider refreshes, configuration reloads, dimension changes, respawns, reconnects, and once per second.
 11. Convenience roots cannot weaken their canonical action. Workstation aliases share the same action identifier and therefore share permissions and cooldowns.
-12. Alias and bundle definitions are compiled against the catalog before publication. Unknown actions, collisions, recursion, raw command steps, policy weakening, and unbounded expansion are rejected.
+12. Alias and bundle definitions are compiled against the catalog before publication. Alias root ownership includes catalog, shortcut, and preexisting Brigadier roots, and the selected conflict mode is enforced. Unknown actions, collisions, recursion, raw command steps, policy weakening, and unbounded expansion are rejected.
 13. Future collection and fan out systems receive finite defaults and hard ceilings. An optional provider failure falls back safely and is exposed by `/sef doctor`.
 
 Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative commands.

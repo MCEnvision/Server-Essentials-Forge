@@ -3,6 +3,7 @@ package com.enviouse.sef.storage;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
@@ -10,6 +11,7 @@ import net.minecraft.commands.Commands;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 
 public final class StorageCommands {
     private StorageCommands() {
@@ -21,10 +23,18 @@ public final class StorageCommands {
                         || PermissionService.has(source, PermissionsHandler.storageExport))
                 .then(Commands.literal("status")
                         .requires(source -> PermissionService.has(source, PermissionsHandler.storageStatus))
-                        .executes(context -> status(context.getSource())))
+                        .executes(context -> KernelCommandExecutor.execute(
+                                context.getSource(),
+                                "sef:storage.status",
+                                Map.of(),
+                                () -> status(context.getSource()))))
                 .then(Commands.literal("export")
                         .requires(source -> PermissionService.has(source, PermissionsHandler.storageExport))
-                        .executes(context -> export(context.getSource()))));
+                        .executes(context -> KernelCommandExecutor.execute(
+                                context.getSource(),
+                                "sef:storage.export",
+                                Map.of("operation", "queue_export"),
+                                () -> export(context.getSource())))));
     }
 
     private static int status(CommandSourceStack source) {

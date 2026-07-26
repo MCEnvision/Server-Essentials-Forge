@@ -179,16 +179,22 @@ public class ServerEssentialsForge {
         FreezeManager.clear();
         com.enviouse.sef.invlock.InvLockManager.clear();
         com.enviouse.sef.disablebuilding.DisableBuildingManager.clear();
-        if (ConfigHandler.config.enableMuteSystem.get())
-            CommandRegistrationHandler.getMuteManager().shutdown();
-        if (ConfigHandler.config.enableBannedItems.get())
-            CommandRegistrationHandler.getBannedItemsManager().save();
+        CommandRegistrationHandler.getMuteManager().shutdown();
+        CommandRegistrationHandler.getBannedItemsManager().shutdown();
+        CommandRegistrationHandler.getAltTracker().shutdown();
         com.enviouse.sef.countdown.CountdownManager.clear();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
         ExternalModLoadingEvent.stopOptionalIntegrations();
-        KernelServices.profiles().flush();
-        KernelServices.shutdown();
+        if (!KernelServices.profiles().shutdown()) {
+            LOGGER.error("[SEF] Player profile shutdown flush did not complete");
+        }
+        var kernelShutdown = KernelServices.shutdown();
+        if (!kernelShutdown.successful()) {
+            LOGGER.error(
+                    "[SEF] Kernel shutdown flush failed for repositories {}",
+                    kernelShutdown.failedRepositoryIds());
+        }
         StorageExportService.shutdown();
         SecurityAuditService.shutdown();
     }

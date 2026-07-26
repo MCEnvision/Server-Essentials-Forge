@@ -2,7 +2,6 @@ package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
-import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.ShortcutRegistry;
@@ -14,6 +13,7 @@ import net.minecraft.commands.Commands;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
 import java.util.List;
+import java.util.Map;
 import com.enviouse.sef.storage.ImportDiagnostics;
 
 public final class KernelCommands {
@@ -26,17 +26,34 @@ public final class KernelCommands {
         KernelServices.initialize();
         root.then(Commands.literal("commands")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.sefCommandsCatalog))
-                .executes(context -> commands(context.getSource(), 1))
+                .executes(context -> KernelCommandExecutor.execute(
+                        context.getSource(),
+                        "sef:core.commands",
+                        Map.of("page", "1"),
+                        () -> commands(context.getSource(), 1)))
                 .then(Commands.argument("page", IntegerArgumentType.integer(1))
-                        .executes(context -> commands(
-                                context.getSource(),
-                                IntegerArgumentType.getInteger(context, "page")))));
+                        .executes(context -> {
+                            int page = IntegerArgumentType.getInteger(context, "page");
+                            return KernelCommandExecutor.execute(
+                                    context.getSource(),
+                                    "sef:core.commands",
+                                    Map.of("page", Integer.toString(page)),
+                                    () -> commands(context.getSource(), page));
+                        })));
         root.then(Commands.literal("conflicts")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.sefConflicts))
-                .executes(context -> conflicts(context.getSource())));
+                .executes(context -> KernelCommandExecutor.execute(
+                        context.getSource(),
+                        "sef:core.conflicts",
+                        Map.of(),
+                        () -> conflicts(context.getSource()))));
         root.then(Commands.literal("doctor")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.sefDoctor))
-                .executes(context -> doctor(context.getSource())));
+                .executes(context -> KernelCommandExecutor.execute(
+                        context.getSource(),
+                        "sef:core.doctor",
+                        Map.of(),
+                        () -> doctor(context.getSource()))));
     }
 
     private static int commands(CommandSourceStack source, int requestedPage) {
@@ -81,7 +98,6 @@ public final class KernelCommands {
                     color + "/" + diagnostic.root() + " &8| &f" + diagnostic.actionId()
                             + " &8| &7" + diagnostic.status().name().toLowerCase(java.util.Locale.ROOT)), false);
         }
-        recordDiagnostic(source, "conflicts", conflicts == 0 ? "success" : "attention");
         return 1;
     }
 
@@ -138,23 +154,11 @@ public final class KernelCommands {
                 && !storage.recoveryMode();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 healthy ? "&aNo kernel errors detected." : "&eKernel requires operator attention."), false);
-        recordDiagnostic(source, "doctor", healthy ? "success" : "attention");
-        return healthy ? 1 : 0;
+        return 1;
     }
 
     private static boolean has(CommandSourceStack source, String permissionId) {
         PermissionNode<Boolean> node = KernelServices.permissionNode(permissionId);
         return node != null && PermissionService.has(source, node);
-    }
-
-    private static void recordDiagnostic(CommandSourceStack source, String action, String result) {
-        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                "diagnostic",
-                action,
-                source.getTextName(),
-                "",
-                "sef " + action,
-                result,
-                "metadata only"));
     }
 }

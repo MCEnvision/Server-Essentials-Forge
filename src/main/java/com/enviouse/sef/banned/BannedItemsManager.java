@@ -3,6 +3,7 @@ package com.enviouse.sef.banned;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.storage.CoalescedPersistenceWorker;
 import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.utils.moddeps.CuriosInventoryHelper;
 import com.google.gson.Gson;
@@ -26,6 +27,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.BuiltInRegistries;
 
+import java.time.Duration;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,6 +56,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public class BannedItemsManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
 
     private final Map<String, BannedEntry> entries = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> bypassed = ConcurrentHashMap.newKeySet();
@@ -67,15 +70,21 @@ public class BannedItemsManager {
 
     private Path filePath;
     private StorageService.Document document;
+    private CoalescedPersistenceWorker persistenceWorker;
     private int lastScanTick = 0;
     private final Map<UUID, BlockScanCursor> blockScanCursors = new ConcurrentHashMap<>();
 
     // ── Persistence ─────────────────────────────────────────────────────────
 
     public void load(MinecraftServer server) {
+        save();
+        closePersistenceWorker();
         Path dir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("serverconfig").resolve("sef");
         filePath = dir.resolve("banned_items.json");
+        persistenceWorker = new CoalescedPersistenceWorker(
+                "sef-banned-items",
+                exception -> ServerEssentialsForge.LOGGER.error("[SEF] Failed to save banned items", exception));
         entries.clear();
         bypassed.clear();
         excepted.clear();
@@ -137,7 +146,7 @@ public class BannedItemsManager {
     }
 
     public void save() {
-        if (filePath == null) return;
+        if (filePath == null || persistenceWorker == null) return;
         try {
             JsonObject root = new JsonObject();
             JsonObject ents = new JsonObject();
@@ -158,13 +167,42 @@ public class BannedItemsManager {
             s.addProperty("radiusOverride", radiusOverride);
             s.addProperty("intervalOverride", intervalOverride);
             root.add("settings", s);
-            StorageService.write(filePath, "banned items", 1, root, document, Set.of("/entries"));
+            Path destination = filePath;
+            StorageService.Document previousDocument = document;
+            if (!persistenceWorker.submit(() ->
+                    StorageService.write(
+                            destination,
+                            "banned items",
+                            1,
+                            root,
+                            previousDocument,
+                            Set.of("/entries")))) {
+                ServerEssentialsForge.LOGGER.error("[SEF] Banned item save rejected during shutdown");
+            }
         } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save banned items", e);
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to prepare banned item save", e);
         }
     }
 
     public void reload(MinecraftServer server) { load(server); }
+
+    public boolean shutdown() {
+        save();
+        return closePersistenceWorker();
+    }
+
+    private boolean closePersistenceWorker() {
+        CoalescedPersistenceWorker worker = persistenceWorker;
+        persistenceWorker = null;
+        if (worker == null) {
+            return true;
+        }
+        boolean completed = worker.shutdown(SHUTDOWN_TIMEOUT);
+        if (!completed) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Banned item shutdown flush did not complete");
+        }
+        return completed;
+    }
 
     // ── Entry CRUD ──────────────────────────────────────────────────────────
 

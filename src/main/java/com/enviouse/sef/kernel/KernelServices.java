@@ -41,6 +41,10 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public final class KernelServices {
     private static final AtomicLong CONFIG_REVISION = new AtomicLong(1L);
+    private static final Set<CommandDefinition.SourceType> STANDARD_COMMAND_SOURCES = Set.of(
+            CommandDefinition.SourceType.PLAYER,
+            CommandDefinition.SourceType.CONSOLE,
+            CommandDefinition.SourceType.RCON);
 
     private static boolean initialized;
     private static CapabilityManifest capabilities;
@@ -125,7 +129,24 @@ public final class KernelServices {
                 ConfigHandler.config.kernelMaximumBundleDepth.get(),
                 ConfigHandler.config.kernelMaximumTargets.get(),
                 ConfigHandler.config.kernelMaximumTargetSteps.get());
-        AliasCompiler aliasCompiler = new AliasCompiler(catalog, capabilities, Set.of(), Map.of());
+        AliasCompiler aliasCompiler = new AliasCompiler(
+                catalog,
+                capabilities,
+                Set.of(),
+                Map.of(),
+                root -> catalog.rootOwner(root)
+                        .map(owner -> new AliasCompiler.RootOwnership(
+                                AliasCompiler.RootOwnerKind.CATALOG,
+                                owner))
+                        .orElseGet(() -> shortcuts.find(root)
+                                .map(shortcut -> new AliasCompiler.RootOwnership(
+                                        AliasCompiler.RootOwnerKind.SHORTCUT,
+                                        shortcut.actionId()))
+                                .orElseGet(() -> shortcuts.existedBeforeRegistration(root)
+                                        ? new AliasCompiler.RootOwnership(
+                                                AliasCompiler.RootOwnerKind.EXTERNAL,
+                                                "brigadier:" + root)
+                                        : null)));
         aliases = new AliasCompiler.Registry(aliasCompiler, ConfigHandler.config.kernelMaximumAliases.get());
 
         storage = new StorageCoordinator();
@@ -145,6 +166,9 @@ public final class KernelServices {
         long revision = CONFIG_REVISION.incrementAndGet();
         Map<String, Boolean> features = Map.of(
                 "sef.core", true,
+                "sef.filter", ConfigHandler.config.enableFilterSystem.get(),
+                "sef.storage", true,
+                "sef.motd", ConfigHandler.config.enableMotdSystem.get(),
                 "sef.workstation.craft", ConfigHandler.config.enableCraftingTableCommand.get(),
                 "sef.workstation.anvil", ConfigHandler.config.enableAnvilCommand.get(),
                 "sef.workstation.enchant", ConfigHandler.config.enableEnchantingTableCommand.get(),
@@ -172,6 +196,7 @@ public final class KernelServices {
     public static synchronized void startStorage(Path managedRoot) {
         ensureInitialized();
         if (!storage.started()) {
+            cooldowns.clearAll();
             storage.start(managedRoot);
         }
     }
@@ -181,7 +206,9 @@ public final class KernelServices {
         StorageCoordinator.FlushResult result = storage.shutdown();
         warmups.clear();
         confirmations.clear();
-        cooldowns.clearAll();
+        if (result.successful()) {
+            cooldowns.clearAll();
+        }
         return result;
     }
 
@@ -299,26 +326,50 @@ public final class KernelServices {
 
     private static void registerCoreCommands() {
         register("sef:core.info", "sef info", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
-                CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.PLAYER, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:core", "informational command has no persistent hud");
         register("sef:core.colors", "sef colors", Set.of("colors"), "sef.commands.sef.allowed", "sef.commands.sef.colors",
-                CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.PLAYER, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:core", "informational command has no persistent hud");
         register("sef:core.test", "sef test", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.test",
-                CommandDefinition.AccessClass.ADMINISTRATOR, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.ADMIN_ACTION, "sef:core", "debug command has no persistent hud");
         register("sef:core.reload", "sef reload", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.reload",
-                CommandDefinition.AccessClass.ADMINISTRATOR, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "reload result is immediate");
         register("sef:core.commands", "sef commands", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.commands",
-                CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.PLAYER, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:core", "catalog view has no persistent hud");
         register("sef:core.conflicts", "sef conflicts", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.conflicts",
-                CommandDefinition.AccessClass.ADMINISTRATOR, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "diagnostic view has no persistent hud");
         register("sef:core.doctor", "sef doctor", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.doctor",
-                CommandDefinition.AccessClass.ADMINISTRATOR, Set.of(CommandDefinition.SourceType.PLAYER, CommandDefinition.SourceType.CONSOLE),
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "diagnostic view has no persistent hud");
+        register("sef:filter.add", "sef filter add", Set.of(), "sef.commands.sef.allowed", "sef.filter.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.filter", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "filter changes are immediate");
+        register("sef:filter.remove", "sef filter remove", Set.of(), "sef.commands.sef.allowed", "sef.filter.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.filter", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "filter changes are immediate");
+        register("sef:filter.list", "sef filter list", Set.of(), "sef.commands.sef.allowed", "sef.filter.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.filter", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "filter diagnostics have no persistent hud");
+        register("sef:storage.status", "sef storage status", Set.of(), "sef.commands.sef.allowed", "sef.storage.status",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.storage", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "storage diagnostics have no persistent hud");
+        register("sef:storage.export", "sef storage export", Set.of(), "sef.commands.sef.allowed", "sef.storage.export",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.storage", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "storage exports are reported through command output");
+        register("sef:motd.set", "sef motd set", Set.of(), "sef.commands.sef.allowed", "sef.motd.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.motd", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "motd changes are immediate");
+        register("sef:motd.reload", "sef motd reload", Set.of(), "sef.commands.sef.allowed", "sef.motd.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.motd", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "motd reload is immediate");
+        register("sef:motd.show", "sef motd show", Set.of(), "sef.commands.sef.allowed", "sef.motd.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
+                "sef.motd", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "motd view has no persistent hud");
 
         register("sef:workstation.craft", "sef workstation craft", Set.of("craft", "c"), "sef.commands.craft",
                 CommandDefinition.AccessClass.PLAYER, "sef.workstation.craft");

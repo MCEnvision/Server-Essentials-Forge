@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -199,6 +200,63 @@ class RepositoryPersistenceTest {
         LocationHistoryRepository reloaded = new LocationHistoryRepository(100);
         assertEquals(StorageRepository.RepositoryState.READY, reloaded.load(temporaryDirectory).state());
         assertEquals(100, reloaded.history(player).size());
+    }
+
+    @Test
+    void shutdownFlushRunsOutsideTheCallingThread() {
+        AtomicReference<String> flushThread = new AtomicReference<>();
+        StorageRepository repository = new StorageRepository() {
+            private boolean dirty = true;
+
+            @Override
+            public String id() {
+                return "sef:test";
+            }
+
+            @Override
+            public String domain() {
+                return "test";
+            }
+
+            @Override
+            public int schemaVersion() {
+                return 1;
+            }
+
+            @Override
+            public Path path() {
+                return temporaryDirectory.resolve("test.json");
+            }
+
+            @Override
+            public LoadResult load(Path managedRoot) {
+                return new LoadResult(RepositoryState.READY, "ready");
+            }
+
+            @Override
+            public void flush() {
+                flushThread.set(Thread.currentThread().getName());
+                dirty = false;
+            }
+
+            @Override
+            public boolean dirty() {
+                return dirty;
+            }
+
+            @Override
+            public RepositoryState state() {
+                return RepositoryState.READY;
+            }
+        };
+        StorageCoordinator coordinator = new StorageCoordinator();
+        coordinator.register(repository);
+        coordinator.start(temporaryDirectory);
+
+        StorageCoordinator.FlushResult result = coordinator.shutdown();
+
+        assertTrue(result.successful());
+        assertEquals("sef-storage-shutdown", flushThread.get());
     }
 
     private static LocationHistoryRepository.LocationRecord location(int value) {

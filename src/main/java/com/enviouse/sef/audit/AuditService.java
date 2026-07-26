@@ -18,14 +18,7 @@ public final class AuditService {
         if (event.auditClass() == AuditClass.NONE) {
             return true;
         }
-        return SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                event.auditClass().name().toLowerCase(Locale.ROOT),
-                event.actionId(),
-                event.actorName().isBlank() ? value(event.actorId()) : event.actorName(),
-                event.targetIds().stream().map(UUID::toString).limit(16).reduce((left, right) -> left + "," + right).orElse(""),
-                event.origin(),
-                event.result().name().toLowerCase(Locale.ROOT),
-                event.reason().name().toLowerCase(Locale.ROOT)));
+        return SecurityAuditService.record(SecurityAuditService.AuditEvent.from(event));
     }
 
     public record Event(
@@ -43,10 +36,15 @@ public final class AuditService {
             ActionResult.ReasonCode reason,
             long durationMillis,
             String origin,
-            UUID parentId,
+            UUID parentJobId,
+            UUID stepCorrelationId,
             long definitionRevision,
             long policyRevision,
+            Map<String, String> providerContext,
             RedactionClass redactionClass,
+            List<String> appliedRedactionRuleIds,
+            UUID observerId,
+            String previousEventHash,
             AuditClass auditClass
     ) {
         public Event {
@@ -68,7 +66,10 @@ public final class AuditService {
             Objects.requireNonNull(result, "result");
             Objects.requireNonNull(reason, "reason");
             origin = normalized(origin, 64);
+            providerContext = boundedMap(providerContext);
             Objects.requireNonNull(redactionClass, "redactionClass");
+            appliedRedactionRuleIds = boundedList(appliedRedactionRuleIds, 32, 128);
+            previousEventHash = normalized(previousEventHash, 128);
             Objects.requireNonNull(auditClass, "auditClass");
             if (durationMillis < 0) {
                 throw new IllegalArgumentException("Audit duration cannot be negative");
@@ -106,9 +107,14 @@ public final class AuditService {
                     0L,
                     origin,
                     null,
+                    null,
                     0L,
                     0L,
+                    Map.of(),
                     RedactionClass.METADATA,
+                    List.of(),
+                    null,
+                    "",
                     auditClass);
         }
     }
@@ -156,6 +162,16 @@ public final class AuditService {
         return Map.copyOf(result);
     }
 
+    private static List<String> boundedList(List<String> source, int maximumSize, int maximumLength) {
+        Objects.requireNonNull(source, "source");
+        if (source.size() > maximumSize) {
+            throw new IllegalArgumentException("Audit list exceeds limit");
+        }
+        return source.stream()
+                .map(value -> normalized(value, maximumLength))
+                .toList();
+    }
+
     private static String normalized(String value, int maximumLength) {
         return bounded(value, maximumLength).toLowerCase(Locale.ROOT);
     }
@@ -170,9 +186,5 @@ public final class AuditService {
                 .toString()
                 .trim();
         return sanitized.length() <= maximumLength ? sanitized : sanitized.substring(0, maximumLength);
-    }
-
-    private static String value(UUID id) {
-        return id == null ? "" : id.toString();
     }
 }

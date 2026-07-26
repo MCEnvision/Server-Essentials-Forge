@@ -25,6 +25,7 @@ import net.minecraft.world.inventory.AnvilMenu;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.audit.SecurityAuditService;
 
 public final class VirtualWorkstationCommands {
     private VirtualWorkstationCommands() {}
@@ -137,7 +138,8 @@ public final class VirtualWorkstationCommands {
             String actionId,
             ToIntFunction<ServerPlayer> action) {
         return Commands.literal(literal)
-                .requires(source -> hasPermission(source, permission))
+                .requires(source -> source.getEntity() instanceof ServerPlayer
+                        && hasPermission(source, permission))
                 .executes(context -> {
                     ServerPlayer player = getPlayer(context.getSource());
                     if (player == null) {
@@ -159,15 +161,11 @@ public final class VirtualWorkstationCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> superEnchantingNode(String literal) {
         return Commands.literal(literal)
-                .requires(source -> hasPermission(source, PermissionsHandler.superEnchantingTableCommand))
+                .requires(source -> source.getEntity() instanceof ServerPlayer
+                        && hasPermission(source, PermissionsHandler.superEnchantingTableCommand))
                 .executes(context -> {
                     ServerPlayer player = getPlayer(context.getSource());
                     if (player == null) {
-                        return 0;
-                    }
-                    if (!SuperEnchantingMenu.canOpen(player)) {
-                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                                "&cHold one enchantable item in your main hand first."));
                         return 0;
                     }
                     return executeKernelAction(
@@ -176,7 +174,14 @@ public final class VirtualWorkstationCommands {
                             PermissionsHandler.superEnchantingTableCommand,
                             PermissionsHandler.superEnchantingTableCooldownBypass,
                             "sef:workstation.super_enchant",
-                            VirtualWorkstationCommands::openSuperEnchantingTable);
+                            ignored -> {
+                                if (!SuperEnchantingMenu.canOpen(player)) {
+                                    player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                            "&cHold one enchantable item in your main hand first."));
+                                    return 0;
+                                }
+                                return openSuperEnchantingTable(player);
+                            });
                 });
     }
 
@@ -186,15 +191,6 @@ public final class VirtualWorkstationCommands {
             return 0;
         }
 
-        ItemStack held = player.getMainHandItem();
-        if (held.isEmpty()) {
-            player.sendSystemMessage(TextFormatter.stringToFormattedText(ConfigHandler.config.repairNotHeldMessage.get()));
-            return 0;
-        }
-        if (!held.isDamageableItem() || held.getDamageValue() <= 0) {
-            player.sendSystemMessage(TextFormatter.stringToFormattedText(ConfigHandler.config.repairNotNeededMessage.get()));
-            return 0;
-        }
         return executeKernelAction(
                 source,
                 player,
@@ -202,6 +198,17 @@ public final class VirtualWorkstationCommands {
                 PermissionsHandler.repairCooldownBypass,
                 "sef:workstation.repair",
                 ignored -> {
+                    ItemStack held = player.getMainHandItem();
+                    if (held.isEmpty()) {
+                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                ConfigHandler.config.repairNotHeldMessage.get()));
+                        return 0;
+                    }
+                    if (!held.isDamageableItem() || held.getDamageValue() <= 0) {
+                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                ConfigHandler.config.repairNotNeededMessage.get()));
+                        return 0;
+                    }
                     String itemName = held.getHoverName().getString();
                     held.setDamageValue(0);
                     player.getInventory().setChanged();
@@ -214,7 +221,8 @@ public final class VirtualWorkstationCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> repairNode(String literal) {
         return Commands.literal(literal)
-                .requires(source -> hasPermission(source, PermissionsHandler.repairCommand))
+                .requires(source -> source.getEntity() instanceof ServerPlayer
+                        && hasPermission(source, PermissionsHandler.repairCommand))
                 .executes(context -> repair(context.getSource()));
     }
 
@@ -255,16 +263,17 @@ public final class VirtualWorkstationCommands {
             ToIntFunction<ServerPlayer> action
     ) {
         String dimension = player.serverLevel().dimension().location().toString();
+        PermissionService.Decision permissionDecision = PermissionService.decide(player, permission);
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
-                        UUID.randomUUID(),
+                        SecurityAuditService.currentSessionId(),
                         player.getUUID(),
                         player.getGameProfile().getName(),
                         actionId,
                         CommandDefinition.SourceType.PLAYER,
                         dimension,
                         dimension,
-                        hasPlayerPermission(player, permission),
+                        permissionDecision.granted(),
                         hasPlayerPermission(player, bypassPermission),
                         "",
                         null,
@@ -272,6 +281,10 @@ public final class VirtualWorkstationCommands {
                         Set.of(),
                         Map.of(),
                         List.of(),
+                        1L,
+                        Map.of(
+                                "permission_provider", permissionDecision.provider(),
+                                "permission_default_use", permissionDecision.defaultUse().name()),
                         "command"));
         if (!started.successful()) {
             if (started.reason() == ActionResult.ReasonCode.COOLDOWN_ACTIVE) {

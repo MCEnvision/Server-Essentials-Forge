@@ -35,7 +35,7 @@ public final class PermissionRefreshBridge {
     private static void onUserDataRecalculated(UserDataRecalculateEvent event) {
         UUID playerId = event.getUser().getUniqueId();
         LuckPermsProvider.invalidate(playerId);
-        KernelServices.quotas().invalidate();
+        invalidateKernelActor(playerId);
         var server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
         server.execute(() -> {
@@ -43,7 +43,14 @@ public final class PermissionRefreshBridge {
             if (player != null) {
                 VanishUtil.recheckVanished(player);
                 player.refreshTabListName();
+                server.getCommands().sendCommands(player);
             }
         });
+    }
+
+    static void invalidateKernelActor(UUID playerId) {
+        KernelServices.quotas().invalidate();
+        KernelServices.warmups().clear(playerId);
+        KernelServices.confirmations().revokeActor(playerId);
     }
 }

@@ -342,7 +342,7 @@ public class ConfigHandler {
 			minimumNicknameLength = builder.comment("  Minimum allowed nickname length (for integrated nickname commands)").defineInRange("minimumNicknameLength", 1, 1, 500);
 			nicknameUniqueOnline = builder.comment("  Require nicknames to be unique among online players").define("nicknameUniqueOnline", true);
 			nicknameUniqueKnownProfiles = builder.comment("  Require nicknames to be unique among all profiles known to the integrated nickname store").define("nicknameUniqueKnownProfiles", true);
-			nicknameAllowDuplicateWithUsernameHover = builder.comment("  Reserved enhanced client fallback. Duplicate nickname display remains disabled until username hover projection is implemented.").define("nicknameAllowDuplicateWithUsernameHover", false);
+			nicknameAllowDuplicateWithUsernameHover = builder.comment("  Allow duplicate display names. Vanilla hover text shows the authenticated username, and identity lookup remains fail closed when a nickname is ambiguous.").define("nicknameAllowDuplicateWithUsernameHover", false);
 			maxPrefixesDisplayed = builder.comment("  Maximum number of prefixes to show (weighted order)").defineInRange("maxPrefixesDisplayed", 1, 0, 50);
 			maxSuffixesDisplayed = builder.comment("  Maximum number of suffixes to show (weighted order)").defineInRange("maxSuffixesDisplayed", 1, 0, 50);
 			tabUpdateIntervalTicks = builder.comment("  Minimum ticks between tab header and footer refreshes").defineInRange("tabUpdateIntervalTicks", 20, 1, 1200);

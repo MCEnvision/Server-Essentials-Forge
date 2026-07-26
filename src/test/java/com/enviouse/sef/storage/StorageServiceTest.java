@@ -83,4 +83,25 @@ class StorageServiceTest {
         assertEquals(0, entry.get("fromVersion").getAsInt());
         assertEquals(1, entry.get("toVersion").getAsInt());
     }
+
+    @Test
+    void migrationJournalFailureLeavesValidSourceOutsideQuarantine() throws Exception {
+        Path path = temporaryDirectory.resolve("legacy.json");
+        String original = "{\"entry\":1}";
+        Files.writeString(path, original);
+        Files.createDirectory(temporaryDirectory.resolve("migration-journal.jsonl"));
+
+        assertTrue(StorageService.read(path, "legacy journal failure", 1).isEmpty());
+
+        assertTrue(Files.isRegularFile(path));
+        assertEquals(original, Files.readString(path));
+        assertFalse(Files.exists(temporaryDirectory.resolve(".corrupt")));
+        assertEquals(
+                "migration preparation failed",
+                StorageService.statuses().stream()
+                        .filter(status -> status.path().equals(path.toAbsolutePath().normalize()))
+                        .findFirst()
+                        .orElseThrow()
+                        .state());
+    }
 }

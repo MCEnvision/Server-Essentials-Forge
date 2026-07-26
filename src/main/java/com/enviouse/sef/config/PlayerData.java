@@ -67,6 +67,28 @@ public final class PlayerData {
         return false;
     }
 
+    public static synchronized boolean setNicknameInMemory(UUID uuid, String nickname) {
+        Objects.requireNonNull(uuid, "uuid");
+        if (nickname != null && (nickname.length() > 1_024
+                || nickname.codePoints().anyMatch(Character::isISOControl))) {
+            return false;
+        }
+        if (state == StorageRepository.RepositoryState.RECOVERY
+                || state == StorageRepository.RepositoryState.UNSUPPORTED
+                || state == StorageRepository.RepositoryState.ERROR) {
+            return false;
+        }
+        PlayerData data = getOrCreate(uuid);
+        if (data == null) {
+            return false;
+        }
+        if (!Objects.equals(data.nickname, nickname)) {
+            data.nickname = nickname;
+            data.updatedAt = Instant.now().toString();
+        }
+        return true;
+    }
+
     public static synchronized boolean rememberProfile(UUID uuid, String username) {
         if (uuid == null || username == null || username.isBlank()
                 || username.length() > 64
@@ -87,6 +109,28 @@ public final class PlayerData {
                 }
                 return false;
             }
+        }
+        return true;
+    }
+
+    public static synchronized boolean rememberProfileInMemory(UUID uuid, String username) {
+        if (uuid == null || username == null || username.isBlank()
+                || username.length() > 64
+                || username.codePoints().anyMatch(Character::isISOControl)) {
+            return false;
+        }
+        if (state == StorageRepository.RepositoryState.RECOVERY
+                || state == StorageRepository.RepositoryState.UNSUPPORTED
+                || state == StorageRepository.RepositoryState.ERROR) {
+            return false;
+        }
+        PlayerData data = getOrCreate(uuid);
+        if (data == null) {
+            return false;
+        }
+        if (!username.equals(data.username)) {
+            data.username = username;
+            data.updatedAt = Instant.now().toString();
         }
         return true;
     }
@@ -115,6 +159,15 @@ public final class PlayerData {
 
     public static synchronized ProfileDiagnostic diagnostic() {
         return new ProfileDiagnostic(dataFile, state, stateDetail, map.size());
+    }
+
+    public static synchronized void unload() {
+        map.clear();
+        dataFile = null;
+        loadedDirectory = null;
+        document = null;
+        state = StorageRepository.RepositoryState.CLOSED;
+        stateDetail = "closed";
     }
 
     public static synchronized UUID whoIs(String identity) {
@@ -204,12 +257,12 @@ public final class PlayerData {
         }
     }
 
-    public static synchronized void saveToDir(File playerDirectory) {
+    public static synchronized boolean saveToDir(File playerDirectory) {
         Path directory = playerDirectory.toPath().toAbsolutePath().normalize();
         if (!directory.equals(loadedDirectory)) {
             loadFromDir(playerDirectory);
         }
-        saveCurrent();
+        return saveCurrent();
     }
 
     private static void loadJson() {
@@ -279,12 +332,53 @@ public final class PlayerData {
         }
     }
 
+    public static synchronized Optional<PersistenceSnapshot> persistenceSnapshot() {
+        return Optional.ofNullable(createPersistenceSnapshot());
+    }
+
+    public static boolean persistSnapshot(PersistenceSnapshot snapshot) {
+        Objects.requireNonNull(snapshot, "snapshot");
+        try {
+            StorageService.write(
+                    snapshot.path,
+                    "integrated player identities",
+                    1,
+                    snapshot.data,
+                    snapshot.previousDocument,
+                    Set.of("/players"));
+            synchronized (PlayerData.class) {
+                if (snapshot.path.equals(dataFile)) {
+                    state = StorageRepository.RepositoryState.READY;
+                    stateDetail = "saved " + snapshot.profileCount + " player profiles";
+                }
+            }
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            synchronized (PlayerData.class) {
+                if (snapshot.path.equals(dataFile)) {
+                    state = StorageRepository.RepositoryState.ERROR;
+                    stateDetail = exception.getClass().getSimpleName();
+                }
+            }
+            LOGGER.log(
+                    System.Logger.Level.ERROR,
+                    "[SEF] Failed to save integrated player identity data",
+                    exception);
+            return false;
+        }
+    }
+
     private static boolean saveCurrent() {
-        if (dataFile == null) return false;
+        PersistenceSnapshot snapshot = createPersistenceSnapshot();
+        return snapshot != null && persistSnapshot(snapshot);
+    }
+
+    private static PersistenceSnapshot createPersistenceSnapshot() {
+        if (dataFile == null) return null;
         if (state == StorageRepository.RepositoryState.RECOVERY
                 || state == StorageRepository.RepositoryState.UNSUPPORTED
                 || state == StorageRepository.RepositoryState.ERROR) {
-            return false;
+            return null;
         }
         JsonObject players = new JsonObject();
         for (PlayerData data : map.values()) {
@@ -298,26 +392,7 @@ public final class PlayerData {
         }
         JsonObject root = new JsonObject();
         root.add("players", players);
-        try {
-            StorageService.write(
-                    dataFile,
-                    "integrated player identities",
-                    1,
-                    root,
-                    document,
-                    Set.of("/players"));
-            state = StorageRepository.RepositoryState.READY;
-            stateDetail = "saved " + map.size() + " player profiles";
-            return true;
-        } catch (IOException exception) {
-            state = StorageRepository.RepositoryState.ERROR;
-            stateDetail = exception.getClass().getSimpleName();
-            LOGGER.log(
-                    System.Logger.Level.ERROR,
-                    "[SEF] Failed to save integrated player identity data",
-                    exception);
-            return false;
-        }
+        return new PersistenceSnapshot(dataFile, root, document, map.size());
     }
 
     static ArrayList<PlayerData> parseLegacy(String input) {
@@ -401,6 +476,25 @@ public final class PlayerData {
             String nickname,
             String updatedAt
     ) {
+    }
+
+    public static final class PersistenceSnapshot {
+        private final Path path;
+        private final JsonObject data;
+        private final StorageService.Document previousDocument;
+        private final int profileCount;
+
+        private PersistenceSnapshot(
+                Path path,
+                JsonObject data,
+                StorageService.Document previousDocument,
+                int profileCount
+        ) {
+            this.path = path;
+            this.data = data;
+            this.previousDocument = previousDocument;
+            this.profileCount = profileCount;
+        }
     }
 
     public record ProfileDiagnostic(

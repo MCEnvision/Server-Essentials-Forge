@@ -23,7 +23,6 @@ import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
 import com.enviouse.sef.invsee.InvSeeCommand;
 import com.enviouse.sef.kernel.KernelServices;
-import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.motd.MotdManager;
 import com.enviouse.sef.mute.MuteCommand;
 import com.enviouse.sef.mute.MuteManager;
@@ -99,11 +98,6 @@ public class CommandRegistrationHandler {
         if(ConfigHandler.config.enableBannedItems.get()) {
             BannedItemsCommands.setManager(BANNED_ITEMS_MANAGER);
             BannedItemsCommands.register(e.getDispatcher());
-        }
-
-        // Register MOTD commands - always register, manager will be set later
-        if(ConfigHandler.config.enableMotdSystem.get()) {
-            MotdCommands.register(e.getDispatcher());
         }
 
         // Register /freeze and /unfreeze commands if enabled

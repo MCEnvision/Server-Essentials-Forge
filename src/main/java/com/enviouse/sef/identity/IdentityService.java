@@ -35,9 +35,11 @@ public final class IdentityService {
 
         MinecraftServer server = serverSupplier.get();
         List<Identity> matches = new ArrayList<>();
+        java.util.Set<UUID> hiddenOnlinePlayers = new java.util.HashSet<>();
         if (server != null) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (viewer != null && VanishUtil.isVanished(player, viewer)) {
+                    hiddenOnlinePlayers.add(player.getUUID());
                     continue;
                 }
                 String username = player.getGameProfile().getName();
@@ -47,11 +49,14 @@ public final class IdentityService {
                 }
             }
         }
-        if (matches.isEmpty()) {
-            profiles.resolve(input, true)
-                    .flatMap(profiles::find)
-                    .map(this::fromProfile)
-                    .ifPresent(matches::add);
+        for (PlayerProfileRepository.Profile profile : profiles.snapshot()) {
+            if (hiddenOnlinePlayers.contains(profile.playerId())) {
+                continue;
+            }
+            if (matches(normalized, profile.authenticatedUsername())
+                    || matches(normalized, profile.nickname())) {
+                matches.add(fromProfile(profile));
+            }
         }
         List<Identity> distinct = matches.stream()
                 .collect(java.util.stream.Collectors.toMap(
