@@ -32,6 +32,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import com.enviouse.sef.vanish.VanishConfig;
+import com.enviouse.sef.vanish.VanishLifecyclePolicy;
+import com.enviouse.sef.vanish.VanishListProjection;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
@@ -55,12 +57,17 @@ public class ServerCommonPacketListenerImplMixin {
 		// shutdown race, or a momentary unload while FML reloads the watched .toml). Reading any value
 		// then throws "Cannot get config value before config is loaded". No player is vanished outside the
 		// loaded window, so skipping the filter (fail-open) is the correct behaviour.
-		if (!VanishConfig.SERVER_SPEC.isLoaded()) return;
+		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer receivingPlayer = conn.player;
 		Level level = receivingPlayer.level();
 
 		if (packet instanceof ClientboundPlayerInfoUpdatePacket infoPacket) {
-			List<ClientboundPlayerInfoUpdatePacket.Entry> filteredPacketEntries = infoPacket.entries().stream().filter(e -> !VanishUtil.isVanished(receivingPlayer.server.getPlayerList().getPlayer(e.profileId()), receivingPlayer)).toList();
+			List<ClientboundPlayerInfoUpdatePacket.Entry> filteredPacketEntries =
+					VanishListProjection.visibleCopy(
+							infoPacket.entries(),
+							entry -> !VanishUtil.isVanished(
+									receivingPlayer.server.getPlayerList().getPlayer(entry.profileId()),
+									receivingPlayer));
 
 			if (filteredPacketEntries.isEmpty())
 				callbackInfo.cancel();
@@ -135,7 +142,7 @@ public class ServerCommonPacketListenerImplMixin {
 		if (!((Object) this instanceof ServerGamePacketListenerImpl conn)) return;
 		// See vanishmod$onSendPacket: the SERVER-type vanish config may be unloaded when an off-thread
 		// sender calls send() outside the server-running window; reading a value would throw. Fail open.
-		if (!VanishConfig.SERVER_SPEC.isLoaded()) return;
+		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer player = conn.player;
 
 		if (packet instanceof ClientboundSystemChatPacket chatPacket && chatPacket.content() instanceof MutableComponent component && component.getContents() instanceof TranslatableContents content) {

@@ -26,9 +26,30 @@ public class BfcCommands {
 	protected static boolean checkPermission(CommandSourceStack c, PermissionNode<Boolean> node) {
 		return PermissionService.has(c, node);
 	}
-	
+
 	public static void register(CommandDispatcher<CommandSourceStack> disp) {
-		LiteralArgumentBuilder<CommandSourceStack> sefRoot = Commands.literal("sef")
+		LiteralArgumentBuilder<CommandSourceStack> sefRoot = coreRoot();
+
+		if(ConfigHandler.config.enableFilterSystem.get()) {
+			registerFilterCommands(sefRoot);
+		}
+		KernelCommands.attach(sefRoot);
+		VirtualWorkstationCommands.attachCanonical(sefRoot);
+		StorageCommands.attach(sefRoot);
+		disp.register(sefRoot);
+
+		if(ConfigHandler.config.enableColorsCommand.get()
+				&& com.enviouse.sef.kernel.KernelServices.shortcuts().isActive("colors")) {
+			disp.register(Commands.literal("colors")
+				.requires(c -> checkPermission(c, PermissionsHandler.colorsCommand))
+				.executes(BfcCommands::colorCommand));
+		}
+
+		NickCommands.register(disp);
+	}
+
+	static LiteralArgumentBuilder<CommandSourceStack> coreRoot() {
+		return Commands.literal("sef")
 			.requires(c -> checkPermission(c, PermissionsHandler.sefCommand))
 			.then(Commands.literal("info")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandInfoSubCommand))
@@ -42,23 +63,6 @@ public class BfcCommands {
 			.then(Commands.literal("reload")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandReloadSubCommand))
 					.executes(BfcCommands::reloadCommand));
-
-			if(ConfigHandler.config.enableFilterSystem.get()) {
-				registerFilterCommands(sefRoot);
-			}
-			KernelCommands.attach(sefRoot);
-			VirtualWorkstationCommands.attachCanonical(sefRoot);
-			StorageCommands.attach(sefRoot);
-			disp.register(sefRoot);
-
-		if(ConfigHandler.config.enableColorsCommand.get()
-				&& com.enviouse.sef.kernel.KernelServices.shortcuts().isActive("colors")) {
-			disp.register(Commands.literal("colors")
-				.requires(c -> checkPermission(c, PermissionsHandler.colorsCommand))
-				.executes(BfcCommands::colorCommand));
-		}
-
-		NickCommands.register(disp);
 	}
 	
 	public static void initFilterManager(FilterManager manager) {
@@ -66,7 +70,7 @@ public class BfcCommands {
 	}
 
 
-	private static void registerFilterCommands(LiteralArgumentBuilder<CommandSourceStack> sefRoot) {
+	static void registerFilterCommands(LiteralArgumentBuilder<CommandSourceStack> sefRoot) {
 		SuggestionProvider<CommandSourceStack> caseSensitiveSuggest = (c, b) -> {
 			b.suggest("yes");
 			b.suggest("no");

@@ -17,6 +17,8 @@ public final class StorageCommands {
 
     public static void attach(LiteralArgumentBuilder<CommandSourceStack> root) {
         root.then(Commands.literal("storage")
+                .requires(source -> PermissionService.has(source, PermissionsHandler.storageStatus)
+                        || PermissionService.has(source, PermissionsHandler.storageExport))
                 .then(Commands.literal("status")
                         .requires(source -> PermissionService.has(source, PermissionsHandler.storageStatus))
                         .executes(context -> status(context.getSource())))

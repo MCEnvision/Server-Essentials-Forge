@@ -148,7 +148,7 @@ There is currently no dedicated formatter or static analysis task. Java changes 
 1. `src/main/java/com/enviouse/sef` contains common and server implementation.
 2. `src/main/resources` contains mixin, language, and access transformer resources.
 3. `src/main/templates` contains expanded NeoForge mod metadata.
-4. `src/test/java` contains pure JUnit policy and invariant tests.
+4. `src/test/java` contains pure policy tests and NeoForge bootstrapped JUnit tests for Minecraft command, menu, permission, and lifecycle behavior.
 5. `sef2.md` is the source of truth for unfinished SEF 2 work.
 6. `DOCUMENTATION.md` contains maintainer and operator details.
 7. `docs/PHASE_1_MANUAL_TESTS.md` contains the real client release approval matrix for Phase 1 behavior.

@@ -21,6 +21,7 @@ import net.minecraft.server.players.PlayerList;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import com.enviouse.sef.vanish.VanishConfig;
+import com.enviouse.sef.vanish.VanishListProjection;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 
@@ -42,8 +43,10 @@ public abstract class MinecraftServerMixin {
 	@Inject(method = {"runServer", "tickServer"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;resetStatusCache(Lnet/minecraft/network/protocol/status/ServerStatus;)V"))
 	private void vanishmod$onBuildServerStatus(CallbackInfo callbackInfo) {
 		if (VanishConfig.CONFIG.hidePlayersFromPlayerLists.get()) {
-			PlayerList list = getPlayerList();
-			List<ServerPlayer> unvanishedPlayers = VanishUtil.removeVanishedFromPlayerList(list.getPlayers(), null);
+				PlayerList list = getPlayerList();
+				List<ServerPlayer> unvanishedPlayers = VanishListProjection.visibleCopy(
+						list.getPlayers(),
+						player -> !VanishUtil.isVanished(player));
 			int unvanishedPlayerCount = unvanishedPlayers.size();
 			int maxPlayers = list.getMaxPlayers();
 			ServerStatus mainServerStatus = status;

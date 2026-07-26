@@ -27,9 +27,10 @@ The project currently pins:
 5. ModDevGradle `2.0.141`.
 6. Parchment mappings `1.21.1`, export `2024.11.17`.
 7. JUnit `5.10.2`.
-8. LuckPerms API `5.4` as compile only.
-9. FTB Essentials `2101.1.9` as compile only.
-10. Curios `9.5.1` compatible artifact as compile only.
+8. Mockito `5.12.0` for NeoForge bootstrapped command and menu tests.
+9. LuckPerms API `5.4` as compile only.
+10. FTB Essentials `2101.1.9` as compile only.
+11. Curios `9.5.1` compatible artifact as compile only.
 
 The mod id is `sef`. Preserve it because configuration paths, permission nodes, mixin identifiers, and existing server data depend on that namespace.
 
@@ -337,9 +338,9 @@ Vanish state uses a server map keyed by player UUID plus persisted player NBT fi
 
 Online state is rechecked once per second. It is also rechecked on login, LuckPerms user data refresh, configuration reload, dimension change, and respawn. Permission removal clears persisted vanish or lowers its level and resynchronizes player information and entity visibility.
 
-Administrative target operations have separate permissions for other players, queued targets, and inspecting other players. Exempt targets require the bypass node. A player source cannot act on a higher privilege target unless it has `sef.vanish.hierarchy.bypass`. Console remains authoritative.
+Administrative target operations have separate permissions for other players, queued targets, and inspecting other players. `/v queue <player>` requires both `sef.commands.vanish.queue` and `sef.commands.vanish.others` at Brigadier projection time and repeats the combined check before execution. Exempt targets require the bypass node. A player source cannot act on a higher privilege target unless it has `sef.vanish.hierarchy.bypass`. Console remains authoritative.
 
-Visibility packet decisions remain per observer. `VanishVisibility` and its tests define the core level matrix.
+Visibility packet decisions remain per observer. `VanishVisibility` defines the core level matrix. `VanishListProjection` always produces an independent immutable recipient projection before player information or server status data is rebuilt. `VanishLifecyclePolicy` prevents server configuration reads during packet and status ping shutdown races.
 
 The unsafe offline queue route is disabled. Queue requests for online targets are applied immediately through normal hierarchy and permission checks. A future persistent queue must store authenticated issuer context and revalidate it on application.
 
@@ -480,6 +481,8 @@ Current compile only integrations:
 
 Current vanish compatibility code also detects MC2Discord, Playtime, and SDLink by mod id.
 
+LuckPerms prefix and suffix metadata uses a one second cache with a hard limit of 2048 players. Every insertion prunes expired entries, earliest expiry is evicted at the limit, values are defensively copied, logout removes the player entry, and integration shutdown or configuration reload clears the cache.
+
 Never reference optional implementation classes on an unconditional common initialization path.
 
 Phase 1 dedicated server verification covered:
@@ -566,9 +569,9 @@ Resource or metadata changes:
 2. Inspect generated resource drift.
 3. Open the final JAR and confirm required resources and metadata.
 
-### 16.3 Unit test coverage
+### 16.3 Automated test coverage
 
-Current pure tests cover:
+The ModDevGradle unit test environment boots Minecraft and NeoForge for tests that exercise Minecraft classes. Other tests remain pure JVM policy tests. Current coverage includes:
 
 1. Vanish visibility matrix.
 2. Vanish permission reconciliation.
@@ -591,8 +594,14 @@ Current pure tests cover:
 19. Optional LuckPerms quota metadata parsing and finite fallback behavior.
 20. Location history and cooldown repository round trips, corruption recovery, bounded state, and concurrent dirty snapshot preservation.
 21. Legacy nickname profile import through the versioned player profile repository.
+22. Real Brigadier tree projection and direct execution denial for `/sef` child permissions.
+23. Real Brigadier denial of `/v queue <player>` when the issuer has queue permission without `sef.commands.vanish.others`.
+24. Open InvSee menu downgrade after modify revocation and closure after view revocation.
+25. Recipient specific immutable vanish list projection used by player information and server status paths.
+26. Server status and packet lifecycle guards that avoid unloaded configuration access during shutdown.
+27. LuckPerms metadata cache expiry, defensive copies, logout invalidation, and the 2048 entry hard bound.
 
-Minecraft world behavior that requires real connections remains in the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 operator, permission, restart, and recovery behavior is in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
+Rendering, client packet observation, authenticated multi-client behavior, and optional integration combinations still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 operator, permission, restart, and recovery behavior is in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
 
 ## 17. Operations and recovery
 

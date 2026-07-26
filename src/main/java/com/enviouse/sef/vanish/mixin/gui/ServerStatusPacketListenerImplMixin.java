@@ -8,6 +8,7 @@ import net.minecraft.network.protocol.status.ClientboundStatusResponsePacket;
 import net.minecraft.network.protocol.status.ServerStatus;
 import net.minecraft.server.network.ServerStatusPacketListenerImpl;
 import com.enviouse.sef.vanish.VanishConfig;
+import com.enviouse.sef.vanish.VanishLifecyclePolicy;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 
 @Mixin(ServerStatusPacketListenerImpl.class)
@@ -19,7 +20,10 @@ public class ServerStatusPacketListenerImplMixin {
 		// (shutdown race / brief config reload), when this SERVER-type config is unloaded and a .get() would
 		// throw "Cannot get config value before config is loaded". Fail open: return the unmodified vanilla
 		// status (no player is vanished and vanishedServerStatus is stale in that window anyway).
-		if (VanishConfig.SERVER_SPEC.isLoaded() && VanishConfig.CONFIG.hidePlayersFromPlayerLists.get() && FieldHolder.vanishedServerStatus != null) {
+			if (VanishLifecyclePolicy.shouldUseFilteredStatus(
+					VanishConfig.SERVER_SPEC.isLoaded(),
+					FieldHolder.vanishedServerStatus != null,
+					() -> VanishConfig.CONFIG.hidePlayersFromPlayerLists.get())) {
 			status = FieldHolder.vanishedServerStatus;
 			cachedStatus = null;
 		}

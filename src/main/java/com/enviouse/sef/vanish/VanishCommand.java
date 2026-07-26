@@ -58,7 +58,9 @@ public class VanishCommand {
 				.then(Commands.literal("queue")
 						.requires(source -> PermissionService.has(source, PermissionsHandler.vanishQueueCommand))
 						.executes(VanishCommand::queueSelf)
-						.then(Commands.argument("player", StringArgumentType.word()).executes(ctx -> queue(ctx, StringArgumentType.getString(ctx, "player")))))
+						.then(Commands.argument("player", StringArgumentType.word())
+								.requires(source -> PermissionService.has(source, PermissionsHandler.vanishOthersCommand))
+								.executes(ctx -> queue(ctx, StringArgumentType.getString(ctx, "player")))))
 				.then(Commands.literal("toggle")
 						// /v toggle — vanish self at best level
 						.executes(ctx -> vanishSelfConsoleAware(ctx, 0))
