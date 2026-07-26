@@ -273,3 +273,46 @@ Before approval:
 6. Inspect the complete Git diff.
 
 Approval requires every applicable pass condition, no unresolved security regression, and no claim that a later phase feature is already available.
+
+## 14. Candidate automated audit record for 2026-07-26
+
+This record applies to code commit `b415bc3cc7647908862711672b5bc4681bbc4dc5`. It is automated and headless evidence only. The manual acceptance sections above remain required.
+
+| Field | Recorded value |
+| --- | --- |
+| Artifact | `build/libs/sef-1.0-SNAPSHOT.jar` |
+| SHA-256 | `2e94f5c4a9263bf8f5271728f7be565c4e578b969b27ef423c81c77572a3f39c` |
+| Minecraft | `1.21.1` |
+| NeoForge | `21.1.233` |
+| Gradle | `8.8` |
+| Build Java | OpenJDK `21.0.11` |
+| Operating system | Linux `6.12.63+deb13-amd64`, x86 64 |
+| Optional permission provider | NeoForge default handler. LuckPerms was absent. |
+
+Verified automated coverage:
+
+1. The current suite passed 117 tests with zero failures, zero errors, and zero skipped tests.
+2. Real Brigadier tests cover child projection, denied direct execution after parse, execution time permission revocation, and the vanish queue requirement for both queue and other target permissions.
+3. Catalog contract tests cover complete descriptors, capabilities, shortcuts, alias ownership decisions, bundle limits, wrapper recursion, quotas, hierarchy, cooldowns, warmups, confirmations, cost rollback, and structured outcomes.
+4. Every currently executable `/sef` action has catalog ownership and enters the shared policy and audit pipeline.
+5. Storage tests cover atomic replacement, backups, quarantine, future schema refusal, unknown field preservation, dynamic deletion semantics, migration preparation failure, bounded profile import, concurrent dirty revisions, location history bounds, cooldown persistence, and shutdown flushing outside the calling thread.
+6. Coalesced persistence tests cover queue bounds, latest snapshot retention, failure reporting, recovery after a newer successful write, bounded shutdown draining, and post shutdown rejection.
+7. The no integration dedicated server reached ready state and saved all dimensions through its shutdown hook without a repository, storage, persistence, optional integration, or client class loading error.
+8. The final JAR metadata declares server compatibility through `IGNORE_SERVER_VERSION`, contains no client mixin entries, and keeps LuckPerms, FTB Essentials, and Curios optional.
+
+Manual status:
+
+| Section | Status | Remaining evidence |
+| --- | --- | --- |
+| Clean startup and server only compatibility | Blocked | A client without SEF must join, use command fallback, and observe a normal `stop`. |
+| Catalog and diagnostic permissions | Blocked | Authenticated suggestion trees and operator output must be captured. |
+| Workstation routes and aliases | Blocked | Live cooldown sharing, permission removal, and repair preconditions must be exercised. |
+| Shortcut conflicts | Blocked | Restart based structural changes and an external command owner must be tested. |
+| LuckPerms quotas | Blocked | Provider metadata, malformed values, refresh, removal, and provider failure behavior must be exercised. |
+| Permission manifest | Partially verified | Determinism and duplicate rejection are automated. The generated staging artifact still needs operator review. |
+| Cooldown persistence | Blocked | A qualifying live cooldown must survive an actual restart. |
+| Player profile migration | Blocked | A staging legacy fixture, backup, nickname change, stop, and restart must be recorded. |
+| Corrupt recovery | Blocked | Profile, location, and cooldown recovery must be exercised on disposable files. |
+| Crash simulation | Blocked | A forced process termination and recovery inspection must be recorded. |
+
+Phases 2 and 3 have implementation coverage, but they are not release approved from this record.

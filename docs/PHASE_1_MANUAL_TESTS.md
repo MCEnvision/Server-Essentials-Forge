@@ -199,3 +199,31 @@ Section status:
 | Performance observation | Blocked | No populated world, profiler session, or three client load was available. |
 
 The full matrix remains blocked because this workspace does not provide three authenticated Minecraft clients, tester controlled rendering and packet observation, or the required optional integration environments. Do not treat the automated results as a substitute for those cases, and do not approve a public release from this record.
+
+### Superseding automated audit record for 2026-07-26
+
+This record supersedes the automated and headless evidence above for code commit `b415bc3cc7647908862711672b5bc4681bbc4dc5`. It does not supersede any blocked manual section and is not public release approval.
+
+| Field | Recorded value |
+| --- | --- |
+| Artifact | `build/libs/sef-1.0-SNAPSHOT.jar` |
+| SHA-256 | `2e94f5c4a9263bf8f5271728f7be565c4e578b969b27ef423c81c77572a3f39c` |
+| Minecraft | `1.21.1` |
+| NeoForge | `21.1.233` |
+| Gradle | `8.8` |
+| Build Java | OpenJDK `21.0.11` |
+| Operating system | Linux `6.12.63+deb13-amd64`, x86 64 |
+| Optional integrations | LuckPerms absent, Curios absent, FTB Essentials absent |
+| Authenticated tester clients | None available in this workspace |
+
+Latest automated and headless evidence:
+
+1. `./gradlew test --rerun-tasks` passed 117 tests with zero failures, zero errors, and zero skipped tests under Java 21.
+2. `./gradlew build --rerun-tasks` completed successfully under Java 21.
+3. The packaged JAR contains the shared command executor, coalesced persistence worker, player profile repository, storage coordinator, vanish command, server mixins, and NeoForge metadata.
+4. The permission audit found direct NeoForge online and offline permission calls only inside `PermissionService`. Compatibility methods delegate to that facade.
+5. No `/sudo` registration call exists. The dormant class remains packaged for later migration, but the command registration handler publishes no sudo Brigadier node.
+6. A fresh no integration dedicated server reached `Done` in 0.843 seconds. The terminal used `SIGINT` because the Gradle run task did not forward a literal `stop`. Minecraft still entered its shutdown hook, saved players, saved all three dimensions, and logged no storage or persistence error. This is shutdown evidence, but it does not satisfy the normal `stop` or shutdown race cases.
+7. The final diff passed `git diff --check`. Source scanning found no Bukkit or EssentialsX implementation dependencies and no common source reference to `net.minecraft.client`.
+
+Manual status remains blocked for authenticated permission projection, packet visibility, InvSee interaction, nickname ownership with FTB Essentials, LuckPerms refresh behavior, Curios inventory behavior, address collection, migration fixtures, normal `stop`, shutdown races, and profiler observation.
