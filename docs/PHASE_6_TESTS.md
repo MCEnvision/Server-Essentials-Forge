@@ -32,8 +32,12 @@ Automated tests protect:
 12. Shared-proxy fail-safe decisions and shared-session hard caps.
 13. Moderation warning, control, jail, sentence, expiry, release location, and timestamp persistence.
 14. Phase 6 catalog and shortcut ownership.
+15. Moderation reasons, nested command wrappers, `/data`, password-like roots, private messages, unknown roots, and network-address redaction.
+16. File logger recovery when an earlier incomplete-session marker exists and marker creation after writer failure.
+17. Other-observer command-spy permission, target hierarchy, exemption, and vanish policy.
+18. Persistent build-lock, freeze, and inventory-lock event enforcement in GameTests.
 
-The GameTest server must pass every registered world fixture and exit normally. Current Phase 6 policy coverage is primarily JUnit and Brigadier based. The authenticated action matrix below remains required.
+The GameTest server must pass every registered world fixture and exit normally. GameTests cover persistent build-lock, freeze, and inventory-lock enforcement. The authenticated action matrix below remains required for the complete moderation surface.
 
 ## Dedicated-server smoke test
 
@@ -173,27 +177,27 @@ Use two command actors and one observer.
 
 ## Completion record
 
-Automated and headless verification was recorded on 2026-07-26:
+Automated and headless audit verification was recorded on 2026-07-26:
 
-1. Implementation commit: `8c94ac4`.
+1. Implementation commit: `89c57a226a33971638a9efbc5a85b0069864bc71`.
 2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
-3. JAR SHA-256: `cf041540f7f122f31355203b35cec964d1dc23ea450349f25d1ec47f4995b33c`.
+3. JAR SHA-256: `238d8a4a7bc2a48194dade43ba99305191f12f467916e17de0d94d8f1c60eb4d`.
 4. Java: OpenJDK `21.0.11`.
 5. Minecraft: `1.21.1`.
 6. NeoForge: `21.1.233`.
 7. Optional integrations: absent for the recorded final headless run.
 8. Configuration: ignored development `run` directory, offline mode, default Phase 6 modules, and file logging disabled.
-9. Unit tests: 181 passed through `./gradlew test`.
-10. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+9. Unit tests: 191 passed through `./gradlew test`.
+10. GameTests: all 7 required tests passed through `./gradlew runGameTestServer`.
 11. Build: `./gradlew build` completed successfully.
-12. Dedicated server: two final `./gradlew runServer` cycles reached `Done`, accepted diagnostics, and stopped cleanly with all dimensions saved.
+12. Dedicated server: the exact audited source reached `Done`, accepted diagnostics, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
 13. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
 14. Logging: `/sef logging status` reported disabled, queue 0 of 8192, and no accepted, written, or dropped records. `run/logs/sef` remained absent.
-15. Storage: `command-spy.json` and `moderation.json` reported their correct missing initial state without recovery or write errors.
+15. Storage: `command-spy.json` reported its correct missing initial state and `moderation.json` reported ready without recovery or write errors.
 16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and Phase 6 classes were packaged.
 17. Dedicated-server boundary inspection found no `net.minecraft.client` imports in the Phase 6 packages.
 18. Diff inspection found no staged whitespace error, ignored `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run-directory file.
 
-The authenticated moderator matrix, real proxy and external provider adapters, real LuckPerms mutation, MaxLogger coexistence, deliberate disk and shutdown failures, full action-coverage GameTests, and profiler rows remain untested release gates.
+The authenticated moderator matrix, real proxy and external provider adapters, real LuckPerms mutation, MaxLogger coexistence, deliberate disk-full, permission-denied, writer, and forced-shutdown cases, remaining enforcement fixtures, and profiler rows remain untested release gates.
 
 Do not approve a public release while a required row is untested or failing.

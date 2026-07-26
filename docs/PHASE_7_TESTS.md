@@ -27,6 +27,11 @@ Automated tests protect:
 7. InvSee downgrade after modify revocation and closure after view revocation.
 8. Ender-chest closure after permission revocation or configuration revision change.
 9. Phase 7 catalog ownership and shortcut-to-canonical ownership.
+10. InvSee closure after configuration revision changes and cooperative collision handling without deleting another root.
+11. Other-target `/getpos`, fixed gamemode shortcuts, and parsed `/gm` grammar without self-permission coupling.
+12. Kit load-time rejection of orphan, malformed, and over-limit use history.
+13. Super-enchanting minimum, maximum, removal, invalid-range, and stale-policy behavior.
+14. Exact inventory condensation totals and incomplete-recipe nonmutation in GameTests.
 
 The GameTest server must pass every registered world fixture. Authenticated transaction, menu, client presentation, optional-mod, and super-enchant rows below remain required.
 
@@ -162,20 +167,20 @@ The GameTest server must pass every registered world fixture. Authenticated tran
 
 ## Completion record
 
-Automated and headless verification was recorded on 2026-07-26:
+Automated and headless audit verification was recorded on 2026-07-26:
 
-1. Implementation commit: `8c94ac4`.
+1. Implementation commit: `89c57a226a33971638a9efbc5a85b0069864bc71`.
 2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
-3. JAR SHA-256: `cf041540f7f122f31355203b35cec964d1dc23ea450349f25d1ec47f4995b33c`.
+3. JAR SHA-256: `238d8a4a7bc2a48194dade43ba99305191f12f467916e17de0d94d8f1c60eb4d`.
 4. Java: OpenJDK `21.0.11`.
 5. Minecraft: `1.21.1`.
 6. NeoForge: `21.1.233`.
 7. Optional integrations: absent for the recorded final headless run.
 8. Configuration: ignored development `run` directory, offline mode, and default Phase 7 modules.
-9. Unit tests: 181 passed through `./gradlew test`.
-10. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+9. Unit tests: 191 passed through `./gradlew test`.
+10. GameTests: all 7 required tests passed through `./gradlew runGameTestServer`.
 11. Build: `./gradlew build` completed successfully.
-12. Dedicated server: two final `./gradlew runServer` cycles reached `Done`, accepted `kit validate`, and stopped cleanly with all dimensions saved.
+12. Dedicated server: the exact audited source reached `Done`, accepted `kit validate`, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
 13. Kit validation: 0 definitions, 0 invalid definitions, and 0 use records on the empty staging world.
 14. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
 15. Storage: `kits.json` reported its correct missing initial state without recovery or write errors.

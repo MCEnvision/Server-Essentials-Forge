@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 7 have implementation coverage in the current worktree. Phase 6 adds expanded moderation, persistent moderation controls and jails, command observation, a correlated command journal, and optional bounded file logging. Phase 7 adds kits, inventory and item utilities, additional vanilla workstations, player-state utilities, gamemode shortcuts, and bounded item grants. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the phase matrices remain required before approval. Economy, enhanced GUI networking, and other later roadmap families remain planned.
+SEF 2 Phases 1 through 7 have implementation coverage in the current branch. The Phase 6 and Phase 7 implementation audit passes the automated unit, GameTest, build, artifact, and dedicated-server gates recorded in `docs/PHASE_6_TESTS.md` and `docs/PHASE_7_TESTS.md`. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, deliberate filesystem and shutdown failures, and profiler cases in the phase matrices remain required before approval. Economy, enhanced GUI networking, and other later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -304,24 +304,24 @@ Moderation applies these boundaries:
 
 `CommandEventJournal` creates immutable redacted observations with correlation, source type, origin, actor, effective actor, canonical action, lifecycle stage, result, dimension, and optional bounded location. Each observer profile is UUID keyed and contains requested state, audience, selected players, actor relation, source scopes, root and action filters, typed source, player, result, world, and origin filters, and projection preferences. Selection, delivery, and every later event recheck root permission, scope permission, hierarchy, exemptions, vanished-player visibility, and metadata or sensitive-field permission.
 
-`CommandRedactionPolicy` runs before any observation consumer. Password and token roots become secret records, private-content roots hide their bodies, every IP moderation alias hides the full address and reason, and unknown roots retain only the root. Raw command text is not a field in a journal or file record.
+`CommandRedactionPolicy` runs before any observation consumer. Password and token roots become secret records. Private-message and moderation roots hide their bodies. Command wrappers such as `/execute`, `/run`, `/silent`, `/sudo`, `/function`, and `/schedule` hide the complete nested command. `/data` hides its arguments. Every IP moderation alias hides the full address and reason, and unknown roots retain only the root. Raw command text is not a field in a journal or file record.
 
-`FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths.
+`FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths. A writer failure creates an incomplete-session marker. An existing marker keeps the sink degraded across enablement until an operator acknowledges repair.
 
 ### 6.6 Phase 7 inventory and player utility enforcement
 
 Phase 7 inventory mutations are server authoritative and transactional where a partial change could lose or duplicate items.
 
-1. Kit definitions serialize complete `ItemStack` state through the registry-aware codec. Claims validate the definition, current registry, permission, optional per-kit permission, cooldown, one-time policy, and inventory capacity before mutation.
+1. Kit definitions serialize complete `ItemStack` state through the registry-aware codec. Claims validate the definition, current registry, permission, optional per-kit permission, cooldown, one-time policy, and inventory capacity before mutation. Loading rejects invalid metadata, orphan use records, duplicate records, and per-player use history above the configured hard bound.
 2. With overflow dropping disabled, a kit claim is atomic and refuses insufficient capacity. With overflow dropping enabled, only the bounded remainder is created in the player world after inventory insertion.
-3. Live InvSee and ender-chest menus capture their authorization and configuration revision. Each click rechecks current permission, feature state, target policy, and revision. Revoked modification access downgrades InvSee to read only. Revoked view access or a changed live policy closes the menu.
+3. Live InvSee and ender-chest menus capture their authorization and configuration revision. Each click rechecks current permission, feature state, target policy, and revision. Revoked modification access downgrades InvSee to read only. Revoked view access or a changed live policy closes the menu. InvSee registers cooperatively under an existing Brigadier root and never reflectively deletes another mod’s node.
 4. `/disposal` uses a transient server menu whose contents are intentionally destroyed on close. It does not persist or write another inventory.
 5. Item name, lore, and book mutations apply configured length and line bounds. `/more` respects the item stack maximum. `/condense` uses current recipe results and commits only validated replacements.
 6. `/i` accepts an item id with or without the `minecraft` namespace, is strictly self only, applies `itemGiveMaximumAmount`, checks registry resolution and inventory insertion, and rolls back a failed grant.
-7. Gamemode shortcuts separate self and other-player permissions and use the same eligible-target policy as other administrative mutations.
+7. Gamemode shortcuts and parsed `/gm` routes separate self and other-player permissions. An operator with only target permissions can reach target grammar without receiving self authority. Target mutations use the same eligible-target policy as other administrative actions.
 8. Long-lived fly, god, personal time, and personal weather state is reconciled against current permissions after refreshes and during bounded event checks.
 9. Virtual workstations use vanilla menu types, so the current implementation remains server only. Canonical and shortcut routes share one action id, permission, feature gate, cooldown identity, and audit policy.
-10. Super enchanting snapshots the registry and configuration policy at open time, validates again before mutation, clamps configured levels, and refuses missing enchantments, invalid targets, unsafe policy changes, or stale menus.
+10. Super enchanting snapshots the registry and configuration policy at open time, validates again before mutation, enforces `1 <= minimum <= maximum <= 255`, permits zero only as removal, and refuses missing enchantments, invalid targets, unsafe policy changes, invalid bounds, or stale menus.
 
 ## 7. Sudo stabilization boundary
 
@@ -488,6 +488,8 @@ When the vanish module is disabled, runtime and persisted vanish state are activ
 
 The menu checks view and Curios permissions while open. It closes when view access is lost or when a Curios page is no longer authorized. Mutation permission is checked on every click, including collect to cursor behavior, and the menu downgrades to read only immediately after revocation. Audit entries identify issuer, target, page, slot, and click type without serializing item NBT.
 
+`invSeeDisableFtbInvsee` controls cooperative collision behavior. When false, SEF leaves an existing `/invsee` root untouched. When true, SEF adds its `player` route beneath the existing root while preserving every existing child. It does not use reflection or remove another owner’s command.
+
 ## 12. Configuration
 
 ### 12.1 Common configuration
@@ -509,6 +511,15 @@ The `commandKernel` section supplies hard limits used by Phase 2 and Phase 3:
 | `persistentCooldownMinimumSeconds` | 60 | 0 to 86400 | Minimum remaining cooldown written across restarts |
 
 These values are defensive ceilings, not permission grants. Lowering a structural alias or bundle limit requires a restart because dispatcher shape does not mutate during a configuration reload. Current workstation cooldown durations continue to come from `virtualWorkstations`.
+
+The `virtualWorkstations` section includes these super-enchanting bounds:
+
+| Key | Default | Allowed range | Purpose |
+| --- | ---: | ---: | --- |
+| `superEnchantingMinLevel` | 1 | 1 to 255 | Lowest nonzero enchantment level applied |
+| `superEnchantingMaxLevel` | 10 | 1 to 255 | Highest enchantment level applied |
+
+The relationship `superEnchantingMinLevel <= superEnchantingMaxLevel` is validated before opening or mutating a menu. Invalid relational values fail closed even though each individual value is inside its NeoForge range.
 
 The `socialEssentials` section controls Phase 5 presentation and bounds:
 
@@ -833,8 +844,16 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 58. Kit policy, cooldown, one-time use, bounded per-player history, dynamic permission validation, and `Instant` persistence.
 59. InvSee permission downgrade and closure before interaction, plus live ender-chest closure after permission or configuration revision changes.
 60. Catalog ownership and shortcut ownership for Phase 6 and Phase 7 actions.
+61. Nested wrapper, moderation-reason, `/data`, password, private-content, unknown-root, and network-address redaction.
+62. File logger recovery when an earlier session marker exists and marker creation after a writer failure.
+63. Command-spy other-observer permission, hierarchy, exemption, and vanish policy.
+64. Cooperative InvSee registration that preserves an existing Brigadier root and child.
+65. Other-target `/getpos`, fixed gamemode shortcuts, and parsed `/gm` grammar without self-permission coupling.
+66. Kit load-time rejection of orphan, malformed, and over-limit use history.
+67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
+68. Seven required GameTests, including teleport safety, exact condensation totals, incomplete-recipe nonmutation, persistent build and freeze enforcement, and persistent inventory-lock enforcement.
 
-Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Phase 6 moderation, command-observation, proxy, privacy, file-failure, and multi-player behavior remains in [the Phase 6 matrix](docs/PHASE_6_TESTS.md). Phase 7 inventory transactions, live menus, registry fixtures, player utilities, and super-enchant behavior remains in [the Phase 7 matrix](docs/PHASE_7_TESTS.md). Run every applicable matrix before approving a public release.
+Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Phase 6 authenticated moderation, real proxy and provider integration, deliberate filesystem and shutdown failures, MaxLogger coexistence, and profiler behavior remain in [the Phase 6 matrix](docs/PHASE_6_TESTS.md). Phase 7 authenticated inventory transactions, live client menus, real Curios behavior, missing-registry fixtures, player-driven persistence, super-enchant client synchronization, dirty shutdown, and profiler behavior remain in [the Phase 7 matrix](docs/PHASE_7_TESTS.md). Run every applicable matrix before approving a public release.
 
 ## 17. Operations and recovery
 
