@@ -2,6 +2,7 @@ package com.enviouse.sef.social;
 
 import com.enviouse.sef.config.PermissionsHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.ParseResults;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
@@ -58,6 +59,27 @@ class SocialCommandDispatcherTest {
                 "reminders", "reminder", "welcome", "customtext", "booktext",
                 "rules", "info", "sef"}) {
             assertNotNull(dispatcher.getRoot().getChild(root), root);
+        }
+    }
+
+    @Test
+    void socialSpySelectedAcceptsQuotedNicknameTargets() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(
+                    player, PermissionsHandler.socialSpyCommand)).thenReturn(true);
+            permissions.when(() -> PermissionAPI.getPermission(
+                    player, PermissionsHandler.socialSpySelected)).thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+            SocialCommands.register(dispatcher);
+
+            ParseResults<CommandSourceStack> parsed =
+                    dispatcher.parse("socialspy selected add \"staff member\"", source);
+
+            assertTrue(parsed.getExceptions().isEmpty());
+            assertFalse(parsed.getReader().canRead());
         }
     }
 

@@ -10,6 +10,10 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.config.PlayerData;
+import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.identity.IdentityService;
+import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.IntegratedNicknameProvider;
 import com.mojang.authlib.GameProfile;
@@ -71,7 +75,7 @@ public class NickCommands {
 				return (nicknameIntegrationEnabled || cfgNickEnabled) &&
 					(BfcCommands.checkPermission(c, PermissionsHandler.nickOthersCommand)); })
 				.then(Commands.argument("username", StringArgumentType.string())
-				//.suggests((ctx, builder) -> SharedSuggestionProvider.sugg)
+				.suggests(IdentityArguments.suggestions(true))
 				.then(Commands.argument("nickname", StringArgumentType.greedyString())
 				.executes((ctx) -> nickCommand(ctx, false, true)))));
 		/* /nickfor <username> */
@@ -79,7 +83,7 @@ public class NickCommands {
 				return (nicknameIntegrationEnabled || cfgNickEnabled) &&
 					(BfcCommands.checkPermission(c, PermissionsHandler.nickOthersCommand)); })
 					.then(Commands.argument("username", StringArgumentType.string())
-					//.suggests((ctx, builder) -> SharedSuggestionProvider.sugg)
+					.suggests(IdentityArguments.suggestions(true))
 					.executes((ctx) -> nickCommand(ctx, true, true))));
 			}
 			/* /whois <nickname> */
@@ -87,6 +91,7 @@ public class NickCommands {
 				return (nicknameIntegrationEnabled || cfgWhoIsEnabled) && 
 					(BfcCommands.checkPermission(c, PermissionsHandler.whoisCommand));
 			}).then(Commands.argument("displayname", StringArgumentType.string())
+				.suggests(IdentityArguments.suggestions(false))
 				.executes(NickCommands::whoisCommand)));
 	}
 
@@ -140,11 +145,15 @@ public class NickCommands {
 			}
 			return null;
 		}
-	private static int whoisCommand(CommandContext<CommandSourceStack> ctx) {
-		String user = StringArgumentType.getString(ctx, "displayname");
-		GameProfile prof = lookupGameProfile(user);
-		if(prof != null) {
-			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eFound a name matching " + user + ": \"" + prof.getName() + "\"\n&eUUID: " + prof.getId() + "&r"), false);
+		private static int whoisCommand(CommandContext<CommandSourceStack> ctx) {
+			String user = StringArgumentType.getString(ctx, "displayname");
+			ActionResult<IdentityService.Identity> identity =
+					KernelServices.identities().resolve(user, ctx.getSource().getPlayer());
+			if(identity.successful() && identity.value().playerId() != null) {
+				ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText(
+						"&eFound a name matching " + user + ": \""
+								+ identity.value().authenticatedUsername() + "\"\n&eUUID: "
+								+ identity.value().playerId() + "&r"), false);
 			return 1;
 		} else {
 			ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cUnknown username/nickname!&r"));
@@ -250,11 +259,12 @@ public class NickCommands {
 		/* /nick OR /nick <nickname> */
 		if(player != null && user == null) 
 			return assignNickname(ctx, player.getUUID(), nick);
-		/* /nickfor <user> OR /nickfor <user> <nickname> */
-		if(user != null) {
-			GameProfile prof = lookupGameProfile(user);
-			if(prof != null) {
-				return assignNickname(ctx, prof.getId(), nick);
+			/* /nickfor <user> OR /nickfor <user> <nickname> */
+			if(user != null) {
+				ActionResult<IdentityService.Identity> identity =
+						KernelServices.identities().resolve(user, ctx.getSource().getPlayer());
+				if(identity.successful() && identity.value().playerId() != null) {
+					return assignNickname(ctx, identity.value().playerId(), nick);
 			} else {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cUnknown player: \"" + user + "\"!&r"));
 				return 0;

@@ -3,9 +3,11 @@ package com.enviouse.sef.social;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.permissions.QuotaPermissionResolver;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
@@ -130,10 +132,10 @@ public final class ReminderCommands {
                         .executes(context -> welcome(context.getSource(), null)))
                 .then(Commands.literal("send")
                         .requires(source -> PermissionService.has(source, PermissionsHandler.welcomeSend))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> welcome(
                                         context.getSource(),
-                                        EntityArgument.getPlayer(context, "player"))))));
+                                        IdentityArguments.getOnline(context, "player"))))));
     }
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> audience(
@@ -171,7 +173,7 @@ public final class ReminderCommands {
                             "server",
                             "server",
                             "sef:social.reminder",
-                            java.util.Set.of(),
+                            QuotaPermissionResolver.granted(actor),
                             Map.of(),
                             Map.of(),
                             usage)).effectiveValue();

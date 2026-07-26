@@ -192,8 +192,8 @@ Administrative defaults:
 35. `kernel.gui.use`, `kernel.hud.use`, `kernel.panel.use`, `kernel.target.others`, `kernel.audience.broad`, `kernel.editor.use`, `kernel.alias.use`, `kernel.bundle.use`, `kernel.profile.use`, `kernel.bypass.use`, and `kernel.sensitive.view`, denied.
 36. Finite quota tier nodes under `sef.homes.*`, `sef.playerwarps.*`, `sef.targets.*`, `sef.mail.*`, and `sef.definitions.*`, denied.
 37. Every `commands.socialspy.*` management, audience, scope, route, recent, status, and format-preview node, denied.
-38. `socialspy.view.metadata`, `socialspy.view.content`, `socialspy.view.vanished`, `socialspy.view.exempt`, and `socialspy.exempt`, denied.
-39. Every `commands.joinmessage.*`, `commands.leavemessage.*`, and `commands.connectionmessage.inspect` node, denied.
+38. `socialspy.view.metadata`, `socialspy.view.content`, `socialspy.view.vanished`, `socialspy.view.exempt`, `socialspy.hierarchy.bypass`, and `socialspy.exempt`, denied.
+39. Every `commands.joinmessage.*`, `commands.leavemessage.*`, and `commands.connectionmessage.inspect` node is denied. `connectionmessage.hierarchy.bypass`, `connectionmessage.exempt`, and `connectionmessage.bypass.exempt` are also denied.
 40. `commands.welcome.preview`, `commands.welcome.send`, `commands.reminder.manage`, and `commands.reminder.send`, denied.
 41. `commands.customtext.manage`, `commands.sef.identity.coverage`, and `commands.sef.identity.refresh`, denied.
 
@@ -255,6 +255,18 @@ Current quota contracts:
 
 LuckPerms metadata accepts a nonnegative integer. `unlimited` is accepted only for quota definitions that explicitly allow it, and the hard ceiling still applies. Missing, negative, malformed, or unavailable metadata falls through to a finite source. LuckPerms is never required for startup.
 
+Command quota contexts include every currently granted finite tier node from the permission manifest. Mail sends therefore honor `sef.mail.500` and `sef.mail.1000`, and reminder definition creation honors `sef.definitions.256` and `sef.definitions.512`, even when LuckPerms metadata is absent. Permission refresh invalidates quota decisions before later mutations.
+
+### 6.4 Phase 4 teleport command enforcement
+
+Phase 4 command mutations enter the canonical kernel action before changing repository state. This includes home set, delete, rename, and restore operations, server warp administration, player warp ownership and publication changes, favorites, reports, transfer changes, moderation changes, spawn changes, random teleport center changes, offline teleport queue changes, and teleport request preference changes. The kernel applies the registered feature, source, permission, cooldown, warmup, cost, target, and audit policy for the canonical action.
+
+All migrated single player arguments use the shared SEF identity argument. It accepts authenticated usernames and unambiguous quoted display nicknames, obtains suggestions from the active nickname provider, and removes a vanished online player from both online and known profile resolution when the viewer cannot see that player. Direct private messages, private chat selection, home administration, warp sharing, teleport requests, offline teleport targets, social selection, connection message management, and manual welcome delivery use this route.
+
+`/tpaccept` uses the teleport action lease as its single canonical execution. It does not wrap that action in a second lease with the same cooldown identity. `/tpaall` resolves at most 100 visible targets first, then runs the bounded fan out through one `sef:teleport.request.all` action. Empty `/tprequests` output is a successful read rather than a provider failure.
+
+Shared player target decisions use the selected metadata provider. A LuckPerms primary group weight is authoritative when present. Operators use the maximum bounded weight, known group names fall back to the configured hierarchy snapshot, console bypasses hierarchy and target exemption, and player bypasses require their explicit hierarchy or exemption permission. `/homes <player>` now uses the same target policy as home administration.
+
 ## 7. Sudo stabilization boundary
 
 Phase 1 does not register `/sudo`. The old implementation class and configuration keys remain only to preserve source and configuration compatibility while the later secured sudo phase is built.
@@ -309,6 +321,8 @@ Integrated identities are stored by UUID in `sef.playerdata.json` with the last 
 
 `commands.nick.others` now defaults to denied.
 
+Online resolution and suggestions obtain the nickname from the selected nickname provider instead of assuming the integrated repository is active. `/nickfor` and `/whois` use the same UUID authoritative identity service as other migrated command targets. This keeps FTB Essentials ownership singular while still supporting display name suggestions and quoted display name input.
+
 ### 9.1 Phase 5 social and identity services
 
 `SocialRepository` owns one versioned `social.json` document. Its independent collections contain player social preferences, mail records, connection templates, reminder definitions, reminder acknowledgement state, and custom text pages. All player relationships and ownership fields use authenticated UUIDs. User-facing names are resolved only for presentation.
@@ -329,16 +343,17 @@ Every social-spy delivery rechecks:
 6. Route filters.
 7. Sender and recipient exemption state.
 8. Observer-specific vanish visibility.
-9. Content permission when content was requested.
-10. Per-observer delivery rate.
+9. Sender and recipient hierarchy against the observer.
+10. Content permission when content was requested.
+11. Per-observer delivery rate.
 
-Metadata-only observers receive `[content hidden]`. Content never enters the persisted social profile or ordinary command audit. `/socialspy recent` is session-only and logout removes it. `/socialspy format preview` compiles the configured template against `{from}`, `{to}`, `{message}`, `{route}`, and `{timestamp}` and inserts typed sample values.
+Selected player configuration also checks vanish visibility, subject exemption, and hierarchy before storing a UUID. Unauthorized lookup uses the same unavailable response as an unknown player. Metadata only observers receive `[content hidden]`. Content never enters the persisted social profile or ordinary command audit. Every delivered observation emits a separate security audit event containing the observer UUID, sender UUID, recipient UUID, route, metadata or content scope, redaction class, and private content redaction rule id when applicable. The event never contains the private message body. `/socialspy recent` is session only and logout removes it. `/socialspy format preview` compiles the configured template against `{from}`, `{to}`, `{message}`, `{route}`, and `{timestamp}` and inserts typed sample values.
 
-Mail is addressed by recipient UUID and indexed by recipient in memory. Sending applies ignore policy, configured length and retention, the `sef:mail` quota, a global hard ceiling, and a recipient mailbox count. List, read, archive, delete, and clear operations can mutate only the authenticated recipient’s records. Expired mail is omitted from views and quota use. Mail bodies remain inside the owned social repository and player-facing delivery.
+Mail is addressed by recipient UUID and indexed by recipient in memory. Sending applies ignore policy, configured length and retention, the `sef:mail` quota, every granted mail quota tier permission, a global hard ceiling, and a recipient mailbox count. List, read, archive, delete, and clear operations can mutate only the authenticated recipient’s records. Expired mail is omitted from views and quota use. Mail bodies remain inside the owned social repository and player facing delivery.
 
-Connection-message mixins replace the real vanilla join and leave broadcast components. Templates accept only `{player}`, `{username}`, `{uuid}`, and `{world}`. `{player}` is the selected provider’s formatted display component. Set, clear, preview, and inspect actions require separate permissions and target hierarchy approval. The generated component is associated with its subject so the outbound packet filter suppresses it for recipients who cannot see a vanished subject.
+Connection message mixins replace the real vanilla join and leave broadcast components. Templates accept only `{player}`, `{username}`, `{uuid}`, and `{world}`. `{player}` is the selected provider’s formatted display component. Set, clear, preview, and inspect actions require separate permissions, hierarchy approval, and exemption approval. The generated component is associated with its subject by object identity, not structural component equality, so equal looking simultaneous messages cannot inherit another player’s vanish state. Correlation keys and player references are weak, stale entries are pruned, and the map has a 2048 entry hard bound. The outbound packet filter suppresses a correlated message for recipients who cannot see its vanished subject.
 
-Reminder definitions use `{player}`, `{username}`, and `{unread_mail}`. Definitions have stable ids, enabled state, audience, repeat seconds, maximum deliveries, dismissal policy, acknowledgement revision, actor UUID, and update time. Updating message, audience, repeat, or maximum delivery advances the acknowledgement revision. Player state records the last delivery, count, dismissal, and acknowledged revision. Definition creation applies the `sef:definitions` quota. Scheduler passes snapshot definitions once and apply delivery state without filesystem access in the tick path.
+Reminder definitions use `{player}`, `{username}`, and `{unread_mail}`. Definitions have stable ids, enabled state, audience, repeat seconds, maximum deliveries, dismissal policy, acknowledgement revision, actor UUID, and update time. Updating message, audience, repeat, or maximum delivery advances the acknowledgement revision. Player state records the last delivery, count, dismissal, and acknowledged revision. Definition creation applies the `sef:definitions` quota and every granted definition quota tier permission. Scheduler passes snapshot definitions once and applies delivery state without filesystem access in the tick path.
 
 Custom text ids and observation routes use normalized ids matching `[a-z0-9][a-z0-9_.-]{0,63}`. Text content, templates, mail, selected UUIDs, ignore UUIDs, routes, profiles, definitions, and state collections all have hard bounds.
 
@@ -705,6 +720,11 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 43. Social repository round trips, corruption recovery, unsafe id and content rejection, mailbox quota, recipient ownership, archive isolation, clear isolation, and reminder acknowledgement state.
 44. Observation event deduplication, bounded event memory, per-observer rate limiting, and second-window reset.
 45. Social action catalog ownership, exact subsystem feature gates, and nonempty permission contracts.
+46. Active nickname provider resolution and nickname aware Brigadier target parsing, including quoted display names.
+47. Vanished target removal from online and known profile identity resolution.
+48. Granted finite quota tier propagation into mail and reminder quota contexts.
+49. Connection message correlation by component object identity with bounded weak references.
+50. Social spy delivery audit observer identity, scope, audit class, and redaction metadata without content persistence.
 
 Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Run every applicable matrix before approving a public release.
 

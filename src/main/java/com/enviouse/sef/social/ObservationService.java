@@ -2,7 +2,10 @@ package com.enviouse.sef.social;
 
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.message.MessageService;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.SEFUtilities;
@@ -104,6 +107,7 @@ public final class ObservationService implements PrivateMessageObservationAdapte
                     routeId);
             observer.sendSystemMessage(rendered);
             remember(observer.getUUID(), rendered);
+            auditDelivery(observer, sender, recipient, routeId, mayViewContent);
         }
     }
 
@@ -147,9 +151,7 @@ public final class ObservationService implements PrivateMessageObservationAdapte
                 || hidden(observer, sender) || hidden(observer, recipient)) {
             return false;
         }
-        boolean exempt = PermissionService.has(sender, PermissionsHandler.socialSpyExempt)
-                || PermissionService.has(recipient, PermissionsHandler.socialSpyExempt);
-        if (exempt && !PermissionService.has(observer, PermissionsHandler.socialSpyViewExempt)) {
+        if (!eligibleSubject(observer, sender) || !eligibleSubject(observer, recipient)) {
             return false;
         }
         if (preference.spyAudience() == SocialRepository.SpyAudience.EVERYONE) {
@@ -169,6 +171,72 @@ public final class ObservationService implements PrivateMessageObservationAdapte
     private static boolean hidden(ServerPlayer observer, ServerPlayer subject) {
         return VanishUtil.isVanished(subject, observer)
                 && !PermissionService.has(observer, PermissionsHandler.socialSpyViewVanished);
+    }
+
+    private static boolean eligibleSubject(ServerPlayer observer, ServerPlayer subject) {
+        return PlayerTargetPolicy.decide(
+                observer.createCommandSourceStack(),
+                subject,
+                PermissionsHandler.socialSpyHierarchyBypass,
+                PermissionsHandler.socialSpyExempt,
+                PermissionsHandler.socialSpyViewExempt,
+                false,
+                true).allowed();
+    }
+
+    private static void auditDelivery(
+            ServerPlayer observer,
+            ServerPlayer sender,
+            ServerPlayer recipient,
+            String route,
+            boolean contentVisible
+    ) {
+        AuditService.record(deliveryAudit(
+                observer.getUUID(),
+                sender.getUUID(),
+                sender.getGameProfile().getName(),
+                recipient.getUUID(),
+                route,
+                contentVisible));
+    }
+
+    static AuditService.Event deliveryAudit(
+            UUID observerId,
+            UUID senderId,
+            String senderName,
+            UUID recipientId,
+            String route,
+            boolean contentVisible
+    ) {
+        return new AuditService.Event(
+                1,
+                UUID.randomUUID(),
+                Instant.now(),
+                SecurityAuditService.currentSessionId(),
+                senderId,
+                senderName,
+                "player",
+                "sef:social.spy.delivery",
+                List.of(recipientId),
+                Map.of(
+                        "route", route,
+                        "scope", contentVisible ? "content" : "metadata"),
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                0L,
+                "social_spy",
+                null,
+                null,
+                0L,
+                0L,
+                Map.of(),
+                contentVisible
+                        ? AuditService.RedactionClass.PRIVATE_CONTENT
+                        : AuditService.RedactionClass.METADATA,
+                contentVisible ? List.of("private_message_content") : List.of(),
+                observerId,
+                "",
+                AuditService.AuditClass.PRIVATE_MESSAGE_OBSERVATION);
     }
 
     private Component render(

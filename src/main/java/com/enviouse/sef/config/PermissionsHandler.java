@@ -306,6 +306,8 @@ public class PermissionsHandler {
 			ezyPermission("socialspy.view.vanished", false, "View vanished social events", "Allows observing participants the viewer may otherwise see through vanish policy");
 	public static PermissionNode<Boolean> socialSpyViewExempt =
 			ezyPermission("socialspy.view.exempt", false, "Override social spy exemption", "Allows observing exempt participants with sensitive audit policy");
+	public static PermissionNode<Boolean> socialSpyHierarchyBypass =
+			ezyPermission("socialspy.hierarchy.bypass", false, "Social spy hierarchy bypass", "Allows observing participants regardless of hierarchy");
 	public static PermissionNode<Boolean> socialSpyExempt =
 			ezyPermission("socialspy.exempt", false, "Social spy exemption", "Prevents ordinary private message observation");
 	public static PermissionNode<Boolean> mailCommand =
@@ -326,6 +328,12 @@ public class PermissionsHandler {
 			ezyPermission("commands.leavemessage.preview", false, "Preview leave message", "Allows previewing a player's leave template");
 	public static PermissionNode<Boolean> connectionMessageInspect =
 			ezyPermission("commands.connectionmessage.inspect", false, "Inspect connection messages", "Allows inspecting connection message revisions");
+	public static PermissionNode<Boolean> connectionMessageHierarchyBypass =
+			ezyPermission("connectionmessage.hierarchy.bypass", false, "Connection message hierarchy bypass", "Allows managing connection messages regardless of hierarchy");
+	public static PermissionNode<Boolean> connectionMessageExempt =
+			ezyPermission("connectionmessage.exempt", false, "Connection message exemption", "Prevents ordinary connection message management");
+	public static PermissionNode<Boolean> connectionMessageBypassExempt =
+			ezyPermission("connectionmessage.bypass.exempt", false, "Connection message exemption bypass", "Allows managing exempt connection message targets");
 	public static PermissionNode<Boolean> welcomePreview =
 			ezyPermission("commands.welcome.preview", false, "Preview welcome message", "Allows previewing welcome definitions");
 	public static PermissionNode<Boolean> welcomeSend =

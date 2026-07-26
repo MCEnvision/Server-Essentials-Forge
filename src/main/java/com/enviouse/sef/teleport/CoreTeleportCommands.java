@@ -3,8 +3,10 @@ package com.enviouse.sef.teleport;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.storage.repository.LocationHistoryRepository;
 import com.enviouse.sef.vanish.VanishUtil;
@@ -12,7 +14,6 @@ import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
@@ -138,17 +139,17 @@ public final class CoreTeleportCommands {
                             source,
                             PermissionsHandler.directTeleportCommand,
                             "sef:teleport.direct"))
-                    .then(Commands.argument("target", EntityArgument.player())
+                    .then(IdentityArguments.online("target")
                             .executes(context -> directToPlayer(
                                     context.getSource(),
                                     TeleportCommandSupport.player(context.getSource()),
-                                    EntityArgument.getPlayer(context, "target"),
+                                    IdentityArguments.getOnline(context, "target"),
                                     false))
-                            .then(Commands.argument("destination", EntityArgument.player())
+                            .then(IdentityArguments.online("destination")
                                     .executes(context -> directToPlayer(
                                             context.getSource(),
-                                            EntityArgument.getPlayer(context, "target"),
-                                            EntityArgument.getPlayer(context, "destination"),
+                                            IdentityArguments.getOnline(context, "target"),
+                                            IdentityArguments.getOnline(context, "destination"),
                                             false)))));
         }
         dispatcher.register(Commands.literal("tphere")
@@ -156,31 +157,31 @@ public final class CoreTeleportCommands {
                         source,
                         PermissionsHandler.teleportHereCommand,
                         "sef:teleport.direct.here"))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> teleportHere(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player"),
+                                IdentityArguments.getOnline(context, "player"),
                                 false))));
         dispatcher.register(Commands.literal("tpo")
                 .requires(source -> TeleportCommandSupport.has(
                         source,
                         PermissionsHandler.teleportOverrideCommand,
                         "sef:teleport.direct.override"))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> directToPlayer(
                                 context.getSource(),
                                 TeleportCommandSupport.player(context.getSource()),
-                                EntityArgument.getPlayer(context, "player"),
+                                IdentityArguments.getOnline(context, "player"),
                                 true))));
         dispatcher.register(Commands.literal("tpohere")
                 .requires(source -> TeleportCommandSupport.has(
                         source,
                         PermissionsHandler.teleportOverrideHereCommand,
                         "sef:teleport.direct.override"))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> teleportHere(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player"),
+                                IdentityArguments.getOnline(context, "player"),
                                 true))));
         dispatcher.register(Commands.literal("tppos")
                 .requires(source -> TeleportCommandSupport.has(
@@ -202,7 +203,7 @@ public final class CoreTeleportCommands {
                         source,
                         PermissionsHandler.teleportOfflineCommand,
                         "sef:teleport.direct.offline"))
-                .then(Commands.argument("player", StringArgumentType.word())
+                .then(IdentityArguments.known("player")
                         .then(Commands.argument("position", Vec3Argument.vec3())
                                 .executes(context -> queueOffline(
                                         context.getSource(),
@@ -312,6 +313,18 @@ public final class CoreTeleportCommands {
         if (player == null) {
             return 0;
         }
+        boolean randomCenter = key.startsWith("rtp:center:");
+        return KernelCommandExecutor.execute(
+                source,
+                randomCenter ? "sef:teleport.random.set" : "sef:teleport.spawn.set",
+                java.util.Map.of("operation", "set", "layer", key),
+                () -> setSpawnInternal(source, player, key),
+                randomCenter
+                        ? PermissionsHandler.setRandomTeleportCommand
+                        : PermissionsHandler.setSpawnCommand);
+    }
+
+    private static int setSpawnInternal(CommandSourceStack source, ServerPlayer player, String key) {
         long revision = KernelServices.teleports().spawn(key).map(TeleportRepository.SpawnRecord::revision).orElse(0L) + 1L;
         KernelServices.teleports().setSpawn(new TeleportRepository.SpawnRecord(
                 key,
@@ -519,6 +532,22 @@ public final class CoreTeleportCommands {
             TeleportCommandSupport.fail(source, resolved.detail());
             return 0;
         }
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:teleport.direct.offline",
+                java.util.Map.of("operation", "queue"),
+                java.util.List.of(resolved.value().playerId()),
+                false,
+                () -> queueOfflineInternal(source, actor, resolved.value(), position),
+                PermissionsHandler.teleportOfflineCommand);
+    }
+
+    private static int queueOfflineInternal(
+            CommandSourceStack source,
+            ServerPlayer actor,
+            IdentityService.Identity identity,
+            Vec3 position
+    ) {
         SavedLocation location = new SavedLocation(
                 actor.serverLevel().dimension().location().toString(),
                 position.x,
@@ -527,7 +556,7 @@ public final class CoreTeleportCommands {
                 actor.getYRot(),
                 actor.getXRot());
         KernelServices.teleports().queueOfflineTeleport(new TeleportRepository.PendingOfflineTeleport(
-                resolved.value().playerId(),
+                identity.playerId(),
                 location,
                 actor.getUUID(),
                 "offline_admin",
@@ -535,7 +564,7 @@ public final class CoreTeleportCommands {
                 1));
         TeleportCommandSupport.success(
                 source,
-                "Queued an offline teleport for " + resolved.value().authenticatedUsername() + ".");
+                "Queued an offline teleport for " + identity.authenticatedUsername() + ".");
         return 1;
     }
 

@@ -2,7 +2,9 @@ package com.enviouse.sef.teleport;
 
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.QuotaService;
 import com.mojang.brigadier.CommandDispatcher;
@@ -11,7 +13,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
@@ -48,19 +49,25 @@ public final class HomeCommands {
                         context.getSource(),
                         TeleportCommandSupport.player(context.getSource()),
                         KernelServices.teleportSettings().defaultHomeName(),
-                        false))
+                        false,
+                        "sef:teleport.home.set",
+                        PermissionsHandler.setHomeCommand))
                 .then(Commands.argument("name", StringArgumentType.word())
                         .executes(context -> setHome(
                                 context.getSource(),
                                 TeleportCommandSupport.player(context.getSource()),
                                 StringArgumentType.getString(context, "name"),
-                                false))
+                                false,
+                                "sef:teleport.home.set",
+                                PermissionsHandler.setHomeCommand))
                         .then(Commands.literal("confirm")
                                 .executes(context -> setHome(
                                         context.getSource(),
                                         TeleportCommandSupport.player(context.getSource()),
                                         StringArgumentType.getString(context, "name"),
-                                        true))));
+                                        true,
+                                        "sef:teleport.home.set",
+                                        PermissionsHandler.setHomeCommand))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> homeNode(String literal) {
@@ -90,11 +97,16 @@ public final class HomeCommands {
                 .executes(context -> listHomes(
                         context.getSource(),
                         TeleportCommandSupport.player(context.getSource())))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homesOthersCommand))
-                        .executes(context -> listHomes(
-                                context.getSource(),
-                                EntityArgument.getPlayer(context, "player"))));
+                        .executes(context -> {
+                            ServerPlayer actor = TeleportCommandSupport.player(context.getSource());
+                            ServerPlayer target = IdentityArguments.getOnline(context, "player");
+                            return actor != null && TeleportCommandSupport.mayTarget(
+                                    context.getSource(), actor, target, true)
+                                    ? listHomes(context.getSource(), target)
+                                    : 0;
+                        }));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> deleteHomeNode(String literal) {
@@ -119,7 +131,9 @@ public final class HomeCommands {
                                 .executes(context -> deleteHome(
                                         context.getSource(),
                                         TeleportCommandSupport.player(context.getSource()),
-                                        StringArgumentType.getString(context, "name")))));
+                                        StringArgumentType.getString(context, "name"),
+                                        "sef:teleport.home.delete",
+                                        PermissionsHandler.deleteHomeCommand))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> renameHomeNode(String literal) {
@@ -137,7 +151,9 @@ public final class HomeCommands {
                                         context.getSource(),
                                         TeleportCommandSupport.player(context.getSource()),
                                         StringArgumentType.getString(context, "current"),
-                                        StringArgumentType.getString(context, "replacement")))));
+                                        StringArgumentType.getString(context, "replacement"),
+                                        "sef:teleport.home.rename",
+                                        PermissionsHandler.renameHomeCommand))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> homeAdminNode(String literal) {
@@ -148,54 +164,60 @@ public final class HomeCommands {
                         "sef:teleport.home.admin"))
                 .then(Commands.literal("list")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminList))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> {
-                                    ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                                    ServerPlayer target = IdentityArguments.getOnline(context, "player");
                                     return mayAdminTarget(context.getSource(), target)
                                             ? listHomes(context.getSource(), target)
                                             : 0;
                                 })))
                 .then(Commands.literal("teleport")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminTeleport))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .then(Commands.argument("name", StringArgumentType.word())
                                         .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                                 KernelServices.teleports().homes(
-                                                                EntityArgument.getPlayer(context, "player").getUUID())
+                                                                IdentityArguments.getOnline(context, "player").getUUID())
                                                         .stream()
                                                         .map(HomeRecord::displayName),
                                                 builder))
                                         .executes(context -> adminTeleport(
                                                 context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"),
+                                                IdentityArguments.getOnline(context, "player"),
                                                 StringArgumentType.getString(context, "name"))))))
                 .then(Commands.literal("set")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminSet))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .then(Commands.argument("name", StringArgumentType.word())
                                         .executes(context -> setHome(
                                                 context.getSource(),
-                                                adminTarget(context.getSource(), EntityArgument.getPlayer(context, "player")),
+                                                adminTarget(context.getSource(), IdentityArguments.getOnline(context, "player")),
                                                 StringArgumentType.getString(context, "name"),
-                                                true)))))
+                                                true,
+                                                "sef:teleport.home.admin",
+                                                PermissionsHandler.homeAdminSet)))))
                 .then(Commands.literal("delete")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminDelete))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .then(Commands.argument("name", StringArgumentType.word())
                                         .executes(context -> deleteHome(
                                                 context.getSource(),
-                                                adminTarget(context.getSource(), EntityArgument.getPlayer(context, "player")),
-                                                StringArgumentType.getString(context, "name"))))))
+                                                adminTarget(context.getSource(), IdentityArguments.getOnline(context, "player")),
+                                                StringArgumentType.getString(context, "name"),
+                                                "sef:teleport.home.admin",
+                                                PermissionsHandler.homeAdminDelete)))))
                 .then(Commands.literal("rename")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminRename))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .then(Commands.argument("current", StringArgumentType.word())
                                         .then(Commands.argument("replacement", StringArgumentType.word())
                                                 .executes(context -> renameHome(
                                                         context.getSource(),
-                                                        adminTarget(context.getSource(), EntityArgument.getPlayer(context, "player")),
+                                                        adminTarget(context.getSource(), IdentityArguments.getOnline(context, "player")),
                                                         StringArgumentType.getString(context, "current"),
-                                                        StringArgumentType.getString(context, "replacement")))))))
+                                                        StringArgumentType.getString(context, "replacement"),
+                                                        "sef:teleport.home.admin",
+                                                        PermissionsHandler.homeAdminRename))))))
                 .then(Commands.literal("restore")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminRestore))
                         .then(Commands.argument("id", StringArgumentType.word())
@@ -204,9 +226,9 @@ public final class HomeCommands {
                                         StringArgumentType.getString(context, "id")))))
                 .then(Commands.literal("limit")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homeAdminLimit))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> {
-                                    ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                                    ServerPlayer target = IdentityArguments.getOnline(context, "player");
                                     return mayAdminTarget(context.getSource(), target)
                                             ? showLimit(context.getSource(), target)
                                             : 0;
@@ -226,11 +248,32 @@ public final class HomeCommands {
             CommandSourceStack source,
             ServerPlayer owner,
             String name,
-            boolean overwrite
+            boolean overwrite,
+            String actionId,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
     ) {
         if (owner == null) {
             return 0;
         }
+        return KernelCommandExecutor.execute(
+                source,
+                actionId,
+                java.util.Map.of(
+                        "operation", "set",
+                        "name", name,
+                        "overwrite", Boolean.toString(overwrite)),
+                List.of(owner.getUUID()),
+                false,
+                () -> setHomeInternal(source, owner, name, overwrite),
+                permission);
+    }
+
+    private static int setHomeInternal(
+            CommandSourceStack source,
+            ServerPlayer owner,
+            String name,
+            boolean overwrite
+    ) {
         TeleportRepository repository = KernelServices.teleports();
         boolean replacement = repository.home(owner.getUUID(), name).isPresent();
         SavedLocation location = SavedLocation.from(owner);
@@ -402,10 +445,27 @@ public final class HomeCommands {
         return homes.size();
     }
 
-    private static int deleteHome(CommandSourceStack source, ServerPlayer owner, String name) {
+    private static int deleteHome(
+            CommandSourceStack source,
+            ServerPlayer owner,
+            String name,
+            String actionId,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
+    ) {
         if (owner == null) {
             return 0;
         }
+        return KernelCommandExecutor.execute(
+                source,
+                actionId,
+                java.util.Map.of("operation", "delete", "name", name),
+                List.of(owner.getUUID()),
+                false,
+                () -> deleteHomeInternal(source, owner, name),
+                permission);
+    }
+
+    private static int deleteHomeInternal(CommandSourceStack source, ServerPlayer owner, String name) {
         ActionResult<HomeRecord> result;
         try {
             result = KernelServices.teleports().deleteHome(owner.getUUID(), name);
@@ -427,11 +487,32 @@ public final class HomeCommands {
             CommandSourceStack source,
             ServerPlayer owner,
             String current,
-            String replacement
+            String replacement,
+            String actionId,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
     ) {
         if (owner == null) {
             return 0;
         }
+        return KernelCommandExecutor.execute(
+                source,
+                actionId,
+                java.util.Map.of(
+                        "operation", "rename",
+                        "current", current,
+                        "replacement", replacement),
+                List.of(owner.getUUID()),
+                false,
+                () -> renameHomeInternal(source, owner, current, replacement),
+                permission);
+    }
+
+    private static int renameHomeInternal(
+            CommandSourceStack source,
+            ServerPlayer owner,
+            String current,
+            String replacement
+    ) {
         ActionResult<HomeRecord> result;
         try {
             result = KernelServices.teleports().renameHome(owner.getUUID(), current, replacement);
@@ -448,6 +529,15 @@ public final class HomeCommands {
     }
 
     private static int restoreHome(CommandSourceStack source, String id) {
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:teleport.home.admin",
+                java.util.Map.of("operation", "restore", "home_id", id),
+                () -> restoreHomeInternal(source, id),
+                PermissionsHandler.homeAdminRestore);
+    }
+
+    private static int restoreHomeInternal(CommandSourceStack source, String id) {
         UUID homeId;
         try {
             homeId = UUID.fromString(id);

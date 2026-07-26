@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -70,6 +71,27 @@ class PermissionServiceTest {
             assertEquals(PermissionService.Evaluation.NOT_EVALUATED, decision.hierarchyResult());
             assertEquals(PermissionService.Evaluation.NOT_EVALUATED, decision.exemptionResult());
             assertEquals(PermissionService.DenialReason.NONE, decision.denialReason());
+        }
+    }
+
+    @Test
+    void quotaPermissionResolverReturnsGrantedOfflineTiers() {
+        UUID playerId = UUID.randomUUID();
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class)) {
+            permissions.when(() -> PermissionAPI.getOfflinePermission(
+                            playerId,
+                            PermissionsHandler.quotaTierNodes.get("sef.mail.500")))
+                    .thenReturn(true);
+            permissions.when(() -> PermissionAPI.getOfflinePermission(
+                            playerId,
+                            PermissionsHandler.quotaTierNodes.get("sef.definitions.256")))
+                    .thenReturn(true);
+
+            Set<String> granted = QuotaPermissionResolver.granted(playerId);
+
+            assertTrue(granted.contains("sef.mail.500"));
+            assertTrue(granted.contains("sef.definitions.256"));
+            assertFalse(granted.contains("sef.mail.1000"));
         }
     }
 }

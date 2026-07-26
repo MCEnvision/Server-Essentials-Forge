@@ -8,17 +8,19 @@ import com.enviouse.sef.utils.SEFUtilities;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.Collections;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 public final class ConnectionMessageService {
+    private static final int MAXIMUM_SUBJECTS = 2_048;
     private static final Set<String> PLACEHOLDERS =
             Set.of("player", "username", "uuid", "world");
-    private static final Map<Component, ServerPlayer> SUBJECTS =
-            Collections.synchronizedMap(new WeakHashMap<>());
+    private static final ReferenceQueue<Component> STALE_MESSAGES = new ReferenceQueue<>();
+    private static final Map<IdentityWeakReference, WeakReference<ServerPlayer>> SUBJECTS = new HashMap<>();
 
     private ConnectionMessageService() {
     }
@@ -53,11 +55,63 @@ public final class ConnectionMessageService {
             return vanillaMessage;
         }
         Component result = rendered.value();
-        SUBJECTS.put(result, player);
+        rememberSubject(result, player);
         return result;
     }
 
-    public static Optional<ServerPlayer> subject(Component message) {
-        return Optional.ofNullable(SUBJECTS.get(message));
+    public static synchronized Optional<ServerPlayer> subject(Component message) {
+        prune();
+        WeakReference<ServerPlayer> reference = SUBJECTS.get(new IdentityWeakReference(message, null));
+        return reference == null ? Optional.empty() : Optional.ofNullable(reference.get());
+    }
+
+    static synchronized void rememberSubject(Component message, ServerPlayer player) {
+        prune();
+        SUBJECTS.put(
+                new IdentityWeakReference(message, STALE_MESSAGES),
+                new WeakReference<>(player));
+        while (SUBJECTS.size() > MAXIMUM_SUBJECTS) {
+            SUBJECTS.remove(SUBJECTS.keySet().iterator().next());
+        }
+    }
+
+    static synchronized void clearSubjects() {
+        SUBJECTS.clear();
+        while (STALE_MESSAGES.poll() != null) {
+        }
+    }
+
+    private static void prune() {
+        IdentityWeakReference reference;
+        while ((reference = (IdentityWeakReference) STALE_MESSAGES.poll()) != null) {
+            SUBJECTS.remove(reference);
+        }
+        SUBJECTS.entrySet().removeIf(entry -> entry.getValue().get() == null);
+    }
+
+    private static final class IdentityWeakReference extends WeakReference<Component> {
+        private final int identityHash;
+
+        private IdentityWeakReference(Component referent, ReferenceQueue<Component> queue) {
+            super(referent, queue);
+            identityHash = System.identityHashCode(referent);
+        }
+
+        @Override
+        public int hashCode() {
+            return identityHash;
+        }
+
+        @Override
+        public boolean equals(Object other) {
+            if (this == other) {
+                return true;
+            }
+            if (!(other instanceof IdentityWeakReference reference)) {
+                return false;
+            }
+            Component mine = get();
+            return mine != null && mine == reference.get();
+        }
     }
 }

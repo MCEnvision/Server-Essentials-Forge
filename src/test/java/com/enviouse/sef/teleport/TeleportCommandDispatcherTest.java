@@ -2,6 +2,7 @@ package com.enviouse.sef.teleport;
 
 import com.enviouse.sef.config.PermissionsHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.ParseResults;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
@@ -54,6 +55,24 @@ class TeleportCommandDispatcherTest {
     void vanillaTeleportRootIsNotOwnedByDefault() {
         CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
         assertNull(dispatcher.getRoot().getChild("tp"));
+    }
+
+    @Test
+    void teleportRequestsAcceptQuotedNicknameTargets() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(
+                    player, PermissionsHandler.tpaCommand)).thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+            ParseResults<CommandSourceStack> parsed =
+                    dispatcher.parse("tpa \"staff member\"", source);
+
+            assertTrue(parsed.getExceptions().isEmpty());
+            assertFalse(parsed.getReader().canRead());
+        }
     }
 
     private static CommandDispatcher<CommandSourceStack> dispatcher() {

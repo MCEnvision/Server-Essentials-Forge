@@ -10,5 +10,6 @@ public interface IMetadataProvider {
 	@NonNull public default String getPlayerSuffix(@NonNull GameProfile player) { return getPlayerPrefixAndSuffix(player)[1]; }
 	@NonNull public String[] getPlayerPrefixAndSuffix(@NonNull GameProfile player);
 	@NonNull public default String getPrimaryGroup(@NonNull GameProfile player) { return ""; }
+	public default Integer getHierarchyWeight(@NonNull GameProfile player) { return null; }
 	public default void invalidateCache() {}
 	}

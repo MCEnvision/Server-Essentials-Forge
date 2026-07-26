@@ -9,6 +9,7 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
 import com.enviouse.sef.kernel.policy.FeatureGateService;
 import com.enviouse.sef.kernel.policy.QuotaService;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.kernel.policy.TargetHierarchyService;
 import com.enviouse.sef.kernel.policy.WarmupService;
 import com.enviouse.sef.permissions.PermissionService;
@@ -258,20 +259,14 @@ final class TeleportCommandSupport {
             ServerPlayer target,
             boolean allowEqual
     ) {
-        TargetHierarchyService.Decision decision = KernelServices.hierarchy().decide(
-                new TargetHierarchyService.Context(
-                        actor.getUUID(),
-                        target.getUUID(),
-                        false,
-                        has(actor, PermissionsHandler.teleportHierarchyBypass),
-                        has(target, PermissionsHandler.teleportExempt),
-                        has(actor, PermissionsHandler.teleportBypassExempt),
-                        true,
-                        allowEqual,
-                        source.hasPermission(4) ? 1000 : 100,
-                        target.hasPermissions(4) ? 1000 : 100,
-                        source.hasPermission(4) ? "administrator" : "player",
-                        target.hasPermissions(4) ? "administrator" : "player"));
+        TargetHierarchyService.Decision decision = PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.teleportHierarchyBypass,
+                PermissionsHandler.teleportExempt,
+                PermissionsHandler.teleportBypassExempt,
+                true,
+                allowEqual);
         if (!decision.allowed()) {
             fail(source, decision.exempt()
                     ? "That player is exempt from teleport targeting."

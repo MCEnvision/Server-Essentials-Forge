@@ -2,8 +2,10 @@ package com.enviouse.sef.teleport;
 
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.QuotaService;
 import com.mojang.brigadier.CommandDispatcher;
@@ -12,7 +14,6 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.time.Instant;
@@ -169,27 +170,12 @@ public final class WarpCommands {
                         PermissionsHandler.warpManageCommand,
                         "sef:teleport.warp.manage"))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .executes(context -> {
-                            WarpRecord warp = serverWarp(
-                                    context.getSource(),
-                                    StringArgumentType.getString(context, "name"));
-                            if (warp == null) {
-                                return 0;
-                            }
-                            ActionResult<WarpRecord> result = KernelServices.teleports().setWarpFlags(
-                                    warp.id(),
-                                    hidden,
-                                    listed,
-                                    featured);
-                            if (!result.successful()) {
-                                TeleportCommandSupport.fail(context.getSource(), result.detail());
-                                return 0;
-                            }
-                            TeleportCommandSupport.success(
-                                    context.getSource(),
-                                    "Updated warp " + result.value().displayName() + ".");
-                            return 1;
-                        }));
+                        .executes(context -> updateServerFlags(
+                                context.getSource(),
+                                StringArgumentType.getString(context, "name"),
+                                hidden,
+                                listed,
+                                featured)));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> statusNode(
@@ -202,24 +188,10 @@ public final class WarpCommands {
                         PermissionsHandler.warpManageCommand,
                         "sef:teleport.warp.manage"))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .executes(context -> {
-                            WarpRecord warp = serverWarp(
-                                    context.getSource(),
-                                    StringArgumentType.getString(context, "name"));
-                            if (warp == null) {
-                                return 0;
-                            }
-                            ActionResult<WarpRecord> result =
-                                    KernelServices.teleports().setWarpStatus(warp.id(), status);
-                            if (!result.successful()) {
-                                TeleportCommandSupport.fail(context.getSource(), result.detail());
-                                return 0;
-                            }
-                            TeleportCommandSupport.success(
-                                    context.getSource(),
-                                    "Set warp " + warp.displayName() + " to " + status.name().toLowerCase(Locale.ROOT) + ".");
-                            return 1;
-                        }));
+                        .executes(context -> updateServerStatus(
+                                context.getSource(),
+                                StringArgumentType.getString(context, "name"),
+                                status)));
     }
 
     private static int visitServerWarp(CommandSourceStack source, String name) {
@@ -278,6 +250,23 @@ public final class WarpCommands {
         if (player == null) {
             return 0;
         }
+        return executeMutation(
+                source,
+                "sef:teleport.warp.set",
+                "set",
+                java.util.Map.of(
+                        "name", name,
+                        "overwrite", Boolean.toString(overwrite)),
+                () -> setServerWarpInternal(source, player, name, overwrite),
+                PermissionsHandler.setWarpCommand);
+    }
+
+    private static int setServerWarpInternal(
+            CommandSourceStack source,
+            ServerPlayer player,
+            String name,
+            boolean overwrite
+    ) {
         ActionResult<WarpRecord> result;
         try {
             result = KernelServices.teleports().setServerWarp(name, SavedLocation.from(player), overwrite);
@@ -301,6 +290,16 @@ public final class WarpCommands {
     }
 
     private static int deleteServerWarp(CommandSourceStack source, String name) {
+        return executeMutation(
+                source,
+                "sef:teleport.warp.delete",
+                "delete",
+                java.util.Map.of("name", name),
+                () -> deleteServerWarpInternal(source, name),
+                PermissionsHandler.deleteWarpCommand);
+    }
+
+    private static int deleteServerWarpInternal(CommandSourceStack source, String name) {
         WarpRecord warp = serverWarp(source, name);
         if (warp == null) {
             return 0;
@@ -317,6 +316,20 @@ public final class WarpCommands {
     }
 
     private static int renameServerWarp(CommandSourceStack source, String current, String replacement) {
+        return executeMutation(
+                source,
+                "sef:teleport.warp.rename",
+                "rename",
+                java.util.Map.of("current", current, "replacement", replacement),
+                () -> renameServerWarpInternal(source, current, replacement),
+                PermissionsHandler.renameWarpCommand);
+    }
+
+    private static int renameServerWarpInternal(
+            CommandSourceStack source,
+            String current,
+            String replacement
+    ) {
         WarpRecord warp = serverWarp(source, current);
         if (warp == null) {
             return 0;
@@ -338,8 +351,25 @@ public final class WarpCommands {
 
     private static int relocateServerWarp(CommandSourceStack source, String name) {
         ServerPlayer player = TeleportCommandSupport.player(source);
+        if (player == null) {
+            return 0;
+        }
+        return executeMutation(
+                source,
+                "sef:teleport.warp.manage",
+                "relocate",
+                java.util.Map.of("name", name),
+                () -> relocateServerWarpInternal(source, player, name),
+                PermissionsHandler.warpManageCommand);
+    }
+
+    private static int relocateServerWarpInternal(
+            CommandSourceStack source,
+            ServerPlayer player,
+            String name
+    ) {
         WarpRecord warp = serverWarp(source, name);
-        if (player == null || warp == null) {
+        if (warp == null) {
             return 0;
         }
         ActionResult<WarpRecord> result =
@@ -350,6 +380,76 @@ public final class WarpCommands {
         }
         TeleportCommandSupport.success(source, "Relocated server warp " + warp.displayName() + ".");
         return 1;
+    }
+
+    private static int updateServerFlags(
+            CommandSourceStack source,
+            String name,
+            boolean hidden,
+            boolean listed,
+            boolean featured
+    ) {
+        return executeMutation(
+                source,
+                "sef:teleport.warp.manage",
+                "flags",
+                java.util.Map.of(
+                        "name", name,
+                        "hidden", Boolean.toString(hidden),
+                        "listed", Boolean.toString(listed),
+                        "featured", Boolean.toString(featured)),
+                () -> {
+                    WarpRecord warp = serverWarp(source, name);
+                    if (warp == null) {
+                        return 0;
+                    }
+                    ActionResult<WarpRecord> result = KernelServices.teleports().setWarpFlags(
+                            warp.id(),
+                            hidden,
+                            listed,
+                            featured);
+                    if (!result.successful()) {
+                        TeleportCommandSupport.fail(source, result.detail());
+                        return 0;
+                    }
+                    TeleportCommandSupport.success(
+                            source,
+                            "Updated warp " + result.value().displayName() + ".");
+                    return 1;
+                },
+                PermissionsHandler.warpManageCommand);
+    }
+
+    private static int updateServerStatus(
+            CommandSourceStack source,
+            String name,
+            WarpRecord.Status status
+    ) {
+        return executeMutation(
+                source,
+                "sef:teleport.warp.manage",
+                "status",
+                java.util.Map.of(
+                        "name", name,
+                        "status", status.name().toLowerCase(Locale.ROOT)),
+                () -> {
+                    WarpRecord warp = serverWarp(source, name);
+                    if (warp == null) {
+                        return 0;
+                    }
+                    ActionResult<WarpRecord> result =
+                            KernelServices.teleports().setWarpStatus(warp.id(), status);
+                    if (!result.successful()) {
+                        TeleportCommandSupport.fail(source, result.detail());
+                        return 0;
+                    }
+                    TeleportCommandSupport.success(
+                            source,
+                            "Set warp " + warp.displayName() + " to "
+                                    + status.name().toLowerCase(Locale.ROOT) + ".");
+                    return 1;
+                },
+                PermissionsHandler.warpManageCommand);
     }
 
     private static int serverWarpInfo(CommandSourceStack source, String name) {
@@ -520,10 +620,10 @@ public final class WarpCommands {
                         PermissionsHandler.playerWarpsCommand,
                         "sef:teleport.player_warp.list"))
                 .executes(context -> listPlayerWarps(context.getSource(), null))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> listPlayerWarps(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player"))));
+                                IdentityArguments.getOnline(context, "player"))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> publicationNode() {
@@ -566,11 +666,11 @@ public final class WarpCommands {
                         PermissionsHandler.playerWarpAccess,
                         "sef:teleport.player_warp.manage"))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> updateOwnedAccess(
                                         context.getSource(),
                                         StringArgumentType.getString(context, "name"),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(context, "player"),
                                         trusted,
                                         false))));
     }
@@ -582,11 +682,11 @@ public final class WarpCommands {
                         PermissionsHandler.playerWarpAccess,
                         "sef:teleport.player_warp.manage"))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> updateOwnedAccess(
                                         context.getSource(),
                                         StringArgumentType.getString(context, "name"),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(context, "player"),
                                         blocked,
                                         true))));
     }
@@ -605,11 +705,11 @@ public final class WarpCommands {
                 .then(Commands.literal("list")
                         .executes(context -> listTransfers(context.getSource())))
                 .then(Commands.argument("name", StringArgumentType.word())
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> offerTransfer(
                                         context.getSource(),
                                         StringArgumentType.getString(context, "name"),
-                                        EntityArgument.getPlayer(context, "player")))));
+                                        IdentityArguments.getOnline(context, "player")))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> favoriteNode(String literal, boolean favorite) {
@@ -745,6 +845,23 @@ public final class WarpCommands {
         if (player == null) {
             return 0;
         }
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.create",
+                "create",
+                java.util.Map.of(
+                        "name", name,
+                        "source", sourceHome == null ? "player" : "home"),
+                () -> createPlayerWarpInternal(source, player, name, sourceHome),
+                PermissionsHandler.setPlayerWarpCommand);
+    }
+
+    private static int createPlayerWarpInternal(
+            CommandSourceStack source,
+            ServerPlayer player,
+            String name,
+            HomeRecord sourceHome
+    ) {
         TeleportRepository repository = KernelServices.teleports();
         long usage = repository.playerWarps(player.getUUID(), false).size();
         QuotaService.Context quotaContext = TeleportCommandSupport.quotaContext(
@@ -805,6 +922,16 @@ public final class WarpCommands {
     }
 
     private static int deleteOwnedWarp(CommandSourceStack source, String name) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.delete",
+                "delete",
+                java.util.Map.of("name", name),
+                () -> deleteOwnedWarpInternal(source, name),
+                PermissionsHandler.deletePlayerWarpCommand);
+    }
+
+    private static int deleteOwnedWarpInternal(CommandSourceStack source, String name) {
         WarpRecord warp = ownedWarp(source, name);
         if (warp == null) {
             return 0;
@@ -821,6 +948,20 @@ public final class WarpCommands {
     }
 
     private static int renameOwnedWarp(CommandSourceStack source, String current, String replacement) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.rename",
+                "rename",
+                java.util.Map.of("current", current, "replacement", replacement),
+                () -> renameOwnedWarpInternal(source, current, replacement),
+                PermissionsHandler.renamePlayerWarpCommand);
+    }
+
+    private static int renameOwnedWarpInternal(
+            CommandSourceStack source,
+            String current,
+            String replacement
+    ) {
         WarpRecord warp = ownedWarp(source, current);
         if (warp == null) {
             return 0;
@@ -842,8 +983,25 @@ public final class WarpCommands {
 
     private static int relocateOwnedWarp(CommandSourceStack source, String name) {
         ServerPlayer player = TeleportCommandSupport.player(source);
+        if (player == null) {
+            return 0;
+        }
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                "relocate",
+                java.util.Map.of("name", name),
+                () -> relocateOwnedWarpInternal(source, player, name),
+                PermissionsHandler.playerWarpEdit);
+    }
+
+    private static int relocateOwnedWarpInternal(
+            CommandSourceStack source,
+            ServerPlayer player,
+            String name
+    ) {
         WarpRecord warp = ownedWarp(source, name);
-        if (player == null || warp == null) {
+        if (warp == null) {
             return 0;
         }
         ActionResult<WarpRecord> result =
@@ -857,6 +1015,22 @@ public final class WarpCommands {
     }
 
     private static int publishOwnedWarp(CommandSourceStack source, String name, WarpRecord.Access access) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                "publish",
+                java.util.Map.of(
+                        "name", name,
+                        "access", access.name().toLowerCase(Locale.ROOT)),
+                () -> publishOwnedWarpInternal(source, name, access),
+                PermissionsHandler.playerWarpPublish);
+    }
+
+    private static int publishOwnedWarpInternal(
+            CommandSourceStack source,
+            String name,
+            WarpRecord.Access access
+    ) {
         WarpRecord warp = ownedWarp(source, name);
         if (warp == null) {
             return 0;
@@ -873,6 +1047,26 @@ public final class WarpCommands {
     }
 
     private static int updateOwnedAccess(
+            CommandSourceStack source,
+            String name,
+            ServerPlayer target,
+            boolean value,
+            boolean block
+    ) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                block ? "block" : "trust",
+                java.util.Map.of(
+                        "name", name,
+                        "target", target.getUUID().toString(),
+                        "enabled", Boolean.toString(value)),
+                java.util.List.of(target.getUUID()),
+                () -> updateOwnedAccessInternal(source, name, target, value, block),
+                PermissionsHandler.playerWarpAccess);
+    }
+
+    private static int updateOwnedAccessInternal(
             CommandSourceStack source,
             String name,
             ServerPlayer target,
@@ -900,8 +1094,29 @@ public final class WarpCommands {
 
     private static int offerTransfer(CommandSourceStack source, String name, ServerPlayer target) {
         ServerPlayer owner = TeleportCommandSupport.player(source);
+        if (owner == null) {
+            return 0;
+        }
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                "transfer_offer",
+                java.util.Map.of(
+                        "name", name,
+                        "target", target.getUUID().toString()),
+                java.util.List.of(target.getUUID()),
+                () -> offerTransferInternal(source, owner, name, target),
+                PermissionsHandler.playerWarpTransfer);
+    }
+
+    private static int offerTransferInternal(
+            CommandSourceStack source,
+            ServerPlayer owner,
+            String name,
+            ServerPlayer target
+    ) {
         WarpRecord warp = ownedWarp(source, name);
-        if (owner == null || warp == null) {
+        if (warp == null) {
             return 0;
         }
         ActionResult<TeleportRepository.TransferOffer> result = KernelServices.teleports().offerTransfer(
@@ -925,6 +1140,20 @@ public final class WarpCommands {
         if (recipient == null) {
             return 0;
         }
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                "transfer_accept",
+                java.util.Map.of("warp_id", warpId),
+                () -> acceptTransferInternal(source, recipient, warpId),
+                PermissionsHandler.playerWarpTransfer);
+    }
+
+    private static int acceptTransferInternal(
+            CommandSourceStack source,
+            ServerPlayer recipient,
+            String warpId
+    ) {
         UUID id;
         try {
             id = UUID.fromString(warpId);
@@ -978,6 +1207,16 @@ public final class WarpCommands {
     }
 
     private static int favorite(CommandSourceStack source, String reference, boolean favorite) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                favorite ? "favorite" : "unfavorite",
+                java.util.Map.of("reference", reference),
+                () -> favoriteInternal(source, reference, favorite),
+                PermissionsHandler.playerWarpFavorite);
+    }
+
+    private static int favoriteInternal(CommandSourceStack source, String reference, boolean favorite) {
         ServerPlayer player = TeleportCommandSupport.player(source);
         WarpRecord warp = resolvePlayerWarp(source, reference, false);
         if (player == null || warp == null) {
@@ -995,6 +1234,22 @@ public final class WarpCommands {
     }
 
     private static int reportPlayerWarp(CommandSourceStack source, String reference, String reason) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.manage",
+                "report",
+                java.util.Map.of(
+                        "reference", reference,
+                        "reason_length", Integer.toString(reason.length())),
+                () -> reportPlayerWarpInternal(source, reference, reason),
+                PermissionsHandler.playerWarpReport);
+    }
+
+    private static int reportPlayerWarpInternal(
+            CommandSourceStack source,
+            String reference,
+            String reason
+    ) {
         ServerPlayer reporter = TeleportCommandSupport.player(source);
         WarpRecord warp = resolvePlayerWarp(source, reference, false);
         if (reporter == null || warp == null) {
@@ -1049,6 +1304,22 @@ public final class WarpCommands {
     }
 
     private static int moderateStatus(CommandSourceStack source, String reference, WarpRecord.Status status) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.moderate",
+                "status",
+                java.util.Map.of(
+                        "reference", reference,
+                        "status", status.name().toLowerCase(Locale.ROOT)),
+                () -> moderateStatusInternal(source, reference, status),
+                PermissionsHandler.playerWarpModerate);
+    }
+
+    private static int moderateStatusInternal(
+            CommandSourceStack source,
+            String reference,
+            WarpRecord.Status status
+    ) {
         WarpRecord warp = resolvePlayerWarp(source, reference, true);
         if (warp == null) {
             return 0;
@@ -1064,8 +1335,25 @@ public final class WarpCommands {
 
     private static int moderateRelocate(CommandSourceStack source, String reference) {
         ServerPlayer moderator = TeleportCommandSupport.player(source);
+        if (moderator == null) {
+            return 0;
+        }
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.moderate",
+                "relocate",
+                java.util.Map.of("reference", reference),
+                () -> moderateRelocateInternal(source, moderator, reference),
+                PermissionsHandler.playerWarpModerate);
+    }
+
+    private static int moderateRelocateInternal(
+            CommandSourceStack source,
+            ServerPlayer moderator,
+            String reference
+    ) {
         WarpRecord warp = resolvePlayerWarp(source, reference, true);
-        if (moderator == null || warp == null) {
+        if (warp == null) {
             return 0;
         }
         ActionResult<WarpRecord> result =
@@ -1079,6 +1367,16 @@ public final class WarpCommands {
     }
 
     private static int moderateDelete(CommandSourceStack source, String reference) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.moderate",
+                "delete",
+                java.util.Map.of("reference", reference),
+                () -> moderateDeleteInternal(source, reference),
+                PermissionsHandler.playerWarpModerate);
+    }
+
+    private static int moderateDeleteInternal(CommandSourceStack source, String reference) {
         WarpRecord warp = resolvePlayerWarp(source, reference, true);
         if (warp == null) {
             return 0;
@@ -1093,6 +1391,26 @@ public final class WarpCommands {
     }
 
     private static int restoreWarp(CommandSourceStack source, String rawId, boolean serverWarp) {
+        return executeMutation(
+                source,
+                serverWarp
+                        ? "sef:teleport.warp.manage"
+                        : "sef:teleport.player_warp.moderate",
+                "restore",
+                java.util.Map.of(
+                        "warp_id", rawId,
+                        "scope", serverWarp ? "server" : "player"),
+                () -> restoreWarpInternal(source, rawId, serverWarp),
+                serverWarp
+                        ? PermissionsHandler.warpManageCommand
+                        : PermissionsHandler.playerWarpModerate);
+    }
+
+    private static int restoreWarpInternal(
+            CommandSourceStack source,
+            String rawId,
+            boolean serverWarp
+    ) {
         UUID id;
         try {
             id = UUID.fromString(rawId);
@@ -1142,6 +1460,22 @@ public final class WarpCommands {
     }
 
     private static int setReportStatus(
+            CommandSourceStack source,
+            String rawId,
+            TeleportRepository.ReportStatus status
+    ) {
+        return executeMutation(
+                source,
+                "sef:teleport.player_warp.moderate",
+                "report_status",
+                java.util.Map.of(
+                        "report_id", rawId,
+                        "status", status.name().toLowerCase(Locale.ROOT)),
+                () -> setReportStatusInternal(source, rawId, status),
+                PermissionsHandler.playerWarpModerate);
+    }
+
+    private static int setReportStatusInternal(
             CommandSourceStack source,
             String rawId,
             TeleportRepository.ReportStatus status
@@ -1257,6 +1591,47 @@ public final class WarpCommands {
             return null;
         }
         return matches.getFirst();
+    }
+
+    @SafeVarargs
+    private static int executeMutation(
+            CommandSourceStack source,
+            String actionId,
+            String operation,
+            java.util.Map<String, String> parameters,
+            java.util.function.IntSupplier action,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean>... permissions
+    ) {
+        return executeMutation(
+                source,
+                actionId,
+                operation,
+                parameters,
+                java.util.List.of(),
+                action,
+                permissions);
+    }
+
+    @SafeVarargs
+    private static int executeMutation(
+            CommandSourceStack source,
+            String actionId,
+            String operation,
+            java.util.Map<String, String> parameters,
+            java.util.List<UUID> targetIds,
+            java.util.function.IntSupplier action,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean>... permissions
+    ) {
+        java.util.Map<String, String> normalized = new java.util.LinkedHashMap<>(parameters);
+        normalized.put("operation", operation);
+        return KernelCommandExecutor.execute(
+                source,
+                actionId,
+                java.util.Map.copyOf(normalized),
+                targetIds,
+                false,
+                action,
+                permissions);
     }
 
     private static String commandRoot(String canonical) {

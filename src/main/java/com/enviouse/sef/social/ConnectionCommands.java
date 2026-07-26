@@ -3,16 +3,17 @@ package com.enviouse.sef.social;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.kernel.policy.TargetHierarchyService;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.common.util.FakePlayer;
@@ -36,10 +37,10 @@ public final class ConnectionCommands {
         registerTemplate(dispatcher, false);
         dispatcher.register(Commands.literal("connectionmessage")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.connectionMessageInspect))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> inspect(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player")))));
+                                IdentityArguments.getOnline(context, "player")))));
     }
 
     private static void registerTemplate(CommandDispatcher<CommandSourceStack> dispatcher, boolean joining) {
@@ -52,29 +53,29 @@ public final class ConnectionCommands {
         dispatcher.register(Commands.literal(root)
                 .then(Commands.literal("set")
                         .requires(source -> PermissionService.has(source, setPermission))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .then(Commands.argument("message", StringArgumentType.greedyString())
                                         .executes(context -> set(
                                                 context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"),
+                                                IdentityArguments.getOnline(context, "player"),
                                                 joining,
                                                 StringArgumentType.getString(context, "message"),
                                                 setPermission)))))
                 .then(Commands.literal("clear")
                         .requires(source -> PermissionService.has(source, clearPermission))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> set(
                                         context.getSource(),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(context, "player"),
                                         joining,
                                         "",
                                         clearPermission))))
                 .then(Commands.literal("preview")
                         .requires(source -> PermissionService.has(source, previewPermission))
-                        .then(Commands.argument("player", EntityArgument.player())
+                        .then(IdentityArguments.online("player")
                                 .executes(context -> preview(
                                         context.getSource(),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(context, "player"),
                                         joining,
                                         previewPermission)))));
     }
@@ -166,20 +167,14 @@ public final class ConnectionCommands {
             fail(source, "Fake players cannot manage connection messages.");
             return false;
         }
-        TargetHierarchyService.Decision decision = KernelServices.hierarchy().decide(
-                new TargetHierarchyService.Context(
-                        actor == null ? null : actor.getUUID(),
-                        target.getUUID(),
-                        actor == null && PermissionService.isConsole(source),
-                        false,
-                        false,
-                        false,
-                        false,
-                        true,
-                        actor == null ? null : actor.hasPermissions(4) ? 1000 : 100,
-                        target.hasPermissions(4) ? 1000 : 100,
-                        actor != null && actor.hasPermissions(4) ? "administrator" : "player",
-                        target.hasPermissions(4) ? "administrator" : "player"));
+        TargetHierarchyService.Decision decision = PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.connectionMessageHierarchyBypass,
+                PermissionsHandler.connectionMessageExempt,
+                PermissionsHandler.connectionMessageBypassExempt,
+                false,
+                true);
         if (!decision.allowed()) {
             fail(source, "You cannot manage that player because of hierarchy.");
         }

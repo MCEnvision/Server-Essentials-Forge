@@ -3,11 +3,13 @@ package com.enviouse.sef.social;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.permissions.QuotaPermissionResolver;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -37,7 +39,7 @@ public final class MailCommands {
                         .executes(context -> readAll(context.getSource())))
                 .then(Commands.literal("send")
                         .requires(source -> PermissionService.has(source, PermissionsHandler.mailSendCommand))
-                        .then(Commands.argument("player", StringArgumentType.word())
+                        .then(IdentityArguments.known("player")
                                 .then(Commands.argument("message", StringArgumentType.greedyString())
                                         .executes(context -> send(
                                                 context.getSource(),
@@ -104,7 +106,7 @@ public final class MailCommands {
         long usage = KernelServices.social().mail(recipient, true).size();
         long quota = KernelServices.quotas().resolve(new com.enviouse.sef.kernel.policy.QuotaService.Context(
                 "sef:mail", recipient, "server", "server", "server", "sef:social.mail",
-                java.util.Set.of(), Map.of(), Map.of(), usage)).effectiveValue();
+                QuotaPermissionResolver.granted(recipient), Map.of(), Map.of(), usage)).effectiveValue();
         return KernelCommandExecutor.execute(
                 source,
                 "sef:social.mail",

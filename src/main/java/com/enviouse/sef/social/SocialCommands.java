@@ -3,18 +3,21 @@ package com.enviouse.sef.social;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
+import com.enviouse.sef.kernel.policy.TargetHierarchyService;
 import com.enviouse.sef.message.MessageService;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -46,10 +49,10 @@ public final class SocialCommands {
                 .executes(context -> toggleReplies(context.getSource())));
         dispatcher.register(Commands.literal("ignore")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.ignoreCommand))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online("player")
                         .executes(context -> ignore(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player")))));
+                                IdentityArguments.getOnline(context, "player")))));
         dispatcher.register(Commands.literal("ignorelist")
                 .requires(source -> PermissionService.has(source, PermissionsHandler.ignoreListCommand))
                 .executes(context -> ignoreList(context.getSource())));
@@ -85,17 +88,35 @@ public final class SocialCommands {
                         .then(Commands.literal("list").executes(context -> selectedList(context.getSource())))
                         .then(Commands.literal("clear").executes(context -> selectedClear(context.getSource())))
                         .then(Commands.literal("add")
-                                .then(Commands.argument("player", EntityArgument.player())
+                                .then(IdentityArguments.online(
+                                                "player",
+                                                source -> PermissionService.has(
+                                                        source,
+                                                        PermissionsHandler.socialSpyViewVanished))
                                         .executes(context -> selected(
                                                 context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"),
+                                                IdentityArguments.getOnline(
+                                                        context,
+                                                        "player",
+                                                        PermissionService.has(
+                                                                context.getSource(),
+                                                                PermissionsHandler.socialSpyViewVanished)),
                                                 true,
                                                 false))))
                         .then(Commands.literal("remove")
-                                .then(Commands.argument("player", EntityArgument.player())
+                                .then(IdentityArguments.online(
+                                                "player",
+                                                source -> PermissionService.has(
+                                                        source,
+                                                        PermissionsHandler.socialSpyViewVanished))
                                         .executes(context -> selected(
                                                 context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"),
+                                                IdentityArguments.getOnline(
+                                                        context,
+                                                        "player",
+                                                        PermissionService.has(
+                                                                context.getSource(),
+                                                                PermissionsHandler.socialSpyViewVanished)),
                                                 false,
                                                 false))))
                         .then(Commands.literal("match")
@@ -138,23 +159,42 @@ public final class SocialCommands {
                                 .requires(source -> PermissionService.has(
                                         source, PermissionsHandler.socialSpyFormatPreview))
                                 .executes(context -> formatPreview(context.getSource()))))
-                .then(Commands.argument("player", EntityArgument.player())
+                .then(IdentityArguments.online(
+                                "player",
+                                source -> PermissionService.has(
+                                        source,
+                                        PermissionsHandler.socialSpyViewVanished))
                         .requires(source -> PermissionService.has(source, PermissionsHandler.socialSpyPlayer))
                         .executes(context -> selected(
                                 context.getSource(),
-                                EntityArgument.getPlayer(context, "player"),
+                                IdentityArguments.getOnline(
+                                        context,
+                                        "player",
+                                        PermissionService.has(
+                                                context.getSource(),
+                                                PermissionsHandler.socialSpyViewVanished)),
                                 true,
                                 true))
                         .then(Commands.literal("on")
                                 .executes(context -> selected(
                                         context.getSource(),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(
+                                                context,
+                                                "player",
+                                                PermissionService.has(
+                                                        context.getSource(),
+                                                        PermissionsHandler.socialSpyViewVanished)),
                                         true,
                                         true)))
                         .then(Commands.literal("off")
                                 .executes(context -> selected(
                                         context.getSource(),
-                                        EntityArgument.getPlayer(context, "player"),
+                                        IdentityArguments.getOnline(
+                                                context,
+                                                "player",
+                                                PermissionService.has(
+                                                        context.getSource(),
+                                                        PermissionsHandler.socialSpyViewVanished)),
                                         false,
                                         true))));
         dispatcher.register(root);
@@ -263,6 +303,23 @@ public final class SocialCommands {
     ) {
         ServerPlayer player = player(source);
         if (player == null) return 0;
+        if (VanishUtil.isVanished(target, player)
+                && !PermissionService.has(player, PermissionsHandler.socialSpyViewVanished)) {
+            fail(source, "That player is unavailable.");
+            return 0;
+        }
+        TargetHierarchyService.Decision decision = PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.socialSpyHierarchyBypass,
+                PermissionsHandler.socialSpyExempt,
+                PermissionsHandler.socialSpyViewExempt,
+                true,
+                true);
+        if (!decision.allowed()) {
+            fail(source, "That player is unavailable.");
+            return 0;
+        }
         return KernelCommandExecutor.execute(
                 source,
                 "sef:social.spy",

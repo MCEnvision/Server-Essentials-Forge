@@ -8,9 +8,11 @@ import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.message.MessageService;
 import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.CommandNode;
@@ -18,7 +20,6 @@ import com.mojang.brigadier.tree.RootCommandNode;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
@@ -64,11 +65,11 @@ public class MsgCommands {
 
         dispatcher.register(Commands.literal("msg")
             .requires(MsgCommands::canUse)
-            .then(Commands.argument("target", EntityArgument.player())
+            .then(IdentityArguments.online("target")
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
                         if (!checkPermission(ctx.getSource())) return 0;
-                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                        ServerPlayer target = IdentityArguments.getOnline(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message, "sef_msg");
                     }))));
@@ -76,11 +77,11 @@ public class MsgCommands {
         // /tell (alias for /msg)
         dispatcher.register(Commands.literal("tell")
             .requires(MsgCommands::canUse)
-            .then(Commands.argument("target", EntityArgument.player())
+            .then(IdentityArguments.online("target")
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
                         if (!checkPermission(ctx.getSource())) return 0;
-                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                        ServerPlayer target = IdentityArguments.getOnline(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message, "sef_tell");
                     }))));
@@ -88,11 +89,11 @@ public class MsgCommands {
         // /w (alias for /msg)
         dispatcher.register(Commands.literal("w")
             .requires(MsgCommands::canUse)
-            .then(Commands.argument("target", EntityArgument.player())
+            .then(IdentityArguments.online("target")
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {
                         if (!checkPermission(ctx.getSource())) return 0;
-                        ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                        ServerPlayer target = IdentityArguments.getOnline(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
                         return sendPrivateMessage(ctx.getSource(), target, message, "sef_w");
                     }))));
@@ -158,11 +159,11 @@ public class MsgCommands {
 
         dispatcher.register(Commands.literal("whisper")
                 .requires(MsgCommands::canUse)
-                .then(Commands.argument("target", EntityArgument.player())
+                .then(IdentityArguments.online("target")
                         .then(Commands.argument("message", StringArgumentType.greedyString())
                                 .executes(ctx -> sendPrivateMessage(
                                         ctx.getSource(),
-                                        EntityArgument.getPlayer(ctx, "target"),
+                                        IdentityArguments.getOnline(ctx, "target"),
                                         StringArgumentType.getString(ctx, "message"),
                                         "sef_whisper")))));
 
@@ -187,7 +188,7 @@ public class MsgCommands {
                 sender.sendSystemMessage(TextFormatter.stringToFormattedText("&7Usage: /pchat <player> to toggle private chat"));
                 return 0;
             })
-            .then(Commands.argument("target", EntityArgument.player())
+            .then(IdentityArguments.online("target")
                 .executes(ctx -> {
                     if (!checkPermission(ctx.getSource())) return 0;
                     ServerPlayer sender;
@@ -197,7 +198,7 @@ public class MsgCommands {
                         ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThis command can only be used by players."));
                         return 0;
                     }
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "target");
                     UUID senderUuid = sender.getUUID();
                     if (privateChatToggled.containsKey(senderUuid)) {
                         privateChatToggled.remove(senderUuid);
@@ -254,7 +255,8 @@ public class MsgCommands {
             return 0;
         }
         if (!KernelServices.social().preferences(target.getUUID()).messagesEnabled()
-                || sender != null && KernelServices.social().ignores(target.getUUID(), sender.getUUID())) {
+                || sender != null && (VanishUtil.isVanished(target, sender)
+                || KernelServices.social().ignores(target.getUUID(), sender.getUUID()))) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
             return 0;
         }
