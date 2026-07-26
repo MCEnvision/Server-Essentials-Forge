@@ -111,4 +111,22 @@ Record:
 8. Client types and authenticated usernames used by the three-player matrix.
 9. Every failed row with its log or crash-report path.
 
+### Audit remediation record, 2026-07-26
+
+The Phase 4 audit remediation code was recorded at source commit `2153eac86c725c4bb1652ce4d9d8b7ac303ca49b` on `envy/phase-5`.
+
+1. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
+2. JAR SHA 256: `93d6352e8b4a584ec6b4c73f5e83e3c087970d723c6fdf1271993b78cdb495fa`.
+3. Unit tests: 156 passed through `./gradlew test --rerun-tasks`.
+4. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+5. Build: `./gradlew build --rerun-tasks` completed successfully.
+6. Dedicated server: `./gradlew runServer` reached `Done`, accepted `sef doctor` and `sef identity coverage`, and stopped cleanly.
+7. Diagnostics: 71 catalog entries, 242 capabilities, 78 shortcuts, 71 policies, 6 quotas, 4 repositories, no recovery mode, no import failures, no quota provider failures, and no kernel errors.
+8. Command enforcement: home, server warp, player warp, spawn, random teleport center, offline teleport queue, and teleport request mutations use canonical kernel actions.
+9. Target safety: migrated single player arguments use nickname aware and vanish safe identity resolution. `/homes <player>` uses shared hierarchy and exemption policy.
+10. Request execution: `/tpaccept` has one accept action lease, `/tpaall` applies one bounded fan out lease, and an empty `/tprequests` read succeeds.
+11. Artifact inspection found the expected mod metadata, mixin configuration, and remediation classes. No changed server package referenced `net.minecraft.client`.
+
+This record does not complete the authenticated three player, destination, player warp, optional provider, forced shutdown, or profiler rows above. Those remain release gates.
+
 Do not approve a public release while a required row is untested or failing.

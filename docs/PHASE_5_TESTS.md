@@ -194,6 +194,24 @@ Automated and headless verification was recorded on 2026-07-26:
 18. Artifact inspection: the JAR contains `META-INF/neoforge.mods.toml`, `sef.mixins.json`, and every Phase 5 social class. Dependency inspection found no `net.minecraft.client` reference from `com.enviouse.sef.social`.
 19. Diff inspection: whitespace, generated-output, ignored-file, absolute-path, debug-output, credential-pattern, client-import, and private-message log scans passed.
 
+### Audit remediation record, 2026-07-26
+
+The Phase 5 audit remediation code was recorded at source commit `2153eac86c725c4bb1652ce4d9d8b7ac303ca49b` on `envy/phase-5`. This record supersedes the earlier artifact hash, unit count, and capability count for the remediated source.
+
+1. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
+2. JAR SHA 256: `93d6352e8b4a584ec6b4c73f5e83e3c087970d723c6fdf1271993b78cdb495fa`.
+3. Unit tests: 156 passed through `./gradlew test --rerun-tasks`.
+4. GameTests: all 3 required tests passed through `./gradlew runGameTestServer`.
+5. Build: `./gradlew build --rerun-tasks` completed successfully.
+6. Dedicated server: `./gradlew runServer` reached `Done`, accepted `sef doctor` and `sef identity coverage`, and stopped cleanly.
+7. Diagnostics: 71 catalog entries, 242 capabilities, 78 shortcuts, 71 policies, 6 quotas, 4 repositories, no recovery mode, no import failures, no quota provider failures, and no kernel errors.
+8. Identity: real Brigadier tests accept quoted display names, the selected nickname provider controls online suggestions and resolution, and vanished online UUIDs cannot reappear through known profile matching.
+9. Hierarchy: LuckPerms primary group weight is consumed when available. Social spy and connection message targets use shared hierarchy and exemption controls.
+10. Quotas: granted mail and definition tier nodes are passed into quota resolution.
+11. Observation audit: every delivered social spy event records observer UUID, route, scope, audit class, and redaction metadata without the message body.
+12. Connection correlation: equal looking components are separated by object identity, weak references are pruned, and the collection is bounded.
+13. Artifact inspection found the expected mod metadata, mixin configuration, and remediation classes. No changed server package referenced `net.minecraft.client`.
+
 The authenticated three-player matrix, vanished-player packet matrix, real LuckPerms and FTB Essentials combinations, mail-retention clock fixture, vanilla-client join, forced dirty shutdown, and profiler rows remain untested release gates. No authenticated usernames or client artifacts were used in the recorded headless run.
 
 Do not approve a public release while a required row is untested or failing.

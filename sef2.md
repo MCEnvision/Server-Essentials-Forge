@@ -16184,7 +16184,7 @@ Status: implementation coverage is present. Headless legacy migration, normal re
 
 ## Phase 4. Homes, teleports, spawn, warps, and RTP
 
-Status: implementation coverage is present on `envy/phase-4`. Unit tests cover repository validation, recovery, quotas, player-warp lifecycle, and teleport-request races. NeoForge GameTests cover loaded safe destinations, hazardous support, and missing dimensions. The dedicated-server, authenticated multi-client, live LuckPerms hierarchy, FTB import fixture, and extended world-policy matrix remains recorded in `docs/PHASE_4_TESTS.md`.
+Status: implementation coverage is present on `envy/phase-5`. Audit remediation source commit `2153eac86c725c4bb1652ce4d9d8b7ac303ca49b` routes Phase 4 command mutations through canonical kernel actions, removes duplicate teleport request leases, applies one bounded action to `/tpaall`, uses shared nickname aware and vanish safe identity arguments, and applies shared LuckPerms aware hierarchy and exemption policy to other player home inspection. Unit tests cover repository validation, recovery, quotas, player warp lifecycle, teleport request races, and real Brigadier nickname parsing. NeoForge GameTests cover loaded safe destinations, hazardous support, and missing dimensions. Automated remediation verification is recorded in `docs/PHASE_4_TESTS.md`. The authenticated multiplayer, live LuckPerms hierarchy, FTB import fixture, forced shutdown, profiler, and extended world policy rows remain release gates.
 
 ### Objectives
 
@@ -16222,7 +16222,7 @@ Status: implementation coverage is present on `envy/phase-4`. Unit tests cover r
 
 ## Phase 5. Social, identity, mail, and connection messages
 
-Status: implementation coverage is present on `envy/phase-5`. Automated unit, GameTest, build, dedicated-server startup, shutdown, restart, JAR, and diff verification are recorded in `docs/PHASE_5_TESTS.md`. Authenticated three-player social-spy, live provider mutation, packet-visible connection-message, mail-retention clock, client compatibility, and profiler rows remain release gates until their completion record is filled.
+Status: implementation coverage is present on `envy/phase-5`. Audit remediation source commit `2153eac86c725c4bb1652ce4d9d8b7ac303ca49b` adds active provider nickname resolution, quoted nickname Brigadier targets, vanished profile suppression, shared subject hierarchy and exemptions, finite quota tier propagation, audited social spy delivery, and bounded identity based connection message correlation. Automated unit, GameTest, build, dedicated server startup, shutdown, JAR, and diff verification are recorded in `docs/PHASE_5_TESTS.md`. Authenticated three player social spy, live provider mutation, packet visible connection message, mail retention clock, client compatibility, forced shutdown, and profiler rows remain release gates.
 
 ### Deliverables
 
