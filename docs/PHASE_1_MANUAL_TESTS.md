@@ -156,3 +156,46 @@ For each section record:
 6. Issue link and retest result for every failure.
 
 Do not approve a public release with a failed security, privacy, persistence, shutdown, or visibility case.
+
+### Candidate verification record for 2026-07-26
+
+This record applies to code commit `e48607d19a22d51e42a03d26c516ba08fc4de3a4`. It is a partial verification record, not public release approval.
+
+| Field | Recorded value |
+| --- | --- |
+| Artifact | `build/libs/sef-1.0-SNAPSHOT.jar` |
+| SHA-256 | `c6dfd651e20d6062c288a49e1c4b3ad012f14d5c88a6184c32187a2963996de2` |
+| Minecraft | `1.21.1` |
+| NeoForge | `21.1.233` |
+| Java | OpenJDK `21.0.11` |
+| Optional integrations | LuckPerms absent, Curios absent, FTB Essentials absent |
+| Server mode | Disposable development server, offline mode, port `25577` |
+| Tester clients | None available in this workspace |
+| Configuration archive | Not produced because the authenticated client matrix did not begin |
+| Screenshots and recordings | Not produced because the authenticated client matrix did not begin |
+
+Automated and headless evidence:
+
+1. `./gradlew test --rerun-tasks` passed 94 tests with zero failures, zero errors, and zero skipped tests.
+2. `./gradlew build --rerun-tasks` completed successfully.
+3. A direct ModDevGradle dedicated server launch reached `Done`, ran `sef doctor`, ran `sef storage status`, accepted `stop`, saved every dimension, and exited with code zero.
+4. `sef doctor` reported 12 catalog entries, 133 capabilities, 10 shortcuts, 12 policies, 5 quotas, ready player profiles, zero import failures, zero quota provider failures, and no kernel errors.
+5. `sef storage status` reported 13 managed documents and returned without an error.
+6. The final direct launch log contained no `ERROR`, exception chain, failed mixin, or failed shutdown entry.
+7. A separate `./gradlew runServer` attempt reached a ready server, but Gradle did not forward interactive console input in this terminal. The process was terminated with `SIGTERM`, Minecraft saved all dimensions, and Gradle correctly reported exit code `143`. This attempt is not counted as a passing smoke test.
+
+Section status:
+
+| Section | Status | Evidence and remaining work |
+| --- | --- | --- |
+| Permission and command projection | Blocked | Real Brigadier tests cover `/sef` projection, direct denied execution, and `/v queue <player>` dual permission gating. Authenticated suggestion, live revocation, reconnect, command block, console, and message body log checks remain manual. |
+| Sudo disablement | Blocked | The dedicated server logged that sudo remains unavailable. Console and three client execution attempts remain manual. |
+| Duration rejection | Blocked | Existing parser tests cover invalid duration classes. Live command state mutation checks remain manual. |
+| Nickname identity and ownership | Blocked | Authenticated identity, reconnect, collision, and FTB Essentials provider ownership cases remain manual. |
+| Vanish visibility and revocation | Blocked | Automated tests cover permission reconciliation, hierarchy policy, observer specific immutable player information projection, unloaded configuration packet guards, and server status shutdown short circuiting. Actual client tab, entity, sound, particle, selector, server list, reconnect, and LuckPerms refresh observations remain manual. |
+| Inventory inspection | Blocked | A NeoForge bootstrapped menu test proves modify revocation downgrades an open menu and view revocation closes it. Authenticated click modes, audit output, and Curios cases remain manual. |
+| Alternate account privacy | Blocked | Authenticated address collection, retention, display, purge, and export cases remain manual. |
+| Storage and recovery | Blocked | Headless status and clean shutdown passed. Fixture migration, corruption, unknown field, deletion, export permission, and interrupted work cases remain manual. |
+| Performance observation | Blocked | No populated world, profiler session, or three client load was available. |
+
+The full matrix remains blocked because this workspace does not provide three authenticated Minecraft clients, tester controlled rendering and packet observation, or the required optional integration environments. Do not treat the automated results as a substitute for those cases, and do not approve a public release from this record.
