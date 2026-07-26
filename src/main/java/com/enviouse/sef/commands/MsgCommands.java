@@ -5,6 +5,11 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
+import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.message.MessageService;
+import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -17,6 +22,7 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -64,7 +70,7 @@ public class MsgCommands {
                         if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
-                        return sendPrivateMessage(ctx.getSource(), target, message);
+                        return sendPrivateMessage(ctx.getSource(), target, message, "sef_msg");
                     }))));
 
         // /tell (alias for /msg)
@@ -76,7 +82,7 @@ public class MsgCommands {
                         if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
-                        return sendPrivateMessage(ctx.getSource(), target, message);
+                        return sendPrivateMessage(ctx.getSource(), target, message, "sef_tell");
                     }))));
 
         // /w (alias for /msg)
@@ -88,7 +94,7 @@ public class MsgCommands {
                         if (!checkPermission(ctx.getSource())) return 0;
                         ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                         String message = StringArgumentType.getString(ctx, "message");
-                        return sendPrivateMessage(ctx.getSource(), target, message);
+                        return sendPrivateMessage(ctx.getSource(), target, message, "sef_w");
                     }))));
 
         dispatcher.register(Commands.literal("r")
@@ -117,8 +123,48 @@ public class MsgCommands {
                         return 0;
                     }
                     String message = StringArgumentType.getString(ctx, "message");
-                    return sendPrivateMessage(ctx.getSource(), target, message);
+                    if (!KernelServices.social().preferences(sender.getUUID()).repliesEnabled()) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cPrivate message replies are disabled."));
+                        return 0;
+                    }
+                    return sendPrivateMessage(ctx.getSource(), target, message, "sef_reply");
                 })));
+
+        dispatcher.register(Commands.literal("reply")
+                .requires(MsgCommands::canUse)
+                .then(Commands.argument("message", StringArgumentType.greedyString())
+                        .executes(ctx -> {
+                            ServerPlayer sender = ctx.getSource().getPlayerOrException();
+                            if (!KernelServices.social().preferences(sender.getUUID()).repliesEnabled()) {
+                                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                        "&cPrivate message replies are disabled."));
+                                return 0;
+                            }
+                            UUID lastTarget = lastMessaged.get(sender.getUUID());
+                            ServerPlayer target = lastTarget == null
+                                    ? null
+                                    : ctx.getSource().getServer().getPlayerList().getPlayer(lastTarget);
+                            if (target == null) {
+                                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                        ConfigHandler.config.noReplyTargetMsg.get()));
+                                return 0;
+                            }
+                            return sendPrivateMessage(
+                                    ctx.getSource(),
+                                    target,
+                                    StringArgumentType.getString(ctx, "message"),
+                                    "sef_reply");
+                        })));
+
+        dispatcher.register(Commands.literal("whisper")
+                .requires(MsgCommands::canUse)
+                .then(Commands.argument("target", EntityArgument.player())
+                        .then(Commands.argument("message", StringArgumentType.greedyString())
+                                .executes(ctx -> sendPrivateMessage(
+                                        ctx.getSource(),
+                                        EntityArgument.getPlayer(ctx, "target"),
+                                        StringArgumentType.getString(ctx, "message"),
+                                        "sef_whisper")))));
 
         dispatcher.register(Commands.literal("pchat")
             .requires(MsgCommands::canUse)
@@ -182,7 +228,12 @@ public class MsgCommands {
         return true;
     }
 
-    private static int sendPrivateMessage(CommandSourceStack source, ServerPlayer target, String message) {
+    private static int sendPrivateMessage(
+            CommandSourceStack source,
+            ServerPlayer target,
+            String message,
+            String route
+    ) {
         ServerPlayer sender;
         String tmpSenderName;
         try {
@@ -195,24 +246,68 @@ public class MsgCommands {
         final String senderName = tmpSenderName;
 
         String receiverName = target.getGameProfile().getName();
+        if (message == null
+                || message.isBlank()
+                || message.length() > ConfigHandler.config.privateMessageMaximumLength.get()
+                || message.codePoints().anyMatch(Character::isISOControl)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat private message is invalid or too long."));
+            return 0;
+        }
+        if (!KernelServices.social().preferences(target.getUUID()).messagesEnabled()
+                || sender != null && KernelServices.social().ignores(target.getUUID(), sender.getUUID())) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
+            return 0;
+        }
 
-        // Format sent message
-        String sentFormat = ConfigHandler.config.msgSentFormat.get()
-            .replace("$sender", senderName)
-            .replace("$receiver", receiverName)
-            .replace("$message", message);
+        ServerPlayer finalSender = sender;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:social.message",
+                Map.of("route", route, "length", Integer.toString(message.length())),
+                java.util.List.of(target.getUUID()),
+                false,
+                () -> deliverPrivateMessage(
+                        source,
+                        finalSender,
+                        target,
+                        senderName,
+                        receiverName,
+                        message,
+                        route),
+                PermissionsHandler.msgCommand);
+    }
 
-        // Format received message
-        String receivedFormat = ConfigHandler.config.msgReceivedFormat.get()
-            .replace("$sender", senderName)
-            .replace("$receiver", receiverName)
-            .replace("$message", message);
+    private static int deliverPrivateMessage(
+            CommandSourceStack source,
+            ServerPlayer sender,
+            ServerPlayer target,
+            String senderName,
+            String receiverName,
+            String message,
+            String route
+    ) {
+        Component senderDisplay = sender == null
+                ? Component.literal(senderName)
+                : SEFUtilities.getFormattedPlayerName(sender.getGameProfile());
+        Component receiverDisplay = SEFUtilities.getFormattedPlayerName(target.getGameProfile());
+        Component messageBody = Component.literal(message);
+        MutableComponent sentComponent = renderPrivateFormat(
+                ConfigHandler.config.msgSentFormat.get(),
+                "&d&lTo &d{receiver}&7: &r&7{message}",
+                senderDisplay,
+                receiverDisplay,
+                messageBody);
+        MutableComponent receivedComponent = renderPrivateFormat(
+                ConfigHandler.config.msgReceivedFormat.get(),
+                "&d&lFrom &d{sender}&7: &r&7{message}",
+                senderDisplay,
+                receiverDisplay,
+                messageBody);
 
         // Build hover text for click-to-message
         String hoverText = ConfigHandler.config.clickToMessageHover.get()
             .replace("$player", senderName);
 
-        MutableComponent receivedComponent = TextFormatter.stringToFormattedText(receivedFormat);
         receivedComponent = receivedComponent.withStyle(style -> style
             .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/msg " + senderName + " "))
             .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
@@ -225,17 +320,49 @@ public class MsgCommands {
         }
 
         // Send to sender
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(sentFormat), false);
+        MutableComponent finalSentComponent = sentComponent;
+        source.sendSuccess(() -> finalSentComponent, false);
 
         // Track for /r
         if (sender != null) {
             lastMessaged.put(sender.getUUID(), target.getUUID());
             lastMessaged.put(target.getUUID(), sender.getUUID());
+            KernelServices.observations().publishPrivateMessage(
+                    source.getServer(),
+                    route,
+                    sender,
+                    target,
+                    Component.literal(message));
         }
 
         ServerEssentialsForge.LOGGER.info(
             "[MSG] {} sent {} characters to {}", senderName, message.length(), receiverName);
         return 1;
+    }
+
+    private static MutableComponent renderPrivateFormat(
+            String configured,
+            String fallback,
+            Component sender,
+            Component receiver,
+            Component message
+    ) {
+        String source = configured == null ? "" : configured
+                .replace("$sender", "{sender}")
+                .replace("$receiver", "{receiver}")
+                .replace("$message", "{message}");
+        ActionResult<MessageService.Template> template =
+                KernelServices.messages().compile(source, Set.of("sender", "receiver", "message"));
+        if (!template.successful()) {
+            template = KernelServices.messages().compile(fallback, Set.of("sender", "receiver", "message"));
+        }
+        ActionResult<Component> rendered = KernelServices.messages().render(template.value(), Map.of(
+                "sender", sender,
+                "receiver", receiver,
+                "message", message));
+        return rendered.successful()
+                ? rendered.value().copy()
+                : TextFormatter.stringToFormattedText("&7Private message unavailable.");
     }
 
     /**
@@ -261,4 +388,3 @@ public class MsgCommands {
         }
     }
 }
-

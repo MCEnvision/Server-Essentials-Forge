@@ -26,6 +26,12 @@ import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.motd.MotdManager;
 import com.enviouse.sef.mute.MuteCommand;
 import com.enviouse.sef.mute.MuteManager;
+import com.enviouse.sef.social.MailCommands;
+import com.enviouse.sef.social.SocialCommands;
+import com.enviouse.sef.social.ConnectionCommands;
+import com.enviouse.sef.social.CustomTextCommands;
+import com.enviouse.sef.social.ReminderCommands;
+import com.enviouse.sef.social.IdentityCommands;
 import com.enviouse.sef.warn.WarnCommand;
 import com.enviouse.sef.warn.WarnManager;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
@@ -161,6 +167,12 @@ public class CommandRegistrationHandler {
         TeleportRequestCommands.register(e.getDispatcher());
         CoreTeleportCommands.register(e.getDispatcher());
         WarpCommands.register(e.getDispatcher());
+        SocialCommands.register(e.getDispatcher());
+        MailCommands.register(e.getDispatcher());
+        ConnectionCommands.register(e.getDispatcher());
+        ReminderCommands.register(e.getDispatcher());
+        CustomTextCommands.register(e.getDispatcher());
+        IdentityCommands.register(e.getDispatcher());
         // Register custom /invsee command if enabled
         if(ConfigHandler.config.enableInvSee.get()) {
             InvSeeCommand.register(e.getDispatcher());

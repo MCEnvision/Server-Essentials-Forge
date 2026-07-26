@@ -16222,6 +16222,8 @@ Status: implementation coverage is present on `envy/phase-4`. Unit tests cover r
 
 ## Phase 5. Social, identity, mail, and connection messages
 
+Status: implementation coverage is present on `envy/phase-5`. Automated unit, GameTest, build, dedicated-server startup, shutdown, restart, JAR, and diff verification are recorded in `docs/PHASE_5_TESTS.md`. Authenticated three-player social-spy, live provider mutation, packet-visible connection-message, mail-retention clock, client compatibility, and profiler rows remain release gates until their completion record is filled.
+
 ### Deliverables
 
 - Hardened private messages and reply.

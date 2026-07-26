@@ -159,8 +159,9 @@ public class ChatEventHandler implements IReloadable {
 			if(partnerUUID != null) {
 				ServerPlayer partner = player.getServer().getPlayerList().getPlayer(partnerUUID);
 				if(partner != null) {
-					ServerEssentialsForge.LOGGER.info("[SEF] Intercepting private chat from {} to {}: {}",
-						profile.getName(), partner.getGameProfile().getName(), msg);
+					ServerEssentialsForge.LOGGER.info(
+						"[SEF] Intercepting private chat from {} to {} with {} characters",
+						profile.getName(), partner.getGameProfile().getName(), msg.length());
 					player.getServer().getCommands().performPrefixedCommand(
 						player.createCommandSourceStack(),
 						"msg " + partner.getGameProfile().getName() + " " + msg

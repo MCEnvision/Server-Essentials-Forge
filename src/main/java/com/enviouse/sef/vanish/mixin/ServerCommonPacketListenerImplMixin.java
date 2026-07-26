@@ -38,6 +38,7 @@ import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
 import com.enviouse.sef.vanish.misc.TraceHandler;
+import com.enviouse.sef.social.ConnectionMessageService;
 
 // 1.20.2+ packet-listener split: send(...) moved from ServerGamePacketListenerImpl to its superclass
 // ServerCommonPacketListenerImpl. The vanish per-receiver packet filtering therefore injects here; the
@@ -144,6 +145,14 @@ public class ServerCommonPacketListenerImplMixin {
 		// sender calls send() outside the server-running window; reading a value would throw. Fail open.
 		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer player = conn.player;
+		if (packet instanceof ClientboundSystemChatPacket chatPacket) {
+			ServerPlayer subject = ConnectionMessageService.subject(chatPacket.content()).orElse(null);
+			if (subject != null && VanishUtil.isVanished(subject, player)) {
+				TraceHandler.trace(subject, "Connection Message", chatPacket.content().getString());
+				callbackInfo.cancel();
+				return;
+			}
+		}
 
 		if (packet instanceof ClientboundSystemChatPacket chatPacket && chatPacket.content() instanceof MutableComponent component && component.getContents() instanceof TranslatableContents content) {
 			List<ServerPlayer> vanishedPlayers = new ArrayList<>(ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers().stream().filter(p -> VanishUtil.isVanished(p, player)).toList());

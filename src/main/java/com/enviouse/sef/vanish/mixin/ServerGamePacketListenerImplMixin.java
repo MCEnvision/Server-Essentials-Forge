@@ -4,11 +4,14 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.network.DisconnectionDetails;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import com.enviouse.sef.social.ConnectionMessageService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.TraceHandler;
@@ -20,6 +23,14 @@ import com.enviouse.sef.vanish.misc.TraceHandler;
 public class ServerGamePacketListenerImplMixin {
 	@Shadow
 	public ServerPlayer player;
+
+	@ModifyArg(
+			method = "removePlayerFromWorld",
+			at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"),
+			index = 0)
+	private Component sef$customLeaveMessage(Component original) {
+		return ConnectionMessageService.render(player, false, original);
+	}
 
 	// Stores the player that is about to leave the server and get removed from the regular player list.
 	// 1.20.2+: onDisconnect takes DisconnectionDetails (was Component).

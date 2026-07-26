@@ -268,6 +268,85 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> teleportSafetyBypass =
 			ezyPermission("teleport.safety.bypass", false, "Teleport safety bypass", "Allows explicit administrative unsafe teleports");
 
+	public static PermissionNode<Boolean> messageToggleCommand =
+			ezyPermission("commands.msgtoggle", true, "Message toggle", "Allows toggling incoming private messages");
+	public static PermissionNode<Boolean> replyToggleCommand =
+			ezyPermission("commands.rtoggle", true, "Reply toggle", "Allows toggling private message replies");
+	public static PermissionNode<Boolean> ignoreCommand =
+			ezyPermission("commands.ignore", true, "Ignore command", "Allows managing the private interaction block list");
+	public static PermissionNode<Boolean> ignoreListCommand =
+			ezyPermission("commands.ignorelist", true, "Ignore list command", "Allows viewing the private interaction block list");
+	public static PermissionNode<Boolean> socialSpyCommand =
+			ezyPermission("commands.socialspy", false, "Social spy", "Allows requesting private message observation");
+	public static PermissionNode<Boolean> socialSpyStatus =
+			ezyPermission("commands.socialspy.status", false, "Social spy status", "Allows inspecting social spy state");
+	public static PermissionNode<Boolean> socialSpyRecent =
+			ezyPermission("commands.socialspy.recent", false, "Social spy recent", "Allows viewing bounded authorized recent observations");
+	public static PermissionNode<Boolean> socialSpyEveryone =
+			ezyPermission("commands.socialspy.everyone", false, "Social spy everyone", "Allows observing all eligible private message routes");
+	public static PermissionNode<Boolean> socialSpyPlayer =
+			ezyPermission("commands.socialspy.player", false, "Social spy player filter", "Allows observing eligible conversations for selected players");
+	public static PermissionNode<Boolean> socialSpySelected =
+			ezyPermission("commands.socialspy.selected", false, "Social spy selected filters", "Allows managing selected UUID filters");
+	public static PermissionNode<Boolean> socialSpyScopeMetadata =
+			ezyPermission("commands.socialspy.scope.metadata", false, "Social spy metadata scope", "Allows metadata only observation");
+	public static PermissionNode<Boolean> socialSpyScopeContent =
+			ezyPermission("commands.socialspy.scope.content", false, "Social spy content scope", "Allows requesting private message content");
+	public static PermissionNode<Boolean> socialSpyFilter =
+			ezyPermission("commands.socialspy.filter", false, "Social spy route filters", "Allows managing stable route filters");
+	public static PermissionNode<Boolean> socialSpyFormatPreview =
+			ezyPermission("commands.socialspy.format.preview", false, "Social spy format preview", "Allows previewing the current typed social spy format");
+	public static PermissionNode<Boolean> socialSpyOthers =
+			ezyPermission("commands.socialspy.others", false, "Manage other social spy state", "Allows managing another observer through the canonical SEF route");
+	public static PermissionNode<Boolean> socialSpyViewMetadata =
+			ezyPermission("socialspy.view.metadata", false, "View social metadata", "Allows receiving authorized social observation metadata");
+	public static PermissionNode<Boolean> socialSpyViewContent =
+			ezyPermission("socialspy.view.content", false, "View social content", "Allows receiving authorized private message content");
+	public static PermissionNode<Boolean> socialSpyViewVanished =
+			ezyPermission("socialspy.view.vanished", false, "View vanished social events", "Allows observing participants the viewer may otherwise see through vanish policy");
+	public static PermissionNode<Boolean> socialSpyViewExempt =
+			ezyPermission("socialspy.view.exempt", false, "Override social spy exemption", "Allows observing exempt participants with sensitive audit policy");
+	public static PermissionNode<Boolean> socialSpyExempt =
+			ezyPermission("socialspy.exempt", false, "Social spy exemption", "Prevents ordinary private message observation");
+	public static PermissionNode<Boolean> mailCommand =
+			ezyPermission("commands.mail", true, "Mail command", "Allows reading and managing owned mail");
+	public static PermissionNode<Boolean> mailSendCommand =
+			ezyPermission("commands.mail.send", true, "Send mail", "Allows sending bounded UUID addressed mail");
+	public static PermissionNode<Boolean> joinMessageSet =
+			ezyPermission("commands.joinmessage.set", false, "Set join message", "Allows setting a player's real join template");
+	public static PermissionNode<Boolean> joinMessageClear =
+			ezyPermission("commands.joinmessage.clear", false, "Clear join message", "Allows clearing a player's real join template");
+	public static PermissionNode<Boolean> joinMessagePreview =
+			ezyPermission("commands.joinmessage.preview", false, "Preview join message", "Allows previewing a player's join template");
+	public static PermissionNode<Boolean> leaveMessageSet =
+			ezyPermission("commands.leavemessage.set", false, "Set leave message", "Allows setting a player's real leave template");
+	public static PermissionNode<Boolean> leaveMessageClear =
+			ezyPermission("commands.leavemessage.clear", false, "Clear leave message", "Allows clearing a player's real leave template");
+	public static PermissionNode<Boolean> leaveMessagePreview =
+			ezyPermission("commands.leavemessage.preview", false, "Preview leave message", "Allows previewing a player's leave template");
+	public static PermissionNode<Boolean> connectionMessageInspect =
+			ezyPermission("commands.connectionmessage.inspect", false, "Inspect connection messages", "Allows inspecting connection message revisions");
+	public static PermissionNode<Boolean> welcomePreview =
+			ezyPermission("commands.welcome.preview", false, "Preview welcome message", "Allows previewing welcome definitions");
+	public static PermissionNode<Boolean> welcomeSend =
+			ezyPermission("commands.welcome.send", false, "Send welcome message", "Allows manually sending welcome definitions");
+	public static PermissionNode<Boolean> reminderManage =
+			ezyPermission("commands.reminder.manage", false, "Manage reminders", "Allows creating, editing, pausing, and deleting reminders");
+	public static PermissionNode<Boolean> reminderSend =
+			ezyPermission("commands.reminder.send", false, "Send reminders", "Allows manually sending reminders");
+	public static PermissionNode<Boolean> remindersCommand =
+			ezyPermission("commands.reminders", true, "List reminders", "Allows listing applicable reminders");
+	public static PermissionNode<Boolean> reminderDismiss =
+			ezyPermission("commands.reminder.dismiss", true, "Dismiss reminders", "Allows dismissing and restoring owned reminder state");
+	public static PermissionNode<Boolean> customTextCommand =
+			ezyPermission("commands.customtext", true, "Custom text", "Allows reading configured text pages");
+	public static PermissionNode<Boolean> customTextManage =
+			ezyPermission("commands.customtext.manage", false, "Manage custom text", "Allows changing versioned text pages");
+	public static PermissionNode<Boolean> identityCoverage =
+			ezyPermission("commands.sef.identity.coverage", false, "Identity coverage", "Allows inspecting nickname projection coverage");
+	public static PermissionNode<Boolean> identityRefresh =
+			ezyPermission("commands.sef.identity.refresh", false, "Identity refresh", "Allows refreshing server projected identity state");
+
 	// Freeze Permissions
 	public static PermissionNode<Boolean> freezeCommand =
 			ezyPermission("commands.freeze", false, "Freeze command", "Allows using /freeze to freeze a player in place");

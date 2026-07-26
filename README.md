@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 4 have implementation coverage in this branch. Phase 4 adds the command-mode homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, bounded random teleportation, direct administrative teleportation, and shared safe-teleport services. Headless verification covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, teleport repository recovery, optional integration startup, and NeoForge GameTests for world safety. Public release acceptance still requires the authenticated multiplayer and profiler cases in the manual matrices. Later social, economy, moderation, enhanced client GUI, and broader parity phases remain planned.
+SEF 2 Phases 1 through 5 have implementation coverage in this branch. Phase 4 adds command-mode homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, bounded random teleportation, direct administrative teleportation, and shared safe-teleport services. Phase 5 adds hardened private messaging, social preferences, UUID-addressed mail, social spy, custom real connection messages, reminders, custom text pages, and identity projection diagnostics. Public release acceptance still requires the authenticated multiplayer and profiler cases in the manual matrices. Economy, expanded moderation, enhanced client GUI, and broader parity phases remain planned.
 
 ## Current features
 
@@ -50,6 +50,13 @@ The current implementation includes:
 23. UUID-based teleport requests with ambiguity-safe acceptance, blocking, request toggles, auto-accept relationships, expiry, warmups, movement and damage cancellation, and logout invalidation.
 24. Safe `/back`, layered spawn, server warp, player-warp, RTP, and optional direct teleport commands with permissions, feature gates, cooldowns, warmups, costs, hierarchy, exemptions, destination revisions, world-border checks, hazard checks, loaded-chunk budgets, and bounded history.
 25. Player-hosted warps with stable ids, `owner:name` lookup, private, shared, unlisted, and public access, favorites, reports, transfer offers, publication, moderation state, visit counts, home conversion, and deletion recovery.
+26. Hardened `/msg`, `/tell`, `/w`, `/whisper`, `/r`, and `/reply` routes with literal message bodies, message and reply toggles, UUID ignore state, bounded input, existing configurable presentation, and metadata-only ordinary audit records.
+27. Permission-gated `/socialspy` with everyone or selected-player audiences, sender, recipient, or either matching, route filters, metadata and content scopes, exemption and vanish checks, per-event permission revalidation, bounded recent state, duplicate suppression, delivery rate limits, and a typed format preview.
+28. UUID-addressed offline mail with finite mailbox quotas, expiry, owner-only read, archive, delete, and clear operations, login notification, indexed recipient lookup, and versioned persistence.
+29. Real custom join and leave templates with typed placeholders, per-player revisions, preview and inspection commands, target hierarchy checks, and recipient-specific vanish suppression.
+30. Welcome, onboarding, command-fallback, and unread-mail reminders with typed templates, repeat and delivery limits, acknowledgement revisions, dismissal state, manual delivery, definition quotas, and bounded scheduler work.
+31. Persistent custom text pages through `/customtext`, `/booktext`, `/rules`, and `/info`, plus `/sef identity coverage` and `/sef identity refresh` diagnostics.
+32. Nickname changes refresh tab projection immediately. Server-projected chat, tab, display-component, connection-message, SEF resolution, and feedback surfaces use the selected nickname provider while Brigadier authentication and signed chat remain truthful.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 
@@ -70,6 +77,8 @@ Every exposed command path is expected to use a permission node. The current sec
 11. Convenience roots cannot weaken their canonical action. Workstation aliases share the same action identifier and therefore share permissions and cooldowns.
 12. Alias and bundle definitions are compiled against the catalog before publication. Alias root ownership includes catalog, shortcut, and preexisting Brigadier roots, and the selected conflict mode is enforced. Unknown actions, collisions, recursion, raw command steps, policy weakening, and unbounded expansion are rejected.
 13. Future collection and fan out systems receive finite defaults and hard ceilings. An optional provider failure falls back safely and is exposed by `/sef doctor`.
+14. Social spy defaults to denied. Metadata, content, everyone, selected-player, exempt-player, vanished-player, recent-event, route-filter, and format-preview capabilities use separate denied-by-default nodes.
+15. Private message bodies remain outside ordinary kernel audit parameters and ordinary log statements. Social spy content is session-only, permission-filtered for every event, rate-limited, and cleared on logout.
 
 Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative commands.
 
@@ -113,6 +122,7 @@ Primary configuration:
 7. `<world>/serverconfig/sef/location-history.json` contains bounded UUID keyed location history.
 8. `<world>/serverconfig/sef/cooldowns.json` contains only cooldowns whose remaining duration meets the configured persistence threshold.
 9. `<world>/serverconfig/sef/teleports.json` contains versioned homes, spawn layers, server and player warps, teleport preferences, transfer offers, reports, and queued offline teleports.
+10. `<world>/serverconfig/sef/social.json` contains versioned social preferences, mail, per-player connection templates, reminder definitions and states, and custom text pages.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
@@ -161,6 +171,7 @@ The `runServer` task forwards terminal input to the dedicated server. Wait for t
 7. `docs/PHASE_1_MANUAL_TESTS.md` contains the real client release approval matrix for Phase 1 behavior.
 8. `docs/PHASE_2_3_MANUAL_TESTS.md` contains the operator, permission, restart, and recovery approval matrix for Phases 2 and 3.
 9. `docs/PHASE_4_TESTS.md` contains the Phase 4 teleport verification record and remaining authenticated multiplayer matrix.
+10. `docs/PHASE_5_TESTS.md` contains the Phase 5 social, privacy, connection-message, reminder, and identity verification matrix.
 
 ## Support
 

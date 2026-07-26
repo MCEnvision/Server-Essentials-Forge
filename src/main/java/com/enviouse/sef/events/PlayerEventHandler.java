@@ -26,6 +26,8 @@ import com.enviouse.sef.chat.AdminChatHandler;
 import com.enviouse.sef.chat.ChatMessageManager;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.enviouse.sef.teleport.TeleportLifecycleEvents;
+import com.enviouse.sef.social.MailCommands;
+import com.enviouse.sef.social.ReminderService;
 import net.neoforged.fml.ModList;
 
 public class PlayerEventHandler implements IReloadable {
@@ -84,8 +86,9 @@ public class PlayerEventHandler implements IReloadable {
 		            com.enviouse.sef.vanish.VanishUtil.forgetPlayer(sp.getUUID());
 		            com.enviouse.sef.utils.moddeps.LuckPermsProvider.invalidate(sp.getUUID());
 		            KernelServices.warmups().clear(sp.getUUID());
-	            KernelServices.confirmations().revokeActor(sp.getUUID());
-	            TeleportLifecycleEvents.handleLogout(sp);
+		            KernelServices.confirmations().revokeActor(sp.getUUID());
+		            KernelServices.observations().clear(sp.getUUID());
+		            TeleportLifecycleEvents.handleLogout(sp);
 		        }
     }
 
@@ -97,6 +100,11 @@ public class PlayerEventHandler implements IReloadable {
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
 		            TeleportLifecycleEvents.handleLogin(sp, firstJoin);
+		            if (ConfigHandler.config.enableSocialEssentials.get()
+		                    && ConfigHandler.config.enableMail.get()) {
+		                MailCommands.notifyUnread(sp);
+		            }
+		            ReminderService.deliverLogin(sp, firstJoin);
 	            // Record login for alt tracking
             if(ConfigHandler.config.enableCheckAlts.get()) {
                 com.enviouse.sef.alts.AltTracker tracker = CommandRegistrationHandler.getAltTracker();
@@ -127,6 +135,9 @@ public class PlayerEventHandler implements IReloadable {
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onServerTick(ServerTickEvent.Post e) {
         int interval = Math.max(1, ConfigHandler.config.tabUpdateIntervalTicks.get());
+        if (e.getServer().getTickCount() % 20 == 0) {
+            ReminderService.deliverScheduled(e.getServer().getPlayerList().getPlayers());
+        }
         if(e.getServer().getTickCount() % interval == 0) {
             TAB_ANIM.tick(e.getServer());
             TabPlaceholderRenderer.applyHeaderFooter(e.getServer());

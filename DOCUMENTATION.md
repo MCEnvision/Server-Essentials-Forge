@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 4 have implementation coverage in the current worktree. Phase 4 adds the server-authoritative command-mode teleport domain. Headless verification covers normal console stop, clean restart, legacy identity migration, profile, cooldown, and teleport corruption recovery, optional integration startup, and world-dependent teleport GameTests. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded repositories and identity migration. Phase 4 adds homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, RTP, and direct teleport safety. Economy, expanded social features, enhanced GUI networking, and other later roadmap families remain planned.
+SEF 2 Phases 1 through 5 have implementation coverage in the current worktree. Phase 4 adds the server-authoritative command-mode teleport domain. Phase 5 adds the server-authoritative social, mail, connection-message, reminder, custom-text, and identity-projection domain. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded repositories and identity migration. Phase 4 adds homes and teleport services. Phase 5 adds hardened private messaging, social spy, UUID mail, real connection messages, reminders, and identity diagnostics. Economy, expanded moderation, enhanced GUI networking, and other later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -49,11 +49,11 @@ Construction performs these operations:
 5. Registers stateful event handler instances on `NeoForge.EVENT_BUS`.
 6. Registers vanish commands and vanish permission nodes.
 
-Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience workstation routes. Server startup opens the location history and cooldown repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
+Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens the location history, cooldown, teleport, and social repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
 
-Server ticks update announcements, banned item scans, freeze state, mute state, and countdown state when their modules are enabled. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
+Server ticks update announcements, banned item scans, freeze state, mute state, countdown state, teleport expiry, teleport warmups, tab presentation, and scheduled reminders when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
 
-Server shutdown drains mute, banned item, alternate account, player profile, location history, and persistent cooldown writers with bounded waits, stops optional integrations, clears warmups and confirmations, then clears runtime cooldown and vanish state. Location and cooldown repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
+Server shutdown drains mute, banned item, alternate account, player profile, location history, persistent cooldown, teleport, and social writers with bounded waits, stops optional integrations, clears warmups and confirmations, then clears runtime cooldown and vanish state. Coordinated repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
 
 ## 4. Package map
 
@@ -77,6 +77,7 @@ Important package ownership:
 16. `com.enviouse.sef.identity` owns UUID authoritative profile resolution.
 17. `com.enviouse.sef.message` owns bounded typed message templates and literal field insertion.
 18. `com.enviouse.sef.storage.repository` owns coordinated Phase 3 repositories and recovery states.
+19. `com.enviouse.sef.social` owns social preferences, mail, observation delivery, connection messages, reminders, custom text, and identity diagnostics.
 
 Logical server state is authoritative. The current project has no custom client payload protocol.
 
@@ -104,6 +105,12 @@ The current top level command families include:
 14. `/back`, `/spawn`, `/setspawn`, `/spawninfo`, `/rtp`, `/tpr`, `/settpr`, `/tphere`, `/tpo`, `/tpohere`, `/tppos`, `/tpall`, and `/tpoffline`. SEF registers `/tp` only when ownership is explicitly enabled.
 15. `/warp`, `/warps`, `/setwarp`, `/delwarp`, `/renamewarp`, `/warpinfo`, and server-warp management routes.
 16. `/pwarp`, `/pwarps`, `/setpwarp`, `/delpwarp`, `/renamepwarp`, player-warp access, transfer, favorite, report, visit, home-conversion, and moderation routes.
+17. `/msgtoggle`, `/rtoggle`, `/ignore`, `/ignorelist`, and the hardened `/msg`, `/tell`, `/w`, `/whisper`, `/r`, `/reply`, and `/pchat` routes.
+18. `/socialspy` with status, recent, everyone, selected-player, match, scope, route-filter, and format-preview actions.
+19. `/mail` with list, read, send, clear, delete, and archive actions.
+20. `/joinmessage`, `/leavemessage`, and `/connectionmessage` for real connection templates.
+21. `/reminders`, `/reminder`, and `/welcome` for player state, definitions, scheduling, and manual delivery.
+22. `/customtext`, `/booktext`, `/rules`, `/info`, `/sef identity coverage`, and `/sef identity refresh`.
 
 `/sudo` is intentionally not registered in Phase 1. An existing `modules.sudo = true` value produces a startup warning and does not expose an execution route.
 
@@ -142,6 +149,9 @@ Public or low risk defaults:
 6. `commands.craft`, allowed.
 7. `commands.anvil`, allowed.
 8. `commands.enchantingtable`, allowed.
+9. `commands.msg`, `commands.msgtoggle`, `commands.rtoggle`, `commands.ignore`, and `commands.ignorelist`, allowed.
+10. `commands.mail` and `commands.mail.send`, allowed.
+11. `commands.reminders`, `commands.reminder.dismiss`, and `commands.customtext`, allowed.
 
 Administrative defaults:
 
@@ -181,6 +191,11 @@ Administrative defaults:
 34. `commands.sef.doctor`, denied.
 35. `kernel.gui.use`, `kernel.hud.use`, `kernel.panel.use`, `kernel.target.others`, `kernel.audience.broad`, `kernel.editor.use`, `kernel.alias.use`, `kernel.bundle.use`, `kernel.profile.use`, `kernel.bypass.use`, and `kernel.sensitive.view`, denied.
 36. Finite quota tier nodes under `sef.homes.*`, `sef.playerwarps.*`, `sef.targets.*`, `sef.mail.*`, and `sef.definitions.*`, denied.
+37. Every `commands.socialspy.*` management, audience, scope, route, recent, status, and format-preview node, denied.
+38. `socialspy.view.metadata`, `socialspy.view.content`, `socialspy.view.vanished`, `socialspy.view.exempt`, and `socialspy.exempt`, denied.
+39. Every `commands.joinmessage.*`, `commands.leavemessage.*`, and `commands.connectionmessage.inspect` node, denied.
+40. `commands.welcome.preview`, `commands.welcome.send`, `commands.reminder.manage`, and `commands.reminder.send`, denied.
+41. `commands.customtext.manage`, `commands.sef.identity.coverage`, and `commands.sef.identity.refresh`, denied.
 
 Vanish level nodes remain `sef.vanish.1`, `sef.vanish.2`, and `sef.vanish.3`. Observer nodes remain `sef.vanishsee.1`, `sef.vanishsee.2`, and `sef.vanishsee.3`. Lower numeric levels are more powerful.
 
@@ -294,6 +309,41 @@ Integrated identities are stored by UUID in `sef.playerdata.json` with the last 
 
 `commands.nick.others` now defaults to denied.
 
+### 9.1 Phase 5 social and identity services
+
+`SocialRepository` owns one versioned `social.json` document. Its independent collections contain player social preferences, mail records, connection templates, reminder definitions, reminder acknowledgement state, and custom text pages. All player relationships and ownership fields use authenticated UUIDs. User-facing names are resolved only for presentation.
+
+Private messaging preserves the existing `msgSentFormat` and `msgReceivedFormat` configuration. Legacy `$sender`, `$receiver`, and `$message` placeholders are converted to typed placeholders before compilation. The message body is inserted as a literal component and is never parsed as formatting or another placeholder. Ordinary kernel audit contains only route and length metadata. Ordinary log messages contain sender, recipient, and character count, never the body.
+
+`/msgtoggle`, `/rtoggle`, `/ignore`, and `/ignorelist` persist owned preferences. A recipient message toggle or recipient-side ignore entry returns the same unavailable response so the sender cannot distinguish the policy. Reply relationships and private-chat mode remain session state and are cleared on logout.
+
+`ObservationService` implements `PrivateMessageObservationAdapter`. External adapters must supply one stable event UUID, a stable route id, the authenticated sender and recipient, and a typed content component. Calls from outside the logical server thread are rescheduled and re-resolve both players by UUID. The service deduplicates event UUIDs for a bounded five-minute window, limits delivery per observer and second, and keeps only the configured number of already-authorized recent components.
+
+Every social-spy delivery rechecks:
+
+1. The social and social-spy feature switches.
+2. The observer requested state.
+3. Root and metadata permissions.
+4. Everyone or selected-player scope permission.
+5. Sender, recipient, or either matching.
+6. Route filters.
+7. Sender and recipient exemption state.
+8. Observer-specific vanish visibility.
+9. Content permission when content was requested.
+10. Per-observer delivery rate.
+
+Metadata-only observers receive `[content hidden]`. Content never enters the persisted social profile or ordinary command audit. `/socialspy recent` is session-only and logout removes it. `/socialspy format preview` compiles the configured template against `{from}`, `{to}`, `{message}`, `{route}`, and `{timestamp}` and inserts typed sample values.
+
+Mail is addressed by recipient UUID and indexed by recipient in memory. Sending applies ignore policy, configured length and retention, the `sef:mail` quota, a global hard ceiling, and a recipient mailbox count. List, read, archive, delete, and clear operations can mutate only the authenticated recipient’s records. Expired mail is omitted from views and quota use. Mail bodies remain inside the owned social repository and player-facing delivery.
+
+Connection-message mixins replace the real vanilla join and leave broadcast components. Templates accept only `{player}`, `{username}`, `{uuid}`, and `{world}`. `{player}` is the selected provider’s formatted display component. Set, clear, preview, and inspect actions require separate permissions and target hierarchy approval. The generated component is associated with its subject so the outbound packet filter suppresses it for recipients who cannot see a vanished subject.
+
+Reminder definitions use `{player}`, `{username}`, and `{unread_mail}`. Definitions have stable ids, enabled state, audience, repeat seconds, maximum deliveries, dismissal policy, acknowledgement revision, actor UUID, and update time. Updating message, audience, repeat, or maximum delivery advances the acknowledgement revision. Player state records the last delivery, count, dismissal, and acknowledged revision. Definition creation applies the `sef:definitions` quota. Scheduler passes snapshot definitions once and apply delivery state without filesystem access in the tick path.
+
+Custom text ids and observation routes use normalized ids matching `[a-z0-9][a-z0-9_.-]{0,63}`. Text content, templates, mail, selected UUIDs, ignore UUIDs, routes, profiles, definitions, and state collections all have hard bounds.
+
+Nickname ownership remains singular. FTB Essentials owns nickname mutation when its provider is selected. Otherwise the integrated UUID profile owns it. A successful nickname mutation refreshes the online tab projection immediately. Chat, tab, NeoForge display-name components, SEF identity resolution, connection messages, and SEF feedback use provider-approved display components. Vanilla Brigadier player arguments and signed-chat authentication continue to use authenticated identities. `/sef identity coverage` reports this boundary, and enhanced in-world nametags remain the explicit Phase 9 client contract.
+
 ## 10. Duration syntax
 
 `com.enviouse.sef.util.DurationParser` is the canonical parser for announcements, countdowns, mutes, freezes, and warnings.
@@ -389,6 +439,22 @@ The `commandKernel` section supplies hard limits used by Phase 2 and Phase 3:
 
 These values are defensive ceilings, not permission grants. Lowering a structural alias or bundle limit requires a restart because dispatcher shape does not mutate during a configuration reload. Current workstation cooldown durations continue to come from `virtualWorkstations`.
 
+The `socialEssentials` section controls Phase 5 presentation and bounds:
+
+| Key | Default | Allowed range | Purpose |
+| --- | --- | --- | --- |
+| `socialSpyFormat` | `&8[&b{from}&8] &7-> &8[&d{to}&8]&7: &f{message}` | Typed template limit | Social-spy presentation |
+| `socialSpyRecentLimit` | `50` | 0 to 500 | Authorized recent components retained per observer session |
+| `socialSpyEventsPerSecond` | `100` | 1 to 1000 | Maximum observation deliveries per observer and second |
+| `privateMessageMaximumLength` | `2048` | 1 to 16384 | Private-message input bound |
+| `mailMaximumLength` | `2048` | 1 to 16384 | Mail input bound |
+| `mailRetentionDays` | `30` | 1 to 3650 | Mail expiry |
+| `defaultJoinMessage` | `&e{player} joined the game` | Typed template limit | Default real join component |
+| `defaultLeaveMessage` | `&e{player} left the game` | Typed template limit | Default real leave component |
+| `optionalClientReminder` | Configured command-fallback notice | Message template limit | Login notice until Phase 9 capability negotiation can target fallback clients |
+
+Module keys `social_essentials`, `social_spy`, `mail`, `connection_messages`, `reminders`, and `custom_text` control registration at startup. The same values publish shared runtime feature gates, so an already-registered action is denied after a configuration reload disables its subsystem.
+
 Alternate account collection uses three important values under its section:
 
 1. `collectAddresses`, default `false`.
@@ -436,6 +502,8 @@ Current stores include:
 13. Vanish state in persistent player NBT.
 14. `<world>/serverconfig/sef/location-history.json`.
 15. `<world>/serverconfig/sef/cooldowns.json`.
+16. `<world>/serverconfig/sef/teleports.json`.
+17. `<world>/serverconfig/sef/social.json`.
 
 Managed JSON documents use an envelope with `domain`, `schemaVersion`, and `data`. Unknown fixed record fields survive a load and save cycle. Dynamic maps preserve unknown fields on retained records without restoring records that were intentionally removed.
 
@@ -458,6 +526,8 @@ Storage guarantees:
 15. Repository dirty revisions are captured with each snapshot. A concurrent mutation that occurs while a snapshot is written remains dirty and is flushed by the next pass.
 16. Migration backup or journal preparation failure leaves the valid source file untouched, records an error state, and does not misclassify the source as corrupt.
 17. Player profile updates, mute countdown snapshots, and banned item snapshots use coalesced background persistence. Their workers retain only the latest queued snapshot and use bounded shutdown flushing.
+18. Social mail uses an in-memory recipient index. Per-recipient list, unread, quota, archive, and clear operations do not scan the global mail collection.
+19. Social repository recovery, unsupported, and error states reject mutation. Commands receive a safe failure through the kernel action boundary, and the damaged source is not overwritten.
 
 The structured audit service writes bounded JSONL events through a 4096 entry queue. Each event persists schema version, event and session ids, timestamp, actor UUID and username, source type, action id, target UUIDs, normalized parameters, result, reason, duration, origin, job and step correlation ids, definition and policy revisions, provider context, redaction class and rules, observer UUID, previous hash, and audit class. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush. Legacy call sites are adapted into the same schema rather than a smaller JSON shape.
 
@@ -631,8 +701,12 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 39. Shared command pipeline ordering, cooldown rollback, cost refund, and execution time permission revocation.
 40. Coalesced mute and banned item persistence worker behavior, latest snapshot retention, failure reporting, recovery, shutdown draining, and post shutdown rejection.
 41. Background location history and persistent cooldown shutdown flushing outside the calling thread.
+42. Typed message placeholder allowlists, literal field insertion, immutable compilation, and rendered-size rejection.
+43. Social repository round trips, corruption recovery, unsafe id and content rejection, mailbox quota, recipient ownership, archive isolation, clear isolation, and reminder acknowledgement state.
+44. Observation event deduplication, bounded event memory, per-observer rate limiting, and second-window reset.
+45. Social action catalog ownership, exact subsystem feature gates, and nonempty permission contracts.
 
-Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
+Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Run every applicable matrix before approving a public release.
 
 ## 17. Operations and recovery
 
@@ -740,4 +814,4 @@ Before an approved release:
 
 ## 21. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 have implementation coverage and expanded headless evidence, but their authenticated multiplayer, player driven, packet visible, shutdown race, and profiler release gates remain open. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 5 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, and profiler release gates remain open. Phase 6 is next and covers moderation, protection, command spy, command journaling, optional file logging, and expanded kick and ban routes. GUI networking, economy, fake message, sudo, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

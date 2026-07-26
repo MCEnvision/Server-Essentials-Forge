@@ -30,6 +30,8 @@ import com.enviouse.sef.teleport.SafeTeleportService;
 import com.enviouse.sef.teleport.TeleportRepository;
 import com.enviouse.sef.teleport.TeleportRequestService;
 import com.enviouse.sef.teleport.TeleportSettings;
+import com.enviouse.sef.social.ObservationService;
+import com.enviouse.sef.social.SocialRepository;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
@@ -74,6 +76,8 @@ public final class KernelServices {
     private static SafeTeleportService safeTeleports;
     private static TeleportRequestService teleportRequests;
     private static TeleportSettings teleportSettings;
+    private static SocialRepository social;
+    private static ObservationService observations;
     private static Map<String, PermissionNode<Boolean>> permissionNodes;
     private static AliasCompiler.Registry aliases;
     private static BundleCompiler bundleCompiler;
@@ -103,10 +107,12 @@ public final class KernelServices {
         descriptors.registerCommandOnly("sef:core");
         descriptors.registerCommandOnly("sef:workstations");
         descriptors.registerCommandOnly("sef:teleports");
+        descriptors.registerCommandOnly("sef:social");
 
         catalog = new CommandCatalog(capabilities, descriptors);
         registerCoreCommands();
         registerTeleportCommands();
+        registerSocialCommands();
         catalog.seal();
 
         shortcuts = new ShortcutRegistry(catalog, capabilities);
@@ -130,6 +136,8 @@ public final class KernelServices {
                 warmups,
                 confirmations);
         messages = new MessageService();
+        social = new SocialRepository();
+        observations = new ObservationService(social, messages);
         profiles = new PlayerProfileRepository();
         identities = new IdentityService(ServerLifecycleHooks::getCurrentServer, profiles);
 
@@ -171,6 +179,7 @@ public final class KernelServices {
         storage.register(locationHistory);
         storage.register(cooldownRepository);
         storage.register(teleports);
+        storage.register(social);
 
         initialized = true;
         reloadConfiguration();
@@ -214,7 +223,18 @@ public final class KernelServices {
                 Map.entry("sef.teleport.random", ConfigHandler.config.enableTeleportEssentials.get()
                         && ConfigHandler.config.enableRandomTeleport.get()),
                 Map.entry("sef.teleport.direct", ConfigHandler.config.enableTeleportEssentials.get()
-                        && ConfigHandler.config.enableDirectTeleport.get()));
+                        && ConfigHandler.config.enableDirectTeleport.get()),
+                Map.entry("sef.social", ConfigHandler.config.enableSocialEssentials.get()),
+                Map.entry("sef.social.spy", ConfigHandler.config.enableSocialEssentials.get()
+                        && ConfigHandler.config.enableSocialSpy.get()),
+                Map.entry("sef.social.mail", ConfigHandler.config.enableSocialEssentials.get()
+                        && ConfigHandler.config.enableMail.get()),
+                Map.entry("sef.social.connection", ConfigHandler.config.enableSocialEssentials.get()
+                        && ConfigHandler.config.enableConnectionMessages.get()),
+                Map.entry("sef.social.reminders", ConfigHandler.config.enableSocialEssentials.get()
+                        && ConfigHandler.config.enableReminders.get()),
+                Map.entry("sef.social.text", ConfigHandler.config.enableSocialEssentials.get()
+                        && ConfigHandler.config.enableCustomText.get()));
         Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
@@ -255,6 +275,7 @@ public final class KernelServices {
         warmups.clear();
         confirmations.clear();
         teleportRequests.clear();
+        observations.clearAll();
         if (result.successful()) {
             cooldowns.clearAll();
         }
@@ -391,6 +412,16 @@ public final class KernelServices {
     public static TeleportSettings teleportSettings() {
         ensureInitialized();
         return teleportSettings;
+    }
+
+    public static SocialRepository social() {
+        ensureInitialized();
+        return social;
+    }
+
+    public static ObservationService observations() {
+        ensureInitialized();
+        return observations;
     }
 
     public static AliasCompiler.Registry aliases() {
@@ -556,6 +587,85 @@ public final class KernelServices {
                 CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.BOUNDED_PLAYERS);
         registerTeleport("sef:teleport.request.all", "tpaall", Set.of("tpaall"), "sef.commands.tpaall",
                 CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.requests", CommandDefinition.TargetBehavior.BOUNDED_PLAYERS);
+    }
+
+    private static void registerSocialCommands() {
+        registerSocial("sef:social.message", "msg", Set.of("msg", "tell", "w", "r", "reply", "whisper", "pchat"),
+                "sef.commands.msg", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerSocial("sef:social.message.toggle", "msgtoggle", Set.of("msgtoggle"),
+                "sef.commands.msgtoggle", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.SELF);
+        registerSocial("sef:social.reply.toggle", "rtoggle", Set.of("rtoggle"),
+                "sef.commands.rtoggle", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.SELF);
+        registerSocial("sef:social.ignore", "ignore", Set.of("ignore", "ignorelist"),
+                "sef.commands.ignore", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerSocial("sef:social.spy", "socialspy", Set.of("socialspy"),
+                "sef.commands.socialspy", CommandDefinition.AccessClass.ADMINISTRATOR,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerSocial("sef:social.mail", "mail", Set.of("mail"),
+                "sef.commands.mail", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerSocial("sef:social.connection", "connectionmessage", Set.of("joinmessage", "leavemessage"),
+                "sef.commands.connectionmessage.inspect", CommandDefinition.AccessClass.ADMINISTRATOR,
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerSocial("sef:social.reminder", "reminder", Set.of("reminder", "reminders", "welcome"),
+                "sef.commands.reminders", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerSocial("sef:social.text", "customtext", Set.of("customtext", "booktext", "rules", "info"),
+                "sef.commands.customtext", CommandDefinition.AccessClass.PLAYER,
+                CommandDefinition.TargetBehavior.NONE);
+        registerSocial("sef:social.identity", "sef identity", Set.of(),
+                "sef.commands.sef.identity.coverage", CommandDefinition.AccessClass.ADMINISTRATOR,
+                CommandDefinition.TargetBehavior.NONE);
+    }
+
+    private static void registerSocial(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            CommandDefinition.TargetBehavior targetBehavior
+    ) {
+        catalog.register(new CommandDefinition(
+                id,
+                route,
+                roots,
+                "command." + id.replace(':', '.') + ".description",
+                "command." + id.replace(':', '.') + ".usage",
+                "social",
+                socialFeature(id),
+                Set.of(permission),
+                access,
+                STANDARD_COMMAND_SOURCES,
+                targetBehavior,
+                id,
+                false,
+                access == CommandDefinition.AccessClass.ADMINISTRATOR
+                        ? AuditService.AuditClass.SENSITIVE_ACCESS
+                        : AuditService.AuditClass.METADATA_ONLY,
+                "sef:social",
+                "",
+                "social state is shown through immediate command feedback",
+                "",
+                "social collections are bounded by repository and quota policy",
+                CommandDefinition.ConflictPolicy.PREFER_SEF,
+                true,
+                true));
+    }
+
+    private static String socialFeature(String actionId) {
+        return switch (actionId) {
+            case "sef:social.spy" -> "sef.social.spy";
+            case "sef:social.mail" -> "sef.social.mail";
+            case "sef:social.connection" -> "sef.social.connection";
+            case "sef:social.reminder" -> "sef.social.reminders";
+            case "sef:social.text" -> "sef.social.text";
+            default -> "sef.social";
+        };
     }
 
     private static void registerTeleport(

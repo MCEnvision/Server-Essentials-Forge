@@ -163,7 +163,8 @@ public class NickCommands {
 						"&cNickname data is unavailable. No changes were applied.&r"));
 				return 0;
 			}
-			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
+					refreshProjectedIdentity(uuid);
+					ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
 			return 1;
 		} else {
 			if(NicknamePolicy.containsColorFormatting(nick)
@@ -195,7 +196,8 @@ public class NickCommands {
 						"&cNickname data is unavailable. No changes were applied.&r"));
 				return 0;
 			}
-			ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
+					refreshProjectedIdentity(uuid);
+					ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
 			return 1;
 		}
 	}
@@ -215,6 +217,15 @@ public class NickCommands {
 			}
 			return ConfigHandler.config.nicknameUniqueKnownProfiles.get()
 					&& PlayerData.hasIdentityCollision(targetId, normalizedNickname, ownsIntegratedNicknameData());
+		}
+
+		private static void refreshProjectedIdentity(UUID playerId) {
+			MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+			if(server == null) return;
+			ServerPlayer player = server.getPlayerList().getPlayer(playerId);
+			if(player != null) {
+				player.refreshTabListName();
+			}
 		}
 
 		private static boolean ownsIntegratedNicknameData() {

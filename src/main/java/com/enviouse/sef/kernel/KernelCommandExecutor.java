@@ -28,6 +28,7 @@ public final class KernelCommandExecutor {
     private KernelCommandExecutor() {
     }
 
+    @SafeVarargs
     public static boolean canUse(
             CommandSourceStack source,
             String actionId,
@@ -37,6 +38,7 @@ public final class KernelCommandExecutor {
         return permissions(source, definition(actionId), additionalPermissions).granted();
     }
 
+    @SafeVarargs
     public static int execute(
             CommandSourceStack source,
             String actionId,
@@ -54,6 +56,7 @@ public final class KernelCommandExecutor {
                 additionalPermissions);
     }
 
+    @SafeVarargs
     public static int execute(
             CommandSourceStack source,
             String actionId,
@@ -103,7 +106,19 @@ public final class KernelCommandExecutor {
         }
 
         try (CommandExecutionService.Lease lease = started.value()) {
-            int result = action.getAsInt();
+            int result;
+            try {
+                result = action.getAsInt();
+            } catch (RuntimeException exception) {
+                lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
+                com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
+                        "[SEF] Kernel action {} failed",
+                        definition.id(),
+                        exception);
+                source.sendFailure(TextFormatter.stringToFormattedText(
+                        "&cThat action could not be completed safely."));
+                return 0;
+            }
             ActionResult<Void> completed = lease.complete(
                     result > 0,
                     result > 0 ? null : ActionResult.ReasonCode.PROVIDER_ERROR);

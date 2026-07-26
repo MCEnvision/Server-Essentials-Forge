@@ -224,6 +224,21 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<String> teleportOwnershipMode;
 		public final ModConfigSpec.ConfigValue<Double> teleportCost;
 		public final ModConfigSpec.ConfigValue<String> disabledTeleportActions;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSocialEssentials;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSocialSpy;
+		public final ModConfigSpec.ConfigValue<Boolean> enableMail;
+		public final ModConfigSpec.ConfigValue<Boolean> enableConnectionMessages;
+		public final ModConfigSpec.ConfigValue<Boolean> enableReminders;
+		public final ModConfigSpec.ConfigValue<Boolean> enableCustomText;
+		public final ModConfigSpec.ConfigValue<String> socialSpyFormat;
+		public final ModConfigSpec.ConfigValue<Integer> socialSpyRecentLimit;
+		public final ModConfigSpec.ConfigValue<Integer> socialSpyEventsPerSecond;
+		public final ModConfigSpec.ConfigValue<Integer> privateMessageMaximumLength;
+		public final ModConfigSpec.ConfigValue<Integer> mailMaximumLength;
+		public final ModConfigSpec.ConfigValue<Integer> mailRetentionDays;
+		public final ModConfigSpec.ConfigValue<String> defaultJoinMessage;
+		public final ModConfigSpec.ConfigValue<String> defaultLeaveMessage;
+		public final ModConfigSpec.ConfigValue<String> optionalClientReminder;
 
 		// Warn System
 		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
@@ -346,6 +361,12 @@ public class ConfigHandler {
 			enablePlayerWarps = builder.comment("  Player hosted warp commands").define("player_warps", true);
 			enableRandomTeleport = builder.comment("  Random teleport commands").define("random_teleport", true);
 			enableDirectTeleport = builder.comment("  Staff direct teleport commands").define("direct_teleport", true);
+			enableSocialEssentials = builder.comment("  Social, identity, mail, and connection message platform").define("social_essentials", true);
+			enableSocialSpy = builder.comment("  Permission controlled private message observation").define("social_spy", true);
+			enableMail = builder.comment("  Offline UUID addressed mail").define("mail", true);
+			enableConnectionMessages = builder.comment("  Custom real join and leave messages").define("connection_messages", true);
+			enableReminders = builder.comment("  Welcome, onboarding, and reminder delivery").define("reminders", true);
+			enableCustomText = builder.comment("  Rules, info, and custom text pages").define("custom_text", true);
 			builder.pop(); // modules
 
 			playerNameFormat = builder
@@ -433,6 +454,20 @@ public class ConfigHandler {
 			randomTeleportAllowedDimensions = builder.comment("  Comma separated dimension identifiers allowed for random teleport").define("randomTeleportAllowedDimensions", "minecraft:overworld");
 			teleportOwnershipMode = builder.comment("  Ownership mode for homes and server warps. Values are sef, external, coexist, or import_once").define("ownershipMode", "sef");
 			disabledTeleportActions = builder.comment("  Comma separated canonical action ids to disable without removing their saved data").define("disabledActions", "");
+			builder.pop();
+
+			builder.comment("Social essentials",
+					"  Private message content remains outside ordinary audit and persistent observer state.",
+					"  Social spy revalidates permission and visibility for every delivered event.").push("socialEssentials");
+			socialSpyFormat = builder.comment("  Typed social spy template. Placeholders are {from}, {to}, {message}, {route}, and {timestamp}").define("socialSpyFormat", "&8[&b{from}&8] &7-> &8[&d{to}&8]&7: &f{message}");
+			socialSpyRecentLimit = builder.comment("  Maximum already authorized social spy events retained per observer session").defineInRange("socialSpyRecentLimit", 50, 0, 500);
+			socialSpyEventsPerSecond = builder.comment("  Maximum social spy events delivered to one observer per second").defineInRange("socialSpyEventsPerSecond", 100, 1, 1000);
+			privateMessageMaximumLength = builder.comment("  Maximum private message length").defineInRange("privateMessageMaximumLength", 2048, 1, 16384);
+			mailMaximumLength = builder.comment("  Maximum mail body length").defineInRange("mailMaximumLength", 2048, 1, 16384);
+			mailRetentionDays = builder.comment("  Mail expiry in days").defineInRange("mailRetentionDays", 30, 1, 3650);
+			defaultJoinMessage = builder.comment("  Default real join template").define("defaultJoinMessage", "&e{player} joined the game");
+			defaultLeaveMessage = builder.comment("  Default real leave template").define("defaultLeaveMessage", "&e{player} left the game");
+			optionalClientReminder = builder.comment("  Command fallback reminder for players without an enhanced client").define("optionalClientReminder", "&6This server supports optional SEF enhanced menus. &fEvery feature still works through commands. &eUse /sef commands &ffor available commands.");
 			builder.pop();
 
 			builder.comment("Virtual Workstations",
