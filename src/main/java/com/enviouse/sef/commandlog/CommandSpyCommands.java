@@ -8,7 +8,9 @@ import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.observation.ObservationContracts;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -275,6 +277,15 @@ public final class CommandSpyCommands {
         if (observer == null) {
             return fail(source, "An explicit online observer is required.");
         }
+        boolean managingOther = explicitObserver != null
+                && (source.getPlayer() == null
+                || !source.getPlayer().getUUID().equals(observer.getUUID()));
+        if (managingOther && !canManageObserver(source, observer)) {
+            return fail(source, "That observer is unavailable.");
+        }
+        PermissionNode<Boolean>[] permissions = managingOther
+                ? permissionArray("commands.commandspy.others")
+                : permissionArray();
         return execute(
                 source,
                 "sef:commandspy.toggle",
@@ -293,13 +304,20 @@ public final class CommandSpyCommands {
                     success(source, "Command spy " + (enabled ? "enabled" : "disabled") + " for "
                             + observer.getGameProfile().getName() + ".");
                     return 1;
-                });
+                },
+                permissions);
     }
 
     private static int status(CommandSourceStack source, ServerPlayer explicitObserver) {
         ServerPlayer observer = explicitObserver == null ? source.getPlayer() : explicitObserver;
         if (observer == null) {
             return fail(source, "An explicit online observer is required.");
+        }
+        boolean managingOther = explicitObserver != null
+                && (source.getPlayer() == null
+                || !source.getPlayer().getUUID().equals(observer.getUUID()));
+        if (managingOther && !canManageObserver(source, observer)) {
+            return fail(source, "That observer is unavailable.");
         }
         return execute(source, "sef:commandspy.status", Map.of("observer", observer.getUUID().toString()), () -> {
             CommandSpyRepository.Profile profile = KernelServices.commandSpies().profile(observer.getUUID());
@@ -313,7 +331,27 @@ public final class CommandSpyCommands {
             info(source, "Location " + profile.includeLocation() + ", results " + profile.includeResults()
                     + ", revision " + profile.revision() + ".");
             return 1;
-        }, permission("commands.commandspy.status"));
+        }, managingOther
+                ? permissionArray("commands.commandspy.status", "commands.commandspy.others")
+                : permissionArray("commands.commandspy.status"));
+    }
+
+    private static boolean canManageObserver(CommandSourceStack source, ServerPlayer observer) {
+        ServerPlayer actor = source.getPlayer();
+        if (actor != null && actor.getUUID().equals(observer.getUUID())) {
+            return true;
+        }
+        if (actor != null && VanishUtil.isVanished(observer, actor)) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                source,
+                observer,
+                permission("commandspy.hierarchy.bypass"),
+                permission("commandspy.exempt"),
+                permission("commandspy.view.exempt"),
+                false,
+                true).allowed();
     }
 
     private static int recent(CommandSourceStack source, int count) {
@@ -670,6 +708,15 @@ public final class CommandSpyCommands {
 
     private static PermissionNode<Boolean> permission(String id) {
         return PermissionsHandler.phasePermission(id);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static PermissionNode<Boolean>[] permissionArray(String... ids) {
+        PermissionNode<Boolean>[] nodes = new PermissionNode[ids.length];
+        for (int index = 0; index < ids.length; index++) {
+            nodes[index] = permission(ids[index]);
+        }
+        return nodes;
     }
 
     private static ServerPlayer player(CommandSourceStack source) {

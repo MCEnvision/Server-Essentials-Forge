@@ -98,8 +98,16 @@ public final class KitRepository implements StorageRepository {
                     throw new IllegalStateException("Duplicate kit id");
                 }
             }
+            Map<UUID, Integer> playerUseCounts = new LinkedHashMap<>();
             for (KitUse use : snapshot.uses()) {
                 validate(use);
+                if (!kits.containsKey(use.kitId())) {
+                    throw new IllegalStateException("Kit use references an unknown kit");
+                }
+                int playerUseCount = playerUseCounts.merge(use.playerId(), 1, Integer::sum);
+                if (playerUseCount > maximumUsesPerPlayer) {
+                    throw new IllegalStateException("Player kit use record limit exceeded");
+                }
                 if (uses.putIfAbsent(new UseKey(use.playerId(), use.kitId()), use) != null) {
                     throw new IllegalStateException("Duplicate kit use");
                 }
@@ -295,10 +303,19 @@ public final class KitRepository implements StorageRepository {
     private void validate(Kit kit) {
         Objects.requireNonNull(kit, "kit");
         if (!normalizeId(kit.id()).equals(kit.id())
+                || kit.displayName() == null
+                || kit.displayName().isBlank()
+                || kit.displayName().length() > 64
+                || kit.displayName().codePoints().anyMatch(Character::isISOControl)
+                || kit.description() == null
+                || kit.description().length() > 256
+                || kit.description().codePoints().anyMatch(Character::isISOControl)
                 || kit.items().size() > maximumItems
                 || kit.cooldownSeconds() < 0
                 || kit.cooldownSeconds() > 315_576_000L
                 || !normalizePermission(kit.permission(), kit.id()).equals(kit.permission())
+                || kit.createdBy() == null
+                || kit.createdAt() == null
                 || kit.revision() < 1
                 || kit.items().stream().anyMatch(item -> item == null
                 || item.isBlank()
@@ -309,8 +326,12 @@ public final class KitRepository implements StorageRepository {
 
     private static void validate(KitUse use) {
         Objects.requireNonNull(use, "use");
-        normalizeId(use.kitId());
-        if (use.claimCount() < 1 || use.claimCount() > 1_000_000 || use.revision() < 1) {
+        if (use.playerId() == null
+                || use.claimedAt() == null
+                || !normalizeId(use.kitId()).equals(use.kitId())
+                || use.claimCount() < 1
+                || use.claimCount() > 1_000_000
+                || use.revision() < 1) {
             throw new IllegalArgumentException("Kit use record is invalid");
         }
     }

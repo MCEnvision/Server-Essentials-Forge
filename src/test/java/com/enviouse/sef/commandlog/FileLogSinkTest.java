@@ -59,6 +59,43 @@ class FileLogSinkTest {
     }
 
     @Test
+    void previousIncompleteSessionRemainsDegradedUntilAcknowledged() throws Exception {
+        Path state = temporaryDirectory.resolve("logs").resolve("sef").resolve("state");
+        Files.createDirectories(state);
+        Files.writeString(state.resolve("incomplete-session.json"), "{}");
+        FileLogSink sink = new FileLogSink();
+
+        assertTrue(sink.startConfigured(temporaryDirectory));
+        assertTrue(sink.enable());
+        assertEquals(FileLogSink.State.DEGRADED, sink.health().state());
+        assertTrue(sink.health().detail().contains("acknowledgement"));
+        assertTrue(sink.acknowledgeRepair());
+        assertEquals(FileLogSink.State.HEALTHY, sink.health().state());
+
+        sink.shutdown();
+        assertFalse(threadExists("sef-file-log"));
+    }
+
+    @Test
+    void writerFailureLeavesAnIncompleteSessionMarker() throws Exception {
+        Path current = temporaryDirectory.resolve("logs").resolve("sef")
+                .resolve("commands").resolve("current.jsonl");
+        Files.createDirectories(current);
+        FileLogSink sink = new FileLogSink();
+
+        assertTrue(sink.startConfigured(temporaryDirectory));
+        assertTrue(sink.enable());
+        await(() -> sink.health().state() == FileLogSink.State.FAILED);
+        Path marker = temporaryDirectory.resolve("logs").resolve("sef")
+                .resolve("state").resolve("incomplete-session.json");
+        await(() -> Files.isRegularFile(marker));
+
+        assertEquals(FileLogSink.State.FAILED, sink.health().state());
+        assertTrue(Files.isRegularFile(marker));
+        sink.shutdown();
+    }
+
+    @Test
     void connectionRecordsSerializeWithoutRawAddresses() throws Exception {
         FileLogSink sink = new FileLogSink();
         assertTrue(sink.startConfigured(temporaryDirectory));
@@ -183,5 +220,13 @@ class FileLogSinkTest {
     private static boolean threadExists(String name) {
         return Thread.getAllStackTraces().keySet().stream()
                 .anyMatch(thread -> thread.isAlive() && thread.getName().equals(name));
+    }
+
+    private static void await(java.util.function.BooleanSupplier condition) {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
+        while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertTrue(condition.getAsBoolean());
     }
 }

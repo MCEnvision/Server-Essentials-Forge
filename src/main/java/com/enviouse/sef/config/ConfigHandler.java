@@ -65,6 +65,7 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Integer> superEnchantingTableCooldownSeconds;
 		public final ModConfigSpec.ConfigValue<Integer> repairCooldownSeconds;
 		public final ModConfigSpec.ConfigValue<Integer> superEnchantingMaxLevel;
+		public final ModConfigSpec.ConfigValue<Integer> superEnchantingMinLevel;
 		public final ModConfigSpec.ConfigValue<Boolean> superEnchantingAllowUnsafe;
 		public final ModConfigSpec.ConfigValue<String> workstationCooldownMessage;
 		public final ModConfigSpec.ConfigValue<String> repairSuccessMessage;
@@ -602,6 +603,7 @@ public class ConfigHandler {
 			enchantingTableCooldownSeconds = builder.comment("  Cooldown for /enchantingtable and /et in seconds").defineInRange("enchantingTableCooldownSeconds", 0, 0, 86400);
 			superEnchantingTableCooldownSeconds = builder.comment("  Cooldown for /superenchantingtable and /set in seconds").defineInRange("superEnchantingTableCooldownSeconds", 0, 0, 86400);
 			repairCooldownSeconds = builder.comment("  Cooldown for /repair in seconds").defineInRange("repairCooldownSeconds", 0, 0, 86400);
+			superEnchantingMinLevel = builder.comment("  Lowest nonzero level the super enchanting table can apply.").defineInRange("superEnchantingMinLevel", 1, 1, 255);
 			superEnchantingMaxLevel = builder.comment("  Highest level the super enchanting table can apply. Minecraft stores levels up to 255.").defineInRange("superEnchantingMaxLevel", 10, 1, 255);
 			superEnchantingAllowUnsafe = builder.comment("  Show enchantments that do not normally support the held item and allow incompatible combinations").define("superEnchantingAllowUnsafe", false);
 			workstationCooldownMessage = builder.comment("  Message shown during a cooldown. Placeholder: $seconds").define("cooldownMessage", "&cYou must wait &e$seconds &cseconds before using that command again.");
@@ -698,9 +700,9 @@ public class ConfigHandler {
 			// InvSee System
 			builder.comment("InvSee System",
 					"  Custom /invsee command with Curios mod support.",
-					"  If FTB Essentials is installed and invSeeDisableFtbInvsee is true,",
-					"  this mod's /invsee will override FTB's version.").push("invSee");
-			invSeeDisableFtbInvsee = builder.comment("  When true and FTB Essentials is loaded, override FTB's /invsee with ours").define("invSeeDisableFtbInvsee", true);
+					"  SEF can cooperatively add its route when another mod owns the root.",
+					"  Existing Brigadier nodes are never removed through reflection.").push("invSee");
+			invSeeDisableFtbInvsee = builder.comment("  Register the SEF route when another mod already owns invsee").define("invSeeDisableFtbInvsee", true);
 			invSeeTitle = builder.comment("  Title of the InvSee GUI. Placeholder: $player").define("invSeeTitle", "&e$player's Inventory");
 			invSeeArmorLabel = builder.comment("  Name shown on the glass pane separator for armor section").define("invSeeArmorLabel", "&9Armor");
 			invSeeOffhandLabel = builder.comment("  Name shown on the glass pane separator for offhand section").define("invSeeOffhandLabel", "&6Offhand");

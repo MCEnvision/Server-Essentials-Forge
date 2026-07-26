@@ -216,7 +216,8 @@ public final class PlayerUtilityCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> getPosNode() {
         return Commands.literal("getpos")
-                .requires(source -> source.getPlayer() != null && has(source, "commands.getpos"))
+                .requires(source -> source.getPlayer() != null && has(source, "commands.getpos")
+                        || has(source, "commands.getpos.others"))
                 .executes(context -> getPos(context.getSource(), context.getSource().getPlayer()))
                 .then(IdentityArguments.online("player")
                         .requires(source -> has(source, "commands.getpos.others"))

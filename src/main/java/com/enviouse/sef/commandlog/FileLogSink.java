@@ -127,8 +127,10 @@ public final class FileLogSink {
             state = State.FAILED;
             return false;
         }
+        boolean repairRequired;
         try {
             initializePaths();
+            repairRequired = state == State.DEGRADED;
             queue = new ArrayBlockingQueue<>(settings.queueCapacity());
             connectionQueue = new ArrayBlockingQueue<>(settings.queueCapacity());
             sessionId = UUID.randomUUID();
@@ -141,8 +143,10 @@ public final class FileLogSink {
         }
         accepting = true;
         running = true;
-        state = State.HEALTHY;
-        failureDetail = "";
+        if (!repairRequired) {
+            state = State.HEALTHY;
+            failureDetail = "";
+        }
         writerThread = Thread.ofPlatform()
                 .daemon(true)
                 .name("sef-file-log")
@@ -588,6 +592,7 @@ public final class FileLogSink {
             }
         } catch (IOException | RuntimeException exception) {
             fail("logger writer failed", exception);
+            writeIncompleteMarker();
         } finally {
             closeWriter(structured);
             closeWriter(text);

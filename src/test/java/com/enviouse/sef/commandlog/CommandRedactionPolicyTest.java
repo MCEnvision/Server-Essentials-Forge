@@ -37,4 +37,35 @@ class CommandRedactionPolicyTest {
         assertFalse(redacted.display().contains("2001:db8::1"));
         assertFalse(redacted.display().contains("maintenance"));
     }
+
+    @Test
+    void wrapperCommandsNeverExposeNestedArguments() {
+        for (String command : List.of(
+                "/execute as @a run login hunter2",
+                "/run data get entity Notch Inventory",
+                "/silent minecraft:login hunter2",
+                "/sudo Notch login hunter2",
+                "/schedule function private:operator 1t")) {
+            CommandRedactionPolicy.RedactedCommand redacted = CommandRedactionPolicy.redact(command);
+
+            assertEquals(CommandRedactionPolicy.RedactionClass.PRIVATE_CONTENT, redacted.redactionClass());
+            assertTrue(redacted.ruleIds().contains("nested_command"));
+            assertFalse(redacted.display().contains("hunter2"));
+            assertFalse(redacted.display().contains("Inventory"));
+            assertFalse(redacted.display().contains("private:operator"));
+        }
+    }
+
+    @Test
+    void moderationReasonsAndDataArgumentsArePrivate() {
+        CommandRedactionPolicy.RedactedCommand ban =
+                CommandRedactionPolicy.redact("/minecraft:ban Notch private evidence");
+        CommandRedactionPolicy.RedactedCommand data =
+                CommandRedactionPolicy.redact("/data get entity Notch Inventory");
+
+        assertEquals(CommandRedactionPolicy.RedactionClass.PRIVATE_CONTENT, ban.redactionClass());
+        assertFalse(ban.display().contains("private evidence"));
+        assertEquals(CommandRedactionPolicy.RedactionClass.SECRET, data.redactionClass());
+        assertFalse(data.display().contains("Inventory"));
+    }
 }

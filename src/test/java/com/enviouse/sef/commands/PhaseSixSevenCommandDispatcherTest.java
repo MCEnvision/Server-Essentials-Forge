@@ -3,6 +3,7 @@ package com.enviouse.sef.commands;
 import com.enviouse.sef.commandlog.CommandSpyCommands;
 import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.inventory.InventoryUtilityCommands;
 import com.enviouse.sef.invsee.InvSeeCommand;
 import com.enviouse.sef.kernel.KernelServices;
@@ -17,13 +18,16 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
+import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import org.junit.jupiter.api.Test;
 import org.mockito.Answers;
 import org.mockito.MockedStatic;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -128,6 +132,46 @@ class PhaseSixSevenCommandDispatcherTest {
         }
     }
 
+    @Test
+    void otherTargetRoutesDoNotRequireTheCorrespondingSelfPermission() throws Exception {
+        ServerPlayer player = mock(ServerPlayer.class);
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        when(source.getEntity()).thenReturn(player);
+        when(source.getPlayer()).thenReturn(player);
+        Set<String> granted = Set.of(
+                nodeName("commands.getpos.others"),
+                nodeName("commands.gamemode.creative.others"),
+                nodeName("commands.gamemode.others"));
+
+        try (MockedStatic<PermissionAPI> permissions = permissionApi(granted)) {
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+            assertTrue(dispatcher.getRoot().getChild("getpos").canUse(source));
+            assertTrue(dispatcher.getRoot().getChild("gmc").canUse(source));
+            assertEquals(0, dispatcher.execute("gm creative", source));
+            for (String command : List.of("getpos Notch", "gmc Notch", "gm creative Notch")) {
+                ParseResults<CommandSourceStack> parsed = dispatcher.parse(command, source);
+                assertTrue(parsed.getExceptions().isEmpty(), command + " " + parsed.getExceptions());
+                assertFalse(parsed.getReader().canRead(), command);
+            }
+        }
+    }
+
+    @Test
+    void invseeCollisionPreservesTheExistingBrigadierNode() {
+        AtomicBoolean granted = new AtomicBoolean(true);
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        dispatcher.register(Commands.literal("invsee").then(Commands.literal("external")));
+
+        try (MockedStatic<PermissionAPI> permissions = permissionApi(granted)) {
+            KernelServices.initialize();
+            InvSeeCommand.register(dispatcher);
+
+            assertNotNull(dispatcher.getRoot().getChild("invsee").getChild("external"));
+            assertNotNull(dispatcher.getRoot().getChild("invsee").getChild("player"));
+        }
+    }
+
     private static CommandDispatcher<CommandSourceStack> dispatcher() {
         KernelServices.initialize();
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
@@ -154,5 +198,19 @@ class PhaseSixSevenCommandDispatcherTest {
             }
             return Answers.RETURNS_DEFAULTS.answer(invocation);
         });
+    }
+
+    private static MockedStatic<PermissionAPI> permissionApi(Set<String> granted) {
+        return mockStatic(PermissionAPI.class, invocation -> {
+            if ("getPermission".equals(invocation.getMethod().getName())) {
+                PermissionNode<?> node = invocation.getArgument(1);
+                return node != null && granted.contains(node.getNodeName());
+            }
+            return Answers.RETURNS_DEFAULTS.answer(invocation);
+        });
+    }
+
+    private static String nodeName(String id) {
+        return PermissionsHandler.phasePermission(id).getNodeName();
     }
 }

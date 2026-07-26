@@ -9,6 +9,7 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
 
 import net.minecraft.ChatFormatting;
@@ -43,6 +44,7 @@ final class SuperEnchantingMenu extends ChestMenu {
     private final SimpleContainer display;
     private final ServerPlayer player;
     private final int targetSlot;
+    private final long configurationRevision;
     private ItemStack expectedTarget;
     private List<Holder.Reference<Enchantment>> enchantments = List.of();
     private int page;
@@ -56,6 +58,7 @@ final class SuperEnchantingMenu extends ChestMenu {
         this.display = display;
         this.player = player;
         this.targetSlot = inventory.selected;
+        this.configurationRevision = KernelServices.configurationRevision();
         this.expectedTarget = inventory.getItem(targetSlot).copy();
         refresh();
     }
@@ -63,6 +66,7 @@ final class SuperEnchantingMenu extends ChestMenu {
     static boolean canOpen(ServerPlayer player) {
         ItemStack held = player.getMainHandItem();
         return ConfigHandler.config.enableSuperEnchantingTableCommand.get()
+                && configuredLevelsValid()
                 && !held.isEmpty()
                 && held.getCount() == 1
                 && EnchantmentHelper.canStoreEnchantments(held)
@@ -71,9 +75,7 @@ final class SuperEnchantingMenu extends ChestMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player clicker) {
-        if (!ConfigHandler.config.enableSuperEnchantingTableCommand.get()
-                || !validTarget()
-                || !PermissionService.has(player, PermissionsHandler.superEnchantingTableCommand)) {
+        if (!authorizationValid()) {
             player.closeContainer();
             player.sendSystemMessage(TextFormatter.stringToFormattedText(
                     "&cThe selected item or your permission changed."));
@@ -122,7 +124,11 @@ final class SuperEnchantingMenu extends ChestMenu {
     private void changeLevel(Holder<Enchantment> enchantment, int amount) {
         ItemStack target = targetItem();
         int current = enchantmentLevel(target, enchantment);
-        setLevel(enchantment, current + amount);
+        int minimum = ConfigHandler.config.superEnchantingMinLevel.get();
+        int requested = amount < 0 && current <= minimum
+                ? 0
+                : amount > 0 && current == 0 ? minimum : current + amount;
+        setLevel(enchantment, requested);
     }
 
     private void setLevel(Holder<Enchantment> enchantment, int requestedLevel) {
@@ -134,7 +140,10 @@ final class SuperEnchantingMenu extends ChestMenu {
         }
 
         int currentLevel = enchantmentLevel(target, enchantment);
-        int newLevel = Math.clamp(requestedLevel, 0, ConfigHandler.config.superEnchantingMaxLevel.get());
+        int newLevel = normalizeLevel(
+                requestedLevel,
+                ConfigHandler.config.superEnchantingMinLevel.get(),
+                ConfigHandler.config.superEnchantingMaxLevel.get());
         if (newLevel > currentLevel && !canApply(target, enchantment)) {
             player.sendSystemMessage(TextFormatter.stringToFormattedText("&cThat enchantment is not compatible with this item."));
             return;
@@ -252,6 +261,7 @@ final class SuperEnchantingMenu extends ChestMenu {
         ItemStack help = namedItem(Items.PAPER, "super enchanting table help");
         help.set(DataComponents.LORE, new ItemLore(List.of(
                 Component.literal("page " + (page + 1) + " of " + pageCount()).withStyle(ChatFormatting.GRAY),
+                Component.literal("minimum level, " + ConfigHandler.config.superEnchantingMinLevel.get()).withStyle(ChatFormatting.GRAY),
                 Component.literal("maximum level, " + ConfigHandler.config.superEnchantingMaxLevel.get()).withStyle(ChatFormatting.GRAY),
                 Component.literal("changes apply to the held item immediately").withStyle(ChatFormatting.YELLOW))));
         return help;
@@ -278,12 +288,32 @@ final class SuperEnchantingMenu extends ChestMenu {
     public boolean stillValid(Player player) {
         return player == this.player
                 && !this.player.hasDisconnected()
+                && authorizationValid();
+    }
+
+    private boolean authorizationValid() {
+        return configurationRevision == KernelServices.configurationRevision()
+                && ConfigHandler.config.enableSuperEnchantingTableCommand.get()
+                && configuredLevelsValid()
                 && validTarget()
                 && PermissionService.has(this.player, PermissionsHandler.superEnchantingTableCommand);
     }
 
     private static int enchantmentLevel(ItemStack target, Holder<Enchantment> enchantment) {
         return EnchantmentHelper.getEnchantmentsForCrafting(target).getLevel(enchantment);
+    }
+
+    static int normalizeLevel(int requested, int minimum, int maximum) {
+        if (minimum < 1 || maximum < minimum || maximum > 255) {
+            throw new IllegalArgumentException("Super enchanting level bounds are invalid");
+        }
+        return requested <= 0 ? 0 : Math.clamp(requested, minimum, maximum);
+    }
+
+    private static boolean configuredLevelsValid() {
+        int minimum = ConfigHandler.config.superEnchantingMinLevel.get();
+        int maximum = ConfigHandler.config.superEnchantingMaxLevel.get();
+        return minimum >= 1 && maximum >= minimum && maximum <= 255;
     }
 
     private int pageCount() {

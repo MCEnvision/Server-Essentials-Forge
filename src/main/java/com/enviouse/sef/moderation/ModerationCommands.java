@@ -353,7 +353,7 @@ public final class ModerationCommands {
 
     private static int pardon(CommandSourceStack source, String playerInput) {
         ResolvedIdentity identity = resolveKnown(source, playerInput);
-        if (identity == null) {
+        if (identity == null || !eligibleIdentity(source, identity, "exempt.ban")) {
             return unavailable(source);
         }
         return execute(source, "sef:moderation.pardon",

@@ -71,4 +71,21 @@ class KitRepositoryTest {
         assertThrows(IllegalArgumentException.class, () ->
                 repository.updatePolicy("starter", null, null, "bad permission value", null));
     }
+
+    @Test
+    void persistedPerPlayerUseLimitIsEnforcedOnLoad() throws Exception {
+        UUID actor = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        KitRepository writer = new KitRepository(4, 4, 3);
+        writer.load(temporaryDirectory);
+        for (String id : List.of("first", "second", "third")) {
+            KitRepository.Kit kit = writer.put(id, List.of(id), Duration.ZERO, false, actor);
+            writer.recordUse(player, kit, Instant.now());
+        }
+        writer.flush();
+
+        KitRepository reader = new KitRepository(4, 4, 2);
+
+        assertEquals(StorageRepository.RepositoryState.RECOVERY, reader.load(temporaryDirectory).state());
+    }
 }

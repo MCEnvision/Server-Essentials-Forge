@@ -15,9 +15,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -133,19 +135,14 @@ public final class ConnectionAddressService {
     }
 
     private int maximumSharedSessions(MinecraftServer server) {
-        List<Address> addresses = server.getPlayerList().getPlayers().stream()
-                .map(this::forPlayer)
-                .flatMap(Optional::stream)
-                .toList();
+        Map<String, Integer> counts = new HashMap<>();
         int maximum = 0;
-        for (Address address : addresses) {
-            int count = 0;
-            for (Address candidate : addresses) {
-                if (MessageDigest.isEqual(address.bytes(), candidate.bytes())) {
-                    count++;
-                }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            Optional<Address> address = forPlayer(player);
+            if (address.isPresent()) {
+                int count = counts.merge(address.orElseThrow().normalized(), 1, Integer::sum);
+                maximum = Math.max(maximum, count);
             }
-            maximum = Math.max(maximum, count);
         }
         return maximum;
     }

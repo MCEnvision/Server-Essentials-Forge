@@ -262,26 +262,9 @@ public final class InventoryUtilityCommands {
     private static int condense(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         return execute(source, "sef:inventory.condense", Map.of(), List.of(player.getUUID()), () -> {
-            List<ItemStack> before = snapshot(player.getInventory());
-            int crafted = 0;
-            try {
-                for (Conversion conversion : CONVERSIONS) {
-                    int available = count(player.getInventory(), conversion.input());
-                    int outputs = available / conversion.ratio();
-                    if (outputs < 1) {
-                        continue;
-                    }
-                    remove(player.getInventory(), conversion.input(), outputs * conversion.ratio());
-                    ItemStack result = new ItemStack(conversion.output(), outputs);
-                    if (!player.getInventory().add(result) || !result.isEmpty()) {
-                        restore(player.getInventory(), before);
-                        return fail(source, "Inventory changed before condensation could commit.");
-                    }
-                    crafted += outputs;
-                }
-            } catch (RuntimeException exception) {
-                restore(player.getInventory(), before);
-                throw exception;
+            int crafted = condenseInventory(player.getInventory());
+            if (crafted < 0) {
+                return fail(source, "Inventory changed before condensation could commit.");
             }
             if (crafted == 0) {
                 return fail(source, "No supported complete compression recipe was available.");
@@ -291,6 +274,31 @@ public final class InventoryUtilityCommands {
             success(source, "Condensed inventory into " + crafted + " output items.");
             return crafted;
         }, permission("commands.condense"));
+    }
+
+    static int condenseInventory(Inventory inventory) {
+        List<ItemStack> before = snapshot(inventory);
+        int crafted = 0;
+        try {
+            for (Conversion conversion : CONVERSIONS) {
+                int available = count(inventory, conversion.input());
+                int outputs = available / conversion.ratio();
+                if (outputs < 1) {
+                    continue;
+                }
+                remove(inventory, conversion.input(), outputs * conversion.ratio());
+                ItemStack result = new ItemStack(conversion.output(), outputs);
+                if (!inventory.add(result) || !result.isEmpty()) {
+                    restore(inventory, before);
+                    return -1;
+                }
+                crafted += outputs;
+            }
+        } catch (RuntimeException exception) {
+            restore(inventory, before);
+            throw exception;
+        }
+        return crafted;
     }
 
     private static int hat(CommandSourceStack source) {

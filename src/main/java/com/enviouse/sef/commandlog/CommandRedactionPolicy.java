@@ -11,7 +11,12 @@ public final class CommandRedactionPolicy {
             "2fa", "otp", "pin", "token");
     private static final Set<String> PRIVATE_CONTENT_ROOTS = Set.of(
             "msg", "tell", "w", "whisper", "r", "reply", "mail", "pchat",
-            "fakemessage", "fakerankmessage");
+            "fakemessage", "fakerankmessage",
+            "ban", "tempban", "kick", "kickall", "kickme", "mute", "tempmute",
+            "warn", "jail", "freeze");
+    private static final Set<String> WRAPPER_ROOTS = Set.of(
+            "execute", "function", "run", "schedule", "silent", "sudo");
+    private static final Set<String> SENSITIVE_ARGUMENT_ROOTS = Set.of("data");
     private static final Set<String> NETWORK_ADDRESS_ROOTS = Set.of(
             "ban-ip", "banip", "tempban-ip", "tempbanip",
             "pardon-ip", "unban-ip", "unbanip",
@@ -42,6 +47,20 @@ public final class CommandRedactionPolicy {
         if (PRIVATE_CONTENT_ROOTS.contains(root)) {
             return new RedactedCommand(root, "/" + root + " <private>", RedactionClass.PRIVATE_CONTENT,
                     Set.of("private_content"));
+        }
+        if (WRAPPER_ROOTS.contains(root)) {
+            return new RedactedCommand(
+                    root,
+                    "/" + root + " <nested command redacted>",
+                    RedactionClass.PRIVATE_CONTENT,
+                    Set.of("nested_command"));
+        }
+        if (SENSITIVE_ARGUMENT_ROOTS.contains(root)) {
+            return new RedactedCommand(
+                    root,
+                    "/" + root + " <arguments redacted>",
+                    RedactionClass.SECRET,
+                    Set.of("sensitive_arguments"));
         }
         if (!knownRoot(root)) {
             return new RedactedCommand(root, "/" + root + " <redacted>", RedactionClass.UNKNOWN_ROOT,

@@ -45,7 +45,8 @@ public final class GamemodeCommands {
         }
         if (KernelServices.shortcuts().isActive("gm")) {
             dispatcher.register(Commands.literal("gm")
-                .requires(source -> has(source, "commands.gamemode"))
+                .requires(source -> has(source, "commands.gamemode")
+                        || has(source, "commands.gamemode.others"))
                 .then(Commands.argument("mode", StringArgumentType.word())
                         .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                 new String[]{"creative", "survival", "spectator", "adventure",
@@ -67,7 +68,8 @@ public final class GamemodeCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> fixedNode(String literal, GameType mode) {
         String modeName = modeName(mode);
         return Commands.literal(literal)
-                .requires(source -> has(source, "commands.gamemode." + modeName))
+                .requires(source -> has(source, "commands.gamemode." + modeName)
+                        || has(source, "commands.gamemode." + modeName + ".others"))
                 .executes(context -> change(context.getSource(), context.getSource().getPlayer(), mode, false))
                 .then(IdentityArguments.online("player")
                         .requires(source -> has(source, "commands.gamemode." + modeName + ".others"))
@@ -85,10 +87,15 @@ public final class GamemodeCommands {
         }
         boolean other = explicitTarget != null;
         ServerPlayer target = other ? explicitTarget : source.getPlayer();
-        if (!has(source, "commands.gamemode." + modeName(mode))) {
+        if (!has(source, "commands.gamemode." + modeName(mode) + (other ? ".others" : ""))) {
             return fail(source, "You do not have permission for that game mode.");
         }
-        return change(source, target, mode, other, permission("commands.gamemode"));
+        return change(
+                source,
+                target,
+                mode,
+                other,
+                permission("commands.gamemode" + (other ? ".others" : "")));
     }
 
     @SafeVarargs

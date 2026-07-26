@@ -1,6 +1,5 @@
 package com.enviouse.sef.invsee;
 
-import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
@@ -8,9 +7,6 @@ import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.tree.CommandNode;
-import com.mojang.brigadier.tree.RootCommandNode;
-
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
@@ -20,28 +16,18 @@ import net.minecraft.world.MenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.neoforged.fml.ModList;
-
-import java.lang.reflect.Field;
-import java.util.Map;
-
 /**
  * Custom /invsee command that shows a player's inventory, armor, offhand,
  * and Curios slots in a double-chest GUI with glass pane separators.
  * All slots are editable - changes sync directly to the target player's inventory.
- *
- * If FTB Essentials is detected and invSeeDisableFtbInvsee is true,
- * this command overrides FTB's /invsee by removing their command node first.
  */
 public class InvSeeCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         if (!ConfigHandler.config.enableInvSee.get()) return;
-
-        // If FTB Essentials is loaded and override is enabled, remove FTB's /invsee node
-        if (ConfigHandler.config.invSeeDisableFtbInvsee.get() && ModList.get().isLoaded("ftbessentials")) {
-            removeCommandNode(dispatcher, "invsee");
-            ServerEssentialsForge.LOGGER.info("[SEF] Overriding FTB Essentials /invsee with sef version (Curios support)");
+        if (dispatcher.getRoot().getChild("invsee") != null
+                && !ConfigHandler.config.invSeeDisableFtbInvsee.get()) {
+            return;
         }
 
         dispatcher.register(Commands.literal("invsee")
@@ -59,31 +45,6 @@ public class InvSeeCommand {
                     }
                     return openInvSee(viewer, target, 0);
                 })));
-    }
-
-    /**
-     * Removes a command node from the dispatcher's root using reflection.
-     * This is needed to fully replace FTB's /invsee registration.
-     */
-    @SuppressWarnings("unchecked")
-    private static void removeCommandNode(CommandDispatcher<CommandSourceStack> dispatcher, String name) {
-        try {
-            RootCommandNode<CommandSourceStack> root = dispatcher.getRoot();
-            // Remove from 'children' map
-            Field childrenField = CommandNode.class.getDeclaredField("children");
-            childrenField.setAccessible(true);
-            Map<String, CommandNode<CommandSourceStack>> children =
-                (Map<String, CommandNode<CommandSourceStack>>) childrenField.get(root);
-            children.remove(name);
-
-            // Remove from 'literals' map
-            Field literalsField = CommandNode.class.getDeclaredField("literals");
-            literalsField.setAccessible(true);
-            Map<String, ?> literals = (Map<String, ?>) literalsField.get(root);
-            literals.remove(name);
-        } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.warn("[SEF] Could not remove existing /invsee command node: {}", e.getMessage());
-        }
     }
 
     /**
