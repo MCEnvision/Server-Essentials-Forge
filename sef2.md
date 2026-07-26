@@ -27,7 +27,7 @@ This is a plan, not a statement that every described feature is already implemen
 
 ## Implementation status update, 2026-07-26
 
-Phases 1 through 3 have automated implementation coverage in the current phase branch. They are not release complete. Headless verification now covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with each current optional integration family alone and together. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` and `docs/PHASE_2_3_MANUAL_TESTS.md` remain mandatory approval gates.
+Phases 1 through 7 have automated implementation coverage in the current phase branch. They are not release complete. Headless verification covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, dedicated startup, teleports, social storage, moderation storage, command-spy profiles, optional logging policy, kits, inventory authorization, and Brigadier registration. Authenticated multiplayer, packet-visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, Phase 6 file-failure and proxy matrices, Phase 7 inventory transaction and super-enchant matrices, and profiler cases in the phase test documents remain mandatory approval gates.
 
 Completed security and authorization work:
 
@@ -51,13 +51,13 @@ Completed validation and state work:
 
 Current automated and smoke verification evidence:
 
-- JUnit regression coverage includes real Brigadier authorization, permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization and authenticated username hover, legacy nickname fixtures, vanish visibility, permission reconciliation, hierarchy, workstation cooldown cleanup, shared execution ordering, storage atomicity, migration preparation failure, quarantine, unknown-field preservation, dynamic deletion semantics, announcement type and command policy separation, asynchronous profile and manager persistence, alternate account privacy, and permission refresh authority invalidation.
+- JUnit regression coverage includes real Brigadier authorization, permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization and authenticated username hover, legacy nickname fixtures, vanish visibility, permission reconciliation, hierarchy, workstation cooldown cleanup, shared execution ordering, storage atomicity, migration preparation failure, quarantine, unknown-field preservation, dynamic deletion semantics, announcement type and command policy separation, asynchronous profile and manager persistence, alternate account privacy, permission refresh authority invalidation, Phase 6 command redaction, command-spy filters, logging fail-closed behavior, connection-address authority, moderation persistence, Phase 7 kit persistence, menu revocation, catalog ownership, and item amount bounds.
 - The dedicated NeoForge server reaches ready state with no optional integrations and shuts down through normal `stop` with all dimensions saved.
 - `README.md` and `DOCUMENTATION.md` describe current behavior, recovery, privacy, permissions, integration boundaries, and remaining roadmap work.
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack. These runs prove startup isolation only.
 - Authenticated multiplayer, live LuckPerms metadata and refresh, FTB nickname mutations, Curios inventory interaction, server list and packet visible behavior, dirty shutdown races, qualifying player cooldown persistence, and profiler results remain manual work. No release approval may infer those results from headless startup.
 
-The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable `/sef` catalog action enters the shared runtime policy and audit pipeline. Versioned location history and persistent cooldown repositories, bounded player profiles, import diagnostics, and recovery mode provide the Phase 3 persistence foundation. Full sudo modes, offline inventory inspection, enhanced client GUIs, homes, teleportation, and the expanded command catalog remain assigned to their later phases.
+The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable `/sef` catalog action enters the shared runtime policy and audit pipeline. Versioned location history, persistent cooldown, teleport, social, command-spy, moderation, and kit repositories use bounded persistence and recovery contracts. Full sudo modes, offline inventory persistence, enhanced client GUIs, economy, disguise, alias publication, bundle execution, and administrative panel editing remain assigned to later phases.
 
 ## Source-of-truth order
 
@@ -16255,6 +16255,18 @@ Status: implementation coverage is present on `envy/phase-5`. Audit remediation 
 
 ## Phase 6. Moderation and protection
 
+### Implementation status, 2026-07-26
+
+The server-side Phase 6 implementation is present on `envy/phase-7`.
+
+- Expanded player bans, temporary bans, pardons, IP bans, temporary IP bans, IP pardons, single kick, shared-address kick, self kick, and bounded confirmed mass kick use the canonical kernel.
+- Vanilla ban lists remain authoritative. The connection-address service supports direct, trusted-proxy, external, and disabled policies, applies shared-address caps, and fails safe for likely unconfigured proxies.
+- Warnings, mutes, freezes, inventory locks, build locks, jails, and jail sentences use the versioned `moderation.json` repository. Legacy owners are disabled while the new module owns enforcement.
+- `/commandspy` and `/sef commandspy` use persistent bounded observer profiles, everyone and selected audiences, initiator and effective-actor relations, typed filters, projections, hierarchy, exemptions, vanish visibility, rate limits, deduplication, and execution-time permission rechecks.
+- `CommandEventJournal` emits correlated immutable redacted lifecycle records. IP aliases, private-content roots, secret roots, and unknown roots are redacted before observation.
+- Optional logging is disabled by default, owns only `logs/sef`, uses a bounded queue and records, supports command and connection streams, rotation, retention, state-bound retention confirmation, search, redacted export, health, repair, and bounded shutdown.
+- Brigadier, persistence, redaction, proxy, logging safety, and catalog regression tests exist. The authenticated multiplayer, provider, filesystem-failure, symlink, shutdown-interruption, full action-coverage GameTest, and profiler rows in `docs/PHASE_6_TESTS.md` remain release gates and are not implied complete by implementation status.
+
 ### Deliverables
 
 - Warnings.
@@ -16290,6 +16302,19 @@ Status: implementation coverage is present on `envy/phase-5`. Audit remediation 
 - Claim adapters fail closed only where appropriate.
 
 ## Phase 7. Inventory, workstations, kits, and player utilities
+
+### Implementation status, 2026-07-26
+
+The server-side Phase 7 implementation is present on `envy/phase-7`.
+
+- Cartography table, grindstone, loom, smithing table, stonecutter, workbench, and `/wb` use vanilla menu types and canonical workstation actions.
+- InvSee and live ender-chest menus recheck view, mutation, feature, configuration revision, hierarchy, exemption, and vanish policy before interaction.
+- Disposal, clear inventory, stack filling, recipe-based condensation, hats, item naming, lore, item identification, bounded book editing, and recipe lookup use server-side validation.
+- The versioned kit repository stores bounded registry-aware item definitions, policy, cooldowns, one-time state, and UUID claim history. Claims validate capacity before commit and support optional dynamic per-kit LuckPerms nodes.
+- Player utilities cover AFK, feed, heal, fly, god, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived authorization is reconciled.
+- `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` separate self and other-player authority. `/i` is self only, normalizes the optional vanilla namespace, applies a configured amount bound, validates the registry, and rolls back failed insertion.
+- Super enchanting revalidates registry, permission, configuration revision, target compatibility, and bounded level policy before mutation.
+- Brigadier, amount-bound, kit persistence, menu revocation, and catalog regression tests exist. Authenticated transaction, missing-registry, real Curios, client presentation, shortcut collision with external mods, super-enchant, and profiler rows in `docs/PHASE_7_TESTS.md` remain release gates and are not implied complete by implementation status.
 
 ### Deliverables
 

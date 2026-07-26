@@ -10,6 +10,7 @@ import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.message.MessageService;
+import com.enviouse.sef.moderation.ModerationRepository;
 import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.enviouse.sef.vanish.VanishUtil;
@@ -247,6 +248,12 @@ public class MsgCommands {
         final String senderName = tmpSenderName;
 
         String receiverName = target.getGameProfile().getName();
+        if (sender != null && KernelServices.moderation()
+                .control(sender.getUUID(), ModerationRepository.ControlType.MUTE)
+                .isPresent()) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cYou are muted."));
+            return 0;
+        }
         if (message == null
                 || message.isBlank()
                 || message.length() > ConfigHandler.config.privateMessageMaximumLength.get()

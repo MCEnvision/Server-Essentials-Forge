@@ -22,7 +22,7 @@ public class DisableBuildingEventHandler {
     /** Block breaking blocks */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!ConfigHandler.config.enableDisableBuilding.get()) return;
+        if (!enabled()) return;
         if (event.getPlayer() instanceof ServerPlayer player) {
             if (DisableBuildingManager.isDisabled(player.getUUID())) {
                 event.setCanceled(true);
@@ -35,7 +35,7 @@ public class DisableBuildingEventHandler {
     /** Block placing blocks */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!ConfigHandler.config.enableDisableBuilding.get()) return;
+        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
             if (DisableBuildingManager.isDisabled(player.getUUID())) {
                 event.setCanceled(true);
@@ -48,13 +48,16 @@ public class DisableBuildingEventHandler {
     /** Block left-click on blocks (mining) */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        if (!ConfigHandler.config.enableDisableBuilding.get()) return;
+        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
             if (DisableBuildingManager.isDisabled(player.getUUID())) {
                 event.setCanceled(true);
             }
         }
     }
+    private static boolean enabled() {
+        return ConfigHandler.config.enableDisableBuilding.get()
+                || ConfigHandler.config.enableModerationEssentials.get();
+    }
 }
-
 

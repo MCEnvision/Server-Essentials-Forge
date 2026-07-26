@@ -7,6 +7,8 @@ import com.enviouse.sef.config.ConfigurationEventHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
+import com.enviouse.sef.commandlog.CommandSpyCommands;
+import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.kernel.KernelCommands;
 import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.permissions.PermissionService;
@@ -37,7 +39,9 @@ public class BfcCommands {
 		if(ConfigHandler.config.enableFilterSystem.get()) {
 			registerFilterCommands(sefRoot);
 		}
-		KernelCommands.attach(sefRoot);
+			KernelCommands.attach(sefRoot);
+			CommandSpyCommands.attachCanonical(sefRoot);
+			LoggingCommands.attachCanonical(sefRoot);
 		VirtualWorkstationCommands.attachCanonical(sefRoot);
 		StorageCommands.attach(sefRoot);
 		if(ConfigHandler.config.enableMotdSystem.get()) {

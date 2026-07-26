@@ -1,6 +1,9 @@
 package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.commandlog.CommandEventJournal;
+import com.enviouse.sef.commandlog.CommandSpyRepository;
+import com.enviouse.sef.commandlog.FileLogSink;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityService;
@@ -21,7 +24,10 @@ import com.enviouse.sef.kernel.policy.FeatureGateService;
 import com.enviouse.sef.kernel.policy.QuotaService;
 import com.enviouse.sef.kernel.policy.TargetHierarchyService;
 import com.enviouse.sef.kernel.policy.WarmupService;
+import com.enviouse.sef.kits.KitRepository;
 import com.enviouse.sef.message.MessageService;
+import com.enviouse.sef.moderation.ConnectionAddressService;
+import com.enviouse.sef.moderation.ModerationRepository;
 import com.enviouse.sef.permissions.PermissionManifest;
 import com.enviouse.sef.storage.repository.CooldownRepository;
 import com.enviouse.sef.storage.repository.LocationHistoryRepository;
@@ -78,6 +84,12 @@ public final class KernelServices {
     private static TeleportSettings teleportSettings;
     private static SocialRepository social;
     private static ObservationService observations;
+    private static CommandSpyRepository commandSpies;
+    private static FileLogSink fileLogs;
+    private static CommandEventJournal commandJournal;
+    private static ModerationRepository moderation;
+    private static ConnectionAddressService connectionAddresses;
+    private static KitRepository kits;
     private static Map<String, PermissionNode<Boolean>> permissionNodes;
     private static AliasCompiler.Registry aliases;
     private static BundleCompiler bundleCompiler;
@@ -108,11 +120,19 @@ public final class KernelServices {
         descriptors.registerCommandOnly("sef:workstations");
         descriptors.registerCommandOnly("sef:teleports");
         descriptors.registerCommandOnly("sef:social");
+        descriptors.registerCommandOnly("sef:observation");
+        descriptors.registerCommandOnly("sef:moderation");
+        descriptors.registerCommandOnly("sef:inventory");
+        descriptors.registerCommandOnly("sef:kits");
+        descriptors.registerCommandOnly("sef:utilities");
 
         catalog = new CommandCatalog(capabilities, descriptors);
         registerCoreCommands();
         registerTeleportCommands();
         registerSocialCommands();
+        registerObservationCommands();
+        registerModerationCommands();
+        registerPhaseSevenCommands();
         catalog.seal();
 
         shortcuts = new ShortcutRegistry(catalog, capabilities);
@@ -138,6 +158,19 @@ public final class KernelServices {
         messages = new MessageService();
         social = new SocialRepository();
         observations = new ObservationService(social, messages);
+        commandSpies = new CommandSpyRepository(ConfigHandler.config.commandSpySelectedLimit.get());
+        fileLogs = new FileLogSink();
+        commandJournal = new CommandEventJournal(
+                commandSpies,
+                fileLogs,
+                ConfigHandler.config.commandSpyRecentLimit.get(),
+                ConfigHandler.config.commandSpyEventsPerSecond.get());
+        moderation = new ModerationRepository();
+        connectionAddresses = new ConnectionAddressService();
+        kits = new KitRepository(
+                ConfigHandler.config.maximumKits.get(),
+                ConfigHandler.config.maximumKitItems.get(),
+                ConfigHandler.config.maximumKitUsesPerPlayer.get());
         profiles = new PlayerProfileRepository();
         identities = new IdentityService(ServerLifecycleHooks::getCurrentServer, profiles);
 
@@ -167,7 +200,7 @@ public final class KernelServices {
                                         : null)));
         aliases = new AliasCompiler.Registry(aliasCompiler, ConfigHandler.config.kernelMaximumAliases.get());
 
-        storage = new StorageCoordinator();
+        storage = new StorageCoordinator(ConfigHandler.config.kernelRepositoryFlushSeconds.get());
         locationHistory = new LocationHistoryRepository(ConfigHandler.config.kernelLocationHistoryEntries.get());
         cooldownRepository = new CooldownRepository(
                 cooldowns,
@@ -180,6 +213,9 @@ public final class KernelServices {
         storage.register(cooldownRepository);
         storage.register(teleports);
         storage.register(social);
+        storage.register(commandSpies);
+        storage.register(moderation);
+        storage.register(kits);
 
         initialized = true;
         reloadConfiguration();
@@ -234,7 +270,18 @@ public final class KernelServices {
                 Map.entry("sef.social.reminders", ConfigHandler.config.enableSocialEssentials.get()
                         && ConfigHandler.config.enableReminders.get()),
                 Map.entry("sef.social.text", ConfigHandler.config.enableSocialEssentials.get()
-                        && ConfigHandler.config.enableCustomText.get()));
+                        && ConfigHandler.config.enableCustomText.get()),
+                Map.entry("sef.observation.command", ConfigHandler.config.enableCommandSpy.get()),
+                Map.entry("sef.logging", true),
+                Map.entry("sef.moderation", ConfigHandler.config.enableModerationEssentials.get()),
+                Map.entry("sef.moderation.jails", ConfigHandler.config.enableModerationEssentials.get()
+                        && ConfigHandler.config.enableJails.get()),
+                Map.entry("sef.inventory", ConfigHandler.config.enableInventoryUtilities.get()),
+                Map.entry("sef.kits", ConfigHandler.config.enableKits.get()),
+                Map.entry("sef.utilities", ConfigHandler.config.enablePlayerUtilities.get()),
+                Map.entry("sef.gamemode", ConfigHandler.config.enableGamemodeShortcuts.get()),
+                Map.entry("sef.item.self", ConfigHandler.config.enableItemShortcut.get()),
+                Map.entry("sef.workstation.additional", ConfigHandler.config.enableAdditionalWorkstations.get()));
         Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
@@ -261,6 +308,26 @@ public final class KernelServices {
         quotas.invalidate();
     }
 
+    public static long configurationRevision() {
+        return CONFIG_REVISION.get();
+    }
+
+    public static boolean cooldownBypass(net.minecraft.commands.CommandSourceStack source, String actionId) {
+        String permission = actionId.startsWith("sef:inventory.") || actionId.startsWith("sef:item.")
+                ? "sef.inventory.cooldown.bypass"
+                : actionId.startsWith("sef:utility.")
+                ? "sef.utilities.cooldown.bypass"
+                : actionId.startsWith("sef:gamemode.")
+                ? "sef.gamemode.cooldown.bypass"
+                : actionId.startsWith("sef:kit.")
+                ? "sef.kits.cooldown.bypass"
+                : actionId.startsWith("sef:workstation.")
+                ? "sef.commands.workstation.cooldown.bypass"
+                : "";
+        PermissionNode<Boolean> node = permission.isEmpty() ? null : permissionNode(permission);
+        return node != null && com.enviouse.sef.permissions.PermissionService.has(source, node);
+    }
+
     public static synchronized void startStorage(Path managedRoot) {
         ensureInitialized();
         if (!storage.started()) {
@@ -271,11 +338,13 @@ public final class KernelServices {
 
     public static synchronized StorageCoordinator.FlushResult shutdown() {
         ensureInitialized();
+        fileLogs.shutdown();
         StorageCoordinator.FlushResult result = storage.shutdown();
         warmups.clear();
         confirmations.clear();
         teleportRequests.clear();
         observations.clearAll();
+        commandJournal.clearRuntime();
         if (result.successful()) {
             cooldowns.clearAll();
         }
@@ -379,6 +448,21 @@ public final class KernelServices {
         return profiles;
     }
 
+    public static ModerationRepository moderation() {
+        ensureInitialized();
+        return moderation;
+    }
+
+    public static ConnectionAddressService connectionAddresses() {
+        ensureInitialized();
+        return connectionAddresses;
+    }
+
+    public static KitRepository kits() {
+        ensureInitialized();
+        return kits;
+    }
+
     public static IdentityService identities() {
         ensureInitialized();
         return identities;
@@ -422,6 +506,21 @@ public final class KernelServices {
     public static ObservationService observations() {
         ensureInitialized();
         return observations;
+    }
+
+    public static CommandSpyRepository commandSpies() {
+        ensureInitialized();
+        return commandSpies;
+    }
+
+    public static FileLogSink fileLogs() {
+        ensureInitialized();
+        return fileLogs;
+    }
+
+    public static CommandEventJournal commandJournal() {
+        ensureInitialized();
+        return commandJournal;
     }
 
     public static AliasCompiler.Registry aliases() {
@@ -620,6 +719,461 @@ public final class KernelServices {
         registerSocial("sef:social.identity", "sef identity", Set.of(),
                 "sef.commands.sef.identity.coverage", CommandDefinition.AccessClass.ADMINISTRATOR,
                 CommandDefinition.TargetBehavior.NONE);
+    }
+
+    private static void registerObservationCommands() {
+        registerDomainCommand(
+                "sef:commandspy.toggle", "commandspy toggle", Set.of("commandspy"),
+                "sef.commands.commandspy", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.status", "commandspy status", Set.of(),
+                "sef.commands.commandspy.status", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.observation.command", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.recent", "commandspy recent", Set.of(),
+                "sef.commands.commandspy.recent", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.audience", "commandspy audience", Set.of(),
+                "sef.commands.commandspy", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.selected", "commandspy selected", Set.of(),
+                "sef.commands.commandspy.selected", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.scope", "commandspy scope", Set.of(),
+                "sef.commands.commandspy", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:commandspy.filter", "commandspy filter", Set.of(),
+                "sef.commands.commandspy.filter", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.observation.command", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+
+        registerDomainCommand(
+                "sef:logging.status", "sef logging status", Set.of("loggerspy"),
+                "sef.commands.logging.status", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.PREFER_EXISTING);
+        registerDomainCommand(
+                "sef:logging.enable", "sef logging enable", Set.of(),
+                "sef.commands.logging.enable", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.disable", "sef logging disable", Set.of(),
+                "sef.commands.logging.disable", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.reload", "sef logging reload", Set.of(),
+                "sef.commands.logging.enable", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.rotate", "sef logging rotate", Set.of(),
+                "sef.commands.logging.rotate", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.flush", "sef logging flush", Set.of(),
+                "sef.commands.logging.flush", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.stats", "sef logging stats", Set.of(),
+                "sef.commands.logging.stats", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.doctor", "sef logging doctor", Set.of(),
+                "sef.commands.logging.doctor", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.live", "sef logging live", Set.of(),
+                "sef.commands.logging.live", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.logging", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.recent", "sef logging recent", Set.of(),
+                "sef.commands.logging.recent", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.stream.list", "sef logging stream list", Set.of(),
+                "sef.commands.logging.stream.list", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.stream.configure", "sef logging stream configure", Set.of(),
+                "sef.commands.logging.stream.configure", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.filter.list", "sef logging filter list", Set.of(),
+                "sef.commands.logging.filter.list", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.filter.capture", "sef logging filter capture", Set.of(),
+                "sef.commands.logging.filter.capture", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.filter.view", "sef logging filter view", Set.of(),
+                "sef.commands.logging.filter.view", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.logging", AuditService.AuditClass.COMMAND_OBSERVATION,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.filter.root", "sef logging filter root", Set.of(),
+                "sef.commands.logging.filter.root", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.filter.action", "sef logging filter action", Set.of(),
+                "sef.commands.logging.filter.action", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.session.current", "sef logging session current", Set.of(),
+                "sef.commands.logging.session.current", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.session.list", "sef logging session list", Set.of(),
+                "sef.commands.logging.session.list", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.format.show", "sef logging format show", Set.of(),
+                "sef.commands.logging.format.show", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.format.validate", "sef logging format validate", Set.of(),
+                "sef.commands.logging.format.validate", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.format.set", "sef logging format set", Set.of(),
+                "sef.commands.logging.format.set", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.format.reset", "sef logging format reset", Set.of(),
+                "sef.commands.logging.format.reset", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.search", "sef logging search", Set.of(),
+                "sef.commands.logging.search", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.export", "sef logging export", Set.of(),
+                "sef.commands.logging.export", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.retention.preview", "sef logging retention preview", Set.of(),
+                "sef.commands.logging.retention.preview", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.retention.run", "sef logging retention run", Set.of(),
+                "sef.commands.logging.retention.run", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:logging.repair", "sef logging repair", Set.of(),
+                "sef.commands.logging.repair", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.logging", AuditService.AuditClass.FILE_LOG_CONTROL,
+                "sef:observation", CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+    }
+
+    private static void registerModerationCommands() {
+        registerDomainCommand("sef:moderation.ban", "ban", Set.of("ban"),
+                "sef.commands.ban", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.tempban", "tempban", Set.of("tempban"),
+                "sef.commands.tempban", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.pardon", "pardon", Set.of("pardon", "unban"),
+                "sef.commands.pardon", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.ban_ip", "ban ip", Set.of("ban-ip", "banip"),
+                "sef.commands.banip", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.BOUNDED_PLAYERS,
+                "sef.moderation", AuditService.AuditClass.NETWORK_ADDRESS_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.tempban_ip", "tempban ip", Set.of("tempban-ip", "tempbanip"),
+                "sef.commands.tempbanip", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.BOUNDED_PLAYERS,
+                "sef.moderation", AuditService.AuditClass.NETWORK_ADDRESS_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.pardon_ip", "pardon ip",
+                Set.of("pardon-ip", "unban-ip", "unbanip"),
+                "sef.commands.pardonip", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.SERVER,
+                "sef.moderation", AuditService.AuditClass.NETWORK_ADDRESS_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.kick", "kick", Set.of("kick"),
+                "sef.commands.kick", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.kick_ip", "kick ip", Set.of("kick-ip", "kickip"),
+                "sef.commands.kickip", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.BOUNDED_PLAYERS,
+                "sef.moderation", AuditService.AuditClass.NETWORK_ADDRESS_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.kick_self", "kickme", Set.of("kickme"),
+                "sef.commands.kickme", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:moderation.kick_all", "kickall", Set.of("kickall"),
+                "sef.commands.kickall", CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.BOUNDED_PLAYERS,
+                "sef.moderation", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        Map<String, String> controlPermissions = Map.ofEntries(
+                Map.entry("warn", "sef.commands.warn"),
+                Map.entry("warns", "sef.commands.warns"),
+                Map.entry("clearwarnings", "sef.commands.warn"),
+                Map.entry("mute", "sef.commands.mute"),
+                Map.entry("unmute", "sef.commands.unmute"),
+                Map.entry("mutelist", "sef.commands.mute"),
+                Map.entry("freeze", "sef.commands.freeze"),
+                Map.entry("unfreeze", "sef.commands.unfreeze"),
+                Map.entry("freezelist", "sef.commands.freeze"),
+                Map.entry("invlock", "sef.commands.invlock"),
+                Map.entry("disablebuilding", "sef.commands.disablebuilding"));
+        controlPermissions.forEach((action, permission) -> {
+            Set<String> roots = action.equals("disablebuilding")
+                    ? Set.of("disablebuilding", "db")
+                    : Set.of(action);
+            registerDomainCommand(
+                    "sef:moderation." + action,
+                    action,
+                    roots,
+                    permission,
+                    action.equals("warns")
+                            ? CommandDefinition.AccessClass.PLAYER
+                            : CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    action.endsWith("list")
+                            ? CommandDefinition.TargetBehavior.SERVER
+                            : CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    "sef.moderation",
+                    action.equals("warns") || action.endsWith("list")
+                            ? AuditService.AuditClass.SENSITIVE_ACCESS
+                            : AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:moderation",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        });
+        for (String action : List.of("setjail", "deljail", "jails", "jail", "unjail", "jailedplayers")) {
+            registerDomainCommand("sef:moderation." + action, action, Set.of(action),
+                    "sef.commands." + action, CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    action.equals("jail") || action.equals("unjail")
+                            ? CommandDefinition.TargetBehavior.REQUIRED_PLAYER
+                            : CommandDefinition.TargetBehavior.SERVER,
+                    "sef.moderation.jails", AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:moderation", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+    }
+
+    private static void registerPhaseSevenCommands() {
+        for (String workstation : List.of(
+                "cartographytable", "grindstone", "loom", "smithingtable", "stonecutter", "workbench")) {
+            Set<String> roots = workstation.equals("workbench")
+                    ? Set.of("workbench", "wb")
+                    : Set.of(workstation);
+            registerDomainCommand("sef:workstation." + workstation, workstation, roots,
+                    "sef.commands." + workstation, CommandDefinition.AccessClass.PLAYER,
+                    Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                    "sef.workstation.additional", AuditService.AuditClass.METADATA_ONLY,
+                    "sef:workstations", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        Map<String, String> inventoryPermissions = Map.ofEntries(
+                Map.entry("clear", "sef.commands.clearinventory"),
+                Map.entry("enderchest", "sef.commands.enderchest"),
+                Map.entry("disposal", "sef.commands.disposal"),
+                Map.entry("more", "sef.commands.more"),
+                Map.entry("condense", "sef.commands.condense"),
+                Map.entry("hat", "sef.commands.hat"),
+                Map.entry("itemname", "sef.commands.itemname"),
+                Map.entry("itemlore", "sef.commands.itemlore"),
+                Map.entry("book", "sef.commands.book"),
+                Map.entry("recipe", "sef.commands.recipe"),
+                Map.entry("itemdb", "sef.commands.itemdb"));
+        Map<String, Set<String>> inventoryRoots = Map.ofEntries(
+                Map.entry("clear", Set.of("clearinventory", "ci")),
+                Map.entry("enderchest", Set.of("enderchest", "ec")),
+                Map.entry("disposal", Set.of("disposal")),
+                Map.entry("more", Set.of("more")),
+                Map.entry("condense", Set.of("condense")),
+                Map.entry("hat", Set.of("hat")),
+                Map.entry("itemname", Set.of("itemname")),
+                Map.entry("itemlore", Set.of("itemlore")),
+                Map.entry("book", Set.of("book")),
+                Map.entry("recipe", Set.of("recipe")),
+                Map.entry("itemdb", Set.of("itemdb")));
+        inventoryPermissions.forEach((action, permission) -> registerDomainCommand(
+                "sef:inventory." + action, action, inventoryRoots.get(action),
+                permission, CommandDefinition.AccessClass.PLAYER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.inventory", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF));
+        registerDomainCommand("sef:item.give.self", "item give self", Set.of("i"),
+                "sef.commands.item.give.self", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.item.self", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        for (String action : List.of(
+                "claim", "list", "show", "create", "delete", "reset", "edit", "validate", "export")) {
+            String permission = switch (action) {
+                case "claim" -> "sef.commands.kit";
+                case "list" -> "sef.commands.kits";
+                case "show" -> "sef.commands.showkit";
+                case "create" -> "sef.commands.createkit";
+                case "delete" -> "sef.commands.delkit";
+                case "reset" -> "sef.commands.kitreset";
+                case "edit" -> "sef.commands.kit.edit";
+                case "export" -> "sef.commands.kit.export";
+                default -> "sef.commands.kit.validate";
+            };
+            Set<String> roots = switch (action) {
+                case "claim" -> Set.of("kit");
+                case "list" -> Set.of("kits");
+                case "show" -> Set.of("showkit");
+                case "create" -> Set.of("createkit");
+                case "delete" -> Set.of("delkit");
+                case "reset" -> Set.of("kitreset");
+                default -> Set.of();
+            };
+            registerDomainCommand("sef:kit." + action, "kit " + action, roots,
+                    permission, CommandDefinition.AccessClass.PLAYER,
+                    STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    "sef.kits", AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:kits", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        for (String utility : List.of(
+                "afk", "feed", "heal", "fly", "god", "speed", "exp", "ptime", "pweather",
+                "rest", "suicide", "near", "getpos", "compass", "depth", "top", "bottom", "jump")) {
+            registerDomainCommand("sef:utility." + utility, utility, Set.of(utility),
+                    "sef.commands." + utility, CommandDefinition.AccessClass.PLAYER,
+                    STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    "sef.utilities", AuditService.AuditClass.METADATA_ONLY,
+                    "sef:utilities", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        for (String mode : List.of("creative", "survival", "spectator", "adventure")) {
+            Set<String> roots = switch (mode) {
+                case "creative" -> Set.of("gmc");
+                case "survival" -> Set.of("gms");
+                case "spectator" -> Set.of("gmsp");
+                default -> Set.of("gma");
+            };
+            registerDomainCommand("sef:gamemode." + mode, "gamemode " + mode, roots,
+                    "sef.commands.gamemode." + mode, CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    "sef.gamemode", AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:utilities", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        registerDomainCommand("sef:gamemode.set", "gamemode", Set.of("gm"),
+                "sef.commands.gamemode", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.gamemode", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:utilities", CommandDefinition.ConflictPolicy.PREFER_SEF);
+    }
+
+    private static void registerDomainCommand(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            Set<CommandDefinition.SourceType> sources,
+            CommandDefinition.TargetBehavior targetBehavior,
+            String feature,
+            AuditService.AuditClass auditClass,
+            String descriptor,
+            CommandDefinition.ConflictPolicy conflictPolicy
+    ) {
+        catalog.register(new CommandDefinition(
+                id,
+                route,
+                roots,
+                "command." + id.replace(':', '.') + ".description",
+                "command." + id.replace(':', '.') + ".usage",
+                feature.substring(feature.indexOf('.') + 1),
+                feature,
+                Set.of(permission),
+                access,
+                sources,
+                targetBehavior,
+                id,
+                false,
+                auditClass,
+                descriptor,
+                "",
+                "state is shown through immediate command feedback",
+                "",
+                "domain collections and projections have finite hard bounds",
+                conflictPolicy,
+                true,
+                true));
     }
 
     private static void registerSocial(
@@ -869,6 +1423,20 @@ public final class KernelServices {
         if (actionId.startsWith("sef:teleport.") && !actionId.endsWith(".set")
                 && !actionId.contains(".admin.")) {
             return teleportSettings.cooldown();
+        }
+        if (actionId.startsWith("sef:inventory.")
+                || actionId.startsWith("sef:item.")
+                || actionId.startsWith("sef:utility.")
+                || actionId.startsWith("sef:gamemode.")
+                || actionId.startsWith("sef:kit.")
+                || actionId.startsWith("sef:workstation.")
+                && !Set.of(
+                        "sef:workstation.craft",
+                        "sef:workstation.anvil",
+                        "sef:workstation.enchant",
+                        "sef:workstation.super_enchant",
+                        "sef:workstation.repair").contains(actionId)) {
+            return Duration.ofSeconds(ConfigHandler.config.utilityCooldownSeconds.get());
         }
         return switch (actionId) {
             case "sef:workstation.craft" -> Duration.ofSeconds(ConfigHandler.config.craftingTableCooldownSeconds.get());

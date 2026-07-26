@@ -15,15 +15,22 @@ import com.enviouse.sef.chat.OpBulletinHandler;
 import com.enviouse.sef.clearchat.ClearChatCommand;
 import com.enviouse.sef.commands.BfcCommands;
 import com.enviouse.sef.commands.MsgCommands;
+import com.enviouse.sef.commandlog.CommandSpyCommands;
+import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.countdown.CountdownCommand;
 import com.enviouse.sef.disablebuilding.DisableBuildingCommand;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
+import com.enviouse.sef.inventory.InventoryUtilityCommands;
 import com.enviouse.sef.invsee.InvSeeCommand;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kits.KitCommands;
 import com.enviouse.sef.motd.MotdManager;
+import com.enviouse.sef.moderation.ModerationCommands;
+import com.enviouse.sef.player.PlayerUtilityCommands;
+import com.enviouse.sef.player.GamemodeCommands;
 import com.enviouse.sef.mute.MuteCommand;
 import com.enviouse.sef.mute.MuteManager;
 import com.enviouse.sef.social.MailCommands;
@@ -76,6 +83,13 @@ public class CommandRegistrationHandler {
         BfcCommands.register(e.getDispatcher());
 
         VirtualWorkstationCommands.register(e.getDispatcher());
+        CommandSpyCommands.register(e.getDispatcher());
+        LoggingCommands.registerAlias(e.getDispatcher());
+        ModerationCommands.register(e.getDispatcher());
+        KitCommands.register(e.getDispatcher());
+        InventoryUtilityCommands.register(e.getDispatcher());
+        PlayerUtilityCommands.register(e.getDispatcher());
+        GamemodeCommands.register(e.getDispatcher());
 
         // Register filter commands if enabled
         if(ConfigHandler.config.enableFilterSystem.get()) {
@@ -111,7 +125,8 @@ public class CommandRegistrationHandler {
         }
 
         // Register /freeze and /unfreeze commands if enabled
-        if(ConfigHandler.config.enableFreezeSystem.get()) {
+        if(ConfigHandler.config.enableFreezeSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             FreezeCommand.register(e.getDispatcher());
         }
 
@@ -127,12 +142,14 @@ public class CommandRegistrationHandler {
         }
 
         // Register /invlock command if enabled
-        if(ConfigHandler.config.enableInvLock.get()) {
+        if(ConfigHandler.config.enableInvLock.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             InvLockCommand.register(e.getDispatcher());
         }
 
         // Register /disablebuilding and /db commands if enabled
-        if(ConfigHandler.config.enableDisableBuilding.get()) {
+        if(ConfigHandler.config.enableDisableBuilding.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             DisableBuildingCommand.register(e.getDispatcher());
         }
 
@@ -142,12 +159,14 @@ public class CommandRegistrationHandler {
         }
 
         // Register /warn and /warns commands if enabled
-        if(ConfigHandler.config.enableWarnSystem.get()) {
+        if(ConfigHandler.config.enableWarnSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             WarnCommand.register(e.getDispatcher());
         }
 
         // Register /mute, /unmute, /mutelist commands if enabled
-        if(ConfigHandler.config.enableMuteSystem.get()) {
+        if(ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             MuteCommand.register(e.getDispatcher());
         }
 

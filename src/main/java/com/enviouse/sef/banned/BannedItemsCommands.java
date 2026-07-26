@@ -2,7 +2,9 @@ package com.enviouse.sef.banned;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -205,6 +207,9 @@ public class BannedItemsCommands {
             .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.literal("on").executes(ctx -> {
                     ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     boolean changed = manager.setBypass(p.getUUID(), true);
                     ctx.getSource().sendSuccess(() -> fmt(changed
                         ? "&aBypass &2enabled &afor &e" + p.getGameProfile().getName()
@@ -213,6 +218,9 @@ public class BannedItemsCommands {
                 }))
                 .then(Commands.literal("off").executes(ctx -> {
                     ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     boolean changed = manager.setBypass(p.getUUID(), false);
                     ctx.getSource().sendSuccess(() -> fmt(changed
                         ? "&aBypass &cdisabled &afor &e" + p.getGameProfile().getName()
@@ -225,6 +233,9 @@ public class BannedItemsCommands {
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> {
                     ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     int n = manager.forceScan(p);
                     ctx.getSource().sendSuccess(() -> fmt(
                         "&aForced scan on &e" + p.getGameProfile().getName() + "&a — removed &e" + n + "&a item(s)."), true);
@@ -421,6 +432,25 @@ public class BannedItemsCommands {
 
     private static boolean isOp(CommandSourceStack src) {
         return PermissionService.has(src, PermissionsHandler.bannedCommand);
+    }
+
+    private static boolean eligible(CommandSourceStack source, ServerPlayer target) {
+        if (source.getPlayer() != null && VanishUtil.isVanished(target, source.getPlayer())) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.phasePermission("banned.hierarchy.bypass"),
+                PermissionsHandler.phasePermission("banned.exempt"),
+                PermissionsHandler.phasePermission("banned.bypass.exempt"),
+                false,
+                true).allowed();
+    }
+
+    private static int unavailable(CommandSourceStack source) {
+        source.sendFailure(fmt("&cThat player is unavailable."));
+        return 0;
     }
 
     private static String sourceName(CommandSourceStack src) {

@@ -63,4 +63,58 @@ class KernelServicesCatalogTest {
             assertFalse(definition.permissionIds().isEmpty(), actionId);
         });
     }
+
+    @Test
+    void phaseSixAndSevenActionsAndShortcutsHaveCatalogOwnership() {
+        KernelServices.initialize();
+        Set<String> requiredActions = Set.of(
+                "sef:commandspy.toggle",
+                "sef:commandspy.audience",
+                "sef:logging.status",
+                "sef:logging.retention.run",
+                "sef:moderation.ban",
+                "sef:moderation.tempban",
+                "sef:moderation.pardon",
+                "sef:moderation.ban_ip",
+                "sef:moderation.pardon_ip",
+                "sef:moderation.kick",
+                "sef:moderation.kick_ip",
+                "sef:moderation.kick_all",
+                "sef:moderation.warn",
+                "sef:moderation.mute",
+                "sef:moderation.freeze",
+                "sef:moderation.invlock",
+                "sef:moderation.disablebuilding",
+                "sef:moderation.jail",
+                "sef:inventory.clear",
+                "sef:inventory.enderchest",
+                "sef:inventory.disposal",
+                "sef:inventory.condense",
+                "sef:inventory.itemname",
+                "sef:item.give.self",
+                "sef:kit.claim",
+                "sef:kit.create",
+                "sef:kit.edit",
+                "sef:utility.fly",
+                "sef:utility.ptime",
+                "sef:gamemode.creative",
+                "sef:gamemode.set",
+                "sef:workstation.grindstone",
+                "sef:workstation.workbench");
+        requiredActions.forEach(action ->
+                assertTrue(KernelServices.catalog().find(action).isPresent(), action));
+
+        Map<String, String> shortcuts = Map.ofEntries(
+                Map.entry("ci", "sef:inventory.clear"),
+                Map.entry("ec", "sef:inventory.enderchest"),
+                Map.entry("i", "sef:item.give.self"),
+                Map.entry("wb", "sef:workstation.workbench"),
+                Map.entry("gm", "sef:gamemode.set"),
+                Map.entry("gmc", "sef:gamemode.creative"),
+                Map.entry("gms", "sef:gamemode.survival"),
+                Map.entry("gmsp", "sef:gamemode.spectator"),
+                Map.entry("gma", "sef:gamemode.adventure"));
+        shortcuts.forEach((root, action) ->
+                assertEquals(action, KernelServices.shortcuts().find(root).orElseThrow().actionId(), root));
+    }
 }

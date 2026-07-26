@@ -4,7 +4,9 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.tree.CommandNode;
 import com.mojang.brigadier.tree.RootCommandNode;
@@ -91,9 +93,9 @@ public class InvSeeCommand {
      * @param page 0 = main inventory, 1+ = curios pages
      */
     public static int openInvSee(ServerPlayer viewer, ServerPlayer target, int page) {
-        if (!canView(viewer.createCommandSourceStack())) {
+        if (!canAccess(viewer, target)) {
             viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
-                    "&cYour inventory view permission was revoked."));
+                    "&cThat inventory is no longer available."));
             viewer.closeContainer();
             return 0;
         }
@@ -129,5 +131,27 @@ public class InvSeeCommand {
     static boolean canView(CommandSourceStack source) {
         return PermissionService.has(source, PermissionsHandler.invSeeView)
                 || PermissionService.has(source, PermissionsHandler.invSeeCommand);
+    }
+
+    static boolean canAccess(ServerPlayer viewer, ServerPlayer target) {
+        if (!ConfigHandler.config.enableInvSee.get()
+                || viewer == null
+                || target == null
+                || !viewer.isAlive()
+                || viewer.hasDisconnected()
+                || !target.isAlive()
+                || target.hasDisconnected()
+                || !canView(viewer.createCommandSourceStack())
+                || VanishUtil.isVanished(target, viewer)) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                viewer.createCommandSourceStack(),
+                target,
+                PermissionsHandler.phasePermission("inventory.hierarchy.bypass"),
+                PermissionsHandler.phasePermission("exempt.inventory"),
+                PermissionsHandler.phasePermission("inventory.bypass.exempt"),
+                false,
+                true).allowed();
     }
 }

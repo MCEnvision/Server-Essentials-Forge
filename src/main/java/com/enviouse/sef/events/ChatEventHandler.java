@@ -17,6 +17,8 @@ import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.utils.moddeps.FTBMuteChecker;
 import com.enviouse.sef.mute.MuteManager;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.moderation.ModerationRepository;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.ChatFormatting;
@@ -77,10 +79,27 @@ public class ChatEventHandler implements IReloadable {
         GameProfile profile = player.getGameProfile();
     	UUID uuid = profile.getId();
         String msg = e.getMessage().getString();
-		if(msg == null || (msg).isEmpty()) return;
+        if(msg == null || (msg).isEmpty()) return;
+
+		if (ConfigHandler.config.enableModerationEssentials.get()) {
+			var control = KernelServices.moderation()
+					.control(uuid, ModerationRepository.ControlType.MUTE);
+			if (control.isPresent()) {
+				e.setCanceled(true);
+				var active = control.orElseThrow();
+				String remaining = active.expiresAt() == null
+						? "permanent"
+						: java.time.Duration.between(java.time.Instant.now(), active.expiresAt())
+						.toSeconds() + "s";
+				player.sendSystemMessage(TextFormatter.stringToFormattedText(
+						"&cYou are muted. Remaining, &e" + remaining + "&c."));
+				return;
+			}
+		}
 
 		// Check if player is muted via persistent MuteManager (our own system)
-		if(ConfigHandler.config.enableMuteSystem.get()) {
+		if(ConfigHandler.config.enableMuteSystem.get()
+				&& !ConfigHandler.config.enableModerationEssentials.get()) {
 			MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
 			if(muteManager != null && muteManager.isMuted(uuid)) {
 				MuteManager.MuteEntry muteEntry = muteManager.getMuteEntry(uuid);

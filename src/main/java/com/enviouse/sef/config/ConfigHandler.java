@@ -189,6 +189,7 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargetSteps;
 		public final ModConfigSpec.ConfigValue<Integer> kernelLocationHistoryEntries;
 		public final ModConfigSpec.ConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> kernelRepositoryFlushSeconds;
 		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportEssentials;
 		public final ModConfigSpec.ConfigValue<Boolean> enableHomes;
 		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportRequests;
@@ -230,6 +231,15 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enableConnectionMessages;
 		public final ModConfigSpec.ConfigValue<Boolean> enableReminders;
 		public final ModConfigSpec.ConfigValue<Boolean> enableCustomText;
+		public final ModConfigSpec.ConfigValue<Boolean> enableModerationEssentials;
+		public final ModConfigSpec.ConfigValue<Boolean> enableCommandSpy;
+		public final ModConfigSpec.ConfigValue<Boolean> enableJails;
+		public final ModConfigSpec.ConfigValue<Boolean> enableAdditionalWorkstations;
+		public final ModConfigSpec.ConfigValue<Boolean> enableKits;
+		public final ModConfigSpec.ConfigValue<Boolean> enableInventoryUtilities;
+		public final ModConfigSpec.ConfigValue<Boolean> enablePlayerUtilities;
+		public final ModConfigSpec.ConfigValue<Boolean> enableGamemodeShortcuts;
+		public final ModConfigSpec.ConfigValue<Boolean> enableItemShortcut;
 		public final ModConfigSpec.ConfigValue<String> socialSpyFormat;
 		public final ModConfigSpec.ConfigValue<Integer> socialSpyRecentLimit;
 		public final ModConfigSpec.ConfigValue<Integer> socialSpyEventsPerSecond;
@@ -239,6 +249,50 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<String> defaultJoinMessage;
 		public final ModConfigSpec.ConfigValue<String> defaultLeaveMessage;
 		public final ModConfigSpec.ConfigValue<String> optionalClientReminder;
+
+		// Moderation, observation, and optional file logging
+		public final ModConfigSpec.ConfigValue<Integer> moderationMaximumReasonLength;
+		public final ModConfigSpec.ConfigValue<Integer> moderationMaximumMassTargets;
+		public final ModConfigSpec.ConfigValue<String> moderationDefaultKickReason;
+		public final ModConfigSpec.ConfigValue<String> moderationAddressProvider;
+		public final ModConfigSpec.ConfigValue<Boolean> moderationAllowLiteralPlayerAddresses;
+		public final ModConfigSpec.ConfigValue<Boolean> moderationAllowLiteralConsoleAddresses;
+		public final ModConfigSpec.ConfigValue<Integer> moderationSharedAddressHardCap;
+		public final ModConfigSpec.ConfigValue<Integer> moderationConfirmationSeconds;
+		public final ModConfigSpec.ConfigValue<Boolean> moderationFailOnSharedProxy;
+		public final ModConfigSpec.ConfigValue<Integer> commandSpyRecentLimit;
+		public final ModConfigSpec.ConfigValue<Integer> commandSpySelectedLimit;
+		public final ModConfigSpec.ConfigValue<Integer> commandSpyEventsPerSecond;
+		public final ModConfigSpec.ConfigValue<Boolean> fileLoggingEnabled;
+		public final ModConfigSpec.ConfigValue<Boolean> fileLoggingConnectionEvents;
+		public final ModConfigSpec.ConfigValue<Boolean> fileLoggingTextMirror;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingQueueCapacity;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingBatchRecords;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingFlushIntervalMillis;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingMaximumRecordBytes;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingMaximumFileMiB;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingMaximumFileAgeHours;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingRetentionDays;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingMaximumArchives;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingMaximumTotalMiB;
+		public final ModConfigSpec.ConfigValue<Integer> fileLoggingShutdownTimeoutSeconds;
+
+		// Phase 7 inventory and player utilities
+		public final ModConfigSpec.ConfigValue<Boolean> enableCartographyTableCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableGrindstoneCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableLoomCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSmithingTableCommand;
+		public final ModConfigSpec.ConfigValue<Boolean> enableStonecutterCommand;
+		public final ModConfigSpec.ConfigValue<Integer> utilityCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> itemGiveMaximumAmount;
+		public final ModConfigSpec.ConfigValue<Integer> maximumKits;
+		public final ModConfigSpec.ConfigValue<Integer> maximumKitItems;
+		public final ModConfigSpec.ConfigValue<Integer> maximumKitUsesPerPlayer;
+		public final ModConfigSpec.ConfigValue<Boolean> kitDropOverflow;
+		public final ModConfigSpec.ConfigValue<Boolean> kitRequirePerKitPermission;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSuicideCommand;
+		public final ModConfigSpec.ConfigValue<Double> maximumFlySpeed;
+		public final ModConfigSpec.ConfigValue<Double> maximumWalkSpeed;
 
 		// Warn System
 		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
@@ -367,6 +421,15 @@ public class ConfigHandler {
 			enableConnectionMessages = builder.comment("  Custom real join and leave messages").define("connection_messages", true);
 			enableReminders = builder.comment("  Welcome, onboarding, and reminder delivery").define("reminders", true);
 			enableCustomText = builder.comment("  Rules, info, and custom text pages").define("custom_text", true);
+			enableModerationEssentials = builder.comment("  Ban, kick, IP moderation, and moderation history").define("moderation_essentials", true);
+			enableCommandSpy = builder.comment("  Permission controlled command observation").define("command_spy", true);
+			enableJails = builder.comment("  Persistent jail definitions and sentences").define("jails", true);
+			enableAdditionalWorkstations = builder.comment("  Cartography, grindstone, loom, smithing, stonecutter, and workbench commands").define("additional_workstations", true);
+			enableKits = builder.comment("  Versioned item kit repository and commands").define("kits", true);
+			enableInventoryUtilities = builder.comment("  Inventory, ender chest, disposal, and safe item utility commands").define("inventory_utilities", true);
+			enablePlayerUtilities = builder.comment("  Player state and position utility commands").define("player_utilities", true);
+			enableGamemodeShortcuts = builder.comment("  Bounded gamemode shortcut family").define("gamemode_shortcuts", true);
+			enableItemShortcut = builder.comment("  Bounded self only item shortcut").define("item_shortcut", true);
 			builder.pop(); // modules
 
 			playerNameFormat = builder
@@ -422,6 +485,62 @@ public class ConfigHandler {
 			kernelMaximumTargetSteps = builder.comment("  Maximum expanded target steps in one bundle").defineInRange("maximumTargetSteps", 2000, 1, 100000);
 			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
 			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
+			kernelRepositoryFlushSeconds = builder.comment("  Maximum seconds dirty kernel repositories remain only in memory").defineInRange("repositoryFlushSeconds", 30, 1, 600);
+			builder.pop();
+
+			builder.comment("Moderation and command observation",
+					"  Address operations use only the configured authoritative provider.",
+					"  Raw addresses never enter normal command feedback or file logs.").push("moderation");
+			moderationMaximumReasonLength = builder.comment("  Maximum stored moderation reason length").defineInRange("maximumReasonLength", 512, 1, 2048);
+			moderationMaximumMassTargets = builder.comment("  Maximum sessions affected by one bounded moderation action").defineInRange("maximumMassTargets", 100, 1, 1000);
+			moderationDefaultKickReason = builder.comment("  Disconnect reason used when no reason is supplied").define("defaultKickReason", "Removed by an administrator.");
+			moderationAddressProvider = builder.comment("  Address provider. direct, trusted_proxy, external, or disabled. Restart required.").define("addressProvider", "direct");
+			moderationAllowLiteralPlayerAddresses = builder.comment("  Permit players with the literal address permission to enter a literal address").define("allowLiteralPlayerAddresses", false);
+			moderationAllowLiteralConsoleAddresses = builder.comment("  Permit console to enter a literal address").define("allowLiteralConsoleAddresses", true);
+			moderationSharedAddressHardCap = builder.comment("  Maximum sessions resolved from one address").defineInRange("sharedAddressHardCap", 10, 1, 100);
+			moderationConfirmationSeconds = builder.comment("  Lifetime of destructive mass action confirmation tokens").defineInRange("confirmationSeconds", 30, 10, 300);
+			moderationFailOnSharedProxy = builder.comment("  Disable shared address actions when a likely unconfigured proxy is detected").define("failOnSharedProxy", true);
+			commandSpyRecentLimit = builder.comment("  Maximum redacted command events retained in memory").defineInRange("commandSpyRecentLimit", 4096, 32, 65536);
+			commandSpySelectedLimit = builder.comment("  Maximum selected UUID filters per observer").defineInRange("commandSpySelectedLimit", 32, 1, 256);
+			commandSpyEventsPerSecond = builder.comment("  Maximum command observations delivered to one viewer per second").defineInRange("commandSpyEventsPerSecond", 100, 1, 1000);
+			builder.pop();
+
+			builder.comment("Optional structured file logging",
+					"  Disabled by default. Output is fixed under logs/sef.",
+					"  Queue, record, rotation, retention, and shutdown values are hard bounded.").push("fileLogging");
+			fileLoggingEnabled = builder.comment("  Start the optional command log writer").define("enabled", false);
+			fileLoggingConnectionEvents = builder.comment(
+					"  Capture redacted player connection events when file logging is active")
+					.define("connectionEvents", false);
+			fileLoggingTextMirror = builder.comment("  Write a stripped human readable mirror beside JSON Lines").define("textMirror", false);
+			fileLoggingQueueCapacity = builder.comment("  Bounded event queue capacity").defineInRange("queueCapacity", 8192, 128, 65536);
+			fileLoggingBatchRecords = builder.comment("  Maximum records written per batch").defineInRange("batchRecords", 128, 1, 1024);
+			fileLoggingFlushIntervalMillis = builder.comment("  Maximum delay before flushing a nonempty batch").defineInRange("flushIntervalMillis", 1000, 50, 60000);
+			fileLoggingMaximumRecordBytes = builder.comment("  Maximum encoded bytes in one record").defineInRange("maximumRecordBytes", 16384, 1024, 1048576);
+			fileLoggingMaximumFileMiB = builder.comment("  Maximum active stream size before rotation").defineInRange("maximumFileMiB", 64, 1, 1024);
+			fileLoggingMaximumFileAgeHours = builder.comment("  Maximum active stream age before rotation").defineInRange("maximumFileAgeHours", 24, 1, 720);
+			fileLoggingRetentionDays = builder.comment("  Maximum archive age").defineInRange("retentionDays", 30, 1, 3650);
+			fileLoggingMaximumArchives = builder.comment("  Maximum retained command archives").defineInRange("maximumArchives", 100, 1, 10000);
+			fileLoggingMaximumTotalMiB = builder.comment("  Maximum retained command archive bytes").defineInRange("maximumTotalMiB", 1024, 1, 1048576);
+			fileLoggingShutdownTimeoutSeconds = builder.comment("  Maximum bounded shutdown drain time").defineInRange("shutdownTimeoutSeconds", 10, 1, 60);
+			builder.pop();
+
+			builder.comment("Inventory, kit, workstation, and player utilities").push("phaseSevenUtilities");
+			enableCartographyTableCommand = builder.comment("  Virtual cartography table command").define("cartographyTable", true);
+			enableGrindstoneCommand = builder.comment("  Virtual grindstone command").define("grindstone", true);
+			enableLoomCommand = builder.comment("  Virtual loom command").define("loom", true);
+			enableSmithingTableCommand = builder.comment("  Virtual smithing table command").define("smithingTable", true);
+			enableStonecutterCommand = builder.comment("  Virtual stonecutter command").define("stonecutter", true);
+			utilityCooldownSeconds = builder.comment("  Shared cooldown for ordinary player utility mutations").defineInRange("cooldownSeconds", 0, 0, 31536000);
+			itemGiveMaximumAmount = builder.comment("  Maximum amount accepted by the self only item shortcut").defineInRange("itemGiveMaximumAmount", 64, 1, 6400);
+			maximumKits = builder.comment("  Maximum stored kit definitions").defineInRange("maximumKits", 128, 1, 1024);
+			maximumKitItems = builder.comment("  Maximum item stacks in one kit").defineInRange("maximumKitItems", 256, 1, 1024);
+			maximumKitUsesPerPlayer = builder.comment("  Maximum retained kit use records per player").defineInRange("maximumKitUsesPerPlayer", 256, 1, 1024);
+			kitDropOverflow = builder.comment("  Drop kit overflow into the world. Disabled keeps grants atomic.").define("kitDropOverflow", false);
+			kitRequirePerKitPermission = builder.comment("  Require each kit permission through LuckPerms when available").define("requirePerKitPermission", false);
+			enableSuicideCommand = builder.comment("  Enable the self only suicide command").define("suicide", false);
+			maximumFlySpeed = builder.comment("  Maximum fly speed multiplier accepted by the speed command").defineInRange("maximumFlySpeed", 10.0D, 0.1D, 10.0D);
+			maximumWalkSpeed = builder.comment("  Maximum walk speed multiplier accepted by the speed command").defineInRange("maximumWalkSpeed", 10.0D, 0.1D, 10.0D);
 			builder.pop();
 
 			builder.comment("Teleport essentials",

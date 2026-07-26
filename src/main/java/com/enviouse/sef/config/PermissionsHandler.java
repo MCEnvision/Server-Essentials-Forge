@@ -489,12 +489,189 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> kernelSensitiveData =
 			ezyPermission("kernel.sensitive.view", false, "Kernel sensitive data capability", "Allows specifically declared sensitive fields after per field authorization");
 	public static final Map<String, PermissionNode<Boolean>> quotaTierNodes = new LinkedHashMap<>();
+	public static final Map<String, PermissionNode<Boolean>> phaseSixSevenNodes = new LinkedHashMap<>();
 
 	// Color Permissions
 	public static final Map<Character, PermissionNode<Boolean>> perColorChatNodes = new LinkedHashMap<>();
 	public static PermissionNode<Boolean> hexChatNode;
 
 	static {
+		registerPhasePermission("commands.ban", false, "Ban players", "Allows adding permanent player bans");
+		registerPhasePermission("commands.tempban", false, "Temporarily ban players", "Allows adding expiring player bans");
+		registerPhasePermission("commands.pardon", false, "Pardon players", "Allows removing player bans");
+		registerPhasePermission("commands.unban", false, "Unban players", "Allows the unban alias for player pardons");
+		registerPhasePermission("commands.banip", false, "Ban addresses", "Allows adding authoritative address bans");
+		registerPhasePermission("commands.banip.literal", false, "Ban literal addresses", "Allows entering literal addresses for address bans");
+		registerPhasePermission("commands.tempbanip", false, "Temporarily ban addresses", "Allows adding expiring authoritative address bans");
+		registerPhasePermission("commands.pardonip", false, "Pardon addresses", "Allows removing authoritative address bans");
+		registerPhasePermission("commands.pardonip.literal", false, "Pardon literal addresses", "Allows entering exact literal addresses for address pardons");
+		registerPhasePermission("commands.unbanip", false, "Unban addresses", "Allows address pardon aliases");
+		registerPhasePermission("commands.kick", false, "Kick players", "Allows disconnecting one eligible player");
+		registerPhasePermission("commands.kickip", false, "Kick shared addresses", "Allows bounded shared address disconnects");
+		registerPhasePermission("commands.kickip.literal", false, "Use literal kick addresses", "Allows entering literal addresses for shared address kicks");
+		registerPhasePermission("commands.kickme", true, "Disconnect self", "Allows the self only kickme command");
+		registerPhasePermission("commands.kickall", false, "Kick eligible players", "Allows bounded mass disconnects");
+		registerPhasePermission("exempt.ban", false, "Ban exemption", "Prevents ordinary player ban targeting");
+		registerPhasePermission("exempt.ipban", false, "Address ban exemption", "Prevents ordinary shared address ban targeting");
+		registerPhasePermission("exempt.kick", false, "Kick exemption", "Prevents ordinary kick targeting");
+		registerPhasePermission("exempt.kickip", false, "Shared address kick exemption", "Prevents ordinary shared address kick targeting");
+		registerPhasePermission("moderation.hierarchy.bypass", false, "Moderation hierarchy bypass", "Allows moderation across target hierarchy");
+		registerPhasePermission("moderation.bypass.exempt", false, "Moderation exemption bypass", "Allows targeting moderation exempt players");
+		registerPhasePermission("privacy.ip.view_redacted", false, "View redacted addresses", "Allows viewing keyed address fingerprints");
+		registerPhasePermission("privacy.ip.view_full", false, "View full addresses", "Allows owner approved full address diagnostics");
+
+		registerPhasePermission("commands.setjail", false, "Set jails", "Allows defining named jail destinations");
+		registerPhasePermission("commands.deljail", false, "Delete jails", "Allows deleting named jail destinations");
+		registerPhasePermission("commands.jails", false, "List jails", "Allows listing named jail definitions");
+		registerPhasePermission("commands.jail", false, "Jail players", "Allows sentencing eligible players");
+		registerPhasePermission("commands.unjail", false, "Release jailed players", "Allows releasing jailed players");
+		registerPhasePermission("commands.jailedplayers", false, "List jailed players", "Allows listing active jail sentences");
+		registerPhasePermission("commands.togglejail", false, "Toggle jail sentences", "Allows compatibility jail toggling");
+		registerPhasePermission("exempt.jail", false, "Jail exemption", "Prevents ordinary jail targeting");
+		registerPhasePermission("exempt.warn", false, "Warning exemption", "Prevents ordinary warning targeting");
+		registerPhasePermission("exempt.mute", false, "Mute exemption", "Prevents ordinary mute targeting");
+		registerPhasePermission("exempt.freeze", false, "Freeze exemption", "Prevents ordinary freeze targeting");
+		registerPhasePermission("exempt.invlock", false, "Inventory lock exemption", "Prevents ordinary inventory lock targeting");
+		registerPhasePermission("exempt.disablebuilding", false, "Building restriction exemption", "Prevents ordinary building restriction targeting");
+
+		registerPhasePermission("commands.commandspy", false, "Command spy", "Allows requesting redacted command observation");
+		registerPhasePermission("commands.commandspy.status", false, "Command spy status", "Allows inspecting command observation state");
+		registerPhasePermission("commands.commandspy.recent", false, "Recent command events", "Allows reading bounded authorized recent events");
+		registerPhasePermission("commands.commandspy.everyone", false, "Observe everyone", "Allows observing all eligible player commands");
+		registerPhasePermission("commands.commandspy.player", false, "Observe one player", "Allows selecting one eligible player");
+		registerPhasePermission("commands.commandspy.selected", false, "Manage selected command actors", "Allows managing a bounded selected UUID set");
+		registerPhasePermission("commands.commandspy.scope.player", false, "Observe player sources", "Allows player command source observation");
+		registerPhasePermission("commands.commandspy.scope.nonplayer", false, "Observe non player sources", "Allows console and server source observation");
+		registerPhasePermission("commands.commandspy.match", false, "Change actor relation", "Allows initiator, effective actor, or either matching");
+		registerPhasePermission("commands.commandspy.filter", false, "Filter command observation", "Allows stable command root and action filters");
+		registerPhasePermission("commands.commandspy.filter.source", false, "Filter command sources", "Allows source category filters");
+		registerPhasePermission("commands.commandspy.filter.player", false, "Filter command players", "Allows selected player filter aliases");
+		registerPhasePermission("commands.commandspy.filter.result", false, "Filter command results", "Allows lifecycle result filters");
+		registerPhasePermission("commands.commandspy.filter.world", false, "Filter command worlds", "Allows dimension identifier filters");
+		registerPhasePermission("commands.commandspy.filter.origin", false, "Filter command origins", "Allows execution origin filters");
+		registerPhasePermission("commands.commandspy.location", false, "View command locations", "Allows authorized location projection");
+		registerPhasePermission("commands.commandspy.results", false, "View command results", "Allows truthful result projection");
+		registerPhasePermission("commands.commandspy.others", false, "Manage other command spies", "Allows managing another observer");
+		registerPhasePermission("commandspy.view.metadata", false, "View command metadata", "Allows receiving redacted command observation metadata");
+		registerPhasePermission("commandspy.view.arguments", false, "View safe command arguments", "Allows arguments classified safe by redaction policy");
+		registerPhasePermission("commandspy.view.location", false, "View command locations", "Allows dimension and bounded block position fields");
+		registerPhasePermission("commandspy.view.result", false, "View command results", "Allows command result and duration fields");
+		registerPhasePermission("commandspy.view.exempt", false, "Override command spy exemption", "Allows sensitive observation of exempt actors");
+		registerPhasePermission("commandspy.hierarchy.bypass", false, "Command spy hierarchy bypass", "Allows command observation across hierarchy");
+		registerPhasePermission("commandspy.exempt", false, "Command spy exemption", "Prevents ordinary command observation");
+
+		registerPhasePermission("commands.loggerspy", false, "Logger spy convenience root", "Allows the optional logger management root");
+		registerPhasePermission("commands.logging.status", false, "Logging status", "Allows viewing optional logging state");
+		registerPhasePermission("commands.logging.enable", false, "Enable logging", "Allows starting optional file logging");
+		registerPhasePermission("commands.logging.disable", false, "Disable logging", "Allows stopping optional file logging");
+		registerPhasePermission("commands.logging.stream.list", false, "List logging streams", "Allows listing optional logging streams");
+		registerPhasePermission("commands.logging.stream.configure", false, "Configure logging streams", "Allows changing optional logging streams");
+		registerPhasePermission("commands.logging.configure.commands", false, "Configure command logs", "Allows configuring command capture");
+		registerPhasePermission("commands.logging.configure.connections", false, "Configure connection logs", "Allows configuring connection capture");
+		registerPhasePermission("commands.logging.rotate", false, "Rotate logs", "Allows rotating owned log streams");
+		registerPhasePermission("commands.logging.flush", false, "Flush logs", "Allows flushing the optional writer");
+		registerPhasePermission("commands.logging.stats", false, "Logging statistics", "Allows viewing writer and queue statistics");
+		registerPhasePermission("commands.logging.doctor", false, "Logging doctor", "Allows viewing optional logger diagnostics");
+		registerPhasePermission("commands.logging.live", false, "Logging live view", "Allows mapping logger live mode to command spy");
+		registerPhasePermission("commands.logging.recent", false, "Recent logs", "Allows bounded recent structured records");
+		registerPhasePermission("commands.logging.session.current", false, "Current log session", "Allows current session inspection");
+		registerPhasePermission("commands.logging.session.list", false, "List log sessions", "Allows bounded session listing");
+		registerPhasePermission("commands.logging.filter.list", false, "List log filters", "Allows viewing typed capture and view filters");
+		registerPhasePermission("commands.logging.filter.capture", false, "Change capture filters", "Allows changing typed capture filters");
+		registerPhasePermission("commands.logging.filter.view", false, "Change view filters", "Allows changing typed personal view filters");
+		registerPhasePermission("commands.logging.filter.root", false, "Filter log roots", "Allows stable root filters");
+		registerPhasePermission("commands.logging.filter.action", false, "Filter log actions", "Allows stable action filters");
+		registerPhasePermission("commands.logging.filter.source", false, "Filter log sources", "Allows source category filters");
+		registerPhasePermission("commands.logging.filter.player", false, "Filter log players", "Allows UUID filters");
+		registerPhasePermission("commands.logging.filter.result", false, "Filter log results", "Allows lifecycle result filters");
+		registerPhasePermission("commands.logging.filter.world", false, "Filter log worlds", "Allows world identifier filters");
+		registerPhasePermission("commands.logging.filter.origin", false, "Filter log origins", "Allows origin filters");
+		registerPhasePermission("commands.logging.format.show", false, "Show log formats", "Allows viewing typed text mirror formats");
+		registerPhasePermission("commands.logging.format.validate", false, "Validate log formats", "Allows validating typed text formats");
+		registerPhasePermission("commands.logging.format.set", false, "Set log formats", "Allows changing typed text formats");
+		registerPhasePermission("commands.logging.format.reset", false, "Reset log formats", "Allows resetting typed text formats");
+		registerPhasePermission("commands.logging.tail", false, "Tail logs", "Allows bounded redacted log tail");
+		registerPhasePermission("commands.logging.search", false, "Search logs", "Allows typed bounded log searches");
+		registerPhasePermission("commands.logging.export", false, "Export logs", "Allows bounded redacted log export");
+		registerPhasePermission("commands.logging.retention.preview", false, "Preview log retention", "Allows previewing owned archive cleanup");
+		registerPhasePermission("commands.logging.retention.run", false, "Run log retention", "Allows deleting eligible owned archives");
+		registerPhasePermission("commands.logging.repair", false, "Acknowledge log repair", "Allows acknowledging incomplete logger state");
+		registerPhasePermission("logging.view.command.arguments", false, "View logged command arguments", "Allows safe argument fields in log queries");
+		registerPhasePermission("logging.view.command.location", false, "View logged command locations", "Allows location fields in log queries");
+		registerPhasePermission("logging.view.moderation", false, "View moderation logs", "Allows moderation metadata queries");
+		registerPhasePermission("logging.view.failures", false, "View logger failures", "Allows failure detail diagnostics");
+		registerPhasePermission("logging.exempt.live", false, "Live logging exemption", "Prevents ordinary live observation");
+		registerPhasePermission("banned.hierarchy.bypass", false, "Banned item hierarchy bypass", "Allows banned item actions across target hierarchy");
+		registerPhasePermission("banned.bypass.exempt", false, "Banned item exemption bypass", "Allows banned item actions against exempt players");
+		registerPhasePermission("banned.exempt", false, "Banned item exemption", "Prevents ordinary targeted banned item actions");
+		registerPhasePermission("checkalts.hierarchy.bypass", false, "Alternate account hierarchy bypass", "Allows alternate account inspection across target hierarchy");
+		registerPhasePermission("checkalts.bypass.exempt", false, "Alternate account exemption bypass", "Allows alternate account inspection of exempt players");
+		registerPhasePermission("checkalts.exempt", false, "Alternate account exemption", "Prevents ordinary alternate account inspection");
+
+		registerPhasePermission("commands.cartographytable", true, "Cartography table", "Allows the virtual cartography table");
+		registerPhasePermission("commands.grindstone", true, "Grindstone", "Allows the virtual grindstone");
+		registerPhasePermission("commands.loom", true, "Loom", "Allows the virtual loom");
+		registerPhasePermission("commands.smithingtable", true, "Smithing table", "Allows the virtual smithing table");
+		registerPhasePermission("commands.stonecutter", true, "Stonecutter", "Allows the virtual stonecutter");
+		registerPhasePermission("commands.workbench", true, "Workbench", "Allows the workbench alias");
+		registerPhasePermission("commands.workstation.cooldown.bypass", false, "Bypass workstation cooldowns", "Allows bypassing additional workstation cooldowns");
+		registerPhasePermission("commands.superenchantingtable.unsafe", false, "Unsafe super enchanting", "Allows configured incompatible item and enchantment combinations");
+		registerPhasePermission("commands.kit", true, "Use kits", "Allows claiming accessible kits");
+		registerPhasePermission("commands.kits", true, "List kits", "Allows listing accessible kits");
+		registerPhasePermission("commands.showkit", true, "Preview kits", "Allows previewing accessible kit contents");
+		registerPhasePermission("commands.createkit", false, "Create kits", "Allows creating bounded kits from inventory");
+		registerPhasePermission("commands.delkit", false, "Delete kits", "Allows deleting kit definitions");
+		registerPhasePermission("commands.kitreset", false, "Reset kit use", "Allows resetting another player's kit use state");
+		registerPhasePermission("commands.kit.edit", false, "Edit kits", "Allows safe typed kit editing");
+		registerPhasePermission("commands.kit.export", false, "Export kits", "Allows bounded kit export metadata");
+		registerPhasePermission("commands.kit.validate", false, "Validate kits", "Allows kit repository validation");
+		registerPhasePermission("commands.clearinventory", true, "Clear inventory", "Allows clearing the executing player's inventory");
+		registerPhasePermission("commands.clearinventory.others", false, "Clear other inventories", "Allows clearing an eligible player's inventory");
+		registerPhasePermission("commands.enderchest", true, "Open ender chest", "Allows opening the executing player's ender chest");
+		phaseSixSevenNodes.put("sef.commands.enderchest.others", enderChestOthers);
+		registerPhasePermission("commands.disposal", true, "Disposal", "Allows opening a transient disposal menu");
+		registerPhasePermission("commands.more", false, "Fill held stack", "Allows filling the held stack to its maximum");
+		registerPhasePermission("commands.condense", true, "Condense inventory", "Allows recipe based inventory condensation");
+		registerPhasePermission("commands.hat", true, "Wear held item", "Allows swapping the held item with the head slot");
+		registerPhasePermission("commands.itemname", false, "Name held items", "Allows bounded held item custom names");
+		registerPhasePermission("commands.itemlore", false, "Edit item lore", "Allows bounded held item lore edits");
+		registerPhasePermission("commands.book", false, "Edit books", "Allows bounded safe book editing");
+		registerPhasePermission("commands.recipe", true, "View recipes", "Allows recipe lookup");
+		registerPhasePermission("commands.itemdb", true, "Identify items", "Allows safe held item identification");
+		registerPhasePermission("commands.item.give.self", false, "Give self items", "Allows the bounded self only item shortcut");
+		registerPhasePermission("commands.item.give.others", false, "Give other players items", "Allows bounded item grants to eligible players");
+		registerPhasePermission("exempt.inventory", false, "Inventory mutation exemption", "Prevents ordinary administrative inventory mutations");
+		registerPhasePermission("inventory.hierarchy.bypass", false, "Inventory hierarchy bypass", "Allows inventory actions across target hierarchy");
+		registerPhasePermission("inventory.bypass.exempt", false, "Inventory exemption bypass", "Allows inventory actions against exempt players");
+		registerPhasePermission("inventory.cooldown.bypass", false, "Inventory cooldown bypass", "Allows bypassing inventory utility cooldowns");
+
+		for (String utility : new String[]{"feed", "heal", "fly", "god", "speed", "exp", "ptime", "pweather", "rest"}) {
+			registerPhasePermission("commands." + utility, false, utility + " self", "Allows the " + utility + " command for self");
+			registerPhasePermission("commands." + utility + ".others", false, utility + " others", "Allows the " + utility + " command for eligible players");
+		}
+		for (String utility : new String[]{"afk", "suicide", "near", "getpos", "compass", "depth", "top", "bottom", "jump"}) {
+			registerPhasePermission("commands." + utility, utility.equals("getpos") || utility.equals("compass") || utility.equals("depth"),
+					utility + " command", "Allows the " + utility + " player utility command");
+		}
+		registerPhasePermission("commands.getpos.others", false, "View other positions", "Allows viewing an eligible player's position");
+		registerPhasePermission("utilities.hierarchy.bypass", false, "Utility hierarchy bypass", "Allows player utility mutations across hierarchy");
+		registerPhasePermission("utilities.bypass.exempt", false, "Utility exemption bypass", "Allows targeting utility exempt players");
+		registerPhasePermission("exempt.utility", false, "Player utility exemption", "Prevents ordinary player utility targeting");
+		registerPhasePermission("utilities.cooldown.bypass", false, "Utility cooldown bypass", "Allows bypassing player utility cooldowns");
+
+		for (String mode : new String[]{"creative", "survival", "spectator", "adventure"}) {
+			registerPhasePermission("commands.gamemode." + mode, false, mode + " mode", "Allows changing self to " + mode);
+			registerPhasePermission("commands.gamemode." + mode + ".others", false, mode + " mode others", "Allows changing an eligible player to " + mode);
+		}
+		registerPhasePermission("commands.gamemode", false, "Gamemode command", "Allows the parsed gamemode command");
+		registerPhasePermission("commands.gamemode.others", false, "Gamemode others", "Allows parsed gamemode changes for eligible players");
+		registerPhasePermission("exempt.gamemode", false, "Gamemode exemption", "Prevents ordinary administrative gamemode changes");
+		registerPhasePermission("gamemode.cooldown.bypass", false, "Gamemode cooldown bypass", "Allows bypassing gamemode shortcut cooldowns");
+		registerPhasePermission("kits.cooldown.bypass", false, "Kit cooldown bypass", "Allows bypassing command policy cooldowns for kit actions");
+		registerPhasePermission("kits.hierarchy.bypass", false, "Kit hierarchy bypass", "Allows kit administration across target hierarchy");
+		registerPhasePermission("kits.bypass.exempt", false, "Kit exemption bypass", "Allows kit administration against exempt players");
+		registerPhasePermission("kits.exempt", false, "Kit administration exemption", "Prevents ordinary targeted kit administration");
+
 		quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
 		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
 		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
@@ -531,6 +708,15 @@ public class PermissionsHandler {
 
 	private static PermissionNode<Boolean> ezyPermission(String id, boolean defVal, String name, String desc) {
 		return PermissionManifest.register(id, defVal, name, desc);
+	}
+
+	private static void registerPhasePermission(String id, boolean defaultValue, String name, String description) {
+		phaseSixSevenNodes.put("sef." + id, ezyPermission(id, defaultValue, name, description));
+	}
+
+	public static PermissionNode<Boolean> phasePermission(String id) {
+		String normalized = id.startsWith("sef.") ? id : "sef." + id;
+		return phaseSixSevenNodes.get(normalized);
 	}
 
 	public static boolean playerHasPermission(UUID uuid, PermissionNode<Boolean> node) {

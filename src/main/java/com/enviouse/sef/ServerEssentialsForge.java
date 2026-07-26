@@ -80,6 +80,7 @@ public class ServerEssentialsForge {
             var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
             if (server != null) {
                 server.execute(() -> {
+                    KernelServices.fileLogs().reload();
                     com.enviouse.sef.vanish.VanishUtil.recheckAll(server);
                     com.enviouse.sef.vanish.VanishUtil.refreshAllVisibility(server);
                 });
@@ -119,6 +120,9 @@ public class ServerEssentialsForge {
                 sefDataDirectory,
                 ConfigHandler.config.securityAuditRetentionDays.get(),
                 ConfigHandler.config.securityAuditMaximumFileMiB.get());
+        if (!KernelServices.fileLogs().startConfigured(ev.getServer().getServerDirectory())) {
+            LOGGER.error("[SEF] Optional file logging could not be initialized");
+        }
         StorageExportService.start();
         try {
             PermissionManifest.writeRuntimeManifest(sefDataDirectory.resolve("permission-manifest.json"));
@@ -149,9 +153,11 @@ public class ServerEssentialsForge {
         }
         if (ConfigHandler.config.enableCheckAlts.get())
             CommandRegistrationHandler.getAltTracker().load(ev.getServer());
-        if (ConfigHandler.config.enableWarnSystem.get())
+        if (ConfigHandler.config.enableWarnSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getWarnManager().load(ev.getServer());
-        if (ConfigHandler.config.enableMuteSystem.get())
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getMuteManager().load(ev.getServer());
 
         if (ModList.get().isLoaded("mc2discord")) mc2discordDetected = true;
@@ -166,10 +172,14 @@ public class ServerEssentialsForge {
             CommandRegistrationHandler.getAnnouncementManager().tick(ev.getServer());
         if (ConfigHandler.config.enableBannedItems.get())
             CommandRegistrationHandler.getBannedItemsManager().tick(ev.getServer(), ev.getServer().getTickCount());
-        if (ConfigHandler.config.enableFreezeSystem.get())
+        if (ConfigHandler.config.enableFreezeSystem.get()
+                || ConfigHandler.config.enableModerationEssentials.get())
             FreezeManager.tick(ev.getServer());
-        if (ConfigHandler.config.enableMuteSystem.get())
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getMuteManager().tick(ev.getServer());
+        com.enviouse.sef.moderation.ModerationEvents.tick(ev.getServer());
+        com.enviouse.sef.player.PlayerStateService.tick(ev.getServer());
         if (ConfigHandler.config.enableCountdown.get())
             com.enviouse.sef.countdown.CountdownManager.tick(ev.getServer());
         if (ConfigHandler.config.enableTeleportEssentials.get()
@@ -186,10 +196,14 @@ public class ServerEssentialsForge {
         FreezeManager.clear();
         com.enviouse.sef.invlock.InvLockManager.clear();
         com.enviouse.sef.disablebuilding.DisableBuildingManager.clear();
-        CommandRegistrationHandler.getMuteManager().shutdown();
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
+            CommandRegistrationHandler.getMuteManager().shutdown();
+        }
         CommandRegistrationHandler.getBannedItemsManager().shutdown();
         CommandRegistrationHandler.getAltTracker().shutdown();
         com.enviouse.sef.countdown.CountdownManager.clear();
+        com.enviouse.sef.player.PlayerStateService.clearAll();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
         com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(

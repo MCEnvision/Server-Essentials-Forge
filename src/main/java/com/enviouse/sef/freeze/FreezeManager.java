@@ -4,6 +4,8 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.moderation.ModerationRepository;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -68,9 +70,14 @@ public class FreezeManager {
     }
 
     private static final Map<UUID, FreezeData> frozenPlayers = new ConcurrentHashMap<>();
+    private static final Set<UUID> repositoryFrozenPlayers = ConcurrentHashMap.newKeySet();
 
     public static boolean isFrozen(UUID uuid) {
-        return frozenPlayers.containsKey(uuid);
+        return frozenPlayers.containsKey(uuid)
+                || ConfigHandler.config.enableModerationEssentials.get()
+                && KernelServices.moderation()
+                .control(uuid, ModerationRepository.ControlType.FREEZE)
+                .isPresent();
     }
 
     public static FreezeData getFreezeData(UUID uuid) {
@@ -159,6 +166,42 @@ public class FreezeManager {
         long currentTick = server.getTickCount();
         int reminderInterval = ConfigHandler.config.freezeReminderIntervalSeconds.get() * 20;
 
+        if (ConfigHandler.config.enableModerationEssentials.get()) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                var control = KernelServices.moderation()
+                        .control(player.getUUID(), ModerationRepository.ControlType.FREEZE);
+                if (control.isPresent() && !frozenPlayers.containsKey(player.getUUID())) {
+                    var active = control.orElseThrow();
+                    long durationTicks = active.expiresAt() == null
+                            ? -1L
+                            : Math.max(
+                            1L,
+                            java.time.Duration.between(java.time.Instant.now(), active.expiresAt())
+                                    .toSeconds() * 20L);
+                    frozenPlayers.put(player.getUUID(), new FreezeData(
+                            player.getUUID(),
+                            player.getGameProfile().getName(),
+                            active.actorId().toString(),
+                            active.reason(),
+                            currentTick,
+                            durationTicks,
+                            player.position(),
+                            player.getYRot(),
+                            player.getXRot()));
+                    repositoryFrozenPlayers.add(player.getUUID());
+                }
+            }
+            repositoryFrozenPlayers.removeIf(playerId -> {
+                if (KernelServices.moderation()
+                        .control(playerId, ModerationRepository.ControlType.FREEZE)
+                        .isPresent()) {
+                    return false;
+                }
+                frozenPlayers.remove(playerId);
+                return true;
+            });
+        }
+
         Iterator<Map.Entry<UUID, FreezeData>> it = frozenPlayers.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<UUID, FreezeData> entry = it.next();
@@ -211,6 +254,7 @@ public class FreezeManager {
      */
     public static void clear() {
         frozenPlayers.clear();
+        repositoryFrozenPlayers.clear();
     }
 
     /**

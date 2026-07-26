@@ -5,8 +5,10 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageExportService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -45,6 +47,11 @@ public class CheckAltsCommand {
     }
 
     private static int executeCheckAlts(CommandSourceStack source, ServerPlayer target) {
+        if (!eligible(source, target)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
+            audit(source, "inspect", "target denied");
+            return 0;
+        }
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
         if (tracker == null) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
@@ -81,6 +88,20 @@ public class CheckAltsCommand {
         }
 
         return 1;
+    }
+
+    private static boolean eligible(CommandSourceStack source, ServerPlayer target) {
+        if (source.getPlayer() != null && VanishUtil.isVanished(target, source.getPlayer())) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.phasePermission("checkalts.hierarchy.bypass"),
+                PermissionsHandler.phasePermission("checkalts.exempt"),
+                PermissionsHandler.phasePermission("checkalts.bypass.exempt"),
+                false,
+                true).allowed();
     }
 
     private static int purgeExpired(CommandSourceStack source) {

@@ -57,6 +57,9 @@ class InvSeeContainerAuthorizationTest {
 
         when(viewer.createCommandSourceStack()).thenReturn(source);
         when(source.getEntity()).thenReturn(viewer);
+        when(source.getPlayer()).thenReturn(viewer);
+        when(viewer.isAlive()).thenReturn(true);
+        when(target.isAlive()).thenReturn(true);
         when(target.getInventory()).thenReturn(targetInventory);
 
         MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class, invocation -> {

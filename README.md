@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 5 have implementation coverage in this branch. Phase 4 adds command-mode homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, bounded random teleportation, direct administrative teleportation, and shared safe-teleport services. Phase 5 adds hardened private messaging, social preferences, UUID-addressed mail, social spy, custom real connection messages, reminders, custom text pages, and identity projection diagnostics. Public release acceptance still requires the authenticated multiplayer and profiler cases in the manual matrices. Economy, expanded moderation, enhanced client GUI, and broader parity phases remain planned.
+SEF 2 Phases 1 through 7 have implementation coverage in this branch. Phase 6 adds expanded moderation, persistent jails and controls, command observation, redacted command journaling, and optional bounded file logging. Phase 7 adds kits, inventory and item utilities, additional virtual workstations, player-state utilities, gamemode shortcuts, and the bounded self-only `/i` command. Public release acceptance still requires the authenticated multiplayer and profiler cases in the phase matrices. Economy, enhanced client GUI, and later parity phases remain planned.
 
 ## Current features
 
@@ -57,6 +57,14 @@ The current implementation includes:
 30. Welcome, onboarding, command fallback, and unread mail reminders with typed templates, repeat and delivery limits, acknowledgement revisions, dismissal state, manual delivery, permission backed definition quotas, and bounded scheduler work.
 31. Persistent custom text pages through `/customtext`, `/booktext`, `/rules`, and `/info`, plus `/sef identity coverage` and `/sef identity refresh` diagnostics.
 32. Nickname changes refresh tab projection immediately. Server projected chat, tab, display component, connection message, SEF resolution, suggestions, and feedback surfaces use the selected nickname provider while Brigadier authentication and signed chat remain truthful. Quoted display names are accepted by migrated SEF command targets without exposing vanished players.
+33. Expanded permanent and temporary player bans, pardons, kicks, bounded mass kicks, self kick, address bans, address pardons, and shared-address kicks through a fail-safe connection-address provider. Network addresses are fingerprinted or fully redacted outside their restricted authorization boundary.
+34. Persistent warnings, mutes, freezes, inventory locks, build locks, jail definitions, jail sentences, expiry release locations, hierarchy, exemptions, and execution-time authorization rechecks.
+35. Permission-gated `/commandspy` with everyone and selected-player audiences, initiator or effective-actor matching, source and origin scopes, typed include and exclude filters, per-observer projection controls, bounded recent events, rate limits, deduplication, and live permission revalidation.
+36. A correlated command-event journal and disabled-by-default file sink under `logs/sef`. The sink uses bounded records and queues, batched writes, rotation, retention previews with state-bound confirmation, health diagnostics, search, redacted export, connection-event streams, shutdown markers, and fixed-path protection.
+37. Versioned kits with safe inventory snapshots, cooldowns, one-time policy, per-kit dynamic permissions, atomic capacity checks, optional bounded overflow dropping, administrative validation, metadata export, and usage reset.
+38. Hardened self and other-player inventory tools including `/clearinventory`, `/enderchest`, `/disposal`, `/more`, `/condense`, `/hat`, `/itemname`, `/itemlore`, `/itemdb`, `/book`, and `/recipe`. Live inventory and ender-chest menus close or downgrade when permission, feature, or policy revisions change.
+39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
+40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 
@@ -79,6 +87,11 @@ Every exposed command path is expected to use a permission node. The current sec
 13. Future collection and fan out systems receive finite defaults and hard ceilings. An optional provider failure falls back safely and is exposed by `/sef doctor`.
 14. Social spy defaults to denied. Metadata, content, everyone, selected-player, exempt-player, vanished-player, recent-event, route-filter, and format-preview capabilities use separate denied-by-default nodes.
 15. Private message bodies remain outside ordinary kernel audit parameters and ordinary log statements. Social spy content is session only, permission filtered for every event, rate limited, and cleared on logout. Every delivered observation records its observer UUID, route, metadata or content scope, and redaction class without recording the message body.
+16. Every Phase 6 and Phase 7 root and independently controllable subcommand has a registered permission. Administrative, other-player, hierarchy-bypass, exemption-bypass, raw-address, command-observation, logging, unsafe-item, and super-enchant capabilities default to denied.
+17. Player and address moderation rechecks the active feature, permission, hierarchy, exemption, target visibility, provider policy, target cap, and confirmation revision immediately before mutation.
+18. Password-like roots, private-message roots, unknown roots, and every IP moderation alias are redacted before command spy, recent history, file logging, search, export, or audit projection.
+19. File logging is off by default. Disabled startup creates no `logs/sef` directory or writer. Enabled logging owns only fixed descendants of `logs/sef`, refuses symlink escapes, bounds its queue and record sizes, and preserves mandatory security audit independently from capture filters.
+20. Item grants, kit claims, inventory edits, live menus, and super enchanting validate capacity, registry state, configuration revision, and current authorization before committing a mutation.
 
 Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative commands.
 
@@ -123,6 +136,10 @@ Primary configuration:
 8. `<world>/serverconfig/sef/cooldowns.json` contains only cooldowns whose remaining duration meets the configured persistence threshold.
 9. `<world>/serverconfig/sef/teleports.json` contains versioned homes, spawn layers, server and player warps, teleport preferences, transfer offers, reports, and queued offline teleports.
 10. `<world>/serverconfig/sef/social.json` contains versioned social preferences, mail, per-player connection templates, reminder definitions and states, and custom text pages.
+11. `<world>/serverconfig/sef/moderation.json` contains versioned warnings, persistent controls, jails, and jail sentences. Vanilla player and IP ban lists remain the authority for ban enforcement.
+12. `<world>/serverconfig/sef/command-spy.json` contains bounded observer profiles and filters. Recent command events remain runtime bounded state.
+13. `<world>/serverconfig/sef/kits.json` contains versioned kit definitions and UUID-addressed claim history.
+14. `<server>/logs/sef` is the optional fixed logging root. It is absent while file logging remains disabled.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
@@ -172,6 +189,8 @@ The `runServer` task forwards terminal input to the dedicated server. Wait for t
 8. `docs/PHASE_2_3_MANUAL_TESTS.md` contains the operator, permission, restart, and recovery approval matrix for Phases 2 and 3.
 9. `docs/PHASE_4_TESTS.md` contains the Phase 4 teleport verification record and remaining authenticated multiplayer matrix.
 10. `docs/PHASE_5_TESTS.md` contains the Phase 5 social, privacy, connection-message, reminder, and identity verification matrix.
+11. `docs/PHASE_6_TESTS.md` contains the Phase 6 moderation, privacy, command-observation, and logging matrix.
+12. `docs/PHASE_7_TESTS.md` contains the Phase 7 inventory, kits, workstation, shortcut, and player-utility matrix.
 
 ## Support
 

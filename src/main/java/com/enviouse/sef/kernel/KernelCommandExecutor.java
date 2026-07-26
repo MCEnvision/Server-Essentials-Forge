@@ -1,6 +1,7 @@
 package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.kernel.observation.ObservationContracts;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
@@ -73,9 +74,11 @@ public final class KernelCommandExecutor {
 
         CommandDefinition definition = definition(actionId);
         PermissionSummary permission = permissions(source, definition, additionalPermissions);
+        boolean effectiveCooldownBypass = cooldownBypass || KernelServices.cooldownBypass(source, actionId);
         CommandDefinition.SourceType sourceType = sourceType(source);
         UUID actorId = actorId(source, sourceType);
         String dimensionId = dimensionId(source);
+        KernelServices.commandJournal().attachOrBegin(source, actionId);
 
         Map<String, String> providerContext = new LinkedHashMap<>(permission.providerContext());
         providerContext.put("source_class", sourceType.name().toLowerCase(Locale.ROOT));
@@ -89,7 +92,7 @@ public final class KernelCommandExecutor {
                         dimensionId,
                         dimensionId,
                         permission.granted(),
-                        cooldownBypass,
+                        effectiveCooldownBypass,
                         false,
                         "",
                         null,
@@ -101,6 +104,10 @@ public final class KernelCommandExecutor {
                         providerContext,
                         "command"));
         if (!started.successful()) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    started.reason().name().toLowerCase(Locale.ROOT));
             sendFailure(source, started);
             return 0;
         }
@@ -111,6 +118,10 @@ public final class KernelCommandExecutor {
                 result = action.getAsInt();
             } catch (RuntimeException exception) {
                 lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
+                KernelServices.commandJournal().finishCurrent(
+                        ObservationContracts.LifecycleStage.FAILED,
+                        null,
+                        exception.getClass().getSimpleName());
                 com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
                         "[SEF] Kernel action {} failed",
                         definition.id(),
@@ -123,16 +134,26 @@ public final class KernelCommandExecutor {
                     result > 0,
                     result > 0 ? null : ActionResult.ReasonCode.PROVIDER_ERROR);
             if (!completed.successful()) {
+                KernelServices.commandJournal().finishCurrent(
+                        ObservationContracts.LifecycleStage.FAILED,
+                        result,
+                        completed.reason().name().toLowerCase(Locale.ROOT));
                 if (result > 0) {
                     sendFailure(source, completed);
                 }
                 return 0;
             }
+            KernelServices.commandJournal().finishCurrent(
+                    result > 0
+                            ? ObservationContracts.LifecycleStage.COMPLETED
+                            : ObservationContracts.LifecycleStage.FAILED,
+                    result,
+                    result > 0 ? "" : ActionResult.ReasonCode.PROVIDER_ERROR.name().toLowerCase(Locale.ROOT));
             return result;
         }
     }
 
-    static CommandDefinition.SourceType sourceType(CommandSourceStack source) {
+    public static CommandDefinition.SourceType sourceType(CommandSourceStack source) {
         if (source.getEntity() instanceof ServerPlayer) {
             return CommandDefinition.SourceType.PLAYER;
         }

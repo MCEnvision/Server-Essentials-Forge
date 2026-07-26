@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 5 have implementation coverage in the current worktree. Phase 4 adds the server-authoritative command-mode teleport domain. Phase 5 adds the server-authoritative social, mail, connection-message, reminder, custom-text, and identity-projection domain. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded repositories and identity migration. Phase 4 adds homes and teleport services. Phase 5 adds hardened private messaging, social spy, UUID mail, real connection messages, reminders, and identity diagnostics. Economy, expanded moderation, enhanced GUI networking, and other later roadmap families remain planned.
+SEF 2 Phases 1 through 7 have implementation coverage in the current worktree. Phase 6 adds expanded moderation, persistent moderation controls and jails, command observation, a correlated command journal, and optional bounded file logging. Phase 7 adds kits, inventory and item utilities, additional vanilla workstations, player-state utilities, gamemode shortcuts, and bounded item grants. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the phase matrices remain required before approval. Economy, enhanced GUI networking, and other later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -49,11 +49,11 @@ Construction performs these operations:
 5. Registers stateful event handler instances on `NeoForge.EVENT_BUS`.
 6. Registers vanish commands and vanish permission nodes.
 
-Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens the location history, cooldown, teleport, and social repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
+Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens the location history, cooldown, teleport, social, command-spy, moderation, and kit repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It creates the optional file-log worker and `logs/sef` tree only when file logging is enabled. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
 
-Server ticks update announcements, banned item scans, freeze state, mute state, countdown state, teleport expiry, teleport warmups, tab presentation, and scheduled reminders when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
+Server ticks update announcements, banned item scans, persistent moderation expiry, jail enforcement, long-lived player-state authorization, countdown state, teleport expiry, teleport warmups, tab presentation, and scheduled reminders when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Moderation release teleports are validated through the shared safe-teleport service. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Managed repository snapshots are captured on the server thread and written asynchronously. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
 
-Server shutdown drains mute, banned item, alternate account, player profile, location history, persistent cooldown, teleport, and social writers with bounded waits, stops optional integrations, clears warmups and confirmations, then clears runtime cooldown and vanish state. Coordinated repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
+Server shutdown drains mute, banned item, alternate account, player profile, location history, persistent cooldown, teleport, social, command-spy, moderation, and kit writers with bounded waits. It then closes the optional file sink with its configured bounded drain, writes an incomplete-session marker when necessary, stops optional integrations, clears warmups and confirmations, and clears runtime cooldown, observation, player-state, and vanish state. Coordinated repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
 
 ## 4. Package map
 
@@ -78,6 +78,11 @@ Important package ownership:
 17. `com.enviouse.sef.message` owns bounded typed message templates and literal field insertion.
 18. `com.enviouse.sef.storage.repository` owns coordinated Phase 3 repositories and recovery states.
 19. `com.enviouse.sef.social` owns social preferences, mail, observation delivery, connection messages, reminders, custom text, and identity diagnostics.
+20. `com.enviouse.sef.commandlog` owns command redaction, correlated lifecycle records, command-spy profiles, observer projection, fixed-path file logging, rotation, retention, search, export, and logger diagnostics.
+21. `com.enviouse.sef.moderation` owns expanded bans, kicks, authoritative connection-address resolution, persistent warnings and controls, jail definitions, jail sentences, expiry, and enforcement.
+22. `com.enviouse.sef.kits` owns versioned kit definitions, item serialization, claim policy, cooldown history, per-kit permissions, validation, and administrative commands.
+23. `com.enviouse.sef.inventory` owns self and target inventory utilities, live ender-chest authorization, transient disposal, and safe item editing.
+24. `com.enviouse.sef.player` owns runtime player utility state, authorization reconciliation, personal time and weather, experience, movement, and gamemode shortcuts.
 
 Logical server state is authoritative. The current project has no custom client payload protocol.
 
@@ -111,6 +116,15 @@ The current top level command families include:
 20. `/joinmessage`, `/leavemessage`, and `/connectionmessage` for real connection templates.
 21. `/reminders`, `/reminder`, and `/welcome` for player state, definitions, scheduling, and manual delivery.
 22. `/customtext`, `/booktext`, `/rules`, `/info`, `/sef identity coverage`, and `/sef identity refresh`.
+23. `/ban`, `/tempban`, `/pardon`, `/unban`, `/ban-ip`, `/banip`, `/tempban-ip`, `/tempbanip`, `/pardon-ip`, `/unban-ip`, `/unbanip`, `/kick`, `/kick-ip`, `/kickip`, `/kickme`, and `/kickall`.
+24. `/warn`, `/warns`, `/clearwarnings`, `/mute`, `/unmute`, `/mutelist`, `/freeze`, `/unfreeze`, `/freezelist`, `/invlock`, `/disablebuilding`, and `/db` through the persistent moderation control domain.
+25. `/setjail`, `/deljail`, `/jails`, `/jail`, `/unjail`, and `/jailedplayers`.
+26. `/commandspy`, canonical `/sef commandspy`, canonical `/sef logging`, and the collision-aware `/loggerspy` shortcut.
+27. `/kit`, `/kits`, `/showkit`, `/createkit`, `/delkit`, and `/kitreset`, with validation, metadata export, and policy editing below `/kit`.
+28. `/clearinventory`, `/ci`, `/enderchest`, `/ec`, `/disposal`, `/more`, `/condense`, `/hat`, `/itemname`, `/itemlore`, `/itemdb`, `/book`, `/recipe`, and the self-only `/i`.
+29. `/afk`, `/feed`, `/heal`, `/fly`, `/god`, `/rest`, `/speed`, `/exp`, `/ptime`, `/pweather`, `/near`, `/getpos`, `/compass`, `/depth`, `/top`, `/bottom`, and `/jump`.
+30. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma`, with explicit target support only where the matching other-player permission is granted.
+31. `/cartographytable`, `/grindstone`, `/loom`, `/smithingtable`, `/stonecutter`, `/workbench`, and `/wb`, plus their canonical `/sef workstation` routes.
 
 `/sudo` is intentionally not registered in Phase 1. An existing `modules.sudo = true` value produces a startup warning and does not expose an execution route.
 
@@ -196,6 +210,11 @@ Administrative defaults:
 39. Every `commands.joinmessage.*`, `commands.leavemessage.*`, and `commands.connectionmessage.inspect` node is denied. `connectionmessage.hierarchy.bypass`, `connectionmessage.exempt`, and `connectionmessage.bypass.exempt` are also denied.
 40. `commands.welcome.preview`, `commands.welcome.send`, `commands.reminder.manage`, and `commands.reminder.send`, denied.
 41. `commands.customtext.manage`, `commands.sef.identity.coverage`, and `commands.sef.identity.refresh`, denied.
+42. Expanded player, IP, kick, warning, control, jail, hierarchy-bypass, exemption-bypass, literal-address, and sensitive address-view permissions are denied, except self `/kickme` and self `/warns`.
+43. Every command-spy management, audience, scope, filter, location, result, exempt-view, vanished-view, and argument-view permission is denied.
+44. Every optional logging status, enable, disable, stream, live, recent, filter, session, format, tail, search, export, retention, and repair permission is denied. File logging also defaults to disabled in configuration.
+45. Player kit use and listing are allowed by default. Kit creation, deletion, editing, validation, export, reset, hierarchy bypass, exemption bypass, and cooldown bypass are denied. Optional per-kit permissions are evaluated through dynamic `sef.kits.<id>` nodes.
+46. Self clear-inventory, ender-chest, disposal, condense, hat, item identification, recipe, and safe player utility nodes may default to allowed. Other-player inventory, unsafe item editing, bounded item granting, gamemode, long-lived state, bypass, and super-enchant nodes default to denied.
 
 Vanish level nodes remain `sef.vanish.1`, `sef.vanish.2`, and `sef.vanish.3`. Observer nodes remain `sef.vanishsee.1`, `sef.vanishsee.2`, and `sef.vanishsee.3`. Lower numeric levels are more powerful.
 
@@ -266,6 +285,43 @@ All migrated single player arguments use the shared SEF identity argument. It ac
 `/tpaccept` uses the teleport action lease as its single canonical execution. It does not wrap that action in a second lease with the same cooldown identity. `/tpaall` resolves at most 100 visible targets first, then runs the bounded fan out through one `sef:teleport.request.all` action. Empty `/tprequests` output is a successful read rather than a provider failure.
 
 Shared player target decisions use the selected metadata provider. A LuckPerms primary group weight is authoritative when present. Operators use the maximum bounded weight, known group names fall back to the configured hierarchy snapshot, console bypasses hierarchy and target exemption, and player bypasses require their explicit hierarchy or exemption permission. `/homes <player>` now uses the same target policy as home administration.
+
+### 6.5 Phase 6 moderation and observation enforcement
+
+Phase 6 routes use the sealed catalog and the ordinary kernel execution pipeline. They do not grant authority from vanilla operator level alone.
+
+Moderation applies these boundaries:
+
+1. Online targets use shared hierarchy, exemption, vanish-visibility, and execution-time permission checks.
+2. Offline identities use UUID-authoritative profile resolution and exemption checks. An ambiguous nickname or unknown identity fails without mutation.
+3. Permanent and temporary player bans use the vanilla user-ban list as the enforcement authority. SEF does not maintain a second player-ban truth.
+4. IP bans use the vanilla IP-ban list. SEF stores only moderation controls, warnings, jail definitions, and jail sentences in `moderation.json`.
+5. `ConnectionAddressService` supports `direct`, `trusted_proxy`, `external`, and `disabled`. Shared proxy detection fails closed when configured. Player-entered literal addresses require both configuration opt-in and a distinct permission.
+6. Raw addresses never enter ordinary command feedback, kernel parameters, command spy, optional file logs, or broad audit. IP action records use a keyed fingerprint or redacted provider reference.
+7. Shared-address and mass-kick actions resolve a bounded target set, bind the actor and policy revision to a short-lived confirmation token, and recheck current targets before disconnecting them.
+8. Persistent mute, freeze, inventory lock, build lock, and jail state is enforced by events and reconciled on login and tick. Expired jail sentences return the player to the recorded release location through safe teleport validation.
+9. The earlier legacy warning, mute, freeze, inventory-lock, and build-lock managers stop owning behavior while expanded moderation is enabled. Their files remain untouched for compatibility and rollback.
+
+`CommandEventJournal` creates immutable redacted observations with correlation, source type, origin, actor, effective actor, canonical action, lifecycle stage, result, dimension, and optional bounded location. Each observer profile is UUID keyed and contains requested state, audience, selected players, actor relation, source scopes, root and action filters, typed source, player, result, world, and origin filters, and projection preferences. Selection, delivery, and every later event recheck root permission, scope permission, hierarchy, exemptions, vanished-player visibility, and metadata or sensitive-field permission.
+
+`CommandRedactionPolicy` runs before any observation consumer. Password and token roots become secret records, private-content roots hide their bodies, every IP moderation alias hides the full address and reason, and unknown roots retain only the root. Raw command text is not a field in a journal or file record.
+
+`FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths.
+
+### 6.6 Phase 7 inventory and player utility enforcement
+
+Phase 7 inventory mutations are server authoritative and transactional where a partial change could lose or duplicate items.
+
+1. Kit definitions serialize complete `ItemStack` state through the registry-aware codec. Claims validate the definition, current registry, permission, optional per-kit permission, cooldown, one-time policy, and inventory capacity before mutation.
+2. With overflow dropping disabled, a kit claim is atomic and refuses insufficient capacity. With overflow dropping enabled, only the bounded remainder is created in the player world after inventory insertion.
+3. Live InvSee and ender-chest menus capture their authorization and configuration revision. Each click rechecks current permission, feature state, target policy, and revision. Revoked modification access downgrades InvSee to read only. Revoked view access or a changed live policy closes the menu.
+4. `/disposal` uses a transient server menu whose contents are intentionally destroyed on close. It does not persist or write another inventory.
+5. Item name, lore, and book mutations apply configured length and line bounds. `/more` respects the item stack maximum. `/condense` uses current recipe results and commits only validated replacements.
+6. `/i` accepts an item id with or without the `minecraft` namespace, is strictly self only, applies `itemGiveMaximumAmount`, checks registry resolution and inventory insertion, and rolls back a failed grant.
+7. Gamemode shortcuts separate self and other-player permissions and use the same eligible-target policy as other administrative mutations.
+8. Long-lived fly, god, personal time, and personal weather state is reconciled against current permissions after refreshes and during bounded event checks.
+9. Virtual workstations use vanilla menu types, so the current implementation remains server only. Canonical and shortcut routes share one action id, permission, feature gate, cooldown identity, and audit policy.
+10. Super enchanting snapshots the registry and configuration policy at open time, validates again before mutation, clamps configured levels, and refuses missing enchantments, invalid targets, unsafe policy changes, or stale menus.
 
 ## 7. Sudo stabilization boundary
 
@@ -470,6 +526,39 @@ The `socialEssentials` section controls Phase 5 presentation and bounds:
 
 Module keys `social_essentials`, `social_spy`, `mail`, `connection_messages`, `reminders`, and `custom_text` control registration at startup. The same values publish shared runtime feature gates, so an already-registered action is denied after a configuration reload disables its subsystem.
 
+The `moderation` section controls Phase 6 authority and observation bounds:
+
+| Key | Default | Allowed range or values | Purpose |
+| --- | --- | --- | --- |
+| `maximumReasonLength` | `512` | 1 to 2048 | Maximum persisted moderation reason |
+| `maximumMassTargets` | `100` | 1 to 1000 | Hard bound for one mass action |
+| `addressProvider` | `direct` | `direct`, `trusted_proxy`, `external`, or `disabled` | Authoritative connection-address source, restart required |
+| `allowLiteralPlayerAddresses` | `false` | Boolean | Enables separately permissioned player-entered addresses |
+| `allowLiteralConsoleAddresses` | `true` | Boolean | Enables literal console address input |
+| `sharedAddressHardCap` | `10` | 1 to 100 | Maximum sessions resolved from one address |
+| `confirmationSeconds` | `30` | 10 to 300 | Lifetime of state-bound mass-action confirmations |
+| `failOnSharedProxy` | `true` | Boolean | Rejects likely unconfigured shared-proxy actions |
+| `commandSpyRecentLimit` | `4096` | 32 to 65536 | Maximum redacted journal records |
+| `commandSpySelectedLimit` | `32` | 1 to 256 | Maximum selected UUIDs per observer |
+| `commandSpyEventsPerSecond` | `100` | 1 to 1000 | Per-observer delivery limit |
+
+The `fileLogging` section controls the optional fixed-path sink. `enabled`, `connectionEvents`, and `textMirror` default to `false`. Queue capacity defaults to `8192`, batch size to `128`, flush interval to `1000` milliseconds, maximum record size to `16384` bytes, active file size to `64` MiB, active file age to `24` hours, retention to `30` days, archive count to `100`, total retained bytes to `1024` MiB, and shutdown drain to `10` seconds. Every value has a NeoForge hard range. Logging filters, live state, and stream state are runtime controls; they do not alter mandatory security audit.
+
+The `phaseSevenUtilities` section controls Phase 7:
+
+| Key | Default | Allowed range | Purpose |
+| --- | --- | --- | --- |
+| `cartographyTable`, `grindstone`, `loom`, `smithingTable`, `stonecutter` | `true` | Boolean | Register each additional vanilla workstation |
+| `cooldownSeconds` | `0` | 0 to 31536000 | Shared ordinary utility cooldown |
+| `itemGiveMaximumAmount` | `64` | 1 to 6400 | Maximum `/i` amount |
+| `maximumKits` | `128` | 1 to 1024 | Stored kit definition bound |
+| `maximumKitItems` | `256` | 1 to 1024 | Item-stack bound per kit |
+| `maximumKitUsesPerPlayer` | `256` | 1 to 1024 | Retained claim records per player |
+| `kitDropOverflow` | `false` | Boolean | Allow bounded world drops instead of atomic capacity refusal |
+| `requirePerKitPermission` | `false` | Boolean | Require dynamic `sef.kits.<id>` permission |
+| `suicide` | `false` | Boolean | Register the self-only suicide route |
+| `maximumFlySpeed`, `maximumWalkSpeed` | `10.0` | 0.1 to 10.0 | Maximum accepted speed multiplier |
+
 Alternate account collection uses three important values under its section:
 
 1. `collectAddresses`, default `false`.
@@ -519,6 +608,11 @@ Current stores include:
 15. `<world>/serverconfig/sef/cooldowns.json`.
 16. `<world>/serverconfig/sef/teleports.json`.
 17. `<world>/serverconfig/sef/social.json`.
+18. `<world>/serverconfig/sef/command-spy.json`.
+19. `<world>/serverconfig/sef/moderation.json`.
+20. `<world>/serverconfig/sef/kits.json`.
+21. Vanilla `banned-players.json` and `banned-ips.json` for authoritative player and address bans.
+22. Optional `<server>/logs/sef` command, connection-event, archive, export, text-mirror, and session-state files.
 
 Managed JSON documents use an envelope with `domain`, `schemaVersion`, and `data`. Unknown fixed record fields survive a load and save cycle. Dynamic maps preserve unknown fields on retained records without restoring records that were intentionally removed.
 
@@ -543,6 +637,10 @@ Storage guarantees:
 17. Player profile updates, mute countdown snapshots, and banned item snapshots use coalesced background persistence. Their workers retain only the latest queued snapshot and use bounded shutdown flushing.
 18. Social mail uses an in-memory recipient index. Per-recipient list, unread, quota, archive, and clear operations do not scan the global mail collection.
 19. Social repository recovery, unsupported, and error states reject mutation. Commands receive a safe failure through the kernel action boundary, and the damaged source is not overwritten.
+20. Command-spy profiles, moderation controls, and kits use the same versioned envelope, corruption quarantine, unknown-field preservation, dirty revision, and recovery-mode mutation refusal.
+21. `StorageCoordinator` periodically snapshots dirty managed repositories and writes them on its bounded worker. The server thread does not perform the JSON file write.
+22. Kit definitions and usage history are bounded before load acceptance. Invalid serialized item stacks fail validation and cannot become a partial claim.
+23. Optional file logging is not a managed JSON repository. It creates no path while disabled, owns only fixed descendants of `logs/sef`, refuses symlinks, and uses an incomplete-session marker to diagnose an interrupted drain.
 
 The structured audit service writes bounded JSONL events through a 4096 entry queue. Each event persists schema version, event and session ids, timestamp, actor UUID and username, source type, action id, target UUIDs, normalized parameters, result, reason, duration, origin, job and step correlation ids, definition and policy revisions, provider context, redaction class and rules, observer UUID, previous hash, and audit class. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush. Legacy call sites are adapted into the same schema rather than a smaller JSON shape.
 
@@ -725,8 +823,18 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 48. Granted finite quota tier propagation into mail and reminder quota contexts.
 49. Connection message correlation by component object identity with bounded weak references.
 50. Social spy delivery audit observer identity, scope, audit class, and redaction metadata without content persistence.
+51. Real Brigadier registration, permission-gated roots, and representative Phase 6 and Phase 7 grammar.
+52. `/i` parse rejection above the configured item amount maximum.
+53. Command-spy typed filter persistence, legacy-profile compatibility, and include, exclude, neutral, and clear player-filter transitions.
+54. Password, private-content, unknown-root, IPv4, IPv6, namespaced, and IP-alias redaction before observation.
+55. File logging disabled startup, address-free connection serialization, parent and nested symlink refusal, security-root filter immunity, fail-closed filter overflow, and retention preview drift rejection.
+56. Connection-address shared-proxy refusal and shared-session hard caps.
+57. Moderation warning, control, jail, sentence, release-location, expiry, and `Instant` persistence.
+58. Kit policy, cooldown, one-time use, bounded per-player history, dynamic permission validation, and `Instant` persistence.
+59. InvSee permission downgrade and closure before interaction, plus live ender-chest closure after permission or configuration revision changes.
+60. Catalog ownership and shortcut ownership for Phase 6 and Phase 7 actions.
 
-Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Run every applicable matrix before approving a public release.
+Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Phase 6 moderation, command-observation, proxy, privacy, file-failure, and multi-player behavior remains in [the Phase 6 matrix](docs/PHASE_6_TESTS.md). Phase 7 inventory transactions, live menus, registry fixtures, player utilities, and super-enchant behavior remains in [the Phase 7 matrix](docs/PHASE_7_TESTS.md). Run every applicable matrix before approving a public release.
 
 ## 17. Operations and recovery
 
@@ -818,6 +926,12 @@ Private messaging, reply, HelpOp, admin chat, and announcement toggle roots use 
 
 Alternate account collection defaults to off. Enabling it activates retention bounded, salted hash storage by default. Raw display, purge, and export remain separately permissioned and audited. Chat related features can still process private content in memory, so operators must restrict access and follow applicable law.
 
+Expanded moderation treats connection addresses as restricted data. Direct and provider-resolved addresses are normalized only inside `ConnectionAddressService`. Ordinary action parameters use fingerprints, feedback uses redacted labels, and command redaction removes address and reason arguments from every IP moderation alias. Shared-proxy uncertainty, disabled providers, excessive session matches, and unauthorized literal input fail closed.
+
+Command observation and optional file logging consume only immutable redacted records. Permission removal takes effect on the next observation. Location, result, nonplayer source, vanished identity, exempt identity, and argument projection each require their own authorization. File capture filters cannot disable mandatory security audit or expose raw command input. Logging remains disabled by default and cannot be redirected outside `logs/sef`.
+
+Inventory and item commands recheck permissions at mutation time. Live administrative menus bind to their authorization revision and close or downgrade after revocation. Kit and item transactions validate capacity and registry state before commit. The self-only item shortcut cannot select another target or exceed its configured amount bound.
+
 ## 20. Release process
 
 No automated public release workflow is currently documented as complete.
@@ -834,4 +948,4 @@ Before an approved release:
 
 ## 21. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 5 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, and profiler release gates remain open. Phase 6 is next and covers moderation, protection, command spy, command journaling, optional file logging, and expanded kick and ban routes. GUI networking, economy, fake message, sudo, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 7 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, registry fixture, and profiler release gates remain open. Phase 8 is next and covers native economy and signs. GUI networking, fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

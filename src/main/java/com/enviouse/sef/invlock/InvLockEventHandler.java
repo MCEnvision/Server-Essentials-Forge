@@ -27,7 +27,7 @@ public class InvLockEventHandler {
     /** Block opening containers (PlayerContainerEvent.Open is not cancelable; close it instead). */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
-        if (!ConfigHandler.config.enableInvLock.get()) return;
+        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
             if (InvLockManager.isLocked(player.getUUID())) {
                 // Close the container immediately
@@ -44,7 +44,7 @@ public class InvLockEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemPickup(ItemEntityPickupEvent.Pre event) {
-        if (!ConfigHandler.config.enableInvLock.get()) return;
+        if (!enabled()) return;
         if (event.getPlayer() instanceof ServerPlayer player) {
             if (InvLockManager.isLocked(player.getUUID())) {
                 event.setCanPickup(TriState.FALSE);
@@ -55,7 +55,7 @@ public class InvLockEventHandler {
     /** Block right-click interactions to prevent item usage. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (!ConfigHandler.config.enableInvLock.get()) return;
+        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
             if (InvLockManager.isLocked(player.getUUID())) {
                 event.setCanceled(true);
@@ -66,11 +66,15 @@ public class InvLockEventHandler {
     /** Block right-click blocks to prevent container opening via interact. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!ConfigHandler.config.enableInvLock.get()) return;
+        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
             if (InvLockManager.isLocked(player.getUUID())) {
                 event.setCanceled(true);
             }
         }
+    }
+    private static boolean enabled() {
+        return ConfigHandler.config.enableInvLock.get()
+                || ConfigHandler.config.enableModerationEssentials.get();
     }
 }

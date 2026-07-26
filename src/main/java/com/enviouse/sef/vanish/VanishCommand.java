@@ -38,8 +38,12 @@ public class VanishCommand {
 				"\u00A77sef.vanish.3\u00A7r: Can vanish at level 3 only."));
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-		dispatcher.register(alias("v"));
-		dispatcher.register(alias("vanish"));
+		if (dispatcher.getRoot().getChild("vanish") == null) {
+			dispatcher.register(alias("vanish"));
+		}
+		if (dispatcher.getRoot().getChild("v") == null) {
+			dispatcher.register(alias("v"));
+		}
 	}
 
 	private static LiteralArgumentBuilder<CommandSourceStack> alias(String prefix) {

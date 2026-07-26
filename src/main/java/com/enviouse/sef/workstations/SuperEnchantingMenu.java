@@ -4,7 +4,12 @@ import java.util.Comparator;
 import java.util.List;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.permissions.PermissionService;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
@@ -38,6 +43,7 @@ final class SuperEnchantingMenu extends ChestMenu {
     private final SimpleContainer display;
     private final ServerPlayer player;
     private final int targetSlot;
+    private ItemStack expectedTarget;
     private List<Holder.Reference<Enchantment>> enchantments = List.of();
     private int page;
 
@@ -50,18 +56,29 @@ final class SuperEnchantingMenu extends ChestMenu {
         this.display = display;
         this.player = player;
         this.targetSlot = inventory.selected;
+        this.expectedTarget = inventory.getItem(targetSlot).copy();
         refresh();
     }
 
     static boolean canOpen(ServerPlayer player) {
         ItemStack held = player.getMainHandItem();
-        return !held.isEmpty()
+        return ConfigHandler.config.enableSuperEnchantingTableCommand.get()
+                && !held.isEmpty()
+                && held.getCount() == 1
                 && EnchantmentHelper.canStoreEnchantments(held)
-                && (!held.is(Items.BOOK) || held.getCount() == 1);
+                && PermissionService.has(player, PermissionsHandler.superEnchantingTableCommand);
     }
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player clicker) {
+        if (!ConfigHandler.config.enableSuperEnchantingTableCommand.get()
+                || !validTarget()
+                || !PermissionService.has(player, PermissionsHandler.superEnchantingTableCommand)) {
+            player.closeContainer();
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cThe selected item or your permission changed."));
+            return;
+        }
         if (slotId < 0 || slotId >= GUI_SIZE || clicker != player) {
             return;
         }
@@ -134,17 +151,32 @@ final class SuperEnchantingMenu extends ChestMenu {
             EnchantmentHelper.updateEnchantments(target, mutable -> mutable.set(enchantment, newLevel));
         }
         player.getInventory().setChanged();
+        expectedTarget = player.getInventory().getItem(targetSlot).copy();
         player.containerMenu.broadcastChanges();
         player.displayClientMessage(
                 Enchantment.getFullname(enchantment, Math.max(1, newLevel)).copy()
                         .append(newLevel == 0 ? Component.literal(" removed") : Component.literal(" applied"))
                         .withStyle(newLevel == 0 ? ChatFormatting.RED : ChatFormatting.GREEN),
                 true);
+        AuditService.record(AuditService.Event.metadata(
+                SecurityAuditService.currentSessionId(),
+                player.getUUID(),
+                player.getGameProfile().getName(),
+                "player",
+                "sef:workstation.super_enchant.mutation",
+                List.of(player.getUUID()),
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                "menu",
+                AuditService.AuditClass.ADMIN_ACTION));
         refresh();
     }
 
     private boolean canApply(ItemStack target, Holder<Enchantment> candidate) {
-        if (ConfigHandler.config.superEnchantingAllowUnsafe.get()) {
+        if (ConfigHandler.config.superEnchantingAllowUnsafe.get()
+                && PermissionService.has(
+                player,
+                PermissionsHandler.phasePermission("commands.superenchantingtable.unsafe"))) {
             return true;
         }
         if (!target.supportsEnchantment(candidate)) {
@@ -166,7 +198,14 @@ final class SuperEnchantingMenu extends ChestMenu {
             return;
         }
 
-        Registry<Enchantment> registry = player.registryAccess().registryOrThrow(Registries.ENCHANTMENT);
+        Registry<Enchantment> registry = player.registryAccess().registry(Registries.ENCHANTMENT).orElse(null);
+        if (registry == null) {
+            display.clearContent();
+            player.closeContainer();
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cThe enchantment registry is unavailable."));
+            return;
+        }
         enchantments = registry.holders()
                 .filter(holder -> shouldShow(target, holder))
                 .sorted(Comparator.comparing(holder -> holder.key().location().toString()))
@@ -194,7 +233,7 @@ final class SuperEnchantingMenu extends ChestMenu {
         if (enchantmentLevel(target, enchantment) > 0) {
             return true;
         }
-        return ConfigHandler.config.superEnchantingAllowUnsafe.get() || canApply(target, enchantment);
+        return canApply(target, enchantment);
     }
 
     private ItemStack enchantmentButton(ItemStack target, Holder<Enchantment> enchantment) {
@@ -226,6 +265,21 @@ final class SuperEnchantingMenu extends ChestMenu {
 
     private ItemStack targetItem() {
         return player.getInventory().getItem(targetSlot);
+    }
+
+    private boolean validTarget() {
+        ItemStack target = targetItem();
+        return !target.isEmpty()
+                && target.getCount() == 1
+                && ItemStack.matches(target, expectedTarget);
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return player == this.player
+                && !this.player.hasDisconnected()
+                && validTarget()
+                && PermissionService.has(this.player, PermissionsHandler.superEnchantingTableCommand);
     }
 
     private static int enchantmentLevel(ItemStack target, Holder<Enchantment> enchantment) {

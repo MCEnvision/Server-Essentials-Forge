@@ -1,5 +1,9 @@
 package com.enviouse.sef.invlock;
 
+import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.moderation.ModerationRepository;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -13,7 +17,11 @@ public class InvLockManager {
     private static final Set<UUID> lockedPlayers = ConcurrentHashMap.newKeySet();
 
     public static boolean isLocked(UUID uuid) {
-        return lockedPlayers.contains(uuid);
+        return lockedPlayers.contains(uuid)
+                || ConfigHandler.config.enableModerationEssentials.get()
+                && KernelServices.moderation()
+                .control(uuid, ModerationRepository.ControlType.INVENTORY_LOCK)
+                .isPresent();
     }
 
     public static boolean toggle(UUID uuid) {
@@ -42,4 +50,3 @@ public class InvLockManager {
         lockedPlayers.clear();
     }
 }
-

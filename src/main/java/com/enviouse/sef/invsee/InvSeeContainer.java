@@ -257,7 +257,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (player != viewer || !InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+        if (player != viewer || !InvSeeCommand.canAccess(viewer, target)) {
             viewer.closeContainer();
             return;
         }
@@ -301,7 +301,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public void broadcastChanges() {
-        if (!InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+        if (!InvSeeCommand.canAccess(viewer, target)) {
             viewer.closeContainer();
             return;
         }
@@ -330,7 +330,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
                 && target != null
                 && target.isAlive()
                 && !target.hasDisconnected()
-                && InvSeeCommand.canView(viewer.createCommandSourceStack())
+                && InvSeeCommand.canAccess(viewer, target)
                 && (page == 0 || PermissionService.has(viewer, PermissionsHandler.invSeeCurios));
     }
 

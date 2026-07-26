@@ -32,7 +32,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onCommand(CommandEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         try {
             ServerPlayer player = event.getParseResults().getContext().getSource().getPlayerOrException();
@@ -69,7 +69,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getPlayer() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -85,7 +85,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -101,7 +101,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onAttackEntity(AttackEntityEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -117,7 +117,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -128,7 +128,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -139,7 +139,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -150,7 +150,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -158,5 +158,8 @@ public class FreezeEventHandler {
             }
         }
     }
+    private static boolean enabled() {
+        return ConfigHandler.config.enableFreezeSystem.get()
+                || ConfigHandler.config.enableModerationEssentials.get();
+    }
 }
-
