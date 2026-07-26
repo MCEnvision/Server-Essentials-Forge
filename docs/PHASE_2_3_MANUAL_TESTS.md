@@ -316,3 +316,42 @@ Manual status:
 | Crash simulation | Blocked | A forced process termination and recovery inspection must be recorded. |
 
 Phases 2 and 3 have implementation coverage, but they are not release approved from this record.
+
+## 15. Superseding headless operator and recovery record for 2026-07-26
+
+This record applies to source commit `48f0f4fe670fee3ff7d13e15225ff4d585a85005` and artifact `build/libs/sef-1.0-SNAPSHOT.jar`, SHA-256 `41ca28dafb3495cfb6cdb1aa05150f4969da4986808150c4184d2551a61aeff4`. It expands headless evidence without replacing authenticated player acceptance.
+
+Verification results:
+
+1. `./gradlew test --rerun-tasks` passed 117 tests with zero failures, zero errors, and zero skipped tests.
+2. `./gradlew build --rerun-tasks` completed successfully under OpenJDK `21.0.11`.
+3. The packaged JAR contains NeoForge metadata, server mixins, `CommandExecutionService`, `PlayerProfileRepository`, `StorageCoordinator`, and `VanishCommand`.
+4. The dedicated server reached the ready state without optional integrations, accepted `sef doctor`, `sef storage status`, and literal `stop`, saved every dimension, and returned a successful Gradle result.
+5. Immediate clean restart loaded ready player profiles and cooldown storage. `/sef doctor` reported 20 catalog entries, 133 capabilities, 10 shortcuts, 20 policies, 5 quotas, zero import failures, zero quota provider failures, inactive recovery mode, and no kernel errors.
+6. LuckPerms NeoForge `5.4.140` started alone and in the full integration stack. SEF used the LuckPerms permission handler and reported no provider failure. No metadata mutation, malformed value, live refresh, or provider exception was injected.
+7. The generated permission manifest was readable at 25,117 bytes during the operator status check. Determinism, duplicate rejection, capability coverage, default access, and finite tier behavior remain covered by automated tests.
+8. A valid legacy `sef.playerdata` fixture migrated only when the JSON target was absent. The migration wrote a version 0 backup, a journal entry, a schema 1 identity envelope, and two UUID authoritative records. Both nickname identities resolved and survived restart.
+9. Malformed profile JSON was quarantined. Profile state changed to recovery, operator diagnostics returned attention, and shutdown refused to overwrite the source. Restoring the byte identical known good file returned the next startup to ready state.
+10. Malformed cooldown JSON was quarantined. Repository recovery became active, operator diagnostics identified the cooldown domain, and shutdown did not recreate the source. Restoring the byte identical known good file returned the next startup to ready state.
+11. A ready dedicated server was terminated with `SIGKILL`. Gradle reported the expected exit value `137`. The valid profile and cooldown targets retained their original hashes, no partial or temporary target was found, and the next startup was clean. A player generated qualifying cooldown was not dirty during this test.
+12. The SEF configuration evidence archive is `sef-config-audit.tar.gz`, SHA-256 `1d7c765501c26141df1344aa5a801e66f72e3f68b7b285527b8970209ec8cf71`.
+13. `git diff --check` passed before the implementation commit. The development `run` tree and optional integration JARs remain ignored and were not committed.
+
+Updated manual status:
+
+| Section | Status | Remaining evidence |
+| --- | --- | --- |
+| Clean startup and server only compatibility | Partially verified | Dedicated startup and normal stop pass. A client without SEF must still join and use command fallback. |
+| Catalog and diagnostic permissions | Partially verified | Console diagnostics and automated Brigadier policy pass. Authenticated filtered suggestions and denied direct execution remain. |
+| Workstation routes and aliases | Blocked | Live player cooldown sharing, permission removal, and repair precondition behavior remain. |
+| Shortcut configuration and conflicts | Blocked | Restart based alias changes and a real external command owner remain. |
+| LuckPerms quota integration | Partially verified | Provider absence, startup presence, and diagnostics pass. Metadata precedence, malformed values, live refresh, hard ceiling, exception, and removal behavior remain. |
+| Permission manifest and finite tiers | Partially verified | File generation and automated contract checks pass. Staging group behavior still needs operator review. |
+| Cooldown persistence | Partially verified | Clean repository restart passes. A qualifying player cooldown, alias check, expiry, and below threshold case remain. |
+| Player profile and legacy migration | Partially verified | Import, backup, journal, envelope, resolution, and restart pass. Authenticated username capture and a live nickname change remain. |
+| Corrupt profile recovery | Partially verified | Quarantine, recovery diagnostics, non overwrite, restore, and restart pass. An authenticated nickname mutation attempt during recovery remains. |
+| Corrupt and future repository recovery | Partially verified | Malformed cooldown recovery passes. Mismatched domain, future schema, and location history cases remain. |
+| Crash simulation | Partially verified | Basic forced termination preserves valid targets and restarts. A dirty qualifying cooldown and write in progress crash remain. |
+| Final evidence review | Partially verified | Tests, build, JAR inspection, normal stop, restart, and diff checks pass. Authenticated log privacy and every remaining manual section still block approval. |
+
+Phases 2 and 3 remain unapproved until the remaining authenticated, player driven, location history, future schema, external conflict, and dirty shutdown cases pass.

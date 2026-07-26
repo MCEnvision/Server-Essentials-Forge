@@ -27,7 +27,7 @@ This is a plan, not a statement that every described feature is already implemen
 
 ## Implementation status update, 2026-07-26
 
-Phases 1 through 3 have automated implementation coverage in the current phase branch. They are not release complete. The authenticated multiplayer, optional integration, shutdown race, restart, crash recovery, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` and `docs/PHASE_2_3_MANUAL_TESTS.md` remain mandatory approval gates.
+Phases 1 through 3 have automated implementation coverage in the current phase branch. They are not release complete. Headless verification now covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with each current optional integration family alone and together. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` and `docs/PHASE_2_3_MANUAL_TESTS.md` remain mandatory approval gates.
 
 Completed security and authorization work:
 
@@ -54,7 +54,8 @@ Current automated and smoke verification evidence:
 - JUnit regression coverage includes real Brigadier authorization, permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization and authenticated username hover, legacy nickname fixtures, vanish visibility, permission reconciliation, hierarchy, workstation cooldown cleanup, shared execution ordering, storage atomicity, migration preparation failure, quarantine, unknown-field preservation, dynamic deletion semantics, announcement type and command policy separation, asynchronous profile and manager persistence, alternate account privacy, and permission refresh authority invalidation.
 - The dedicated NeoForge server reaches ready state with no optional integrations and shuts down through normal `stop` with all dimensions saved.
 - `README.md` and `DOCUMENTATION.md` describe current behavior, recovery, privacy, permissions, integration boundaries, and remaining roadmap work.
-- LuckPerms, Curios, FTB Essentials, authenticated multiplayer, server list, voice packet, advancement, death message, shutdown race, restart, crash recovery, and profiler results remain unrecorded manual work. No release approval may infer those results from the no integration smoke test.
+- Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack. These runs prove startup isolation only.
+- Authenticated multiplayer, live LuckPerms metadata and refresh, FTB nickname mutations, Curios inventory interaction, server list and packet visible behavior, dirty shutdown races, qualifying player cooldown persistence, and profiler results remain manual work. No release approval may infer those results from headless startup.
 
 The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable `/sef` catalog action enters the shared runtime policy and audit pipeline. Versioned location history and persistent cooldown repositories, bounded player profiles, import diagnostics, and recovery mode provide the Phase 3 persistence foundation. Full sudo modes, offline inventory inspection, enhanced client GUIs, homes, teleportation, and the expanded command catalog remain assigned to their later phases.
 
@@ -16076,7 +16077,7 @@ Additional required domain suites:
 
 ## Phase 1. Stabilization and security repair
 
-Status: implementation coverage is present. Release verification remains pending because the authenticated multiplayer, optional integration, shutdown race, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` are not complete.
+Status: implementation coverage is present. Optional integration startup is verified headlessly. Release verification remains pending because authenticated multiplayer, live integration behavior, packet visibility, dirty shutdown race, and profiler cases in `docs/PHASE_1_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 
@@ -16106,7 +16107,7 @@ Status: implementation coverage is present. Release verification remains pending
 
 ## Phase 2. Shared command and policy kernel
 
-Status: implementation coverage is present. Release verification remains pending because the operator, permission provider, restart, and conflict cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
+Status: implementation coverage is present. Headless operator diagnostics and normal restart are verified. Release verification remains pending because authenticated operator projection, live permission provider mutation, player driven cooldown persistence, and external conflict cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 
@@ -16157,7 +16158,7 @@ Status: implementation coverage is present. Release verification remains pending
 
 ## Phase 3. Storage foundation and player profile
 
-Status: implementation coverage is present. Release verification remains pending because the restart, crash simulation, corruption recovery, and operator cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
+Status: implementation coverage is present. Headless legacy migration, normal restart, malformed profile and cooldown recovery, and basic forced termination recovery are verified. Release verification remains pending because player driven persistence, location repository recovery, dirty write crash simulation, and authenticated operator cases in `docs/PHASE_2_3_MANUAL_TESTS.md` are not complete.
 
 ### Objectives
 

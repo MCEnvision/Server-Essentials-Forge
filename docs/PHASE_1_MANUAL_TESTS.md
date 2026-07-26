@@ -227,3 +227,62 @@ Latest automated and headless evidence:
 7. The final diff passed `git diff --check`. Source scanning found no Bukkit or EssentialsX implementation dependencies and no common source reference to `net.minecraft.client`.
 
 Manual status remains blocked for authenticated permission projection, packet visibility, InvSee interaction, nickname ownership with FTB Essentials, LuckPerms refresh behavior, Curios inventory behavior, address collection, migration fixtures, normal `stop`, shutdown races, and profiler observation.
+
+### Headless integration and recovery record for 2026-07-26
+
+This record supersedes earlier headless startup, normal stop, optional integration startup, migration, corruption, and basic crash recovery evidence. It applies to source commit `48f0f4fe670fee3ff7d13e15225ff4d585a85005`. It does not replace authenticated multiplayer, packet visible, player driven, or profiler acceptance.
+
+| Field | Recorded value |
+| --- | --- |
+| Artifact | `build/libs/sef-1.0-SNAPSHOT.jar` |
+| SHA-256 | `41ca28dafb3495cfb6cdb1aa05150f4969da4986808150c4184d2551a61aeff4` |
+| Minecraft | `1.21.1` |
+| NeoForge | `21.1.233` |
+| Gradle | `8.8` |
+| Build Java | OpenJDK `21.0.11` |
+| Operating system | Linux `6.12.63+deb13-amd64`, x86 64 |
+| Authenticated tester clients | None available in this workspace |
+| SEF configuration archive | `sef-config-audit.tar.gz`, SHA-256 `1d7c765501c26141df1344aa5a801e66f72e3f68b7b285527b8970209ec8cf71` |
+
+Optional integration artifacts:
+
+| Integration artifact | SHA-256 |
+| --- | --- |
+| LuckPerms NeoForge `5.4.140` | `6b8097a7e1a27d870d3d472d00079fa958271db16b9433369dce6c7f62530b19` |
+| Curios `9.5.1+1.21.1` | `a45df2125c26219974aba7507ffc9afe7b83acc941a386af3faacb1cc0056fde` |
+| FTB Essentials `2101.1.9` | `4da8e4d461ceef1a5e6f6705265fe24239b132cdc408eb77787231cb56c219bf` |
+| FTB Library `2101.1.30` | `8d3ad0eaaae5f71cfbe9062bb9a03223a2db4aafa5243da486b65afa13fb24ad` |
+| Architectury `13.0.8` | `5ec578f814e8cca87aeffa6e424032e78d9ea5ea6b603dd834c2dc13c31141ee` |
+
+Recorded results:
+
+1. `./gradlew test --rerun-tasks` passed 117 tests with zero failures, zero errors, and zero skipped tests.
+2. `./gradlew build --rerun-tasks` completed successfully.
+3. ModDevGradle `runServer` now forwards standard input. A no integration server reached the ready state, accepted `sef doctor`, `sef storage status`, and literal `stop`, saved all three dimensions, and returned a successful Gradle result.
+4. The same world restarted cleanly. `/sef doctor` reported 20 catalog entries, 133 capabilities, 10 shortcuts, 20 policies, 5 quotas, ready profiles, zero import failures, zero quota provider failures, inactive recovery mode, and no kernel errors.
+5. Curios alone reached the ready state, loaded ten Curios slots and one entity definition, reported no SEF kernel errors, and stopped normally.
+6. LuckPerms alone enabled its NeoForge permission handler and H2 storage, SEF detected the provider, `/sef doctor` reported no provider or kernel failure, and both SEF and LuckPerms stopped normally.
+7. FTB Essentials with FTB Library and Architectury reached the ready state. SEF detected FTB Essentials and did not enable the integrated nickname provider. `/sef doctor` reported no kernel error and the server stopped normally.
+8. LuckPerms, Curios, FTB Essentials, FTB Library, and Architectury reached the ready state together. Both optional providers were detected, Curios loaded, `/sef doctor` reported no kernel or quota provider failure, LuckPerms shut down normally, and Minecraft saved every dimension.
+9. The isolated Curios, LuckPerms, FTB, and combined logs contain no error level entry, severe entry, or exception chain. Their compressed evidence hashes are `b41ac25cdb06b870b6acd098e1d4ecf039661592d48ae41dd1be2f0c01751157`, `5af91e3cc674e2141909156ce2ac7edc1822bfbc7e75ccd052b6c83fc901bfd6`, `07df63fc59a85ab9864f3fc831935a56280161299bb0fcf8a68f1c08d3f79e80`, and `1c9b9a512ae05829da453bbfb48fd9643a440f29aaab8ca7391098c2b3516191`.
+10. Malformed integrated profile JSON was moved under `.corrupt`. `/sef doctor` reported profile recovery, `/sef storage status` reported the quarantined source, and bounded shutdown refused to recreate the source. Restoring the byte identical known good file returned the next startup to ready state.
+11. Malformed cooldown JSON was moved under `.corrupt`. The coordinator and cooldown repository reported recovery, shutdown did not recreate the source, and restoring the byte identical known good file returned the next startup to ready state.
+12. The legacy nickname fixture migrated two UUID records into the schema 1 integrated identity envelope. SEF wrote a timestamped version 0 backup and migration journal entry. `/whois EnVy` and `/whois "Nïck"` resolved the expected UUIDs, and both records loaded after restart.
+13. A forced `SIGKILL` of the ready dedicated server produced the expected Gradle exit value `137`. The valid profile and cooldown files retained their original SHA-256 values, no partial or temporary target was present, and the next startup reached ready state with no kernel error. This proves basic valid repository recovery only because no player generated qualifying cooldown was dirty at termination.
+14. The five copied integration JARs were removed from the ignored development `run/mods` directory after testing. Their cached audit copies and evidence remain outside the repository.
+
+Updated section status:
+
+| Section | Status | Evidence and remaining work |
+| --- | --- | --- |
+| Permission and command projection | Blocked | Automated Brigadier coverage remains valid. Authenticated suggestions, live provider revocation, reconnect, command block, and message route privacy still require clients. |
+| Sudo disablement | Blocked | Startup confirms the route remains disabled. Console and authenticated direct execution attempts still need a complete record. |
+| Duration rejection | Blocked | Parser regressions pass. Live player mutation checks remain. |
+| Nickname identity and ownership | Partially verified | Legacy identities migrated and survived restart. FTB ownership selection passed startup. Authenticated formatting, collision, permission, and FTB mutation cases remain. |
+| Vanish visibility and revocation | Blocked | Packet visible and observer specific behavior still requires the client matrix. |
+| Inventory inspection | Partially verified | Curios starts alone and in the full stack. Real menu interaction, open menu revocation, and Curios page behavior remain manual. |
+| Alternate account privacy | Blocked | Authenticated address collection, retention, purge, display, and export cases remain. |
+| Storage and recovery | Partially verified | Live legacy profile migration and malformed profile and cooldown recovery passed. Other domain, future schema, export permission, unknown field, deletion, and dirty shutdown cases remain. |
+| Performance observation | Blocked | No populated world profiler session was available. |
+
+The phase remains unapproved for public release until the blocked and partially verified client, privacy, visibility, dirty shutdown, and performance cases are completed.
