@@ -50,6 +50,23 @@ public class LuckPermsProvider implements IMetadataProvider {
 		invalidateAll();
 	}
 
+	@Override
+	public @NonNull String getPrimaryGroup(@NonNull GameProfile player) {
+		if (this.luckPerms == null) {
+			return "";
+		}
+		try {
+			User user = this.luckPerms.getUserManager().getUser(player.getId());
+			return user == null ? "" : user.getPrimaryGroup();
+		} catch (IllegalStateException | NullPointerException exception) {
+			ServerEssentialsForge.LOGGER.warn(
+					"Could not resolve the LuckPerms primary group for {}",
+					player.getName(),
+					exception);
+			return "";
+		}
+	}
+
 	private CachedMetaData getMetaData(GameProfile player) {
 
 		if (this.luckPerms == null) {

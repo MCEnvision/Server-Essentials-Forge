@@ -25,6 +25,7 @@ import com.enviouse.sef.commands.MsgCommands;
 import com.enviouse.sef.chat.AdminChatHandler;
 import com.enviouse.sef.chat.ChatMessageManager;
 import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
+import com.enviouse.sef.teleport.TeleportLifecycleEvents;
 import net.neoforged.fml.ModList;
 
 public class PlayerEventHandler implements IReloadable {
@@ -83,16 +84,19 @@ public class PlayerEventHandler implements IReloadable {
 		            com.enviouse.sef.vanish.VanishUtil.forgetPlayer(sp.getUUID());
 		            com.enviouse.sef.utils.moddeps.LuckPermsProvider.invalidate(sp.getUUID());
 		            KernelServices.warmups().clear(sp.getUUID());
-		            KernelServices.confirmations().revokeActor(sp.getUUID());
+	            KernelServices.confirmations().revokeActor(sp.getUUID());
+	            TeleportLifecycleEvents.handleLogout(sp);
 		        }
     }
 
 	@SubscribeEvent
 	public void onPlayerLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) {
-	        if(e.getEntity() instanceof ServerPlayer sp) {
+		    if(e.getEntity() instanceof ServerPlayer sp) {
+		            boolean firstJoin = KernelServices.profiles().find(sp.getUUID()).isEmpty();
 		            KernelServices.profiles().rememberDeferred(
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
+		            TeleportLifecycleEvents.handleLogin(sp, firstJoin);
 	            // Record login for alt tracking
             if(ConfigHandler.config.enableCheckAlts.get()) {
                 com.enviouse.sef.alts.AltTracker tracker = CommandRegistrationHandler.getAltTracker();

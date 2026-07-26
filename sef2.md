@@ -16184,6 +16184,8 @@ Status: implementation coverage is present. Headless legacy migration, normal re
 
 ## Phase 4. Homes, teleports, spawn, warps, and RTP
 
+Status: implementation coverage is present on `envy/phase-4`. Unit tests cover repository validation, recovery, quotas, player-warp lifecycle, and teleport-request races. NeoForge GameTests cover loaded safe destinations, hazardous support, and missing dimensions. The dedicated-server, authenticated multi-client, live LuckPerms hierarchy, FTB import fixture, and extended world-policy matrix remains recorded in `docs/PHASE_4_TESTS.md`.
+
 ### Objectives
 
 - Deliver the complete safe user teleport foundation in command mode first.

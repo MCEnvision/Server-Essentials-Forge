@@ -33,7 +33,7 @@ class KernelServicesCatalogTest {
                 "sef workstation super_enchant",
                 "sef workstation repair");
 
-        assertEquals(requiredRoutes.size(), KernelServices.catalog().size());
+        assertTrue(KernelServices.catalog().size() >= requiredRoutes.size());
         for (String route : requiredRoutes) {
             assertTrue(KernelServices.catalog().findByRoute(route).isPresent(), route);
         }

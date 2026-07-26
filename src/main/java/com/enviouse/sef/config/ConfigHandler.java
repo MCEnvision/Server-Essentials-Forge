@@ -189,6 +189,41 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargetSteps;
 		public final ModConfigSpec.ConfigValue<Integer> kernelLocationHistoryEntries;
 		public final ModConfigSpec.ConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
+		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportEssentials;
+		public final ModConfigSpec.ConfigValue<Boolean> enableHomes;
+		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportRequests;
+		public final ModConfigSpec.ConfigValue<Boolean> enableBack;
+		public final ModConfigSpec.ConfigValue<Boolean> enableSpawnCommands;
+		public final ModConfigSpec.ConfigValue<Boolean> enableServerWarps;
+		public final ModConfigSpec.ConfigValue<Boolean> enablePlayerWarps;
+		public final ModConfigSpec.ConfigValue<Boolean> enableRandomTeleport;
+		public final ModConfigSpec.ConfigValue<Boolean> enableDirectTeleport;
+		public final ModConfigSpec.ConfigValue<Boolean> ownVanillaTeleportRoot;
+		public final ModConfigSpec.ConfigValue<String> defaultHomeName;
+		public final ModConfigSpec.ConfigValue<Integer> defaultHomeLimit;
+		public final ModConfigSpec.ConfigValue<Integer> defaultPlayerWarpLimit;
+		public final ModConfigSpec.ConfigValue<Integer> defaultHomePerDimensionLimit;
+		public final ModConfigSpec.ConfigValue<Integer> teleportCooldownSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> teleportWarmupSeconds;
+		public final ModConfigSpec.ConfigValue<Boolean> teleportCancelOnMovement;
+		public final ModConfigSpec.ConfigValue<Boolean> teleportCancelOnDamage;
+		public final ModConfigSpec.ConfigValue<Boolean> teleportAllowInCombat;
+		public final ModConfigSpec.ConfigValue<Boolean> teleportAllowNetherRoof;
+		public final ModConfigSpec.ConfigValue<Boolean> teleportAllowHazards;
+		public final ModConfigSpec.ConfigValue<Integer> teleportSafeSearchRadius;
+		public final ModConfigSpec.ConfigValue<Integer> teleportMaximumSafeChecks;
+		public final ModConfigSpec.ConfigValue<Integer> teleportMaximumChunks;
+		public final ModConfigSpec.ConfigValue<Integer> teleportInvulnerabilityTicks;
+		public final ModConfigSpec.ConfigValue<Integer> teleportRequestExpirySeconds;
+		public final ModConfigSpec.ConfigValue<Integer> teleportMaximumPendingRequests;
+		public final ModConfigSpec.ConfigValue<Integer> playerWarpTransferExpirySeconds;
+		public final ModConfigSpec.ConfigValue<Integer> randomTeleportMinimumRadius;
+		public final ModConfigSpec.ConfigValue<Integer> randomTeleportMaximumRadius;
+		public final ModConfigSpec.ConfigValue<Integer> randomTeleportMaximumAttempts;
+		public final ModConfigSpec.ConfigValue<String> randomTeleportAllowedDimensions;
+		public final ModConfigSpec.ConfigValue<String> teleportOwnershipMode;
+		public final ModConfigSpec.ConfigValue<Double> teleportCost;
+		public final ModConfigSpec.ConfigValue<String> disabledTeleportActions;
 
 		// Warn System
 		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
@@ -302,6 +337,15 @@ public class ConfigHandler {
 			enableEnchantingTableCommand = builder.comment("  Virtual enchanting table (/enchantingtable, /et)").define("enchanting_table", true);
 			enableSuperEnchantingTableCommand = builder.comment("  Super enchanting table (/superenchantingtable, /set)").define("super_enchanting_table", true);
 			enableRepairCommand = builder.comment("  Held item repair command (/repair)").define("repair", true);
+			enableTeleportEssentials = builder.comment("  Teleport essentials platform").define("teleport_essentials", true);
+			enableHomes = builder.comment("  Home commands").define("homes", true);
+			enableTeleportRequests = builder.comment("  Teleport request commands").define("teleport_requests", true);
+			enableBack = builder.comment("  Back command and location history").define("back", true);
+			enableSpawnCommands = builder.comment("  Spawn commands").define("spawn", true);
+			enableServerWarps = builder.comment("  Server warp commands").define("server_warps", true);
+			enablePlayerWarps = builder.comment("  Player hosted warp commands").define("player_warps", true);
+			enableRandomTeleport = builder.comment("  Random teleport commands").define("random_teleport", true);
+			enableDirectTeleport = builder.comment("  Staff direct teleport commands").define("direct_teleport", true);
 			builder.pop(); // modules
 
 			playerNameFormat = builder
@@ -357,6 +401,38 @@ public class ConfigHandler {
 			kernelMaximumTargetSteps = builder.comment("  Maximum expanded target steps in one bundle").defineInRange("maximumTargetSteps", 2000, 1, 100000);
 			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
 			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
+			builder.pop();
+
+			builder.comment("Teleport essentials",
+					"  Every destination is validated on the logical server.",
+					"  Unloaded chunks are never generated by teleport commands.",
+					"  The vanilla teleport root remains owned by vanilla unless explicitly enabled.").push("teleportEssentials");
+			ownVanillaTeleportRoot = builder.comment("  Replace the vanilla /tp root with the SEF direct teleport command").define("ownVanillaTeleportRoot", false);
+			defaultHomeName = builder.comment("  Home name used when no name is supplied").define("defaultHomeName", "home");
+			defaultHomeLimit = builder.comment("  Default home quota before permission or metadata tiers").defineInRange("defaultHomeLimit", 1, 0, 1000);
+			defaultHomePerDimensionLimit = builder.comment("  Default home quota in one dimension").defineInRange("defaultHomePerDimensionLimit", 1000, 0, 1000);
+			defaultPlayerWarpLimit = builder.comment("  Default player warp quota before permission or metadata tiers").defineInRange("defaultPlayerWarpLimit", 5, 0, 1000);
+			teleportCooldownSeconds = builder.comment("  Shared cooldown for user teleport actions").defineInRange("cooldownSeconds", 0, 0, 31536000);
+			teleportCost = builder.comment("  Shared economy cost for user teleport actions. A positive value fails closed until an economy provider is installed").defineInRange("cost", 0.0D, 0.0D, 1000000000.0D);
+			teleportWarmupSeconds = builder.comment("  Shared warmup for user teleport actions").defineInRange("warmupSeconds", 0, 0, 3600);
+			teleportCancelOnMovement = builder.comment("  Cancel an active teleport warmup when the player moves").define("cancelOnMovement", true);
+			teleportCancelOnDamage = builder.comment("  Cancel an active teleport warmup when the player takes damage").define("cancelOnDamage", true);
+			teleportAllowInCombat = builder.comment("  Allow normal user teleports while in combat").define("allowInCombat", false);
+			teleportAllowNetherRoof = builder.comment("  Allow destinations on the Nether roof").define("allowNetherRoof", false);
+			teleportAllowHazards = builder.comment("  Allow lava, fire, cactus, magma, and similar destinations").define("allowHazards", false);
+			teleportSafeSearchRadius = builder.comment("  Maximum horizontal and vertical safe destination search radius").defineInRange("safeSearchRadius", 4, 0, 32);
+			teleportMaximumSafeChecks = builder.comment("  Maximum block positions inspected by one teleport").defineInRange("maximumSafeChecks", 512, 1, 100000);
+			teleportMaximumChunks = builder.comment("  Maximum already loaded chunks inspected by one teleport").defineInRange("maximumChunks", 9, 1, 256);
+			teleportInvulnerabilityTicks = builder.comment("  Damage immunity ticks after a successful user teleport").defineInRange("invulnerabilityTicks", 20, 0, 200);
+			teleportRequestExpirySeconds = builder.comment("  Lifetime of a pending teleport request").defineInRange("requestExpirySeconds", 60, 1, 3600);
+			teleportMaximumPendingRequests = builder.comment("  Maximum incoming or outgoing requests per player").defineInRange("maximumPendingRequests", 10, 1, 100);
+			playerWarpTransferExpirySeconds = builder.comment("  Lifetime of a two party player warp transfer offer").defineInRange("playerWarpTransferExpirySeconds", 300, 10, 3600);
+			randomTeleportMinimumRadius = builder.comment("  Minimum random teleport radius from the configured center").defineInRange("randomTeleportMinimumRadius", 256, 0, 30000000);
+			randomTeleportMaximumRadius = builder.comment("  Maximum random teleport radius from the configured center").defineInRange("randomTeleportMaximumRadius", 5000, 1, 30000000);
+			randomTeleportMaximumAttempts = builder.comment("  Maximum random candidates inspected per request").defineInRange("randomTeleportMaximumAttempts", 32, 1, 256);
+			randomTeleportAllowedDimensions = builder.comment("  Comma separated dimension identifiers allowed for random teleport").define("randomTeleportAllowedDimensions", "minecraft:overworld");
+			teleportOwnershipMode = builder.comment("  Ownership mode for homes and server warps. Values are sef, external, coexist, or import_once").define("ownershipMode", "sef");
+			disabledTeleportActions = builder.comment("  Comma separated canonical action ids to disable without removing their saved data").define("disabledActions", "");
 			builder.pop();
 
 			builder.comment("Virtual Workstations",

@@ -26,6 +26,10 @@ import com.enviouse.sef.permissions.PermissionManifest;
 import com.enviouse.sef.storage.repository.CooldownRepository;
 import com.enviouse.sef.storage.repository.LocationHistoryRepository;
 import com.enviouse.sef.storage.repository.StorageCoordinator;
+import com.enviouse.sef.teleport.SafeTeleportService;
+import com.enviouse.sef.teleport.TeleportRepository;
+import com.enviouse.sef.teleport.TeleportRequestService;
+import com.enviouse.sef.teleport.TeleportSettings;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
@@ -66,6 +70,10 @@ public final class KernelServices {
     private static StorageCoordinator storage;
     private static LocationHistoryRepository locationHistory;
     private static CooldownRepository cooldownRepository;
+    private static TeleportRepository teleports;
+    private static SafeTeleportService safeTeleports;
+    private static TeleportRequestService teleportRequests;
+    private static TeleportSettings teleportSettings;
     private static Map<String, PermissionNode<Boolean>> permissionNodes;
     private static AliasCompiler.Registry aliases;
     private static BundleCompiler bundleCompiler;
@@ -94,9 +102,11 @@ public final class KernelServices {
         descriptors = new PanelContracts.Registry();
         descriptors.registerCommandOnly("sef:core");
         descriptors.registerCommandOnly("sef:workstations");
+        descriptors.registerCommandOnly("sef:teleports");
 
         catalog = new CommandCatalog(capabilities, descriptors);
         registerCoreCommands();
+        registerTeleportCommands();
         catalog.seal();
 
         shortcuts = new ShortcutRegistry(catalog, capabilities);
@@ -154,8 +164,13 @@ public final class KernelServices {
         cooldownRepository = new CooldownRepository(
                 cooldowns,
                 Duration.ofSeconds(ConfigHandler.config.kernelPersistentCooldownMinimumSeconds.get()));
+        teleports = new TeleportRepository();
+        safeTeleports = new SafeTeleportService(locationHistory);
+        teleportRequests = new TeleportRequestService();
+        teleportSettings = TeleportSettings.fromConfig();
         storage.register(locationHistory);
         storage.register(cooldownRepository);
+        storage.register(teleports);
 
         initialized = true;
         reloadConfiguration();
@@ -163,18 +178,51 @@ public final class KernelServices {
 
     public static synchronized void reloadConfiguration() {
         ensureInitialized();
+        final TeleportSettings replacementTeleportSettings;
+        try {
+            replacementTeleportSettings = TeleportSettings.fromConfig();
+        } catch (IllegalArgumentException exception) {
+            com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Teleport configuration reload was rejected. The previous snapshot remains active",
+                    exception);
+            return;
+        }
         long revision = CONFIG_REVISION.incrementAndGet();
-        Map<String, Boolean> features = Map.of(
-                "sef.core", true,
-                "sef.filter", ConfigHandler.config.enableFilterSystem.get(),
-                "sef.storage", true,
-                "sef.motd", ConfigHandler.config.enableMotdSystem.get(),
-                "sef.workstation.craft", ConfigHandler.config.enableCraftingTableCommand.get(),
-                "sef.workstation.anvil", ConfigHandler.config.enableAnvilCommand.get(),
-                "sef.workstation.enchant", ConfigHandler.config.enableEnchantingTableCommand.get(),
-                "sef.workstation.super_enchant", ConfigHandler.config.enableSuperEnchantingTableCommand.get(),
-                "sef.workstation.repair", ConfigHandler.config.enableRepairCommand.get());
-        featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), Map.of()));
+        Map<String, Boolean> features = Map.ofEntries(
+                Map.entry("sef.core", true),
+                Map.entry("sef.filter", ConfigHandler.config.enableFilterSystem.get()),
+                Map.entry("sef.storage", true),
+                Map.entry("sef.motd", ConfigHandler.config.enableMotdSystem.get()),
+                Map.entry("sef.workstation.craft", ConfigHandler.config.enableCraftingTableCommand.get()),
+                Map.entry("sef.workstation.anvil", ConfigHandler.config.enableAnvilCommand.get()),
+                Map.entry("sef.workstation.enchant", ConfigHandler.config.enableEnchantingTableCommand.get()),
+                Map.entry("sef.workstation.super_enchant", ConfigHandler.config.enableSuperEnchantingTableCommand.get()),
+                Map.entry("sef.workstation.repair", ConfigHandler.config.enableRepairCommand.get()),
+                Map.entry("sef.teleport", ConfigHandler.config.enableTeleportEssentials.get()),
+                Map.entry("sef.teleport.homes", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableHomes.get()),
+                Map.entry("sef.teleport.requests", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableTeleportRequests.get()),
+                Map.entry("sef.teleport.back", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableBack.get()),
+                Map.entry("sef.teleport.spawn", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableSpawnCommands.get()),
+                Map.entry("sef.teleport.warps", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableServerWarps.get()),
+                Map.entry("sef.teleport.player_warps", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enablePlayerWarps.get()),
+                Map.entry("sef.teleport.random", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableRandomTeleport.get()),
+                Map.entry("sef.teleport.direct", ConfigHandler.config.enableTeleportEssentials.get()
+                        && ConfigHandler.config.enableDirectTeleport.get()));
+        Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
+                .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
+        featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
+        teleportSettings = replacementTeleportSettings;
+        if (!ConfigHandler.config.enableTeleportEssentials.get()) {
+            com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(
+                    WarmupService.CancelReason.FEATURE_DISABLE);
+        }
 
         List<CommandPolicyService.Policy> policies = new ArrayList<>();
         for (CommandDefinition definition : catalog.entries()) {
@@ -185,8 +233,8 @@ public final class KernelServices {
                     false,
                     definition.confirmationRequired(),
                     cooldownFor(definition.id()),
-                    Duration.ZERO,
-                    BigDecimal.ZERO,
+                    warmupFor(definition.id()),
+                    costFor(definition.id()),
                     definition.auditClass()));
         }
         commandPolicies.replaceAll(policies);
@@ -206,6 +254,7 @@ public final class KernelServices {
         StorageCoordinator.FlushResult result = storage.shutdown();
         warmups.clear();
         confirmations.clear();
+        teleportRequests.clear();
         if (result.successful()) {
             cooldowns.clearAll();
         }
@@ -284,6 +333,21 @@ public final class KernelServices {
         return costs;
     }
 
+    public static synchronized void installCostProvider(CostService provider) {
+        ensureInitialized();
+        costs = java.util.Objects.requireNonNull(provider, "provider");
+        commandExecutions = new CommandExecutionService(
+                commandPolicies,
+                cooldowns,
+                costs,
+                warmups,
+                confirmations);
+    }
+
+    public static synchronized void resetCostProvider() {
+        installCostProvider(new CostService.Disabled());
+    }
+
     public static MessageService messages() {
         ensureInitialized();
         return messages;
@@ -307,6 +371,26 @@ public final class KernelServices {
     public static LocationHistoryRepository locationHistory() {
         ensureInitialized();
         return locationHistory;
+    }
+
+    public static TeleportRepository teleports() {
+        ensureInitialized();
+        return teleports;
+    }
+
+    public static SafeTeleportService safeTeleports() {
+        ensureInitialized();
+        return safeTeleports;
+    }
+
+    public static TeleportRequestService teleportRequests() {
+        ensureInitialized();
+        return teleportRequests;
+    }
+
+    public static TeleportSettings teleportSettings() {
+        ensureInitialized();
+        return teleportSettings;
     }
 
     public static AliasCompiler.Registry aliases() {
@@ -381,6 +465,133 @@ public final class KernelServices {
                 "sef.commands.superenchantingtable", CommandDefinition.AccessClass.TRUSTED_PLAYER, "sef.workstation.super_enchant");
         register("sef:workstation.repair", "sef workstation repair", Set.of("repair"), "sef.commands.repair",
                 CommandDefinition.AccessClass.TRUSTED_PLAYER, "sef.workstation.repair");
+    }
+
+    private static void registerTeleportCommands() {
+        registerTeleport("sef:teleport.home.use", "home", Set.of("home"), "sef.commands.home",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.homes", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.home.set", "sethome", Set.of("sethome"), "sef.commands.sethome",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.homes", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.home.delete", "delhome", Set.of("delhome"), "sef.commands.delhome",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.homes", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.home.rename", "renamehome", Set.of("renamehome"), "sef.commands.renamehome",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.homes", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.home.list", "homes", Set.of("homes"), "sef.commands.homes",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.homes", CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerTeleport("sef:teleport.home.admin", "homeadmin", Set.of("homeadmin"), "sef.commands.homeadmin",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.homes", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+
+        registerTeleport("sef:teleport.request.to", "tpa", Set.of("tpa"), "sef.commands.tpa",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.request.here", "tpahere", Set.of("tpahere"), "sef.commands.tpahere",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.request.accept", "tpaccept", Set.of("tpaccept"), "sef.commands.tpaccept",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerTeleport("sef:teleport.request.deny", "tpdeny", Set.of("tpdeny"), "sef.commands.tpdeny",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerTeleport("sef:teleport.request.cancel", "tpcancel", Set.of("tpcancel"), "sef.commands.tpcancel",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerTeleport("sef:teleport.request.list", "tprequests", Set.of("tprequests"), "sef.commands.tprequests",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.request.toggle", "tptoggle", Set.of("tptoggle"), "sef.commands.tptoggle",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.request.block", "tpblock", Set.of("tpblock", "tpunblock"), "sef.commands.tpblock",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.request.auto", "tpautoaccept", Set.of("tpautoaccept"), "sef.commands.tpautoaccept",
+                CommandDefinition.AccessClass.TRUSTED_PLAYER, "sef.teleport.requests", CommandDefinition.TargetBehavior.SELF);
+
+        registerTeleport("sef:teleport.back", "back", Set.of("back"), "sef.commands.back",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.back", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.spawn", "spawn", Set.of("spawn"), "sef.commands.spawn",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.spawn", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.spawn.set", "setspawn", Set.of("setspawn"), "sef.commands.setspawn",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.spawn", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.spawn.info", "spawninfo", Set.of("spawninfo"), "sef.commands.spawninfo",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.spawn", CommandDefinition.TargetBehavior.NONE);
+
+        registerTeleport("sef:teleport.warp.use", "warp", Set.of("warp"), "sef.commands.warp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.warp.list", "warps", Set.of("warps"), "sef.commands.warps",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.warps", CommandDefinition.TargetBehavior.NONE);
+        registerTeleport("sef:teleport.warp.set", "setwarp", Set.of("setwarp"), "sef.commands.setwarp",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.warp.delete", "delwarp", Set.of("delwarp"), "sef.commands.delwarp",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.warps", CommandDefinition.TargetBehavior.NONE);
+        registerTeleport("sef:teleport.warp.rename", "renamewarp", Set.of("renamewarp"), "sef.commands.renamewarp",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.warps", CommandDefinition.TargetBehavior.NONE);
+        registerTeleport("sef:teleport.warp.manage", "warpinfo", Set.of("warpinfo"), "sef.commands.warpinfo",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.warps", CommandDefinition.TargetBehavior.NONE);
+
+        registerTeleport("sef:teleport.player_warp.use", "pwarp", Set.of("pwarp", "playerwarp", "pw"), "sef.commands.pwarp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.player_warp.list", "pwarps", Set.of("pwarps", "playerwarps", "pws"), "sef.commands.pwarps",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.OPTIONAL_PLAYER);
+        registerTeleport("sef:teleport.player_warp.create", "setpwarp", Set.of("setpwarp"), "sef.commands.setpwarp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.player_warp.delete", "delpwarp", Set.of("delpwarp"), "sef.commands.delpwarp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.player_warp.rename", "renamepwarp", Set.of("renamepwarp"), "sef.commands.renamepwarp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.player_warp.manage", "pwarp manage", Set.of(), "sef.playerwarps.edit",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.player_warp.moderate", "pwarp moderate", Set.of(), "sef.playerwarps.moderate",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+
+        registerTeleport("sef:teleport.random", "rtp", Set.of("rtp", "tpr"), "sef.commands.rtp",
+                CommandDefinition.AccessClass.PLAYER, "sef.teleport.random", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.random.set", "settpr", Set.of("settpr"), "sef.commands.settpr",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.random", CommandDefinition.TargetBehavior.SELF);
+
+        registerTeleport("sef:teleport.direct", "tp", Set.of("tp"), "sef.commands.tp",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.direct.here", "tphere", Set.of("tphere"), "sef.commands.tphere",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.direct.override", "tpo", Set.of("tpo", "tpohere"), "sef.commands.tpo",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.direct.offline", "tpoffline", Set.of("tpoffline"), "sef.commands.tpoffline",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
+        registerTeleport("sef:teleport.direct.position", "tppos", Set.of("tppos"), "sef.commands.tppos",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.SELF);
+        registerTeleport("sef:teleport.direct.all", "tpall", Set.of("tpall"), "sef.commands.tpall",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.direct", CommandDefinition.TargetBehavior.BOUNDED_PLAYERS);
+        registerTeleport("sef:teleport.request.all", "tpaall", Set.of("tpaall"), "sef.commands.tpaall",
+                CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.requests", CommandDefinition.TargetBehavior.BOUNDED_PLAYERS);
+    }
+
+    private static void registerTeleport(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            String feature,
+            CommandDefinition.TargetBehavior targetBehavior
+    ) {
+        catalog.register(new CommandDefinition(
+                id,
+                route,
+                roots,
+                "command." + id.replace(':', '.').replace('/', '.') + ".description",
+                "command." + id.replace(':', '.').replace('/', '.') + ".usage",
+                "teleports",
+                feature,
+                Set.of(permission),
+                access,
+                STANDARD_COMMAND_SOURCES,
+                targetBehavior,
+                id,
+                false,
+                access == CommandDefinition.AccessClass.ADMINISTRATOR
+                        ? AuditService.AuditClass.ADMIN_ACTION
+                        : AuditService.AuditClass.METADATA_ONLY,
+                "sef:teleports",
+                "",
+                "teleport state is shown through immediate command feedback",
+                "",
+                "teleport collections and target fan out have bounded configuration limits",
+                CommandDefinition.ConflictPolicy.PREFER_SEF,
+                true,
+                true));
     }
 
     private static void register(
@@ -495,14 +706,21 @@ public final class KernelServices {
         quotas.register(new QuotaService.Definition(
                 "sef:homes",
                 QuotaService.QuotaKind.COUNT,
-                1,
+                ConfigHandler.config.defaultHomeLimit.get(),
                 1000,
                 true,
                 Map.of("sef.homes.3", 3L, "sef.homes.5", 5L, "sef.homes.10", 10L)));
         quotas.register(new QuotaService.Definition(
+                "sef:homes_per_dimension",
+                QuotaService.QuotaKind.COUNT,
+                ConfigHandler.config.defaultHomePerDimensionLimit.get(),
+                1000,
+                true,
+                Map.of()));
+        quotas.register(new QuotaService.Definition(
                 "sef:player_warps",
                 QuotaService.QuotaKind.COUNT,
-                5,
+                ConfigHandler.config.defaultPlayerWarpLimit.get(),
                 1000,
                 true,
                 Map.of("sef.playerwarps.10", 10L, "sef.playerwarps.25", 25L)));
@@ -538,6 +756,10 @@ public final class KernelServices {
     }
 
     private static Duration cooldownFor(String actionId) {
+        if (actionId.startsWith("sef:teleport.") && !actionId.endsWith(".set")
+                && !actionId.contains(".admin.")) {
+            return teleportSettings.cooldown();
+        }
         return switch (actionId) {
             case "sef:workstation.craft" -> Duration.ofSeconds(ConfigHandler.config.craftingTableCooldownSeconds.get());
             case "sef:workstation.anvil" -> Duration.ofSeconds(ConfigHandler.config.anvilCooldownSeconds.get());
@@ -546,6 +768,27 @@ public final class KernelServices {
             case "sef:workstation.repair" -> Duration.ofSeconds(ConfigHandler.config.repairCooldownSeconds.get());
             default -> Duration.ZERO;
         };
+    }
+
+    private static Duration warmupFor(String actionId) {
+        if (actionId.startsWith("sef:teleport.")
+                && (actionId.endsWith(".use")
+                || actionId.equals("sef:teleport.back")
+                || actionId.equals("sef:teleport.spawn")
+                || actionId.equals("sef:teleport.random"))) {
+            return teleportSettings.warmup();
+        }
+        return Duration.ZERO;
+    }
+
+    private static BigDecimal costFor(String actionId) {
+        return actionId.startsWith("sef:teleport.")
+                && (actionId.endsWith(".use")
+                || actionId.equals("sef:teleport.back")
+                || actionId.equals("sef:teleport.spawn")
+                || actionId.equals("sef:teleport.random"))
+                ? teleportSettings.cost()
+                : BigDecimal.ZERO;
     }
 
     private static void ensureInitialized() {

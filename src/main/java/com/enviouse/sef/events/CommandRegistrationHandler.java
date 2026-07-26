@@ -29,6 +29,10 @@ import com.enviouse.sef.mute.MuteManager;
 import com.enviouse.sef.warn.WarnCommand;
 import com.enviouse.sef.warn.WarnManager;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
+import com.enviouse.sef.teleport.CoreTeleportCommands;
+import com.enviouse.sef.teleport.HomeCommands;
+import com.enviouse.sef.teleport.TeleportRequestCommands;
+import com.enviouse.sef.teleport.WarpCommands;
 
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -153,6 +157,10 @@ public class CommandRegistrationHandler {
      */
     @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOW)
     public void registerLowPriorityCommands(RegisterCommandsEvent e) {
+        HomeCommands.register(e.getDispatcher());
+        TeleportRequestCommands.register(e.getDispatcher());
+        CoreTeleportCommands.register(e.getDispatcher());
+        WarpCommands.register(e.getDispatcher());
         // Register custom /invsee command if enabled
         if(ConfigHandler.config.enableInvSee.get()) {
             InvSeeCommand.register(e.getDispatcher());

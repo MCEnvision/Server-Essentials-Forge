@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 3 have implementation coverage in the current worktree. Headless verification covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with the current optional integration combinations. Release verification is not complete. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
+SEF 2 Phases 1 through 4 have implementation coverage in the current worktree. Phase 4 adds the server-authoritative command-mode teleport domain. Headless verification covers normal console stop, clean restart, legacy identity migration, profile, cooldown, and teleport corruption recovery, optional integration startup, and world-dependent teleport GameTests. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded repositories and identity migration. Phase 4 adds homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, RTP, and direct teleport safety. Economy, expanded social features, enhanced GUI networking, and other later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -68,14 +68,15 @@ Important package ownership:
 7. `com.enviouse.sef.banned` owns banned item policy and persistence.
 8. `com.enviouse.sef.invsee`, `invlock`, and `disablebuilding` own inventory and interaction administration.
 9. `com.enviouse.sef.workstations` owns virtual workstation commands and cooldown tracking.
-10. `com.enviouse.sef.util` owns shared strict parsing utilities.
-11. `com.enviouse.sef.events.CommandRegistrationHandler` assembles enabled command modules.
-12. `com.enviouse.sef.kernel.command` owns catalog, shortcut, alias, bundle, wrapper, capability, and panel contracts.
-13. `com.enviouse.sef.kernel.policy` owns shared feature, quota, hierarchy, execution, cooldown, warmup, confirmation, and cost policy.
-14. `com.enviouse.sef.kernel.observation` owns immutable observation and sink contracts.
-15. `com.enviouse.sef.identity` owns UUID authoritative profile resolution.
-16. `com.enviouse.sef.message` owns bounded typed message templates and literal field insertion.
-17. `com.enviouse.sef.storage.repository` owns coordinated Phase 3 repositories and recovery states.
+10. `com.enviouse.sef.teleport` owns homes, teleport requests, back history, spawn layers, server warps, player-hosted warps, RTP, direct teleports, safe destination validation, warmup completion, lifecycle cancellation, persistence, and FTB ownership modes.
+11. `com.enviouse.sef.util` owns shared strict parsing utilities.
+12. `com.enviouse.sef.events.CommandRegistrationHandler` assembles enabled command modules.
+13. `com.enviouse.sef.kernel.command` owns catalog, shortcut, alias, bundle, wrapper, capability, and panel contracts.
+14. `com.enviouse.sef.kernel.policy` owns shared feature, quota, hierarchy, execution, cooldown, warmup, confirmation, and cost policy.
+15. `com.enviouse.sef.kernel.observation` owns immutable observation and sink contracts.
+16. `com.enviouse.sef.identity` owns UUID authoritative profile resolution.
+17. `com.enviouse.sef.message` owns bounded typed message templates and literal field insertion.
+18. `com.enviouse.sef.storage.repository` owns coordinated Phase 3 repositories and recovery states.
 
 Logical server state is authoritative. The current project has no custom client payload protocol.
 
@@ -98,6 +99,11 @@ The current top level command families include:
 9. `/sef storage status`, `/sef storage export`, `/checkalts purge expired`, `/checkalts purge confirm`, and `/checkalts export`.
 10. `/sef commands [page]`, `/sef conflicts`, and `/sef doctor`.
 11. `/sef workstation craft`, `/sef workstation anvil`, `/sef workstation enchantingtable`, `/sef workstation superenchantingtable`, and `/sef workstation repair`.
+12. `/sethome`, `/home`, `/homes`, `/delhome`, `/renamehome`, and `/homeadmin`, or their `sef`-prefixed coexistence roots.
+13. `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny`, `/tpcancel`, `/tprequests`, `/tptoggle`, `/tpblock`, `/tpunblock`, `/tpblocked`, `/tpautoaccept`, and `/tpaall`.
+14. `/back`, `/spawn`, `/setspawn`, `/spawninfo`, `/rtp`, `/tpr`, `/settpr`, `/tphere`, `/tpo`, `/tpohere`, `/tppos`, `/tpall`, and `/tpoffline`. SEF registers `/tp` only when ownership is explicitly enabled.
+15. `/warp`, `/warps`, `/setwarp`, `/delwarp`, `/renamewarp`, `/warpinfo`, and server-warp management routes.
+16. `/pwarp`, `/pwarps`, `/setpwarp`, `/delpwarp`, `/renamepwarp`, player-warp access, transfer, favorite, report, visit, home-conversion, and moderation routes.
 
 `/sudo` is intentionally not registered in Phase 1. An existing `modules.sudo = true` value produces a startup warning and does not expose an execution route.
 

@@ -275,6 +275,7 @@ public final class VirtualWorkstationCommands {
                         dimension,
                         permissionDecision.granted(),
                         hasPlayerPermission(player, bypassPermission),
+                        false,
                         "",
                         null,
                         null,

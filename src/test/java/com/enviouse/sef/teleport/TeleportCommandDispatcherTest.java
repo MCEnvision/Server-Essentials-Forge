@@ -1,0 +1,76 @@
+package com.enviouse.sef.teleport;
+
+import com.enviouse.sef.config.PermissionsHandler;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.server.permission.PermissionAPI;
+import org.junit.jupiter.api.Test;
+import org.mockito.Answers;
+import org.mockito.MockedStatic;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
+
+class TeleportCommandDispatcherTest {
+    @Test
+    void playerHomePermissionDoesNotExposeMutationOrAdministrationRoots() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.homeCommand))
+                    .thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+            assertTrue(dispatcher.getRoot().getChild("home").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("sethome").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("homeadmin").canUse(source));
+        }
+    }
+
+    @Test
+    void playerWarpManagementBranchesRequireTheirSeparatePermissions() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.playerWarpCommand))
+                    .thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+            var root = dispatcher.getRoot().getChild("pwarp");
+
+            assertTrue(root.canUse(source));
+            assertFalse(root.getChild("publish").canUse(source));
+            assertFalse(root.getChild("moderate").canUse(source));
+        }
+    }
+
+    @Test
+    void vanillaTeleportRootIsNotOwnedByDefault() {
+        CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+        assertNull(dispatcher.getRoot().getChild("tp"));
+    }
+
+    private static CommandDispatcher<CommandSourceStack> dispatcher() {
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        HomeCommands.register(dispatcher);
+        TeleportRequestCommands.register(dispatcher);
+        CoreTeleportCommands.register(dispatcher);
+        WarpCommands.register(dispatcher);
+        return dispatcher;
+    }
+
+    private static MockedStatic<PermissionAPI> permissionApi() {
+        return mockStatic(PermissionAPI.class, invocation -> {
+            if ("getPermission".equals(invocation.getMethod().getName())) {
+                return false;
+            }
+            return Answers.RETURNS_DEFAULTS.answer(invocation);
+        });
+    }
+}

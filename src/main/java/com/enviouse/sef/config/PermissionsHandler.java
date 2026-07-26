@@ -130,6 +130,144 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> repairCooldownBypass =
 			ezyPermission("cooldowns.bypass.repair", false, "Repair cooldown bypass", "Bypasses the /repair cooldown");
 
+	public static PermissionNode<Boolean> homeCommand =
+			ezyPermission("commands.home", true, "Home command", "Allows teleporting to an owned home");
+	public static PermissionNode<Boolean> setHomeCommand =
+			ezyPermission("commands.sethome", true, "Set home command", "Allows creating or replacing an owned home");
+	public static PermissionNode<Boolean> deleteHomeCommand =
+			ezyPermission("commands.delhome", true, "Delete home command", "Allows deleting an owned home");
+	public static PermissionNode<Boolean> renameHomeCommand =
+			ezyPermission("commands.renamehome", true, "Rename home command", "Allows renaming an owned home");
+	public static PermissionNode<Boolean> homesCommand =
+			ezyPermission("commands.homes", true, "Homes command", "Allows listing owned homes");
+	public static PermissionNode<Boolean> homesOthersCommand =
+			ezyPermission("commands.homes.others", false, "List other homes", "Allows listing another player's homes");
+	public static PermissionNode<Boolean> homesCoordinates =
+			ezyPermission("homes.coordinates", false, "Home coordinates", "Allows viewing stored home coordinates");
+	public static PermissionNode<Boolean> homeAdminCommand =
+			ezyPermission("commands.homeadmin", false, "Home administration", "Allows using home administration commands");
+	public static PermissionNode<Boolean> homeAdminList =
+			ezyPermission("home.admin.list", false, "Home administration list", "Allows listing another player's homes");
+	public static PermissionNode<Boolean> homeAdminTeleport =
+			ezyPermission("home.admin.teleport", false, "Home administration teleport", "Allows teleporting to another player's home");
+	public static PermissionNode<Boolean> homeAdminSet =
+			ezyPermission("home.admin.set", false, "Home administration set", "Allows setting another player's home");
+	public static PermissionNode<Boolean> homeAdminDelete =
+			ezyPermission("home.admin.delete", false, "Home administration delete", "Allows deleting another player's home");
+	public static PermissionNode<Boolean> homeAdminRename =
+			ezyPermission("home.admin.rename", false, "Home administration rename", "Allows renaming another player's home");
+	public static PermissionNode<Boolean> homeAdminRestore =
+			ezyPermission("home.admin.restore", false, "Home administration restore", "Allows restoring a deleted home");
+	public static PermissionNode<Boolean> homeAdminLimit =
+			ezyPermission("home.admin.limit", false, "Home administration limit", "Allows inspecting another player's effective home quota");
+	public static PermissionNode<Boolean> homeAdminExport =
+			ezyPermission("home.admin.export", false, "Home administration export", "Allows inspecting home repository export metadata");
+
+	public static PermissionNode<Boolean> tpaCommand =
+			ezyPermission("commands.tpa", true, "Teleport request command", "Allows requesting a teleport to another player");
+	public static PermissionNode<Boolean> tpaHereCommand =
+			ezyPermission("commands.tpahere", true, "Teleport here request command", "Allows requesting another player teleport to you");
+	public static PermissionNode<Boolean> tpAcceptCommand =
+			ezyPermission("commands.tpaccept", true, "Accept teleport request", "Allows accepting an incoming teleport request");
+	public static PermissionNode<Boolean> tpDenyCommand =
+			ezyPermission("commands.tpdeny", true, "Deny teleport request", "Allows denying an incoming teleport request");
+	public static PermissionNode<Boolean> tpCancelCommand =
+			ezyPermission("commands.tpcancel", true, "Cancel teleport request", "Allows cancelling an outgoing teleport request");
+	public static PermissionNode<Boolean> tpRequestsCommand =
+			ezyPermission("commands.tprequests", true, "List teleport requests", "Allows listing incoming and outgoing teleport requests");
+	public static PermissionNode<Boolean> tpToggleCommand =
+			ezyPermission("commands.tptoggle", true, "Toggle teleport requests", "Allows disabling incoming teleport requests");
+	public static PermissionNode<Boolean> tpBlockCommand =
+			ezyPermission("commands.tpblock", true, "Block teleport requests", "Allows blocking teleport requests from a player");
+	public static PermissionNode<Boolean> tpAutoAcceptCommand =
+			ezyPermission("commands.tpautoaccept", false, "Auto accept teleport requests", "Allows automatically accepting teleport requests");
+
+	public static PermissionNode<Boolean> backCommand =
+			ezyPermission("commands.back", true, "Back command", "Allows teleporting to the latest valid departure location");
+	public static PermissionNode<Boolean> backDeathCommand =
+			ezyPermission("commands.back.death", true, "Back death command", "Allows teleporting to the latest recorded death location");
+	public static PermissionNode<Boolean> spawnCommand =
+			ezyPermission("commands.spawn", true, "Spawn command", "Allows teleporting to the resolved server spawn");
+	public static PermissionNode<Boolean> setSpawnCommand =
+			ezyPermission("commands.setspawn", false, "Set spawn command", "Allows setting server spawn layers");
+	public static PermissionNode<Boolean> spawnInfoCommand =
+			ezyPermission("commands.spawninfo", false, "Spawn info command", "Allows inspecting configured spawn layers");
+
+	public static PermissionNode<Boolean> warpCommand =
+			ezyPermission("commands.warp", true, "Warp command", "Allows using permitted server warps");
+	public static PermissionNode<Boolean> warpsCommand =
+			ezyPermission("commands.warps", true, "Warps command", "Allows listing visible server warps");
+	public static PermissionNode<Boolean> setWarpCommand =
+			ezyPermission("commands.setwarp", false, "Set warp command", "Allows creating or relocating server warps");
+	public static PermissionNode<Boolean> deleteWarpCommand =
+			ezyPermission("commands.delwarp", false, "Delete warp command", "Allows deleting server warps");
+	public static PermissionNode<Boolean> renameWarpCommand =
+			ezyPermission("commands.renamewarp", false, "Rename warp command", "Allows renaming server warps");
+	public static PermissionNode<Boolean> warpInfoCommand =
+			ezyPermission("commands.warpinfo", false, "Warp info command", "Allows viewing server warp metadata and coordinates");
+	public static PermissionNode<Boolean> warpManageCommand =
+			ezyPermission("commands.warp.manage", false, "Warp management command", "Allows enabling and disabling server warps");
+	public static PermissionNode<Boolean> warpHiddenView =
+			ezyPermission("warps.hidden.view", false, "View hidden warps", "Allows listing hidden server warps");
+
+	public static PermissionNode<Boolean> playerWarpCommand =
+			ezyPermission("commands.pwarp", true, "Player warp command", "Allows visiting accessible player warps");
+	public static PermissionNode<Boolean> playerWarpsCommand =
+			ezyPermission("commands.pwarps", true, "Player warps command", "Allows listing accessible player warps");
+	public static PermissionNode<Boolean> setPlayerWarpCommand =
+			ezyPermission("commands.setpwarp", true, "Set player warp command", "Allows creating owned player warps");
+	public static PermissionNode<Boolean> deletePlayerWarpCommand =
+			ezyPermission("commands.delpwarp", true, "Delete player warp command", "Allows deleting owned player warps");
+	public static PermissionNode<Boolean> renamePlayerWarpCommand =
+			ezyPermission("commands.renamepwarp", true, "Rename player warp command", "Allows renaming owned player warps");
+	public static PermissionNode<Boolean> playerWarpEdit =
+			ezyPermission("playerwarps.edit", true, "Edit player warps", "Allows editing owned player warps");
+	public static PermissionNode<Boolean> playerWarpPublish =
+			ezyPermission("playerwarps.publish", true, "Publish player warps", "Allows publishing owned player warps");
+	public static PermissionNode<Boolean> playerWarpAccess =
+			ezyPermission("playerwarps.access", true, "Player warp access lists", "Allows managing owned player warp access lists");
+	public static PermissionNode<Boolean> playerWarpTransfer =
+			ezyPermission("playerwarps.transfer", true, "Transfer player warps", "Allows offering and accepting player warp transfers");
+	public static PermissionNode<Boolean> playerWarpFavorite =
+			ezyPermission("playerwarps.favorite", true, "Favorite player warps", "Allows managing favorite player warps");
+	public static PermissionNode<Boolean> playerWarpReport =
+			ezyPermission("playerwarps.report", true, "Report player warps", "Allows reporting a player warp to staff");
+	public static PermissionNode<Boolean> playerWarpModerate =
+			ezyPermission("playerwarps.moderate", false, "Moderate player warps", "Allows inspecting and moderating player warps");
+
+	public static PermissionNode<Boolean> randomTeleportCommand =
+			ezyPermission("commands.rtp", true, "Random teleport command", "Allows bounded random teleport in configured dimensions");
+	public static PermissionNode<Boolean> setRandomTeleportCommand =
+			ezyPermission("commands.settpr", false, "Set random teleport center", "Allows setting a random teleport center");
+	public static PermissionNode<Boolean> directTeleportCommand =
+			ezyPermission("commands.tp", false, "Direct teleport command", "Allows direct teleport targeting");
+	public static PermissionNode<Boolean> teleportHereCommand =
+			ezyPermission("commands.tphere", false, "Teleport here command", "Allows teleporting another player to the actor");
+	public static PermissionNode<Boolean> teleportOverrideCommand =
+			ezyPermission("commands.tpo", false, "Teleport override command", "Allows direct teleport with administrative policy");
+	public static PermissionNode<Boolean> teleportOverrideHereCommand =
+			ezyPermission("commands.tpohere", false, "Teleport override here command", "Allows teleporting another player to the actor with administrative policy");
+	public static PermissionNode<Boolean> teleportOfflineCommand =
+			ezyPermission("commands.tpoffline", false, "Offline teleport command", "Allows queuing a location for a player's next login");
+	public static PermissionNode<Boolean> teleportPositionCommand =
+			ezyPermission("commands.tppos", false, "Teleport position command", "Allows direct coordinate teleport");
+	public static PermissionNode<Boolean> teleportAllCommand =
+			ezyPermission("commands.tpall", false, "Teleport all command", "Allows teleporting all visible online players");
+	public static PermissionNode<Boolean> teleportAskAllCommand =
+			ezyPermission("commands.tpaall", false, "Request all command", "Allows sending bounded requests to all visible online players");
+	public static PermissionNode<Boolean> teleportExempt =
+			ezyPermission("teleport.exempt", false, "Teleport target exemption", "Prevents normal staff teleport targeting");
+	public static PermissionNode<Boolean> teleportBypassExempt =
+			ezyPermission("teleport.bypass.exempt", false, "Teleport exemption bypass", "Allows targeting players with teleport exemption");
+	public static PermissionNode<Boolean> teleportHierarchyBypass =
+			ezyPermission("teleport.hierarchy.bypass", false, "Teleport hierarchy bypass", "Allows targeting players regardless of hierarchy");
+	public static PermissionNode<Boolean> teleportCooldownBypass =
+			ezyPermission("cooldowns.bypass.teleport", false, "Teleport cooldown bypass", "Bypasses user teleport cooldowns");
+	public static PermissionNode<Boolean> teleportWarmupBypass =
+			ezyPermission("warmups.bypass.teleport", false, "Teleport warmup bypass", "Bypasses user teleport warmups");
+	public static PermissionNode<Boolean> teleportSafetyBypass =
+			ezyPermission("teleport.safety.bypass", false, "Teleport safety bypass", "Allows explicit administrative unsafe teleports");
+
 	// Freeze Permissions
 	public static PermissionNode<Boolean> freezeCommand =
 			ezyPermission("commands.freeze", false, "Freeze command", "Allows using /freeze to freeze a player in place");

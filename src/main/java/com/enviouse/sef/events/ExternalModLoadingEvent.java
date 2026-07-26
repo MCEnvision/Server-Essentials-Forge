@@ -28,6 +28,17 @@ public class ExternalModLoadingEvent {
 		loadLuckPerms();
 		loadFtbEssentials();
 		loadIntegratedNicknameProvider();
+		if (KernelServices.teleportSettings().ownershipMode()
+				== com.enviouse.sef.teleport.TeleportSettings.OwnershipMode.IMPORT_ONCE
+				&& ModList.get().isLoaded("ftbessentials")) {
+			try {
+				com.enviouse.sef.teleport.compat.FTBTeleportImportService.importOnce(e.getServer());
+			} catch (RuntimeException | LinkageError exception) {
+				ServerEssentialsForge.LOGGER.error(
+						"[SEF] FTB Essentials teleport import failed and will be retried",
+						exception);
+			}
+		}
 	}
 
 	private void loadIntegratedNicknameProvider() {

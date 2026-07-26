@@ -172,6 +172,13 @@ public class ServerEssentialsForge {
             CommandRegistrationHandler.getMuteManager().tick(ev.getServer());
         if (ConfigHandler.config.enableCountdown.get())
             com.enviouse.sef.countdown.CountdownManager.tick(ev.getServer());
+        if (ConfigHandler.config.enableTeleportEssentials.get()
+                && ev.getServer().getTickCount() % 20 == 0) {
+            KernelServices.teleportRequests().expire();
+            KernelServices.teleports().purgeExpired(java.time.Instant.now());
+        }
+        if (ConfigHandler.config.enableTeleportEssentials.get())
+            com.enviouse.sef.teleport.TeleportWarmupManager.tick(ev.getServer());
     }
 
     @SubscribeEvent
@@ -185,6 +192,8 @@ public class ServerEssentialsForge {
         com.enviouse.sef.countdown.CountdownManager.clear();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
+        com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(
+                com.enviouse.sef.kernel.policy.WarmupService.CancelReason.FEATURE_DISABLE);
         ExternalModLoadingEvent.stopOptionalIntegrations();
         if (!KernelServices.profiles().shutdown()) {
             LOGGER.error("[SEF] Player profile shutdown flush did not complete");

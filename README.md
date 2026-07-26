@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 3 have implementation coverage in this branch. Headless verification now covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with each current optional integration alone and together. Public release acceptance still requires authenticated multiplayer, packet visible behavior, live permission and quota refresh, actual Curios inventory interaction, a qualifying player cooldown restart, dirty shutdown races, and profiler cases from the manual matrices. Homes, teleportation, later command families, enhanced client GUIs, and the wider EssentialsX parity roadmap remain planned.
+SEF 2 Phases 1 through 4 have implementation coverage in this branch. Phase 4 adds the command-mode homes, teleport requests, back history, spawn layers, public warps, player-hosted warps, bounded random teleportation, direct administrative teleportation, and shared safe-teleport services. Headless verification covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, teleport repository recovery, optional integration startup, and NeoForge GameTests for world safety. Public release acceptance still requires the authenticated multiplayer and profiler cases in the manual matrices. Later social, economy, moderation, enhanced client GUI, and broader parity phases remain planned.
 
 ## Current features
 
@@ -46,6 +46,10 @@ The current implementation includes:
 19. Finite quota tiers and optional LuckPerms metadata for future homes, player warps, targets, mail, and user definitions, with hard ceilings and reservation based race protection.
 20. Versioned `location-history.json` and `cooldowns.json` repositories with bounded records, atomic writes, recovery mode, and shutdown flushing.
 21. A UUID authoritative player profile repository that imports existing nickname data, retains authenticated usernames separately from display nicknames, coalesces background persistence, and drains through a bounded shutdown flush.
+22. Versioned homes with total and per-dimension quotas, overwrite confirmation, soft deletion, recovery, administrative inspection, and FTB Essentials ownership modes.
+23. UUID-based teleport requests with ambiguity-safe acceptance, blocking, request toggles, auto-accept relationships, expiry, warmups, movement and damage cancellation, and logout invalidation.
+24. Safe `/back`, layered spawn, server warp, player-warp, RTP, and optional direct teleport commands with permissions, feature gates, cooldowns, warmups, costs, hierarchy, exemptions, destination revisions, world-border checks, hazard checks, loaded-chunk budgets, and bounded history.
+25. Player-hosted warps with stable ids, `owner:name` lookup, private, shared, unlisted, and public access, favorites, reports, transfer offers, publication, moderation state, visit counts, home conversion, and deletion recovery.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 
@@ -108,6 +112,7 @@ Primary configuration:
 6. `<world>/serverconfig/sef/audit/security-audit.jsonl` contains structured sensitive action audit events.
 7. `<world>/serverconfig/sef/location-history.json` contains bounded UUID keyed location history.
 8. `<world>/serverconfig/sef/cooldowns.json` contains only cooldowns whose remaining duration meets the configured persistence threshold.
+9. `<world>/serverconfig/sef/teleports.json` contains versioned homes, spawn layers, server and player warps, teleport preferences, transfer offers, reports, and queued offline teleports.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
@@ -155,6 +160,7 @@ The `runServer` task forwards terminal input to the dedicated server. Wait for t
 6. `DOCUMENTATION.md` contains maintainer and operator details.
 7. `docs/PHASE_1_MANUAL_TESTS.md` contains the real client release approval matrix for Phase 1 behavior.
 8. `docs/PHASE_2_3_MANUAL_TESTS.md` contains the operator, permission, restart, and recovery approval matrix for Phases 2 and 3.
+9. `docs/PHASE_4_TESTS.md` contains the Phase 4 teleport verification record and remaining authenticated multiplayer matrix.
 
 ## Support
 

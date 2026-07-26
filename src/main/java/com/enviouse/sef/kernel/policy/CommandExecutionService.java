@@ -60,7 +60,9 @@ public final class CommandExecutionService {
                         Long.toString(current.remainingSeconds()));
             }
         }
-        if (!policy.warmup().isZero()) {
+        if (request.warmupBypass()) {
+            warmups.clear(request.actorId());
+        } else if (!policy.warmup().isZero()) {
             if (request.warmupPosition() == null) {
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
                         policy.auditClass(), elapsedMillis(startedNanos));
@@ -270,6 +272,7 @@ public final class CommandExecutionService {
             String dimensionId,
             boolean permissionGranted,
             boolean cooldownBypass,
+            boolean warmupBypass,
             String confirmationToken,
             ConfirmationService.Request confirmationBinding,
             WarmupService.Position warmupPosition,
