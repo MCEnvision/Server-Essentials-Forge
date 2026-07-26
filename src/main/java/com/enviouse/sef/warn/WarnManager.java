@@ -4,11 +4,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.storage.StorageService;
 import net.minecraft.server.MinecraftServer;
 
-import java.io.*;
+import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
@@ -27,6 +27,7 @@ public class WarnManager {
     /** Map of player UUID string -> list of warnings */
     private final Map<String, List<WarnEntry>> warns = new HashMap<>();
     private Path filePath;
+    private StorageService.Document document;
 
     public static class WarnEntry {
         public int id;
@@ -76,12 +77,14 @@ public class WarnManager {
         Path dir = server.getServerDirectory().resolve("serverconfig").resolve("sef");
         filePath = dir.resolve("warns.json");
         warns.clear();
-        if (!Files.exists(filePath)) return;
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            Map<String, List<WarnEntry>> loaded = GSON.fromJson(reader, DATA_TYPE);
+        document = StorageService.read(filePath, "warnings", 1).orElse(null);
+        if (document == null) return;
+        try {
+            Map<String, List<WarnEntry>> loaded = GSON.fromJson(document.data(), DATA_TYPE);
             if (loaded != null) warns.putAll(loaded);
             int total = warns.values().stream().mapToInt(List::size).sum();
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} warning(s) for {} player(s)", total, warns.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load warns", e);
         }
@@ -90,10 +93,7 @@ public class WarnManager {
     public void save() {
         if (filePath == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(warns, writer);
-            }
+            StorageService.write(filePath, "warnings", 1, GSON.toJsonTree(warns), document, Set.of(""));
         } catch (IOException e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save warns", e);
         }
@@ -164,27 +164,7 @@ public class WarnManager {
      * Returns -1 for permanent.
      */
     public static long parseDuration(String input) {
-        if (input == null || input.isEmpty()) return -1;
-        String lower = input.trim().toLowerCase();
-        if (lower.equals("permanent") || lower.equals("perm") || lower.equals("forever") || lower.equals("inf")) {
-            return -1;
-        }
-        try {
-            if (lower.endsWith("s")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 1000;
-            } else if (lower.endsWith("m")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 1000 * 60;
-            } else if (lower.endsWith("h")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 1000 * 3600;
-            } else if (lower.endsWith("d")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 1000 * 86400;
-            } else {
-                // Assume seconds if no suffix
-                return Long.parseLong(lower) * 1000;
-            }
-        } catch (NumberFormatException e) {
-            return -1;
-        }
+        return com.enviouse.sef.util.DurationParser.toMilliseconds(
+                com.enviouse.sef.util.DurationParser.parse(input, true));
     }
 }
-

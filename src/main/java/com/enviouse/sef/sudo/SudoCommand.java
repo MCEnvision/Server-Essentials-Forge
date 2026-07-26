@@ -2,8 +2,10 @@ package com.enviouse.sef.sudo;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.commands.CommandRootPolicy;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -24,12 +26,7 @@ public class SudoCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("sudo")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.sudoCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.sudoCommand))
             .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.argument("command", StringArgumentType.greedyString())
                     .executes(ctx -> {
@@ -40,6 +37,25 @@ public class SudoCommand {
     }
 
     private static int executeSudo(CommandSourceStack source, ServerPlayer target, String command) {
+        if (PermissionService.has(target, PermissionsHandler.sudoExempt)
+                && !PermissionService.has(source, PermissionsHandler.sudoBypassExempt)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is exempt from sudo."));
+            return 0;
+        }
+
+        CommandRootPolicy.Decision decision = CommandRootPolicy.evaluate(
+                command,
+                ConfigHandler.config.sudoAllowedCommands.get(),
+                ConfigHandler.config.sudoDeniedCommands.get(),
+                ConfigHandler.config.sudoMaximumCommandLength.get());
+        if (!decision.allowed()) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cSudo denied. &7" + decision.reason() + "."));
+            ServerEssentialsForge.LOGGER.warn("[SUDO] denied source {} target {} reason {}",
+                    source.getTextName(), target.getGameProfile().getName(), decision.reason());
+            return 0;
+        }
+
         String adminName;
         try {
             adminName = source.getPlayerOrException().getGameProfile().getName();
@@ -47,29 +63,24 @@ public class SudoCommand {
             adminName = "Console";
         }
 
-        // Strip leading slash if the admin included one
-        String cleanCommand = command.startsWith("/") ? command.substring(1) : command;
-
-        // Execute the command as the target player
         CommandSourceStack targetSource = target.createCommandSourceStack();
-        source.getServer().getCommands().performPrefixedCommand(targetSource, cleanCommand);
+        source.getServer().getCommands().performPrefixedCommand(targetSource, decision.command());
 
-        // Notify the admin
         String adminMsg = ConfigHandler.config.sudoExecutedMsg.get()
                 .replace("$player", target.getGameProfile().getName())
-                .replace("$command", cleanCommand)
+                .replace("$command", decision.command())
                 .replace("$admin", adminName);
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), false);
 
-        // Notify the target player
-        String targetMsg = ConfigHandler.config.sudoNotifyMsg.get()
-                .replace("$admin", adminName)
-                .replace("$command", cleanCommand);
-        target.sendSystemMessage(TextFormatter.stringToFormattedText(targetMsg));
+        if (ConfigHandler.config.sudoNotifyTarget.get()) {
+            String targetMsg = ConfigHandler.config.sudoNotifyMsg.get()
+                    .replace("$admin", adminName)
+                    .replace("$command", decision.command());
+            target.sendSystemMessage(TextFormatter.stringToFormattedText(targetMsg));
+        }
 
-        ServerEssentialsForge.LOGGER.info("[SUDO] {} forced {} to execute: /{}", adminName,
-                target.getGameProfile().getName(), cleanCommand);
+        ServerEssentialsForge.LOGGER.info("[SUDO] {} forced {} to execute root {} with {} characters",
+                adminName, target.getGameProfile().getName(), decision.root(), decision.command().length());
         return 1;
     }
 }
-

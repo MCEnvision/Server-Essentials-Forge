@@ -5,6 +5,8 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.mojang.authlib.GameProfile;
 
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 
 import java.util.List;
@@ -40,12 +42,45 @@ public class SEFUtilities {
 			return player.getName();
 		} else return fmat.replace("$prefix", pfx).replace("$name", name).replace("$suffix", sfx);
 	}
-	public static MutableComponent getFormattedPlayerName(GameProfile player) {
-		return TextFormatter.stringToFormattedText(getRawPreferredPlayerName(player));
-	}
-	public static MutableComponent getFormattedPlayerName(GameProfile player, boolean enableNickname, boolean enableMetadata) {
-		return TextFormatter.stringToFormattedText(getRawPreferredPlayerName(player, enableNickname, enableMetadata));
-	}
+		public static MutableComponent getFormattedPlayerName(GameProfile player) {
+			return withUsernameHover(
+					player,
+					TextFormatter.stringToFormattedText(getRawPreferredPlayerName(player)),
+					true);
+		}
+		public static MutableComponent getFormattedPlayerName(GameProfile player, boolean enableNickname, boolean enableMetadata) {
+			return withUsernameHover(
+					player,
+					TextFormatter.stringToFormattedText(
+							getRawPreferredPlayerName(player, enableNickname, enableMetadata)),
+					enableNickname);
+		}
+		static MutableComponent withUsernameHover(
+				GameProfile player,
+				MutableComponent displayName,
+				boolean nicknameEnabled
+		) {
+			if(!nicknameEnabled
+					|| !ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()
+					|| ServerEssentialsForge.instance == null
+					|| ServerEssentialsForge.instance.nicknameProvider == null
+					|| ServerEssentialsForge.instance.nicknameProvider.getPlayerNickname(player) == null) {
+				return displayName;
+			}
+			return withUsernameHover(displayName, player.getName(), true);
+		}
+		static MutableComponent withUsernameHover(
+				MutableComponent displayName,
+				String authenticatedUsername,
+				boolean enabled
+		) {
+			if(!enabled) {
+				return displayName;
+			}
+			return displayName.withStyle(style -> style.withHoverEvent(new HoverEvent(
+					HoverEvent.Action.SHOW_TEXT,
+					Component.literal(authenticatedUsername))));
+		}
 	private static String joinMeta(String raw) {
         if(raw == null || raw.isEmpty()) return "";
         // If provider returned multiple entries separated by \n, split and join

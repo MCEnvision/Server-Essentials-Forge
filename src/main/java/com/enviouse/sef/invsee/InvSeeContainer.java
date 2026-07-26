@@ -1,7 +1,10 @@
 package com.enviouse.sef.invsee;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.moddeps.CuriosInventoryHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -43,7 +46,8 @@ public class InvSeeContainer extends AbstractContainerMenu {
     private final ServerPlayer viewer;
     private final int page;
     private final int totalPages;
-    private final boolean readOnly;
+    private boolean readOnly;
+    private final boolean canViewCurios;
     private final SimpleContainer decorContainer;
     private final boolean[] lockedSlots = new boolean[54];
     private final int[] navTargetPage = new int[54];
@@ -52,19 +56,28 @@ public class InvSeeContainer extends AbstractContainerMenu {
     /** Curios display entry: either a label (String) or a slot reference. */
     private record CuriosSlotRef(IItemHandlerModifiable handler, int handlerSlot) {}
 
-    public InvSeeContainer(int containerId, Inventory viewerInventory, ServerPlayer target, int page) {
+    public InvSeeContainer(
+            int containerId,
+            Inventory viewerInventory,
+            ServerPlayer target,
+            int page,
+            boolean canModify,
+            boolean canViewCurios
+    ) {
         super(MenuType.GENERIC_9x6, containerId);
         this.target = target;
         this.viewer = (ServerPlayer) viewerInventory.player;
         this.page = page;
-        this.readOnly = ConfigHandler.config.invSeeReadOnly.get();
+        this.readOnly = ConfigHandler.config.invSeeReadOnly.get() || !canModify;
+        this.canViewCurios = canViewCurios;
         this.decorContainer = new SimpleContainer(54);
 
         Arrays.fill(navTargetPage, -1);
 
         // Gather curios data
-        List<CuriosInventoryHelper.CuriosSlotGroup> curiosGroups =
-                CuriosInventoryHelper.getCuriosSlotGroups(target);
+        List<CuriosInventoryHelper.CuriosSlotGroup> curiosGroups = canViewCurios
+                ? CuriosInventoryHelper.getCuriosSlotGroups(target)
+                : List.of();
 
         // Build flat curios display list: labels (String) interleaved with slot refs
         List<Object> curiosEntries = new ArrayList<>();
@@ -244,9 +257,24 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        if (player != viewer || !InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+            viewer.closeContainer();
+            return;
+        }
+        if (slotId >= 54 && clickType == ClickType.PICKUP_ALL) {
+            if (readOnly || !PermissionService.has(viewer, PermissionsHandler.invSeeModify)) {
+                readOnly = true;
+                return;
+            }
+            auditModification(slotId, clickType);
+        }
         if (slotId >= 0 && slotId < 54) {
             // Handle navigation arrow clicks
             if (navTargetPage[slotId] >= 0) {
+                if (navTargetPage[slotId] > 0
+                        && (!canViewCurios || !PermissionService.has(viewer, PermissionsHandler.invSeeCurios))) {
+                    return;
+                }
                 pendingPageChange = navTargetPage[slotId];
                 return;
             }
@@ -258,12 +286,29 @@ public class InvSeeContainer extends AbstractContainerMenu {
             if (readOnly) {
                 return;
             }
+            if (!PermissionService.has(viewer, PermissionsHandler.invSeeModify)) {
+                readOnly = true;
+                viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
+                        "&cYour inventory modification permission was revoked."));
+                return;
+            }
+            if (ConfigHandler.config.invSeeAuditModifications.get()) {
+                auditModification(slotId, clickType);
+            }
         }
         super.clicked(slotId, button, clickType, player);
     }
 
     @Override
     public void broadcastChanges() {
+        if (!InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+            viewer.closeContainer();
+            return;
+        }
+        if (page > 0 && !PermissionService.has(viewer, PermissionsHandler.invSeeCurios)) {
+            viewer.closeContainer();
+            return;
+        }
         super.broadcastChanges();
         // Handle deferred page navigation (runs after click processing is complete)
         if (pendingPageChange >= 0) {
@@ -281,7 +326,24 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return target != null && target.isAlive() && !target.hasDisconnected();
+        return player == viewer
+                && target != null
+                && target.isAlive()
+                && !target.hasDisconnected()
+                && InvSeeCommand.canView(viewer.createCommandSourceStack())
+                && (page == 0 || PermissionService.has(viewer, PermissionsHandler.invSeeCurios));
+    }
+
+    private void auditModification(int slotId, ClickType clickType) {
+        if (!ConfigHandler.config.invSeeAuditModifications.get()) return;
+        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                "inventory",
+                "modify",
+                viewer.getGameProfile().getName(),
+                target.getGameProfile().getName(),
+                "invsee",
+                "allowed",
+                "page " + page + ", slot " + slotId + ", click " + clickType.name()));
     }
 
     private static String capitalize(String s) {
@@ -327,4 +389,3 @@ public class InvSeeContainer extends AbstractContainerMenu {
         public boolean mayPickup(Player player) { return false; }
     }
 }
-

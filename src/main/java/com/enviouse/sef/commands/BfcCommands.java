@@ -1,65 +1,99 @@
 package com.enviouse.sef.commands;
 
-import java.util.Arrays;
-
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.ConfigurationEventHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.filter.FilterManager;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
+import com.enviouse.sef.kernel.KernelCommands;
+import com.enviouse.sef.motd.MotdCommands;
+import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.storage.StorageCommands;
+import com.enviouse.sef.workstations.VirtualWorkstationCommands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.SharedSuggestionProvider;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
-public class BfcCommands {
-	private static final Iterable<String> sefSubCommands = Arrays.asList(
-			"info", "colors", "test", "reload"
-	);
+import java.util.Map;
 
+public class BfcCommands {
 	private static FilterManager filterManager;
 
 	protected static boolean checkPermission(CommandSourceStack c, PermissionNode<Boolean> node) {
-		try {
-			return PermissionsHandler.playerHasPermission(c.getPlayerOrException().getUUID(), node);
-		} catch(CommandSyntaxException e) {
-			// Not a player (console or rcon)
-			return true;
-		}
+		return PermissionService.has(c, node);
 	}
-	protected static boolean checkContextPermission(CommandContext<CommandSourceStack> c, PermissionNode<Boolean> node) {
-		return checkPermission(c.getSource(), node);
-	}
-	protected static int failNoPermission(CommandContext<CommandSourceStack> ctx) {
-		ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(TextFormatter.COLOR_RED + "You don't have permission to run this command" + TextFormatter.RESET_ALL_FORMAT));
-		return 0;
-	}
-	
-	public static void register(CommandDispatcher<CommandSourceStack> disp) {
-		disp.register(Commands.literal("sef")
-			.requires(c -> checkPermission(c, PermissionsHandler.sefCommand))
-			.then(Commands.argument("mode", StringArgumentType.greedyString())
-					.suggests((context, builder) -> SharedSuggestionProvider.suggest(sefSubCommands, builder))
-					.executes(BfcCommands::modCommand)));
-		if(ConfigHandler.config.enableColorsCommand.get()) {
-			disp.register(Commands.literal("colors")
-				.requires(c -> checkPermission(c, PermissionsHandler.coloredChatNode))
-				.executes(BfcCommands::colorCommand));
-		}
 
-		// Register filter commands if enabled
+	public static void register(CommandDispatcher<CommandSourceStack> disp) {
+		LiteralArgumentBuilder<CommandSourceStack> sefRoot = coreRoot();
+
 		if(ConfigHandler.config.enableFilterSystem.get()) {
-			registerFilterCommands(disp);
+			registerFilterCommands(sefRoot);
+		}
+		KernelCommands.attach(sefRoot);
+		VirtualWorkstationCommands.attachCanonical(sefRoot);
+		StorageCommands.attach(sefRoot);
+		if(ConfigHandler.config.enableMotdSystem.get()) {
+			MotdCommands.attach(sefRoot);
+		}
+		disp.register(sefRoot);
+
+		if(ConfigHandler.config.enableColorsCommand.get()
+				&& com.enviouse.sef.kernel.KernelServices.shortcuts().isActive("colors")) {
+			disp.register(Commands.literal("colors")
+				.requires(c -> KernelCommandExecutor.canUse(
+						c,
+						"sef:core.colors",
+						PermissionsHandler.colorsCommand))
+				.executes(ctx -> KernelCommandExecutor.execute(
+						ctx.getSource(),
+						"sef:core.colors",
+						Map.of("route", "colors"),
+						() -> colorCommand(ctx),
+						PermissionsHandler.colorsCommand)));
 		}
 
 		NickCommands.register(disp);
+	}
+
+	static LiteralArgumentBuilder<CommandSourceStack> coreRoot() {
+		return Commands.literal("sef")
+			.requires(c -> checkPermission(c, PermissionsHandler.sefCommand))
+			.then(Commands.literal("info")
+					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandInfoSubCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.info",
+							Map.of(),
+							() -> infoCommand(ctx))))
+			.then(Commands.literal("colors")
+					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandColorsSubCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.colors",
+							Map.of("route", "sef"),
+							() -> colorCommand(ctx))))
+			.then(Commands.literal("test")
+					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandTestSubCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.test",
+							Map.of(),
+							() -> testCommand(ctx))))
+			.then(Commands.literal("reload")
+					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandReloadSubCommand))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.reload",
+							Map.of(),
+							() -> reloadCommand(ctx))));
 	}
 	
 	public static void initFilterManager(FilterManager manager) {
@@ -67,7 +101,7 @@ public class BfcCommands {
 	}
 
 
-	private static void registerFilterCommands(CommandDispatcher<CommandSourceStack> disp) {
+	static void registerFilterCommands(LiteralArgumentBuilder<CommandSourceStack> sefRoot) {
 		SuggestionProvider<CommandSourceStack> caseSensitiveSuggest = (c, b) -> {
 			b.suggest("yes");
 			b.suggest("no");
@@ -81,9 +115,8 @@ public class BfcCommands {
 			return b.buildFuture();
 		};
 
-		disp.register(Commands.literal("sef")
-			.requires(src -> src.hasPermission(2))
-			.then(Commands.literal("filter")
+		sefRoot.then(Commands.literal("filter")
+				.requires(src -> checkPermission(src, PermissionsHandler.filterManage))
 				// /sef filter add <id> <caseSensitive yes/no> <wordToFilter> [replacement]
 				.then(Commands.literal("add")
 					.then(Commands.argument("id", StringArgumentType.word())
@@ -91,19 +124,54 @@ public class BfcCommands {
 							.then(Commands.argument("wordToFilter", StringArgumentType.string())
 								// With replacement
 								.then(Commands.argument("replacement", StringArgumentType.greedyString())
-									.executes(ctx -> filterAdd(ctx, false)))
+									.executes(ctx -> KernelCommandExecutor.execute(
+											ctx.getSource(),
+											"sef:filter.add",
+											filterAddParameters(ctx, false),
+											() -> filterAdd(ctx, false))))
 								// Without replacement (just remove the word)
-								.executes(ctx -> filterAdd(ctx, true))))))
+								.executes(ctx -> KernelCommandExecutor.execute(
+										ctx.getSource(),
+										"sef:filter.add",
+										filterAddParameters(ctx, true),
+										() -> filterAdd(ctx, true)))))))
 				// /sef filter remove <id>
 				.then(Commands.literal("remove")
 					.then(Commands.argument("id", StringArgumentType.word())
 						.suggests(filterIdSuggest)
-						.executes(BfcCommands::filterRemove)))
+						.executes(ctx -> KernelCommandExecutor.execute(
+								ctx.getSource(),
+								"sef:filter.remove",
+								Map.of("id", StringArgumentType.getString(ctx, "id")),
+								() -> filterRemove(ctx)))))
 				// /sef filter list
 				.then(Commands.literal("list")
-					.executes(ctx -> filterList(ctx, 1))
+					.executes(ctx -> KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:filter.list",
+							Map.of("page", "1"),
+							() -> filterList(ctx, 1)))
 					.then(Commands.argument("page", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1))
-						.executes(ctx -> filterList(ctx, com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "page")))))));
+						.executes(ctx -> {
+							int page = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "page");
+							return KernelCommandExecutor.execute(
+									ctx.getSource(),
+									"sef:filter.list",
+									Map.of("page", Integer.toString(page)),
+									() -> filterList(ctx, page));
+						}))));
+	}
+
+	private static Map<String, String> filterAddParameters(
+			CommandContext<CommandSourceStack> ctx,
+			boolean noReplacement
+	) {
+		String caseSensitive = StringArgumentType.getString(ctx, "caseSensitive");
+		return Map.of(
+				"id", StringArgumentType.getString(ctx, "id"),
+				"case_sensitive", Boolean.toString(
+						caseSensitive.equalsIgnoreCase("yes") || caseSensitive.equalsIgnoreCase("true")),
+				"replacement_present", Boolean.toString(!noReplacement));
 	}
 
 	private static int filterAdd(CommandContext<CommandSourceStack> ctx, boolean noReplacement) {
@@ -222,51 +290,32 @@ public class BfcCommands {
 		return 1;
 	}
 
-	public static int modCommand(CommandContext<CommandSourceStack> ctx) {
-		String arg = StringArgumentType.getString(ctx, "mode");
-            switch (arg) {
-                case "colors" -> {
-                    if(checkContextPermission(ctx, PermissionsHandler.sefCommandColorsSubCommand))
-                        return colorCommand(ctx);
-                    else return failNoPermission(ctx);
-                }
-                case "info" -> {
-                    if(checkContextPermission(ctx, PermissionsHandler.sefCommandInfoSubCommand)) {
-                        boolean hasMetaProv = ServerEssentialsForge.instance.metadataProvider != null;
-                        boolean hasNickProv = ServerEssentialsForge.instance.nicknameProvider != null;
-                        String metaProvName = hasMetaProv ? ServerEssentialsForge.instance.metadataProvider.getProviderName() : "";
-                        String nickProvName = hasNickProv ? ServerEssentialsForge.instance.nicknameProvider.getProviderName() : "";
-                        if(hasMetaProv) metaProvName = " (via " + metaProvName + ")";
-                        if(hasNickProv) nickProvName = " (via " + nickProvName + ")";
-						String finalMetaProvName = metaProvName;
-						String finalNickProvName = nickProvName;
-						ctx.getSource().sendSuccess(() ->TextFormatter.stringToFormattedText(
-                                ServerEssentialsForge.CHAT_ID_STR + "\n&eMod ID: &d" + ServerEssentialsForge.MODID + "    &r&eMod version: &d" + ServerEssentialsForge.VERSION + " (forge)&r\n\n"
-                                        + (hasMetaProv ? "&a&lWITH" : "&c&lWITHOUT") + "&r&e metadata integration" + finalMetaProvName + "&r\n"
-                                        + (hasNickProv ? "&a&lWITH" : "&c&lWITHOUT") + "&r&e nickname integration" + finalNickProvName + "&r\n"), false);
-                        return 1;
-                    } else return failNoPermission(ctx);
-                }
-                case "test" -> {
-                    ctx.getSource().sendSuccess(() ->TextFormatter.stringToFormattedText(
-                            ServerEssentialsForge.CHAT_ID_STR
-                                    + "&eColors & Styling internal debug test&r\n"
-                                            + "Normal &lBold&r &nUnderline&r &oItalic&r &mStrikthrough&r &kObfuscated&r &rReset\n"
-                                            + "Normal &lBold &nUnderline &oItalic &mStrikthrough &kObfuscated &rReset"), false);
-                    return 1;
-                }
-                case "reload" -> {
-                    if(checkContextPermission(ctx, PermissionsHandler.sefCommandReloadSubCommand)) {
-                        // NeoForge: on-demand disk re-read unsupported (ModConfigSpec has no setConfig); FML watches the file. /sef reload re-applies loaded values via reloadConfigOptions(). See PORTING_NOTES.
-                        ConfigurationEventHandler.reloadConfigOptions();
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aServerEssentialsForge config reloaded."), false);
-                        return 1;
-                    } else return failNoPermission(ctx);
-                }
-                default -> {
-                    return 0;
-                }
-            }
+	private static int infoCommand(CommandContext<CommandSourceStack> ctx) {
+		boolean hasMetaProv = ServerEssentialsForge.instance.metadataProvider != null;
+		boolean hasNickProv = ServerEssentialsForge.instance.nicknameProvider != null;
+		String metaProvName = hasMetaProv ? " (via " + ServerEssentialsForge.instance.metadataProvider.getProviderName() + ")" : "";
+		String nickProvName = hasNickProv ? " (via " + ServerEssentialsForge.instance.nicknameProvider.getProviderName() + ")" : "";
+		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+				ServerEssentialsForge.CHAT_ID_STR + "\n&eMod ID: &d" + ServerEssentialsForge.MODID
+						+ "    &r&eMod version: &d" + ServerEssentialsForge.VERSION + " (NeoForge)&r\n\n"
+						+ (hasMetaProv ? "&a&lWITH" : "&c&lWITHOUT") + "&r&e metadata integration" + metaProvName + "&r\n"
+						+ (hasNickProv ? "&a&lWITH" : "&c&lWITHOUT") + "&r&e nickname integration" + nickProvName + "&r\n"), false);
+		return 1;
+	}
+
+	private static int testCommand(CommandContext<CommandSourceStack> ctx) {
+		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+				ServerEssentialsForge.CHAT_ID_STR
+						+ "&eColors & Styling internal debug test&r\n"
+						+ "Normal &lBold&r &nUnderline&r &oItalic&r &mStrikthrough&r &kObfuscated&r &rReset\n"
+						+ "Normal &lBold &nUnderline &oItalic &mStrikthrough &kObfuscated &rReset"), false);
+		return 1;
+	}
+
+	private static int reloadCommand(CommandContext<CommandSourceStack> ctx) {
+		ConfigurationEventHandler.reloadConfigOptions();
+		ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aServerEssentialsForge config reloaded."), false);
+		return 1;
 	}
 	public static int colorCommand(CommandContext<CommandSourceStack> ctx) {
 		ctx.getSource().sendSuccess(() ->

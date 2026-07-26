@@ -3,11 +3,11 @@ package com.enviouse.sef.motd;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.storage.StorageService;
 
 import net.minecraft.server.MinecraftServer;
 
-import java.io.*;
-import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
 
 /**
@@ -17,6 +17,7 @@ public class MotdManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private final Path configPath;
     private MotdData data = new MotdData("", "");
+    private StorageService.Document document;
 
     public record MotdData(String line1, String line2) {}
 
@@ -25,12 +26,13 @@ public class MotdManager {
     }
 
     public void load() {
-        if (!Files.exists(configPath)) {
+        document = StorageService.read(configPath, "motd", 1).orElse(null);
+        if (document == null) {
             save();
             return;
         }
-        try (Reader reader = Files.newBufferedReader(configPath)) {
-            MotdData loaded = GSON.fromJson(reader, MotdData.class);
+        try {
+            MotdData loaded = GSON.fromJson(document.data(), MotdData.class);
             if (loaded != null) {
                 // Gson can deserialize record fields as null — normalize to empty strings
                 String l1 = loaded.line1() != null ? loaded.line1() : "";
@@ -38,6 +40,7 @@ public class MotdManager {
                 data = new MotdData(l1, l2);
             }
             ServerEssentialsForge.LOGGER.info("[SEF] MOTD loaded");
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load MOTD", e);
         }
@@ -45,10 +48,7 @@ public class MotdManager {
 
     public void save() {
         try {
-            Files.createDirectories(configPath.getParent());
-            try (Writer writer = Files.newBufferedWriter(configPath)) {
-                GSON.toJson(data, writer);
-            }
+            StorageService.write(configPath, "motd", 1, GSON.toJsonTree(data), document);
         } catch (IOException e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save MOTD", e);
         }
@@ -91,4 +91,3 @@ public class MotdManager {
         ServerEssentialsForge.LOGGER.info("[SEF] Server MOTD applied");
     }
 }
-

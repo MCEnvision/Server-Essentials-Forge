@@ -30,7 +30,8 @@ import com.enviouse.sef.vanish.VanishUtil;
 
 public class SoundSuppressionHelper {
 	private static final Map<UUID, Pair<BlockPos, UUID>> vanishedPlayersAndHitResults = new HashMap<>();
-	private static Pair<Packet<?>, UUID> packetOrigin = null;
+	private static final Map<Packet<?>, UUID> packetOrigins =
+			java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
 	public static boolean shouldCapturePlayers() {
 		return VanishConfig.CONFIG.indirectSoundSuppression.get() || VanishConfig.CONFIG.indirectParticleSuppression.get();
@@ -67,11 +68,17 @@ public class SoundSuppressionHelper {
 	}
 
 	public static void putSoundPacket(Packet<?> packet, Player player) {
-		packetOrigin = Pair.of(packet, player.getUUID());
+		packetOrigins.put(packet, player.getUUID());
 	}
 
 	public static Player getPlayerForPacket(Packet<?> packet, PlayerList list) {
-		return packetOrigin != null && packetOrigin.getLeft().equals(packet) ? list.getPlayer(packetOrigin.getRight()) : null;
+		UUID origin = packetOrigins.get(packet);
+		return origin == null ? null : list.getPlayer(origin);
+	}
+
+	public static void clear() {
+		vanishedPlayersAndHitResults.clear();
+		packetOrigins.clear();
 	}
 
 	public static Player getIndirectVanishedSoundCause(Player player, Level level, double x, double y, double z, ServerPlayer forPlayer) {

@@ -1,262 +1,573 @@
 package com.enviouse.sef.announcements;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.reflect.TypeToken;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.commands.CommandRootPolicy;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
-
+import com.enviouse.sef.storage.StorageService;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.reflect.TypeToken;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.*;
+import java.io.IOException;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+import java.util.UUID;
 
-/**
- * Manages scheduled server announcements (text & command) with per-announcement
- * interval scheduling. Persists to serverconfig/sef/announcements.json and
- * per-player toggle-off prefs to serverconfig/sef/announcement_prefs.json.
- *
- * Announcement fields:
- *  - id: unique identifier
- *  - type: "text" or "command"
- *  - message: the text (supports <br> for newlines and & color codes) or command string
- *  - intervalSeconds: seconds between fires (min 1). 0 means fire-once (/textannouncement ontime uses direct broadcast, not this flag)
- *  - toggleable: whether players can opt out via /toggle (only meaningful for text)
- *  - target: "@a", "@server", or a player username. For command announcements this is unused.
- *  - enabled: admin on/off flag (currently always true; reserved for pausing)
- *  - offsetSeconds: random 0..intervalSeconds initial offset to stagger bursts
- */
 public class AnnouncementManager {
+    private static final int ANNOUNCEMENT_SCHEMA_VERSION = 2;
+    private static final int PREFERENCE_SCHEMA_VERSION = 1;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final Type LEGACY_LIST_TYPE = new TypeToken<List<LegacyAnnouncement>>() {
+    }.getType();
+    private static final Type TEXT_LIST_TYPE = new TypeToken<List<TextAnnouncement>>() {
+    }.getType();
+    private static final Type COMMAND_LIST_TYPE = new TypeToken<List<CommandAnnouncement>>() {
+    }.getType();
+    private static final Type PREFERENCE_TYPE = new TypeToken<Map<String, List<String>>>() {
+    }.getType();
 
-    public record Announcement(
-        String id,
-        String type,
-        String message,
-        long intervalSeconds,
-        boolean toggleable,
-        String target,
-        boolean enabled,
-        long offsetSeconds
-    ) {
-        public Announcement withMessage(String newMessage) {
-            return new Announcement(id, type, newMessage, intervalSeconds, toggleable, target, enabled, offsetSeconds);
-        }
-        public Announcement with(long interval, boolean tog, String tgt, String newMessage) {
-            return new Announcement(id, type, newMessage, interval, tog, tgt, enabled, offsetSeconds);
-        }
-    }
-
-    private static final Type LIST_TYPE = new TypeToken<List<Announcement>>(){}.getType();
-
-    private final List<Announcement> announcements = new ArrayList<>();
-    /** Per-player toggled-off announcement IDs. */
+    private final List<ScheduledAnnouncement> announcements = new ArrayList<>();
     private final Map<UUID, Set<String>> playerToggles = new HashMap<>();
-    /** Tick count when each announcement should fire next. */
     private final Map<String, Long> nextFireAt = new HashMap<>();
+    private final Random random = new Random();
     private Path filePath;
     private Path prefsPath;
-    private long tickCounter = 0;
-    private final Random random = new Random();
+    private StorageService.Document announcementDocument;
+    private StorageService.Document preferenceDocument;
+    private long tickCounter;
 
     public void load(MinecraftServer server) {
-        Path dir = server.getServerDirectory().resolve("serverconfig").resolve("sef");
-        filePath = dir.resolve("announcements.json");
-        prefsPath = dir.resolve("announcement_prefs.json");
+        Path directory = server.getServerDirectory().resolve("serverconfig").resolve("sef");
+        filePath = directory.resolve("announcements.json");
+        prefsPath = directory.resolve("announcement_prefs.json");
         loadAnnouncements();
-        loadPrefs();
+        loadPreferences();
         rescheduleAll();
     }
 
     private void loadAnnouncements() {
         announcements.clear();
-        if (filePath == null || !Files.exists(filePath)) return;
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            List<Announcement> loaded = GSON.fromJson(reader, LIST_TYPE);
-            if (loaded != null) {
-                for (Announcement a : loaded) {
-                    announcements.add(migrate(a));
-                }
+        announcementDocument = StorageService.read(
+                filePath,
+                "announcements",
+                ANNOUNCEMENT_SCHEMA_VERSION).orElse(null);
+        if (announcementDocument == null) {
+            return;
+        }
+
+        if (announcementDocument.schemaVersion() == 0) {
+            loadLegacyAnnouncements(announcementDocument.data());
+        } else {
+            loadTypedAnnouncements(announcementDocument.data());
+        }
+        if (announcementDocument.migrated()) {
+            save();
+        }
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Loaded {} text and {} command announcement or announcements",
+                getTextAnnouncements().size(),
+                getCommandAnnouncements().size());
+    }
+
+    private void loadLegacyAnnouncements(JsonElement data) {
+        List<LegacyAnnouncement> loaded = GSON.fromJson(data, LEGACY_LIST_TYPE);
+        if (loaded == null) {
+            return;
+        }
+        for (LegacyAnnouncement legacy : loaded) {
+            ScheduledAnnouncement migrated = migrateLegacy(legacy);
+            if (migrated != null && getById(migrated.id()) == null) {
+                announcements.add(migrated);
             }
-            ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} announcement(s)", announcements.size());
-        } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to load announcements", e);
         }
     }
 
-    /** Backfill defaults for old records missing the new fields. */
-    private Announcement migrate(Announcement a) {
-        if (a == null) return null;
-        long interval = a.intervalSeconds <= 0 ? Math.max(1, ConfigHandler.config.announcementIntervalSeconds.get()) : a.intervalSeconds;
-        String target = (a.target == null || a.target.isBlank()) ? "@a" : a.target;
-        String type = (a.type == null) ? "text" : a.type.toLowerCase();
-        boolean toggleable = "text".equalsIgnoreCase(type) && a.toggleable;
-        long offset = a.offsetSeconds < 0 ? 0 : a.offsetSeconds;
-        return new Announcement(a.id, type, a.message, interval, toggleable, target, a.enabled, offset);
+    private void loadTypedAnnouncements(JsonElement data) {
+        if (data == null || !data.isJsonObject()) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Typed announcement data is not an object");
+            return;
+        }
+        JsonObject object = data.getAsJsonObject();
+        List<TextAnnouncement> textAnnouncements = object.has("text")
+                ? GSON.fromJson(object.get("text"), TEXT_LIST_TYPE)
+                : List.of();
+        List<CommandAnnouncement> commandAnnouncements = object.has("commands")
+                ? GSON.fromJson(object.get("commands"), COMMAND_LIST_TYPE)
+                : List.of();
+        if (textAnnouncements != null) {
+            for (TextAnnouncement announcement : textAnnouncements) {
+                if (valid(announcement) && getById(announcement.id()) == null) {
+                    announcements.add(announcement);
+                }
+            }
+        }
+        if (commandAnnouncements != null) {
+            for (CommandAnnouncement announcement : commandAnnouncements) {
+                if (valid(announcement) && getById(announcement.id()) == null) {
+                    announcements.add(announcement);
+                }
+            }
+        }
     }
 
-    private void loadPrefs() {
+    private ScheduledAnnouncement migrateLegacy(LegacyAnnouncement legacy) {
+        if (legacy == null || invalidIdentity(legacy.id) || legacy.message == null) {
+            ServerEssentialsForge.LOGGER.warn("[SEF] Skipping malformed legacy announcement record");
+            return null;
+        }
+        long interval = legacy.intervalSeconds <= 0
+                ? Math.max(1, ConfigHandler.config.announcementIntervalSeconds.get())
+                : legacy.intervalSeconds;
+        long offset = Math.max(0L, legacy.offsetSeconds);
+        String type = legacy.type == null ? "text" : legacy.type.toLowerCase(Locale.ROOT);
+        if ("command".equals(type)) {
+            return new CommandAnnouncement(
+                    legacy.id,
+                    legacy.message,
+                    interval,
+                    legacy.enabled,
+                    offset,
+                    CommandSourcePolicy.SERVER,
+                    "legacy migration",
+                    Instant.EPOCH.toString());
+        }
+        if (!"text".equals(type)) {
+            ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] Skipping legacy announcement {} with unsupported type {}",
+                    legacy.id,
+                    type);
+            return null;
+        }
+        String target = legacy.target == null || legacy.target.isBlank() ? "@a" : legacy.target;
+        return new TextAnnouncement(
+                legacy.id,
+                legacy.message,
+                interval,
+                legacy.toggleable,
+                target,
+                legacy.enabled,
+                offset);
+    }
+
+    private boolean valid(TextAnnouncement announcement) {
+        return announcement != null
+                && !invalidIdentity(announcement.id())
+                && announcement.message() != null
+                && announcement.target() != null
+                && announcement.intervalSeconds() > 0
+                && announcement.offsetSeconds() >= 0;
+    }
+
+    private boolean valid(CommandAnnouncement announcement) {
+        if (announcement == null
+                || invalidIdentity(announcement.id())
+                || announcement.command() == null
+                || announcement.intervalSeconds() <= 0
+                || announcement.offsetSeconds() < 0
+                || announcement.sourcePolicy() != CommandSourcePolicy.SERVER) {
+            return false;
+        }
+        return CommandRootPolicy.evaluate(
+                announcement.command(),
+                ConfigHandler.config.commandAnnouncementAllowedCommands.get(),
+                ConfigHandler.config.commandAnnouncementDeniedCommands.get(),
+                ConfigHandler.config.commandAnnouncementMaximumCommandLength.get(),
+                ConfigHandler.config.commandAnnouncementAllowLeadingSlash.get(),
+                ConfigHandler.config.commandAnnouncementAllowSelectors.get()).allowed();
+    }
+
+    private static boolean invalidIdentity(String id) {
+        return id == null
+                || id.isBlank()
+                || id.length() > 64
+                || id.codePoints().anyMatch(Character::isISOControl);
+    }
+
+    private void loadPreferences() {
         playerToggles.clear();
-        if (prefsPath == null || !Files.exists(prefsPath)) return;
-        try (Reader reader = Files.newBufferedReader(prefsPath)) {
-            Map<String, List<String>> loaded = GSON.fromJson(
-                reader, new TypeToken<Map<String, List<String>>>(){}.getType());
-            if (loaded != null) {
-                loaded.forEach((uuidStr, ids) -> {
-                    try {
-                        playerToggles.put(UUID.fromString(uuidStr), new HashSet<>(ids));
-                    } catch (IllegalArgumentException ignored) {}
-                });
-            }
-        } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to load announcement prefs", e);
+        preferenceDocument = StorageService.read(
+                prefsPath,
+                "announcement preferences",
+                PREFERENCE_SCHEMA_VERSION).orElse(null);
+        if (preferenceDocument == null) {
+            return;
+        }
+        Map<String, List<String>> loaded = GSON.fromJson(preferenceDocument.data(), PREFERENCE_TYPE);
+        if (loaded != null) {
+            loaded.forEach((uuidText, ids) -> {
+                try {
+                    if (ids != null) {
+                        Set<String> normalizedIds = new HashSet<>();
+                        ids.stream()
+                                .filter(id -> id != null && !id.isBlank())
+                                .map(id -> id.toLowerCase(Locale.ROOT))
+                                .limit(1024)
+                                .forEach(normalizedIds::add);
+                        if (!normalizedIds.isEmpty()) {
+                            playerToggles.put(UUID.fromString(uuidText), normalizedIds);
+                        }
+                    }
+                } catch (IllegalArgumentException ignored) {
+                }
+            });
+        }
+        if (preferenceDocument.migrated()) {
+            savePreferences();
         }
     }
 
     public void save() {
-        if (filePath == null) return;
+        if (filePath == null) {
+            return;
+        }
+        JsonObject data = new JsonObject();
+        data.add("text", GSON.toJsonTree(getTextAnnouncements()));
+        data.add("commands", GSON.toJsonTree(getCommandAnnouncements()));
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(announcements, writer);
-            }
-        } catch (IOException e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcements", e);
+            StorageService.write(
+                    filePath,
+                    "announcements",
+                    ANNOUNCEMENT_SCHEMA_VERSION,
+                    data,
+                    announcementDocument);
+        } catch (IOException exception) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcements", exception);
         }
     }
 
-    private void savePrefs() {
-        if (prefsPath == null) return;
+    private void savePreferences() {
+        if (prefsPath == null) {
+            return;
+        }
+        Map<String, List<String>> output = new HashMap<>();
+        playerToggles.forEach((uuid, ids) -> output.put(uuid.toString(), new ArrayList<>(ids)));
         try {
-            Files.createDirectories(prefsPath.getParent());
-            Map<String, List<String>> out = new HashMap<>();
-            playerToggles.forEach((uuid, ids) -> out.put(uuid.toString(), new ArrayList<>(ids)));
-            try (Writer writer = Files.newBufferedWriter(prefsPath)) {
-                GSON.toJson(out, writer);
-            }
-        } catch (IOException e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcement prefs", e);
+            StorageService.write(
+                    prefsPath,
+                    "announcement preferences",
+                    PREFERENCE_SCHEMA_VERSION,
+                    GSON.toJsonTree(output),
+                    preferenceDocument);
+        } catch (IOException exception) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcement preferences", exception);
         }
     }
-
-    // ---------- Scheduling ----------
 
     private void rescheduleAll() {
         nextFireAt.clear();
-        for (Announcement a : announcements) {
-            scheduleInitial(a);
+        for (ScheduledAnnouncement announcement : announcements) {
+            scheduleInitial(announcement);
         }
     }
 
-    private void scheduleInitial(Announcement a) {
-        if (a.intervalSeconds <= 0) return;
-        long intervalTicks = a.intervalSeconds * 20L;
-        long offsetTicks = a.offsetSeconds * 20L;
-        // Add a small random stagger (0..intervalTicks/4) to desync multiple announcements
-        long stagger = random.nextLong(Math.max(1, intervalTicks / 4));
-        nextFireAt.put(a.id, tickCounter + offsetTicks + stagger);
+    private void scheduleInitial(ScheduledAnnouncement announcement) {
+        long intervalTicks = secondsToTicks(announcement.intervalSeconds());
+        long offsetTicks = secondsToTicks(announcement.offsetSeconds());
+        if (intervalTicks < 1L || offsetTicks < 0L) {
+            ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] Announcement {} has an interval or offset that exceeds tick storage",
+                    announcement.id());
+            return;
+        }
+        long stagger = random.nextLong(Math.max(1L, intervalTicks / 4L));
+        try {
+            nextFireAt.put(
+                    key(announcement.id()),
+                    Math.addExact(Math.addExact(tickCounter, offsetTicks), stagger));
+        } catch (ArithmeticException exception) {
+            ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] Announcement {} initial schedule exceeds tick storage",
+                    announcement.id());
+        }
     }
 
     public void tick(MinecraftServer server) {
         tickCounter++;
-        if (announcements.isEmpty()) return;
-
-        for (Announcement a : announcements) {
-            if (!a.enabled) continue;
-            if (a.intervalSeconds <= 0) continue;
-            Long next = nextFireAt.get(a.id);
-            if (next == null) {
-                scheduleInitial(a);
+        for (ScheduledAnnouncement announcement : announcements) {
+            if (!announcement.enabled()) {
                 continue;
             }
-            if (tickCounter < next) continue;
-            fire(server, a);
-            nextFireAt.put(a.id, tickCounter + a.intervalSeconds * 20L);
+            String key = key(announcement.id());
+            Long next = nextFireAt.get(key);
+            if (next == null) {
+                scheduleInitial(announcement);
+                continue;
+            }
+            if (tickCounter < next) {
+                continue;
+            }
+            fire(server, announcement);
+            long intervalTicks = secondsToTicks(announcement.intervalSeconds());
+            if (intervalTicks < 1L) {
+                nextFireAt.remove(key);
+                continue;
+            }
+            try {
+                nextFireAt.put(key, Math.addExact(tickCounter, intervalTicks));
+            } catch (ArithmeticException exception) {
+                nextFireAt.remove(key);
+                ServerEssentialsForge.LOGGER.warn(
+                        "[SEF] Announcement {} next schedule exceeds tick storage",
+                        announcement.id());
+            }
         }
     }
 
-    private void fire(MinecraftServer server, Announcement a) {
-        if ("command".equalsIgnoreCase(a.type)) {
-            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), a.message);
+    private void fire(MinecraftServer server, ScheduledAnnouncement announcement) {
+        if (announcement instanceof TextAnnouncement text) {
+            broadcastText(server, text.message(), text.target(), text.id(), text.toggleable());
             return;
         }
-        broadcastText(server, a.message, a.target, a.id, a.toggleable);
+        if (announcement instanceof CommandAnnouncement command) {
+            fireCommand(server, command);
+        }
     }
 
-    /** Public helper for /textannouncement ontime and similar direct broadcasts. */
-    public void broadcastText(MinecraftServer server, String message, String target, String announcementId, boolean toggleable) {
+    void fireCommand(MinecraftServer server, CommandAnnouncement announcement) {
+        if (!ConfigHandler.config.enableCommandAnnouncements.get()) {
+            auditCommand(announcement, "", "denied", "feature disabled");
+            return;
+        }
+        CommandRootPolicy.Decision decision = CommandRootPolicy.evaluate(
+                announcement.command(),
+                ConfigHandler.config.commandAnnouncementAllowedCommands.get(),
+                ConfigHandler.config.commandAnnouncementDeniedCommands.get(),
+                ConfigHandler.config.commandAnnouncementMaximumCommandLength.get(),
+                ConfigHandler.config.commandAnnouncementAllowLeadingSlash.get(),
+                ConfigHandler.config.commandAnnouncementAllowSelectors.get());
+        if (!decision.allowed()) {
+            auditCommand(announcement, "", "denied", decision.reason());
+            ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] Command announcement {} denied at execution because {}",
+                    announcement.id(),
+                    decision.reason());
+            return;
+        }
+
+        try {
+            java.util.concurrent.atomic.AtomicBoolean outcomeRecorded =
+                    new java.util.concurrent.atomic.AtomicBoolean();
+            var source = server.createCommandSourceStack().withCallback((successful, value) -> {
+                if (!outcomeRecorded.compareAndSet(false, true)) {
+                    return;
+                }
+                auditCommand(
+                        announcement,
+                        decision.root(),
+                        successful ? "success" : "failed",
+                        successful ? "result " + value : "command reported failure");
+                if (successful) {
+                    ServerEssentialsForge.LOGGER.info(
+                            "[SEF] Command announcement {} completed root {} with result {}",
+                            announcement.id(),
+                            decision.root(),
+                            value);
+                } else {
+                    ServerEssentialsForge.LOGGER.warn(
+                            "[SEF] Command announcement {} reported failure for root {}",
+                            announcement.id(),
+                            decision.root());
+                }
+            });
+            switch (announcement.sourcePolicy()) {
+                case SERVER -> server.getCommands().performPrefixedCommand(
+                        source,
+                        decision.command());
+            }
+            if (!outcomeRecorded.get()) {
+                auditCommand(
+                        announcement,
+                        decision.root(),
+                        "outcome_unknown",
+                        "queued without synchronous result");
+            }
+        } catch (RuntimeException exception) {
+            auditCommand(
+                    announcement,
+                    decision.root(),
+                    "failed",
+                    exception.getClass().getSimpleName());
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Command announcement {} failed for root {}",
+                    announcement.id(),
+                    decision.root(),
+                    exception);
+        }
+    }
+
+    private static void auditCommand(
+            CommandAnnouncement announcement,
+            String root,
+            String result,
+            String reason
+    ) {
+        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                "announcement",
+                "execute command",
+                announcement.createdBy(),
+                announcement.id(),
+                root,
+                result,
+                reason));
+    }
+
+    private static long secondsToTicks(long seconds) {
+        try {
+            return Math.multiplyExact(seconds, 20L);
+        } catch (ArithmeticException exception) {
+            return -1L;
+        }
+    }
+
+    public void broadcastText(
+            MinecraftServer server,
+            String message,
+            String target,
+            String announcementId,
+            boolean toggleable
+    ) {
         List<ServerPlayer> recipients = resolveTargets(server, target);
         MutableComponent component = renderMultiLine(message);
         for (ServerPlayer player : recipients) {
-            if (toggleable && announcementId != null && isToggledOff(player.getUUID(), announcementId)) {
-                // Skip unless they have bypass permission
-                if (!PermissionsHandler.playerHasPermission(player.getUUID(), PermissionsHandler.announcementBypass)) {
-                    continue;
-                }
+            if (toggleable
+                    && announcementId != null
+                    && isToggledOff(player.getUUID(), announcementId)
+                    && !PermissionsHandler.playerHasPermission(
+                            player.getUUID(),
+                            PermissionsHandler.announcementBypass)) {
+                continue;
             }
             player.sendSystemMessage(component);
         }
     }
 
-    /** Resolves a target spec (@a, @server, <playername>) to a list of recipients. */
     private List<ServerPlayer> resolveTargets(MinecraftServer server, String target) {
-        if (target == null || target.isBlank() || "@a".equals(target) || "@server".equalsIgnoreCase(target) || "all".equalsIgnoreCase(target)) {
+        if (target == null
+                || target.isBlank()
+                || "@a".equals(target)
+                || "@server".equalsIgnoreCase(target)
+                || "all".equalsIgnoreCase(target)) {
             return new ArrayList<>(server.getPlayerList().getPlayers());
         }
-        ServerPlayer p = server.getPlayerList().getPlayerByName(target);
-        if (p != null) return List.of(p);
-        ServerEssentialsForge.LOGGER.warn("[SEF] Announcement target '{}' did not match any player; sending to all", target);
-        return new ArrayList<>(server.getPlayerList().getPlayers());
+        ServerPlayer player = server.getPlayerList().getPlayerByName(target);
+        if (player != null) {
+            return List.of(player);
+        }
+        ServerEssentialsForge.LOGGER.warn(
+                "[SEF] Announcement target did not match an online player. Delivery skipped");
+        return List.of();
     }
 
-    /** Renders a message with <br> converted to newlines and & color codes applied. */
     public static MutableComponent renderMultiLine(String raw) {
-        // Normalise <br>, <br/>, <br /> → \n
-        String normalised = raw.replaceAll("(?i)<br\\s*/?>", "\n");
-        return TextFormatter.stringToFormattedText(normalised);
+        String normalized = raw.replaceAll("(?i)<br\\s*/?>", "\n");
+        return TextFormatter.stringToFormattedText(normalized);
     }
 
-    // ---------- CRUD ----------
-
-    public List<Announcement> getAnnouncements() {
-        return announcements;
+    public List<TextAnnouncement> getTextAnnouncements() {
+        return announcements.stream()
+                .filter(TextAnnouncement.class::isInstance)
+                .map(TextAnnouncement.class::cast)
+                .toList();
     }
 
-    public Announcement getById(String id) {
-        for (Announcement a : announcements) if (a.id.equalsIgnoreCase(id)) return a;
+    public List<CommandAnnouncement> getCommandAnnouncements() {
+        return announcements.stream()
+                .filter(CommandAnnouncement.class::isInstance)
+                .map(CommandAnnouncement.class::cast)
+                .toList();
+    }
+
+    public ScheduledAnnouncement getById(String id) {
+        if (id == null) {
+            return null;
+        }
+        for (ScheduledAnnouncement announcement : announcements) {
+            if (announcement.id().equalsIgnoreCase(id)) {
+                return announcement;
+            }
+        }
         return null;
     }
 
-    public boolean add(Announcement a) {
-        if (getById(a.id) != null) return false;
-        announcements.add(a);
-        scheduleInitial(a);
+    public boolean add(TextAnnouncement announcement) {
+        return addTyped(announcement);
+    }
+
+    public boolean add(CommandAnnouncement announcement) {
+        return addTyped(announcement);
+    }
+
+    private boolean addTyped(ScheduledAnnouncement announcement) {
+        boolean valid = announcement instanceof TextAnnouncement text
+                ? valid(text)
+                : announcement instanceof CommandAnnouncement command && valid(command);
+        if (!valid || getById(announcement.id()) != null) {
+            return false;
+        }
+        announcements.add(announcement);
+        scheduleInitial(announcement);
         save();
         return true;
     }
 
-    public boolean remove(String id) {
-        boolean removed = announcements.removeIf(a -> a.id.equalsIgnoreCase(id));
+    public boolean removeText(String id) {
+        return removeTyped(id, TextAnnouncement.class);
+    }
+
+    public boolean removeCommand(String id) {
+        return removeTyped(id, CommandAnnouncement.class);
+    }
+
+    private boolean removeTyped(String id, Class<? extends ScheduledAnnouncement> type) {
+        ScheduledAnnouncement existing = getById(id);
+        if (existing == null || !type.isInstance(existing)) {
+            return false;
+        }
+        boolean removed = announcements.remove(existing);
         if (removed) {
-            nextFireAt.remove(id);
+            nextFireAt.remove(key(id));
             save();
         }
         return removed;
     }
 
-    public boolean modify(String id, long intervalSeconds, boolean toggleable, String target, String message) {
-        for (int i = 0; i < announcements.size(); i++) {
-            Announcement a = announcements.get(i);
-            if (a.id.equalsIgnoreCase(id)) {
-                Announcement replacement = a.with(intervalSeconds, toggleable, target, message);
-                announcements.set(i, replacement);
+    public boolean modifyText(
+            String id,
+            long intervalSeconds,
+            boolean toggleable,
+            String target,
+            String message
+    ) {
+        for (int index = 0; index < announcements.size(); index++) {
+            ScheduledAnnouncement current = announcements.get(index);
+            if (current instanceof TextAnnouncement text
+                    && text.id().equalsIgnoreCase(id)) {
+                TextAnnouncement replacement = text.with(
+                        intervalSeconds,
+                        toggleable,
+                        target,
+                        message);
+                if (!valid(replacement)) {
+                    return false;
+                }
+                announcements.set(index, replacement);
                 scheduleInitial(replacement);
                 save();
                 return true;
@@ -265,32 +576,44 @@ public class AnnouncementManager {
         return false;
     }
 
-    // ---------- Player toggles ----------
-
-    /** Returns true if player has toggled OFF this announcement. */
     public boolean isToggledOff(UUID uuid, String announcementId) {
-        Set<String> set = playerToggles.get(uuid);
-        return set != null && set.contains(announcementId.toLowerCase());
+        Set<String> disabled = playerToggles.get(uuid);
+        return disabled != null && disabled.contains(key(announcementId));
     }
 
-    /** Toggles a single announcement; returns new state (true = ON/receiving). */
     public boolean togglePlayer(UUID uuid, String announcementId) {
-        String key = announcementId.toLowerCase();
-        Set<String> set = playerToggles.computeIfAbsent(uuid, k -> new HashSet<>());
-        boolean nowOn;
-        if (set.contains(key)) {
-            set.remove(key);
-            nowOn = true;
+        String key = key(announcementId);
+        Set<String> disabled = playerToggles.computeIfAbsent(uuid, ignored -> new HashSet<>());
+        boolean enabled;
+        if (disabled.remove(key)) {
+            enabled = true;
         } else {
-            set.add(key);
-            nowOn = false;
+            disabled.add(key);
+            enabled = false;
         }
-        if (set.isEmpty()) playerToggles.remove(uuid);
-        savePrefs();
-        return nowOn;
+        if (disabled.isEmpty()) {
+            playerToggles.remove(uuid);
+        }
+        savePreferences();
+        return enabled;
     }
 
-    public List<Announcement> getToggleable() {
-        return announcements.stream().filter(a -> "text".equalsIgnoreCase(a.type) && a.toggleable).toList();
+    public List<TextAnnouncement> getToggleable() {
+        return getTextAnnouncements().stream().filter(TextAnnouncement::toggleable).toList();
+    }
+
+    private static String key(String id) {
+        return id.toLowerCase(Locale.ROOT);
+    }
+
+    private static final class LegacyAnnouncement {
+        String id;
+        String type;
+        String message;
+        long intervalSeconds;
+        boolean toggleable;
+        String target;
+        boolean enabled;
+        long offsetSeconds;
     }
 }

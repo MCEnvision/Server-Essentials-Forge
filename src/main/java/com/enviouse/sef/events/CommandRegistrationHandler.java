@@ -22,13 +22,13 @@ import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
 import com.enviouse.sef.invsee.InvSeeCommand;
-import com.enviouse.sef.motd.MotdCommands;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.motd.MotdManager;
 import com.enviouse.sef.mute.MuteCommand;
 import com.enviouse.sef.mute.MuteManager;
-import com.enviouse.sef.sudo.SudoCommand;
 import com.enviouse.sef.warn.WarnCommand;
 import com.enviouse.sef.warn.WarnManager;
+import com.enviouse.sef.workstations.VirtualWorkstationCommands;
 
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -58,8 +58,14 @@ public class CommandRegistrationHandler {
 
     @SubscribeEvent
     public void registerCommands(RegisterCommandsEvent e) {
+        KernelServices.initialize();
+        KernelServices.shortcuts().captureExistingRoots(e.getDispatcher().getRoot().getChildren().stream()
+                .map(node -> node.getName().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet()));
         // Always register base commands
         BfcCommands.register(e.getDispatcher());
+
+        VirtualWorkstationCommands.register(e.getDispatcher());
 
         // Register filter commands if enabled
         if(ConfigHandler.config.enableFilterSystem.get()) {
@@ -69,7 +75,6 @@ public class CommandRegistrationHandler {
 
         // Register announcement commands if enabled
         if(ConfigHandler.config.enableAnnouncements.get()) {
-            TextAnnouncementCommand.setManager(ANNOUNCEMENT_MANAGER);
             TextAnnouncementCommand.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
             CommandAnnouncementCommand.register(e.getDispatcher(), ANNOUNCEMENT_MANAGER);
             TitleAnnouncementCommand.register(e.getDispatcher());
@@ -84,18 +89,15 @@ public class CommandRegistrationHandler {
         // Register /helpop and /chat admin commands
         AdminChatHandler.register(e.getDispatcher());
 
-        // Register /opbulletin command
-        OpBulletinHandler.register(e.getDispatcher());
+        // Register /opbulletin command if enabled
+        if(ConfigHandler.config.enableOpBulletin.get()) {
+            OpBulletinHandler.register(e.getDispatcher());
+        }
 
         // Register /banned commands if enabled
         if(ConfigHandler.config.enableBannedItems.get()) {
             BannedItemsCommands.setManager(BANNED_ITEMS_MANAGER);
             BannedItemsCommands.register(e.getDispatcher());
-        }
-
-        // Register MOTD commands - always register, manager will be set later
-        if(ConfigHandler.config.enableMotdSystem.get()) {
-            MotdCommands.register(e.getDispatcher());
         }
 
         // Register /freeze and /unfreeze commands if enabled
@@ -108,9 +110,10 @@ public class CommandRegistrationHandler {
             ClearChatCommand.register(e.getDispatcher());
         }
 
-        // Register /sudo command if enabled
+        // Sudo remains unavailable until the later secured sudo phase.
         if(ConfigHandler.config.enableSudo.get()) {
-            SudoCommand.register(e.getDispatcher());
+            com.enviouse.sef.ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] modules.sudo is enabled, but sudo remains temporarily unavailable during stabilization");
         }
 
         // Register /invlock command if enabled

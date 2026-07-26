@@ -225,25 +225,7 @@ public class FreezeManager {
      * Returns -1 for infinite.
      */
     public static long parseDuration(String input) {
-        if (input == null || input.isEmpty()) return -1;
-        String lower = input.trim().toLowerCase();
-        if (lower.equals("infinite") || lower.equals("inf") || lower.equals("forever") || lower.equals("perm")) {
-            return -1;
-        }
-        try {
-            if (lower.endsWith("s")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20;
-            } else if (lower.endsWith("m")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 60;
-            } else if (lower.endsWith("h")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 3600;
-            } else {
-                // Assume seconds if no suffix
-                return Long.parseLong(lower) * 20;
-            }
-        } catch (NumberFormatException e) {
-            return -1; // Treat unparseable as infinite
-        }
+        return com.enviouse.sef.util.DurationParser.toTicks(
+                com.enviouse.sef.util.DurationParser.parse(input, true));
     }
 }
-

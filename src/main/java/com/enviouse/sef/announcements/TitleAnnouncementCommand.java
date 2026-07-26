@@ -2,6 +2,7 @@ package com.enviouse.sef.announcements;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -33,12 +34,7 @@ public class TitleAnnouncementCommand {
     }
 
     private static boolean hasPerm(CommandSourceStack src) {
-        try {
-            return PermissionsHandler.playerHasPermission(
-                src.getPlayerOrException().getUUID(), PermissionsHandler.titleAnnouncementUse);
-        } catch (Exception e) {
-            return src.hasPermission(2);
-        }
+        return PermissionService.has(src, PermissionsHandler.titleAnnouncementUse);
     }
 
     private static int doSend(CommandContext<CommandSourceStack> ctx, boolean withSubtitle) {
@@ -50,12 +46,15 @@ public class TitleAnnouncementCommand {
             return 0;
         }
         String titleStr = StringArgumentType.getString(ctx, "title");
-        Component title = TextFormatter.stringToFormattedText(titleStr);
-        Component subtitle = null;
+        String subtitleText = "";
         if (withSubtitle) {
-            String subStr = StringArgumentType.getString(ctx, "subtitle");
-            subtitle = TextFormatter.stringToFormattedText(subStr);
+            subtitleText = StringArgumentType.getString(ctx, "subtitle");
         }
+        TitleAnnouncement announcement = new TitleAnnouncement(titleStr, subtitleText);
+        Component title = TextFormatter.stringToFormattedText(announcement.title());
+        Component subtitle = announcement.subtitle().isEmpty()
+                ? null
+                : TextFormatter.stringToFormattedText(announcement.subtitle());
         for (ServerPlayer p : targets) {
             if (subtitle != null) {
                 p.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));

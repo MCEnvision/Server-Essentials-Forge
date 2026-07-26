@@ -7,14 +7,15 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.storage.CoalescedPersistenceWorker;
+import com.enviouse.sef.storage.StorageService;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.io.*;
 import java.lang.reflect.Type;
-import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,10 +40,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class MuteManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type DATA_TYPE = new TypeToken<Map<String, MuteEntry>>() {}.getType();
+    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
 
     /** Map of player UUID string → mute entry */
     private final Map<String, MuteEntry> mutes = new ConcurrentHashMap<>();
     private Path filePath;
+    private StorageService.Document document;
+    private CoalescedPersistenceWorker persistenceWorker;
 
     // ── Data class ──────────────────────────────────────────────────────────
     public static class MuteEntry {
@@ -107,33 +111,44 @@ public class MuteManager {
 
     // ── Load / Save ─────────────────────────────────────────────────────────
     public void load(MinecraftServer server) {
+        save();
+        closePersistenceWorker();
         filePath = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
                 .resolve("serverconfig").resolve("sef").resolve("mutes.json");
-        if (!Files.exists(filePath)) {
+        persistenceWorker = new CoalescedPersistenceWorker(
+                "sef-mutes",
+                exception -> ServerEssentialsForge.LOGGER.error("[SEF] Failed to save mutes", exception));
+        mutes.clear();
+        document = StorageService.read(filePath, "mutes", 1).orElse(null);
+        if (document == null) {
             save();
             return;
         }
-        try (Reader reader = Files.newBufferedReader(filePath)) {
-            Map<String, MuteEntry> loaded = GSON.fromJson(reader, DATA_TYPE);
+        try {
+            Map<String, MuteEntry> loaded = GSON.fromJson(document.data(), DATA_TYPE);
             if (loaded != null) {
                 mutes.clear();
                 mutes.putAll(loaded);
             }
             ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} persistent mute(s)", mutes.size());
+            if (document.migrated()) save();
         } catch (Exception e) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to load mutes", e);
         }
     }
 
     public void save() {
-        if (filePath == null) return;
+        if (filePath == null || persistenceWorker == null) return;
         try {
-            Files.createDirectories(filePath.getParent());
-            try (Writer writer = Files.newBufferedWriter(filePath)) {
-                GSON.toJson(mutes, writer);
+            var snapshot = GSON.toJsonTree(mutes);
+            Path destination = filePath;
+            StorageService.Document previousDocument = document;
+            if (!persistenceWorker.submit(() ->
+                    StorageService.write(destination, "mutes", 1, snapshot, previousDocument, Set.of("")))) {
+                ServerEssentialsForge.LOGGER.error("[SEF] Mute save rejected during shutdown");
             }
-        } catch (IOException e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to save mutes", e);
+        } catch (Exception e) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to prepare mute save", e);
         }
     }
 
@@ -298,8 +313,22 @@ public class MuteManager {
     /**
      * Called on server stop — save final state (do NOT clear, data persists).
      */
-    public void shutdown() {
+    public boolean shutdown() {
         save();
+        return closePersistenceWorker();
+    }
+
+    private boolean closePersistenceWorker() {
+        CoalescedPersistenceWorker worker = persistenceWorker;
+        persistenceWorker = null;
+        if (worker == null) {
+            return true;
+        }
+        boolean completed = worker.shutdown(SHUTDOWN_TIMEOUT);
+        if (!completed) {
+            ServerEssentialsForge.LOGGER.error("[SEF] Mute shutdown flush did not complete");
+        }
+        return completed;
     }
 
     // ── Duration parser ─────────────────────────────────────────────────────
@@ -309,28 +338,7 @@ public class MuteManager {
      * into ticks.  Returns -1 for permanent/infinite.
      */
     public static long parseDuration(String input) {
-        if (input == null || input.isEmpty()) return -1;
-        String lower = input.trim().toLowerCase();
-        if (lower.equals("infinite") || lower.equals("inf") || lower.equals("forever")
-                || lower.equals("perm") || lower.equals("permanent")) {
-            return -1;
-        }
-        try {
-            if (lower.endsWith("s")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20;
-            } else if (lower.endsWith("m")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 60;
-            } else if (lower.endsWith("h")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 3600;
-            } else if (lower.endsWith("d")) {
-                return Long.parseLong(lower.substring(0, lower.length() - 1)) * 20 * 86400;
-            } else {
-                // Assume seconds if no suffix
-                return Long.parseLong(lower) * 20;
-            }
-        } catch (NumberFormatException e) {
-            return -1;
-        }
+        return com.enviouse.sef.util.DurationParser.toTicks(
+                com.enviouse.sef.util.DurationParser.parse(input, true));
     }
 }
-

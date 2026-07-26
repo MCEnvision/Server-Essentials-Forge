@@ -22,3 +22,7 @@ run
 
 # Reference copy of the old Forge 1.20.1 source (kept on disk, not part of this repo)
 SourceCodeOld/
+
+# Local agent instructions and code index
+AGENTS.md
+.codegraph/

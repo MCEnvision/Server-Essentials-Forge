@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.UUID;
 
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
@@ -19,6 +20,10 @@ import net.luckperms.api.model.user.User;
 public class LuckPermsProvider implements IMetadataProvider {
 	private final LuckPerms luckPerms;
 	private static LuckPermsProvider instance;
+	private static final long CACHE_MILLIS = 1_000L;
+	private static final int MAXIMUM_CACHE_ENTRIES = 2_048;
+	private static final LuckPermsMetadataCache META_CACHE =
+			new LuckPermsMetadataCache(MAXIMUM_CACHE_ENTRIES);
 
 	public LuckPermsProvider() {
 		instance = this;
@@ -26,6 +31,23 @@ public class LuckPermsProvider implements IMetadataProvider {
 	}
 	public static LuckPermsProvider getInstance() {
 		return instance;
+	}
+
+	static LuckPermsMetadataCache metadataCache() {
+		return META_CACHE;
+	}
+
+	public static void invalidate(UUID playerId) {
+		META_CACHE.invalidate(playerId);
+	}
+
+	public static void invalidateAll() {
+		META_CACHE.clear();
+	}
+
+	@Override
+	public void invalidateCache() {
+		invalidateAll();
 	}
 
 	private CachedMetaData getMetaData(GameProfile player) {
@@ -40,6 +62,19 @@ public class LuckPermsProvider implements IMetadataProvider {
 
 	@Override
 	public String[] getPlayerPrefixAndSuffix(GameProfile player) {
+		long now = System.currentTimeMillis();
+		String[] cached = META_CACHE.get(player.getId(), now);
+		if(cached != null) {
+			return cached;
+		}
+		String[] loaded = loadPlayerPrefixAndSuffix(player);
+		if(loaded != null) {
+			META_CACHE.put(player.getId(), loaded, now + CACHE_MILLIS, now);
+		}
+		return loaded;
+	}
+
+	private String[] loadPlayerPrefixAndSuffix(GameProfile player) {
 
 		try {
 			CachedMetaData metaData = this.getMetaData(player);
@@ -77,11 +112,11 @@ public class LuckPermsProvider implements IMetadataProvider {
 			String prefixJoined = String.join("\n", prefixes);
 			String suffixJoined = String.join("\n", suffixes);
 			return new String[]{prefixJoined, suffixJoined};
-		} catch(IllegalStateException | NullPointerException e) {
-			ServerEssentialsForge.LOGGER.warn("Caught Exception: {} /n If {} is a fake player (added by mod) this warning can be ignored",e,player);
-			return null;
+			} catch(IllegalStateException | NullPointerException e) {
+				ServerEssentialsForge.LOGGER.warn("Caught Exception: {} /n If {} is a fake player (added by mod) this warning can be ignored",e,player);
+				return null;
+			}
 		}
-	}
 
 	public @NonNull@Override
  String getProviderName() {

@@ -3,7 +3,7 @@ package com.enviouse.sef.events;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.IReloadable;
 import com.enviouse.sef.config.PermissionsHandler;
-import com.enviouse.sef.config.PlayerData;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.tab.TabPlaceholderRenderer;
 import com.enviouse.sef.tab.TabAnimationManager;
 import com.enviouse.sef.utils.SEFUtilities;
@@ -59,14 +59,13 @@ public class PlayerEventHandler implements IReloadable {
 
 	@SubscribeEvent
 	public void onSavePlayerData(SaveToFile e) {
-		ServerEssentialsForge.LOGGER.debug("saving all Player Data");
-		PlayerData.saveToDir(e.getPlayerDirectory());
-	}
+			KernelServices.profiles().requestFlush();
+		}
 
 	@SubscribeEvent
 	public void onLoadPlayerData(LoadFromFile e){
-		ServerEssentialsForge.LOGGER.debug("Loading all Player Data");
-		PlayerData.loadFromDir(e.getPlayerDirectory());
+			ServerEssentialsForge.LOGGER.debug("Loading all Player Data");
+			KernelServices.profiles().load(e.getPlayerDirectory());
 	}
 
 	@SubscribeEvent
@@ -80,14 +79,21 @@ public class PlayerEventHandler implements IReloadable {
             ChatMessageManager.handleLogout(sp.getUUID());
             // Clear ALL SDLink hide reasons (vanish, admin chat, private msg) to prevent
             // stale hidden-player entries that would keep the player invisible in Discord.
-            SDLinkHideTracker.clearAll(sp.getUUID());
-        }
+		            SDLinkHideTracker.clearAll(sp.getUUID());
+		            com.enviouse.sef.vanish.VanishUtil.forgetPlayer(sp.getUUID());
+		            com.enviouse.sef.utils.moddeps.LuckPermsProvider.invalidate(sp.getUUID());
+		            KernelServices.warmups().clear(sp.getUUID());
+		            KernelServices.confirmations().revokeActor(sp.getUUID());
+		        }
     }
 
 	@SubscribeEvent
 	public void onPlayerLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) {
-        if(e.getEntity() instanceof ServerPlayer sp) {
-            // Record login for alt tracking
+	        if(e.getEntity() instanceof ServerPlayer sp) {
+		            KernelServices.profiles().rememberDeferred(
+		                    sp.getUUID(),
+		                    sp.getGameProfile().getName());
+	            // Record login for alt tracking
             if(ConfigHandler.config.enableCheckAlts.get()) {
                 com.enviouse.sef.alts.AltTracker tracker = CommandRegistrationHandler.getAltTracker();
                 if(tracker != null) {
@@ -116,7 +122,10 @@ public class PlayerEventHandler implements IReloadable {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onServerTick(ServerTickEvent.Post e) {
-        TAB_ANIM.tick(e.getServer());
-        TabPlaceholderRenderer.applyHeaderFooter(e.getServer());
+        int interval = Math.max(1, ConfigHandler.config.tabUpdateIntervalTicks.get());
+        if(e.getServer().getTickCount() % interval == 0) {
+            TAB_ANIM.tick(e.getServer());
+            TabPlaceholderRenderer.applyHeaderFooter(e.getServer());
+        }
     }
 }

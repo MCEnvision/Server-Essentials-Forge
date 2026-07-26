@@ -1,6 +1,8 @@
 package com.enviouse.sef.banned;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -79,6 +81,8 @@ public class BannedItemsCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("banned")
+            .requires(src -> PermissionService.has(src, PermissionsHandler.bannedView)
+                    || PermissionService.has(src, PermissionsHandler.bannedCommand))
             .executes(ctx -> doList(ctx.getSource())); // /banned → list view (everyone)
 
         // /banned list (alias of bare command)
@@ -416,7 +420,7 @@ public class BannedItemsCommands {
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private static boolean isOp(CommandSourceStack src) {
-        return src.hasPermission(2);
+        return PermissionService.has(src, PermissionsHandler.bannedCommand);
     }
 
     private static String sourceName(CommandSourceStack src) {

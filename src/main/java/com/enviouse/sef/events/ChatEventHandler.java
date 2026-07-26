@@ -176,6 +176,13 @@ public class ChatEventHandler implements IReloadable {
 			msg = CommandRegistrationHandler.getFilterManager().applyFilters(msg);
 		}
 
+		// Master toggle: when SEF chat formatting is off, keep the (filtered) message but let vanilla
+		// render the chat line (no prefix/suffix/color/timestamp) instead of cancelling + reformatting.
+		if(!ConfigHandler.config.enableChatFormatting.get()) {
+			e.setMessage(Component.literal(msg));
+			return;
+		}
+
 		String tstamp = timestampFormat == null ? "" : timestampFormat.format(new Date());
 		String name = SEFUtilities.getRawPreferredPlayerName(profile);
 		String fmat = chatMessageFormat.replace("$time", tstamp).replace("$name", name);

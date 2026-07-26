@@ -182,38 +182,8 @@ public final class CountdownManager {
      * Plain integers are seconds. Returns {@code -1} on invalid input.
      */
     public static long parseDurationSeconds(String input) {
-        if (input == null || input.isBlank()) return -1L;
-        String s = input.trim().toLowerCase();
-        // bare integer = seconds
-        try {
-            long n = Long.parseLong(s);
-            return n < 1 ? -1L : n;
-        } catch (NumberFormatException ignored) {}
-
-        long total = 0L;
-        long current = 0L;
-        boolean sawDigit = false;
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c >= '0' && c <= '9') {
-                current = current * 10 + (c - '0');
-                sawDigit = true;
-            } else {
-                if (!sawDigit) return -1L;
-                long mult;
-                switch (c) {
-                    case 's' -> mult = 1L;
-                    case 'm' -> mult = 60L;
-                    case 'h' -> mult = 3600L;
-                    case 'd' -> mult = 86400L;
-                    default -> { return -1L; }
-                }
-                total += current * mult;
-                current = 0L;
-                sawDigit = false;
-            }
-        }
-        if (sawDigit && current > 0) total += current; // trailing bare number = seconds
-        return total < 1 ? -1L : total;
+        com.enviouse.sef.util.DurationParser.Result result =
+                com.enviouse.sef.util.DurationParser.parse(input, false);
+        return result.valid() ? result.seconds() : -1L;
     }
 }

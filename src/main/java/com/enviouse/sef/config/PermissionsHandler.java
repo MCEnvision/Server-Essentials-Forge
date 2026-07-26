@@ -1,22 +1,19 @@
 package com.enviouse.sef.config;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
 import com.enviouse.sef.ServerEssentialsForge;
-import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.permissions.PermissionManifest;
+import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.Vanishmod;
 
-import net.minecraft.network.chat.Component;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.server.permission.PermissionAPI;
 import net.neoforged.neoforge.server.permission.events.PermissionGatherEvent.Nodes;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
-import net.neoforged.neoforge.server.permission.nodes.PermissionTypes;
 
-@SuppressWarnings("unused") // Fields are accessed via reflection in registerPermissionNodes
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public class PermissionsHandler {	
 	// Chat Permissions
@@ -43,7 +40,9 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> sefCommandInfoSubCommand =
 			ezyPermission("commands.sef.info", true, "SEF info sub-command", "Enables/Disables the \"/sef info\" sub-command");
 	public static PermissionNode<Boolean> sefCommandReloadSubCommand =
-			ezyPermission("commands.sef.reload", true, "SEF reload sub-command", "Enables/Disables the \"/sef reload\" sub-command");
+			ezyPermission("commands.sef.reload", false, "SEF reload sub-command", "Enables/Disables the \"/sef reload\" sub-command");
+	public static PermissionNode<Boolean> sefCommandTestSubCommand =
+			ezyPermission("commands.sef.test", false, "SEF test sub-command", "Enables/Disables the \"/sef test\" sub-command");
 
 	// Private Messaging Permissions
 	public static PermissionNode<Boolean> msgCommand =
@@ -59,7 +58,7 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> nickCommand = 
 			ezyPermission("commands.nick", true, "Nickname", "Enables/Disables the \"/nick <nickname>\" command");
 	public static PermissionNode<Boolean> nickOthersCommand = 
-			ezyPermission("commands.nick.others", true, "Modify nicknames", "Enables/Disables the \"/nick <username> <nickname>\" command");
+			ezyPermission("commands.nick.others", false, "Modify nicknames", "Enables/Disables the \"/nickfor <username> <nickname>\" command");
 	public static PermissionNode<Boolean> nickColorsAllowed =
 			ezyPermission("nick.colors", false, "Nickname colors", "Allows using color codes in nicknames");
 	public static PermissionNode<Boolean> nickStylesAllowed =
@@ -98,6 +97,38 @@ public class PermissionsHandler {
 	// InvSee Permissions
 	public static PermissionNode<Boolean> invSeeCommand =
 			ezyPermission("commands.invsee", false, "InvSee command", "Allows using /invsee to view another player's inventory");
+	public static PermissionNode<Boolean> invSeeView =
+			ezyPermission("commands.invsee.view", false, "View inventories", "Allows read only viewing of another player's inventory");
+	public static PermissionNode<Boolean> invSeeModify =
+			ezyPermission("commands.invsee.modify", false, "Modify inventories", "Allows modifying another player's inventory");
+	public static PermissionNode<Boolean> invSeeOffline =
+			ezyPermission("commands.invsee.offline", false, "View offline inventories", "Allows opening supported offline inventory data");
+	public static PermissionNode<Boolean> invSeeCurios =
+			ezyPermission("commands.invsee.curios", false, "View Curios inventories", "Allows viewing another player's Curios inventory");
+	public static PermissionNode<Boolean> enderChestOthers =
+			ezyPermission("commands.enderchest.others", false, "View ender chests", "Allows viewing another player's ender chest");
+
+	// virtual workstation permissions
+	public static PermissionNode<Boolean> craftingTableCommand =
+			ezyPermission("commands.craft", true, "Craft command", "Allows using /craft and /c");
+	public static PermissionNode<Boolean> anvilCommand =
+			ezyPermission("commands.anvil", true, "Anvil command", "Allows using /anvil and /av");
+	public static PermissionNode<Boolean> enchantingTableCommand =
+			ezyPermission("commands.enchantingtable", true, "Enchanting table command", "Allows using /enchantingtable and /et");
+	public static PermissionNode<Boolean> superEnchantingTableCommand =
+			ezyPermission("commands.superenchantingtable", false, "Super enchanting table command", "Allows using /superenchantingtable and /set");
+	public static PermissionNode<Boolean> repairCommand =
+			ezyPermission("commands.repair", false, "Repair command", "Allows using /repair on the held item");
+	public static PermissionNode<Boolean> craftingTableCooldownBypass =
+			ezyPermission("cooldowns.bypass.craft", false, "Craft cooldown bypass", "Bypasses the /craft cooldown");
+	public static PermissionNode<Boolean> anvilCooldownBypass =
+			ezyPermission("cooldowns.bypass.anvil", false, "Anvil cooldown bypass", "Bypasses the /anvil cooldown");
+	public static PermissionNode<Boolean> enchantingTableCooldownBypass =
+			ezyPermission("cooldowns.bypass.enchantingtable", false, "Enchanting table cooldown bypass", "Bypasses the /enchantingtable cooldown");
+	public static PermissionNode<Boolean> superEnchantingTableCooldownBypass =
+			ezyPermission("cooldowns.bypass.superenchantingtable", false, "Super enchanting table cooldown bypass", "Bypasses the super enchanting table cooldown");
+	public static PermissionNode<Boolean> repairCooldownBypass =
+			ezyPermission("cooldowns.bypass.repair", false, "Repair cooldown bypass", "Bypasses the /repair cooldown");
 
 	// Freeze Permissions
 	public static PermissionNode<Boolean> freezeCommand =
@@ -114,6 +145,24 @@ public class PermissionsHandler {
 	// Sudo Permissions
 	public static PermissionNode<Boolean> sudoCommand =
 			ezyPermission("commands.sudo", false, "Sudo command", "Allows using /sudo to force a player to execute a command");
+	public static PermissionNode<Boolean> sudoExempt =
+			ezyPermission("sudo.exempt", false, "Sudo exemption", "Prevents other players from targeting this player with /sudo");
+	public static PermissionNode<Boolean> sudoBypassExempt =
+			ezyPermission("sudo.bypass.exempt", false, "Sudo exemption bypass", "Allows targeting players with the sudo exemption");
+
+	// Vanish Permissions
+	public static PermissionNode<Boolean> vanishOthersCommand =
+			ezyPermission("commands.vanish.others", false, "Vanish others", "Allows changing another player's vanish state");
+	public static PermissionNode<Boolean> vanishQueueCommand =
+			ezyPermission("commands.vanish.queue", false, "Vanish queue", "Allows managing the vanish queue");
+	public static PermissionNode<Boolean> vanishGetOthersCommand =
+			ezyPermission("commands.vanish.get.others", false, "Inspect vanish state", "Allows inspecting another player's vanish state");
+	public static PermissionNode<Boolean> vanishExempt =
+			ezyPermission("vanish.exempt", false, "Vanish exemption", "Prevents other players from changing this player's vanish state");
+	public static PermissionNode<Boolean> vanishBypassExempt =
+			ezyPermission("vanish.bypass.exempt", false, "Vanish exemption bypass", "Allows changing vanish state for exempt players");
+	public static PermissionNode<Boolean> vanishHierarchyBypass =
+			ezyPermission("vanish.hierarchy.bypass", false, "Vanish hierarchy bypass", "Allows changing vanish state regardless of target hierarchy");
 
 	// Inventory Lock Permissions
 	public static PermissionNode<Boolean> invLockCommand =
@@ -126,6 +175,12 @@ public class PermissionsHandler {
 	// Check Alts Permissions
 	public static PermissionNode<Boolean> checkAltsCommand =
 			ezyPermission("commands.checkalts", false, "Check Alts command", "Allows using /checkalts to list alternate accounts");
+	public static PermissionNode<Boolean> checkAltsIpView =
+			ezyPermission("alts.ip.view", false, "View alternate account addresses", "Allows viewing raw addresses in alternate account results");
+	public static PermissionNode<Boolean> checkAltsPurge =
+			ezyPermission("alts.purge", false, "Purge alternate account data", "Allows deleting retained alternate account records");
+	public static PermissionNode<Boolean> checkAltsExport =
+			ezyPermission("alts.export", false, "Export alternate account data", "Allows exporting retained alternate account records");
 
 	// Warn System Permissions
 	public static PermissionNode<Boolean> warnCommand =
@@ -136,6 +191,8 @@ public class PermissionsHandler {
 	// Announcement Permissions
 	public static PermissionNode<Boolean> announcementManage =
 			ezyPermission("announcements.manage", false, "Manage announcements", "Allows adding/removing announcements");
+	public static PermissionNode<Boolean> commandAnnouncementManage =
+			ezyPermission("announcements.command.manage", false, "Manage command announcements", "Allows adding and removing command announcements");
 	public static PermissionNode<Boolean> announcementToggle =
 			ezyPermission("announcements.toggle", true, "Toggle announcements", "Allows toggling announcements on/off");
 	public static PermissionNode<Boolean> announcementBypass =
@@ -149,9 +206,19 @@ public class PermissionsHandler {
 	public static PermissionNode<Boolean> filterBypass =
 			ezyPermission("filter.bypass", false, "Bypass filters", "Messages bypass word filter");
 
+	// Bulletin and MOTD Permissions
+	public static PermissionNode<Boolean> opBulletinManage =
+			ezyPermission("opbulletin.manage", false, "Manage operator bulletins", "Allows managing operator bulletins");
+	public static PermissionNode<Boolean> opBulletinReceive =
+			ezyPermission("opbulletin.receive", false, "Receive operator bulletins", "Shows operator bulletins on login");
+	public static PermissionNode<Boolean> motdManage =
+			ezyPermission("motd.manage", false, "Manage MOTD", "Allows viewing and changing the server MOTD");
+
 	// Banned Items Permissions
 	public static PermissionNode<Boolean> bannedCommand =
 			ezyPermission("commands.banned", false, "Banned command", "Allows using /banned subcommands (add/remove/etc)");
+	public static PermissionNode<Boolean> bannedView =
+			ezyPermission("banned.view", true, "View banned items", "Allows viewing the banned item list");
 	public static PermissionNode<Boolean> bannedBypassNode =
 			ezyPermission("banned.bypass", false, "Bypass banned items", "Player is exempt from banned-item confiscation and banned-block sweeps");
 
@@ -164,51 +231,85 @@ public class PermissionsHandler {
 			ezyPermission("sign.colors", false, "Sign colors", "Allows usage of colors on signs");
 	public static PermissionNode<Boolean> signStylesNode =
 			ezyPermission("sign.styles", false, "Sign styles", "Allows usage of styles on signs");
+	public static PermissionNode<Boolean> storageStatus =
+			ezyPermission("storage.status", false, "Storage status", "Allows viewing SEF storage diagnostics");
+	public static PermissionNode<Boolean> storageExport =
+			ezyPermission("storage.export", false, "Storage export", "Allows creating a bounded SEF data export");
+	public static PermissionNode<Boolean> sefCommandsCatalog =
+			ezyPermission("commands.sef.commands", true, "Command catalog", "Allows viewing the permission filtered SEF command catalog");
+	public static PermissionNode<Boolean> sefConflicts =
+			ezyPermission("commands.sef.conflicts", false, "Command conflicts", "Allows viewing command root ownership and collision diagnostics");
+	public static PermissionNode<Boolean> sefDoctor =
+			ezyPermission("commands.sef.doctor", false, "SEF doctor", "Allows viewing kernel, provider, policy, and storage diagnostics");
+	public static PermissionNode<Boolean> kernelGui =
+			ezyPermission("kernel.gui.use", false, "Kernel GUI capability", "Allows receiving enhanced GUI descriptors when the client protocol is available");
+	public static PermissionNode<Boolean> kernelHud =
+			ezyPermission("kernel.hud.use", false, "Kernel HUD capability", "Allows receiving enhanced HUD descriptors when the client protocol is available");
+	public static PermissionNode<Boolean> kernelPanel =
+			ezyPermission("kernel.panel.use", false, "Kernel panel capability", "Allows opening permission filtered administrative panels");
+	public static PermissionNode<Boolean> kernelTarget =
+			ezyPermission("kernel.target.others", false, "Kernel target capability", "Allows selecting other players where the canonical action separately permits it");
+	public static PermissionNode<Boolean> kernelAudience =
+			ezyPermission("kernel.audience.broad", false, "Kernel audience capability", "Allows selecting bounded multi player audiences where the canonical action permits it");
+	public static PermissionNode<Boolean> kernelEditor =
+			ezyPermission("kernel.editor.use", false, "Kernel editor capability", "Allows using definition editors when a domain grants its action permission");
+	public static PermissionNode<Boolean> kernelAlias =
+			ezyPermission("kernel.alias.use", false, "Kernel alias capability", "Allows using published aliases in addition to their canonical action permissions");
+	public static PermissionNode<Boolean> kernelBundle =
+			ezyPermission("kernel.bundle.use", false, "Kernel bundle capability", "Allows using published bundles in addition to every underlying action permission");
+	public static PermissionNode<Boolean> kernelProfile =
+			ezyPermission("kernel.profile.use", false, "Kernel execution profile capability", "Allows using explicitly approved execution profiles");
+	public static PermissionNode<Boolean> kernelBypass =
+			ezyPermission("kernel.bypass.use", false, "Kernel bypass capability", "Allows specifically declared policy bypasses without bypassing canonical action permission");
+	public static PermissionNode<Boolean> kernelSensitiveData =
+			ezyPermission("kernel.sensitive.view", false, "Kernel sensitive data capability", "Allows specifically declared sensitive fields after per field authorization");
+	public static final Map<String, PermissionNode<Boolean>> quotaTierNodes = new LinkedHashMap<>();
 
 	// Color Permissions
-	public static final Map<Character, PermissionNode<Boolean>> perColorChatNodes = new HashMap<>();
+	public static final Map<Character, PermissionNode<Boolean>> perColorChatNodes = new LinkedHashMap<>();
 	public static PermissionNode<Boolean> hexChatNode;
 
 	static {
-        // Allow hex by default? set to true for convenience
+		quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
+		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
+		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
+		quotaTierNodes.put("sef.playerwarps.10", ezyPermission("playerwarps.10", false, "Ten player warps", "Sets the finite player warp quota tier to ten"));
+		quotaTierNodes.put("sef.playerwarps.25", ezyPermission("playerwarps.25", false, "Twenty five player warps", "Sets the finite player warp quota tier to twenty five"));
+		quotaTierNodes.put("sef.targets.10", ezyPermission("targets.10", false, "Ten targets", "Sets the finite command target quota tier to ten"));
+		quotaTierNodes.put("sef.targets.100", ezyPermission("targets.100", false, "One hundred targets", "Sets the finite command target quota tier to one hundred"));
+		quotaTierNodes.put("sef.mail.500", ezyPermission("mail.500", false, "Five hundred mail records", "Sets the finite mail quota tier to five hundred"));
+		quotaTierNodes.put("sef.mail.1000", ezyPermission("mail.1000", false, "One thousand mail records", "Sets the finite mail quota tier to one thousand"));
+		quotaTierNodes.put("sef.definitions.256", ezyPermission("definitions.256", false, "Two hundred fifty six definitions", "Sets the finite definition quota tier to two hundred fifty six"));
+		quotaTierNodes.put("sef.definitions.512", ezyPermission("definitions.512", false, "Five hundred twelve definitions", "Sets the finite definition quota tier to five hundred twelve"));
         hexChatNode = ezyPermission("chat.colors.hex", true, "Chat hex colors", "Allows usage of hex colors and gradients in chat");
-        // Per-color nodes (&0 - &9, &a - &f)
         for(char c : "0123456789abcdef".toCharArray()) {
             perColorChatNodes.put(c, ezyPermission("chat.colors." + c, true, "Chat color &" + c, "Allows usage of &" + c + " in chat"));
         }
+		for (int level = 1; level <= 3; level++) {
+			Vanishmod.VANISH_SEE_NODES.put(level, ezyPermission(
+					"vanishsee." + level,
+					false,
+					"See vanish level " + level,
+					"Allows seeing players vanished at level " + level));
+			Vanishmod.VANISH_LEVEL_NODES.put(level, ezyPermission(
+					"vanish." + level,
+					false,
+					"Use vanish level " + level,
+					"Allows vanishing at level " + level));
+		}
     }
 
 	@SubscribeEvent public static void registerPermissionNodes(Nodes pge) {
-		for(Field fld : PermissionsHandler.class.getDeclaredFields()) {
-			if(fld.getType() == PermissionNode.class) {
-				try { // Fuck adding all these nodes manually
-					pge.addNodes((PermissionNode<?>) fld.get(PermissionNode.class));
-				} catch (Exception error) {
-                    ServerEssentialsForge.LOGGER.trace("Exception: Caught on adding permission nodes", error);
-				}
-			}
-		}
-		// register per-color nodes
-        for(PermissionNode<Boolean> node : perColorChatNodes.values()) {
-            pge.addNodes(node);
-        }
-    }
+		for (PermissionManifest.Definition definition : PermissionManifest.definitions())
+			pge.addNodes(definition.node());
+	}
 
 	private static PermissionNode<Boolean> ezyPermission(String id, boolean defVal, String name, String desc) {
-		PermissionNode<Boolean> node = new PermissionNode<>(ServerEssentialsForge.MODID, id, 
-				PermissionTypes.BOOLEAN, (player, uuid, context) -> defVal);
-		node.setInformation(Component.literal(name),TextFormatter.stringToFormattedText(desc));
-		return node;
+		return PermissionManifest.register(id, defVal, name, desc);
 	}
 
 	public static boolean playerHasPermission(UUID uuid, PermissionNode<Boolean> node) {
-		boolean bool = false;
-		try {
-			bool = PermissionAPI.getOfflinePermission(uuid, node);
-		} catch(IllegalStateException ise) {
-			ServerEssentialsForge.LOGGER.trace("IllegalStateException when getting player tab list permissions, assuming false",ise);
-		}
-		return bool;
+		return PermissionService.has(uuid, node);
 	}
 	public static boolean playerHasColorPermission(UUID uuid, char code) {
         PermissionNode<Boolean> node = perColorChatNodes.get(Character.toLowerCase(code));

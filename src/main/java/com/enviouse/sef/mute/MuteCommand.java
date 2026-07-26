@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
@@ -31,12 +32,7 @@ public class MuteCommand {
 
         // /mute <player> <duration> <reason>
         dispatcher.register(Commands.literal("mute")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.muteCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.muteCommand))
             .then(Commands.argument("player", EntityArgument.player())
                 .then(Commands.argument("duration", StringArgumentType.word())
                     .then(Commands.argument("reason", StringArgumentType.greedyString())
@@ -49,12 +45,7 @@ public class MuteCommand {
 
         // /unmute <player>
         dispatcher.register(Commands.literal("unmute")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.unmuteCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.unmuteCommand))
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> {
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
@@ -63,12 +54,7 @@ public class MuteCommand {
 
         // /mutelist
         dispatcher.register(Commands.literal("mutelist")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.muteCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.muteCommand))
             .executes(ctx -> executeMuteList(ctx.getSource())));
     }
 
@@ -96,6 +82,11 @@ public class MuteCommand {
         }
 
         long durationTicks = MuteManager.parseDuration(durationStr);
+        if (durationTicks == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
+            return 0;
+        }
         muteManager.mutePlayer(target, adminName, reason, durationTicks, source.getServer());
 
         // Confirmation to the source
@@ -169,4 +160,3 @@ public class MuteCommand {
         return 1;
     }
 }
-

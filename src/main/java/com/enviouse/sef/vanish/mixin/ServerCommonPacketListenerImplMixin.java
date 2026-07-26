@@ -32,6 +32,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import com.enviouse.sef.vanish.VanishConfig;
+import com.enviouse.sef.vanish.VanishLifecyclePolicy;
+import com.enviouse.sef.vanish.VanishListProjection;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
@@ -49,16 +51,36 @@ public class ServerCommonPacketListenerImplMixin {
 	@Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$onSendPacket(Packet<?> packet, CallbackInfo callbackInfo) {
 		if (!((Object) this instanceof ServerGamePacketListenerImpl conn)) return;
+		// The vanish config is a SERVER-type ModConfigSpec, which is only loaded between server-start and
+		// server-stop. send() can be called outside that window by off-thread senders that keep their own
+		// schedule (e.g. Simple Voice Chat keepalives via NeoForgeNetManager#sendToClient during the
+		// shutdown race, or a momentary unload while FML reloads the watched .toml). Reading any value
+		// then throws "Cannot get config value before config is loaded". No player is vanished outside the
+		// loaded window, so skipping the filter (fail-open) is the correct behaviour.
+		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer receivingPlayer = conn.player;
 		Level level = receivingPlayer.level();
 
 		if (packet instanceof ClientboundPlayerInfoUpdatePacket infoPacket) {
-			List<ClientboundPlayerInfoUpdatePacket.Entry> filteredPacketEntries = infoPacket.entries().stream().filter(e -> !VanishUtil.isVanished(receivingPlayer.server.getPlayerList().getPlayer(e.profileId()), receivingPlayer)).toList();
+			List<ClientboundPlayerInfoUpdatePacket.Entry> filteredPacketEntries =
+					VanishListProjection.visibleCopy(
+							infoPacket.entries(),
+							entry -> !VanishUtil.isVanished(
+									receivingPlayer.server.getPlayerList().getPlayer(entry.profileId()),
+									receivingPlayer));
 
 			if (filteredPacketEntries.isEmpty())
 				callbackInfo.cancel();
-			else if (!filteredPacketEntries.equals(infoPacket.entries()))
-				infoPacket.entries = filteredPacketEntries; // AT #3: 'entries' made public-non-final
+			else if (!filteredPacketEntries.equals(infoPacket.entries())) {
+				List<ServerPlayer> visiblePlayers = filteredPacketEntries.stream()
+						.map(entry -> receivingPlayer.server.getPlayerList().getPlayer(entry.profileId()))
+						.filter(java.util.Objects::nonNull)
+						.toList();
+				callbackInfo.cancel();
+				if (visiblePlayers.size() == filteredPacketEntries.size()) {
+					conn.send(new ClientboundPlayerInfoUpdatePacket(infoPacket.actions(), visiblePlayers));
+				}
+			}
 		}
 		else if (packet instanceof ClientboundTakeItemEntityPacket pickupPacket && level.getEntity(pickupPacket.getPlayerId()) instanceof ServerPlayer pickUppingPlayer && VanishUtil.isVanished(pickUppingPlayer, receivingPlayer)) {
 			TraceHandler.trace(pickUppingPlayer, "Pickup Animation", pickupPacket.getItemId() + "x" + pickupPacket.getAmount());
@@ -118,6 +140,9 @@ public class ServerCommonPacketListenerImplMixin {
 	@Inject(method = "send(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketSendListener;)V", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$onSendPacketWithListener(Packet<?> packet, PacketSendListener listener, CallbackInfo callbackInfo) {
 		if (!((Object) this instanceof ServerGamePacketListenerImpl conn)) return;
+		// See vanishmod$onSendPacket: the SERVER-type vanish config may be unloaded when an off-thread
+		// sender calls send() outside the server-running window; reading a value would throw. Fail open.
+		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer player = conn.player;
 
 		if (packet instanceof ClientboundSystemChatPacket chatPacket && chatPacket.content() instanceof MutableComponent component && component.getContents() instanceof TranslatableContents content) {

@@ -12,6 +12,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Stores chat messages so the /ans reply system can look up original senders.
  */
 public class ChatMessageManager {
+    private static final int MAX_MESSAGES = 10_000;
     private static final AtomicLong ID_COUNTER = new AtomicLong(1);
     private static final Map<Long, ChatRecord> MESSAGES = new ConcurrentHashMap<>();
     private static final Map<UUID, Long> LAST_MESSAGE = new ConcurrentHashMap<>();
@@ -28,10 +29,11 @@ public class ChatMessageManager {
     /**
      * Records a chat message and returns a unique message ID.
      */
-    public static long recordMessage(UUID senderUuid, String rawName, String formattedName, String message) {
+    public static synchronized long recordMessage(UUID senderUuid, String rawName, String formattedName, String message) {
         long id = ID_COUNTER.getAndIncrement();
         MESSAGES.put(id, new ChatRecord(id, senderUuid, rawName, formattedName, message, System.currentTimeMillis()));
         LAST_MESSAGE.put(senderUuid, id);
+        MESSAGES.remove(id - MAX_MESSAGES);
         return id;
     }
 
@@ -48,4 +50,3 @@ public class ChatMessageManager {
         LAST_MESSAGE.remove(uuid);
     }
 }
-

@@ -3,6 +3,7 @@ package com.enviouse.sef.invlock;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -21,12 +22,7 @@ public class InvLockCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(Commands.literal("invlock")
-            .requires(src -> {
-                try {
-                    return PermissionsHandler.playerHasPermission(
-                        src.getPlayerOrException().getUUID(), PermissionsHandler.invLockCommand);
-                } catch (Exception e) { return src.hasPermission(2); }
-            })
+            .requires(src -> PermissionService.has(src, PermissionsHandler.invLockCommand))
             .then(Commands.argument("player", EntityArgument.player())
                 .executes(ctx -> {
                     ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
@@ -68,4 +64,3 @@ public class InvLockCommand {
         return 1;
     }
 }
-
