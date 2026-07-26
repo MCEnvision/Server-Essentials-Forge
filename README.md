@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 3 have implementation coverage in this branch. Public release acceptance remains pending until the authenticated multiplayer, optional integration, restart, crash recovery, and profiler cases in the manual matrices are completed. Homes, teleportation, later command families, enhanced client GUIs, and the wider EssentialsX parity roadmap remain planned.
+SEF 2 Phases 1 through 3 have implementation coverage in this branch. Headless verification now covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with each current optional integration alone and together. Public release acceptance still requires authenticated multiplayer, packet visible behavior, live permission and quota refresh, actual Curios inventory interaction, a qualifying player cooldown restart, dirty shutdown races, and profiler cases from the manual matrices. Homes, teleportation, later command families, enhanced client GUIs, and the wider EssentialsX parity roadmap remain planned.
 
 ## Current features
 
@@ -142,6 +142,8 @@ gradlew.bat runClient
 The built JAR is written to `build/libs/`.
 
 There is currently no dedicated formatter or static analysis task. Java changes must at minimum pass `test` and `build`, plus the relevant server or client smoke test.
+
+The `runServer` task forwards terminal input to the dedicated server. Wait for the ready message, run operator diagnostics as needed, and type `stop` to exercise the normal bounded shutdown path.
 
 ## Repository layout
 

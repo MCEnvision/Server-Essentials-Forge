@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 3 have implementation coverage in the current worktree. Release verification is not complete. The authenticated multiplayer, optional integration, restart, crash recovery, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
+SEF 2 Phases 1 through 3 have implementation coverage in the current worktree. Headless verification covers normal console stop, clean restart, legacy identity migration, profile and cooldown corruption recovery, basic forced termination recovery, and dedicated startup with the current optional integration combinations. Release verification is not complete. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, and profiler cases in the manual matrices remain required before approval. Phase 1 establishes the security, privacy, integration, audit, and performance baseline. Phase 2 adds the shared command and policy kernel. Phase 3 adds bounded domain repositories, identity migration, location history, persistent cooldowns, and recovery mode. Homes, teleportation, economy, expanded moderation, enhanced GUI networking, and other later roadmap families are not implemented.
 
 ## 2. Platform and toolchain
 
@@ -502,7 +502,7 @@ Required Phase 1 integration verification includes:
 4. FTB Essentials with its required dependencies.
 5. All three integration families installed together.
 
-The current candidate record proves only the no integration dedicated server path. The installed integration combinations remain manual release blockers and must be recorded in `docs/PHASE_1_MANUAL_TESTS.md`.
+The headless dedicated startup matrix has passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every run reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. These results prove optional dependency isolation and startup compatibility only. Authenticated LuckPerms refresh and metadata behavior, FTB nickname ownership mutations, and Curios inventory interaction remain manual release gates recorded in `docs/PHASE_1_MANUAL_TESTS.md`.
 
 ## 15. Mixins and access transformation
 
@@ -547,6 +547,8 @@ gradlew.bat runData
 ```
 
 There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do not claim those checks ran.
+
+The `runServer` task forwards standard input. Use its terminal for `sef doctor`, `sef storage status`, and the literal `stop` command. Signal termination is useful only for an explicitly recorded crash test and does not replace a normal shutdown check.
 
 ### 16.2 Required verification by change type
 
@@ -624,7 +626,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 40. Coalesced mute and banned item persistence worker behavior, latest snapshot retention, failure reporting, recovery, shutdown draining, and post shutdown rejection.
 41. Background location history and persistent cooldown shutdown flushing outside the calling thread.
 
-Rendering, client packet observation, authenticated multi-client behavior, and optional integration combinations still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 operator, permission, restart, and recovery behavior is in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
+Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Run both before approving a public release.
 
 ## 17. Operations and recovery
 
@@ -732,4 +734,4 @@ Before an approved release:
 
 ## 21. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 have implementation coverage, but their manual release gates remain open. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 3 have implementation coverage and expanded headless evidence, but their authenticated multiplayer, player driven, packet visible, shutdown race, and profiler release gates remain open. Phase 4 is next and covers command mode homes, teleport requests, direct teleport safety, spawn, public warps, player hosted warps, back history, and random teleportation. GUI networking, economy, moderation expansion, fake message, sudo, spy, logger, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
