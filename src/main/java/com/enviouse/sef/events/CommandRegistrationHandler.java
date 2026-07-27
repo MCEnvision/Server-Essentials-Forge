@@ -47,10 +47,12 @@ import com.enviouse.sef.teleport.CoreTeleportCommands;
 import com.enviouse.sef.teleport.HomeCommands;
 import com.enviouse.sef.teleport.TeleportRequestCommands;
 import com.enviouse.sef.teleport.WarpCommands;
+import com.enviouse.sef.automation.AutomationCommands;
 
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 public class CommandRegistrationHandler {
     private static final AnnouncementManager ANNOUNCEMENT_MANAGER = new AnnouncementManager();
@@ -80,6 +82,12 @@ public class CommandRegistrationHandler {
         KernelServices.shortcuts().captureExistingRoots(e.getDispatcher().getRoot().getChildren().stream()
                 .map(node -> node.getName().toLowerCase(java.util.Locale.ROOT))
                 .collect(java.util.stream.Collectors.toSet()));
+        var currentServer = ServerLifecycleHooks.getCurrentServer();
+        if (currentServer != null) {
+            KernelServices.preloadAutomationDefinitions(currentServer.getServerDirectory()
+                    .resolve("serverconfig")
+                    .resolve("sef"));
+        }
         // Always register base commands
         BfcCommands.register(e.getDispatcher());
 
@@ -137,11 +145,7 @@ public class CommandRegistrationHandler {
             ClearChatCommand.register(e.getDispatcher());
         }
 
-        // Sudo remains unavailable until the later secured sudo phase.
-        if(ConfigHandler.config.enableSudo.get()) {
-            com.enviouse.sef.ServerEssentialsForge.LOGGER.warn(
-                    "[SEF] modules.sudo is enabled, but sudo remains temporarily unavailable during stabilization");
-        }
+        AutomationCommands.registerDirect(e.getDispatcher());
 
         // Register /invlock command if enabled
         if(ConfigHandler.config.enableInvLock.get()
@@ -202,5 +206,6 @@ public class CommandRegistrationHandler {
         if(ConfigHandler.config.enableMessagingSystem.get()) {
             MsgCommands.register(e.getDispatcher());
         }
+        AutomationCommands.registerPublishedAliases(e.getDispatcher());
     }
 }

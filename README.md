@@ -77,7 +77,7 @@ Every exposed command path is expected to use a permission node. The current sec
 1. `/sef` subcommands use separate nodes. `/sef reload` and `/sef test` default to denied.
 2. `/sef filter` uses `sef.filter.manage` instead of a generic operator level.
 3. `/nickfor` uses `sef.commands.nick.others` and defaults to denied.
-4. `/sudo` is not registered during stabilization, even when an older configuration still enables its module. The server warns about the ignored value.
+4. `/sudo`, `/run`, and server-context `/silent` are high-risk Phase 11 routes. They use denied-by-default permissions, root policy, confirmation, observation, and audit.
 5. Command announcements use a separate denied by default permission. Their command root must be explicitly allowlisted both when saved and when executed.
 6. Persisted vanish state is removed or lowered when the player no longer has its required vanish permission.
 7. Console and RCON sources require permission level `4` for permission service bypass. Command blocks do not receive a general bypass.
@@ -123,7 +123,7 @@ The mod must start without optional integrations.
 4. Stop the server and review `config/sef/common.toml` and the world server configuration before opening the server to players.
 5. Install and configure LuckPerms when group based permission control is required.
 
-Clients do not need the current SEF JAR.
+Clients do not need the SEF JAR for command access. Compatible clients may install the same JAR for negotiated vanilla-style screens and HUDs. Vanilla and non-SEF clients remain supported through command fallback.
 
 ## Configuration
 
@@ -146,6 +146,11 @@ Primary configuration:
 15. `<world>/serverconfig/sef/economy.json` contains native accounts, preferences, ledger entries, pending cost reservations, worth definitions, and import records.
 16. `<world>/serverconfig/sef/economy-signs.json` contains UUID-owned, side-specific economy sign definitions and text fingerprints.
 17. `<world>/serverconfig/sef/economy-import-reports` contains aggregate import-once reports. The matching pre-import economy snapshot is stored under `<world>/serverconfig/sef/backups`.
+18. `<world>/serverconfig/sef/aliases.json` contains alias drafts, immutable publications, and bounded revision history.
+19. `<world>/serverconfig/sef/bundles.json` contains bundle drafts, publications, history, and recoverable runtime jobs.
+20. `<world>/serverconfig/sef/command-profiles.json` contains reviewed actor, targeted-actor, and server command profiles.
+21. `<world>/serverconfig/sef/fake-identities.json` contains fake identity profiles, scenes, schedules, and bounded history.
+22. `<world>/serverconfig/sef/sudo-policy.json` contains UUID-addressed consent and administrative lock state.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
@@ -197,6 +202,7 @@ The `runServer` task forwards terminal input to the dedicated server. Wait for t
 10. `docs/PHASE_5_TESTS.md` contains the Phase 5 social, privacy, connection-message, reminder, and identity verification matrix.
 11. `docs/PHASE_6_TESTS.md` contains the Phase 6 moderation, privacy, command-observation, and logging matrix.
 12. `docs/PHASE_7_TESTS.md` contains the Phase 7 inventory, kits, workstation, shortcut, and player-utility matrix.
+13. `docs/PHASE_11_TESTS.md` contains the Phase 11 alias, bundle, command-profile, fake-identity, sudo, run, and silent matrix.
 
 ## Support
 

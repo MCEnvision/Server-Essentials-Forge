@@ -151,6 +151,14 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<String> sudoDeniedCommands;
 		public final ModConfigSpec.ConfigValue<Boolean> sudoNotifyTarget;
 		public final ModConfigSpec.ConfigValue<Integer> sudoMaximumCommandLength;
+		public final ModConfigSpec.ConfigValue<String> runAllowedCommands;
+		public final ModConfigSpec.ConfigValue<String> runDeniedCommands;
+		public final ModConfigSpec.ConfigValue<String> silentActorAllowedCommands;
+		public final ModConfigSpec.ConfigValue<String> silentActorDeniedCommands;
+		public final ModConfigSpec.ConfigValue<String> fakeChatFormat;
+		public final ModConfigSpec.ConfigValue<String> fakeJoinFormat;
+		public final ModConfigSpec.ConfigValue<String> fakeLeaveFormat;
+		public final ModConfigSpec.ConfigValue<Integer> fakeMaximumMessageLength;
 
 		// Inventory Lock System
 		public final ModConfigSpec.ConfigValue<Boolean> enableInvLock;
@@ -529,6 +537,19 @@ public class ConfigHandler {
 			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
 			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
 			kernelRepositoryFlushSeconds = builder.comment("  Maximum seconds dirty kernel repositories remain only in memory").defineInRange("repositoryFlushSeconds", 30, 1, 600);
+			builder.pop();
+
+			builder.comment("Reviewed command automation",
+					"  Server source command roots are denied unless explicitly listed.",
+					"  Deny lists always win and wrappers cannot invoke wrappers.").push("automation");
+			runAllowedCommands = builder.comment("  Comma separated roots allowed through direct run and silent server execution. Empty denies every root.").define("runAllowedCommands", "");
+			runDeniedCommands = builder.comment("  Comma separated roots denied through direct run and silent server execution.").define("runDeniedCommands", "run,silent,sudo,op,deop,stop,reload");
+			silentActorAllowedCommands = builder.comment("  Comma separated roots allowed through silent actor execution. Empty denies every root.").define("silentActorAllowedCommands", "");
+			silentActorDeniedCommands = builder.comment("  Comma separated roots denied through silent actor execution.").define("silentActorDeniedCommands", "run,silent,sudo");
+			fakeChatFormat = builder.comment("  Unsigned fake chat presentation. Placeholders are prefix, suffix, username, nickname, and message.").define("fakeChatFormat", "{prefix}{nickname}{suffix}&7: &f{message}");
+			fakeJoinFormat = builder.comment("  Fake join presentation. Placeholders are prefix, suffix, username, and nickname.").define("fakeJoinFormat", "&e{nickname} joined the game");
+			fakeLeaveFormat = builder.comment("  Fake leave presentation. Placeholders are prefix, suffix, username, and nickname.").define("fakeLeaveFormat", "&e{nickname} left the game");
+			fakeMaximumMessageLength = builder.comment("  Maximum fake message length before formatting.").defineInRange("fakeMaximumMessageLength", 256, 1, 2048);
 			builder.pop();
 
 			builder.comment("Optional enhanced client protocol and vanilla style GUI",

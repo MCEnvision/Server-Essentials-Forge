@@ -31,6 +31,7 @@ import com.enviouse.sef.vanish.compat.SDLinkHideTracker;
 import com.enviouse.sef.teleport.TeleportLifecycleEvents;
 import com.enviouse.sef.social.MailCommands;
 import com.enviouse.sef.social.ReminderService;
+import com.enviouse.sef.automation.AutomationRuntime;
 import net.neoforged.fml.ModList;
 
 public class PlayerEventHandler implements IReloadable {
@@ -147,6 +148,7 @@ public class PlayerEventHandler implements IReloadable {
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onServerTick(ServerTickEvent.Post e) {
+        AutomationRuntime.tick(e.getServer());
         int interval = Math.max(1, ConfigHandler.config.tabUpdateIntervalTicks.get());
         if (e.getServer().getTickCount() % 20 == 0) {
             ReminderService.deliverScheduled(e.getServer().getPlayerList().getPlayers());

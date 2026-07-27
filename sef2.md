@@ -27,7 +27,7 @@ This is a plan, not a statement that every described feature is already implemen
 
 ## Implementation status update, 2026-07-26
 
-Phases 1 through 7 have automated implementation coverage in the current phase branch. They are not release complete. The latest Phase 6 and Phase 7 repair pass covers mandatory audit writer failure, optional logger failure recovery, control character redaction, persistent freeze disablement, inventory lock packet and drop paths, jail lifecycle enforcement, connection address adapter registration, and kit usage transaction boundaries. It passes the unit, GameTest, full build, JAR integrity, and dedicated server gates recorded in the phase verification documents. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, deliberate filesystem failures, real proxy and external address providers, super enchant client synchronization, and profiler cases in the phase test documents remain mandatory approval gates.
+Phases 1 through 11 have automated implementation coverage in the current phase branch. They are not release complete. The latest Phase 11 pass adds published aliases, paced and recoverable bundles, reviewed command profiles, fake identity presentation, sudo consent and locks, server-source execution, scoped silent execution, and their persistent repositories. It passes the unit, full build, JAR integrity, and two consecutive dedicated-server startup and shutdown gates recorded in the phase verification documents. Authenticated multiplayer, packet-visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, deliberate filesystem failures, real proxy and external address providers, super-enchant client synchronization, mixed-client presentation, and profiler cases in the phase test documents remain mandatory approval gates.
 
 Completed security and authorization work:
 
@@ -16526,6 +16526,23 @@ Automated evidence is recorded in `docs/PHASE_10_TESTS.md`. The complete mixed c
 
 ## Phase 11. Custom aliases, bundles, fake identity, and sudo suite
 
+### Implementation status, 2026-07-26
+
+Implemented on `envy/sef2_complete`.
+
+- Added revisioned, persistent alias drafts, validation, publication, generated help, activation after restart, disablement, rollback, deletion, and collision-aware Brigadier redirects.
+- Added strict-actor bundle drafts, typed steps, graph validation, immutable publication, preview, confirmation, frozen target cohorts, per-tick pacing, delay steps, cancellation, restart recovery, compensation hooks, and per-step revalidation and audit.
+- Added disabled built-in staff-mode, moderation-handoff, maintenance, incident, and recovery templates.
+- Added actor, targeted-actor, and server command profiles with typed placeholders, context permissions, publication, reference inspection, execution, confirmation for privileged contexts, rollback, deletion protection, and server-bound target placeholders.
+- Added persistent fake identity profiles, scenes, schedules, audience filtering, real-player metadata resolution, default unknown-player metadata, fake join, fake leave, fake message, and fake rank message as unsigned system presentation.
+- Added hardened sudo command execution with preview, allow and deny root policy, wrapper recursion rejection, consent, locks, hierarchy, exemption, vanish, confirmation, target notification, dry run, and unsigned sudo chat presentation.
+- Added `/run` with a real server source, root-specific permission checks, root allow and deny policy, Brigadier preflight, confirmation, command observation, file logging, and security audit.
+- Added actor and server `/silent` contexts. Silence is limited to command-source feedback. Command observation, audit, enabled SEF file logging, security failures, and independent mod output are never suppressed.
+- Added durable alias, bundle, command-profile, fake-identity, and sudo-policy repositories under the managed server configuration root.
+- Added focused regression coverage for persistence, alias conflicts, profile context and reference rules, multi-tick bundle cohorts, duplicate-execution prevention, and sudo policy revisions.
+
+Automated evidence and the remaining authenticated, mixed-client, provider, storage-failure, shutdown, and profiler release matrix are recorded in `docs/PHASE_11_TESTS.md`.
+
 ### Deliverables
 
 - Full custom alias lifecycle, including draft, validate, publish, restart activation, disable, rollback, delete, conflicts, and generated help.
@@ -16756,6 +16773,50 @@ This phase is delivered as two separately reviewable subphases. Phase 12B does n
 - Explicit surface ownership, leases, priority, coexistence, external-objective preservation, packet budgets, and conflict diagnostics.
 - Nickname, Fancy Tags, vanish, maintenance, queue, event, and performance composition tests.
 
+#### Phase 13N. Unrestricted administrative enchanting and workstation completion
+
+- Replace the vanilla `/enchant` root with a cataloged SEF command while preserving an always-available canonical `/sef enchant` route and explicit command-root conflict diagnostics.
+- Support `/enchant <targets> <enchantment> [level]` with Brigadier player and enchantment suggestions, plus a self shorthand that never weakens the canonical permission or target policy.
+- Permit authorized unsafe enchanting above vanilla enchantment levels, including examples such as Knockback 255 and Sharpness 1000.
+- Permit authorized enchanting of any item, including normally unsupported items such as dirt, without relying on vanilla item-applicability, compatibility, or maximum-level checks.
+- Keep registry existence, target hierarchy, target exemptions, inventory revision, selected slot, stack identity, item count, numeric parsing, positive-level, and integer-overflow checks server authoritative.
+- Separate ordinary enchanting, unsafe levels, normally incompatible combinations, arbitrary-item application, self targeting, other-player targeting, and bulk targeting into distinct permissions.
+- Use a configurable hard safety ceiling with a bounded implementation ceiling. The configured ceiling may be high enough for arbitrary administrative use but cannot exceed the representation and packet limits proven safe by tests.
+- Preserve existing enchantments unless the requested operation explicitly replaces or removes one. Do not silently lower an existing higher level.
+- Add explicit remove-one-enchantment and clear-all-enchantments actions with separate destructive permissions, previews, confirmations, and audit classes.
+- Make `/superenchantingtable` the canonical virtual super-enchanting workstation command and `/set` its collision-aware shortcut.
+- Verify that both `/superenchantingtable` and an active `/set` shortcut open the server-authoritative super-enchanting menu, and that a root collision disables only `/set`, never the canonical command.
+- Revalidate permission, feature state, cooldown, cost, menu revision, held stack identity, registry entry, requested level, unsafe permissions, and item policy immediately before every super-enchant mutation.
+- Add a vanilla-styled enchantment picker, numeric level field, current-enchantment list, unsafe warning, item preview, confirmation state, success result, and command fallback.
+- Keep GUI-off, vanilla-client, and non-SEF-client operation complete through `/enchant`, `/sef enchant`, and `/superenchantingtable`.
+- Add dedicated permissions including `sef.commands.enchant`, `sef.commands.enchant.others`, `sef.commands.enchant.unsafe_level`, `sef.commands.enchant.any_item`, `sef.commands.enchant.incompatible`, `sef.commands.enchant.remove`, `sef.commands.enchant.clear`, and the preserved `sef.commands.superenchantingtable`.
+- Add dispatcher, shortcut-collision, item-component, reconnect, stale-menu, permission-revocation, extreme-level, overflow, incompatible-enchantment, arbitrary-item, multi-target atomic-admission, client synchronization, dedicated-server, and mixed-client tests.
+
+Phase 13N is incomplete if `/enchant` delegates to vanilla level or item checks, `/set` is the only route to the super-enchanting menu, an unauthorized client can request unsafe mutation, or an extreme level can overflow a calculation, component, codec, packet, tooltip, or renderer.
+
+#### Phase 13O. Permission-derived command cooldowns
+
+- Remove per-command cooldown values from `common.toml`. Feature toggles, hard ceilings, rate protection, and provider selection may remain configuration, but an operator-facing command cooldown duration is resolved from permissions.
+- Support numeric permission nodes in the form `sef.cooldown.<action>.<seconds>`, including `sef.cooldown.craft.100` for a 100-second crafting cooldown and `sef.cooldown.craft.0` for no crafting cooldown.
+- Resolve cooldowns by stable canonical action id rather than the typed alias. `/craft`, `/c`, a GUI control, a panel control, and `/sef workstation craft` therefore consume the same cooldown.
+- Define stable permission keys for every cooldown-bearing action and publish them in generated permission documentation.
+- Accept only base-10 nonnegative whole seconds within the global hard ceiling. Reject signs, decimals, exponent notation, whitespace tricks, overflow, control characters, and values above the ceiling.
+- When several matching positive permissions are inherited, use the lowest granted duration because it represents the strongest cooldown privilege. Explicitly denied nodes are never treated as grants.
+- Give an exact player assignment precedence over inherited group assignments when the permission provider exposes origin and priority safely. When origin cannot be proven, use the deterministic lowest-granted rule and report that limitation.
+- Support dynamic numeric suffix discovery through the LuckPerms integration without making LuckPerms a startup dependency.
+- Provide a bounded registered-tier fallback for the native NeoForge permission service. Arbitrary numeric suffix discovery that the provider cannot expose must fail visibly rather than silently treating the player as uncooldowned.
+- Define a finite internal default for every action when no valid cooldown permission is granted. Defaults live in the action catalog or permission manifest, not `common.toml`, and are shown by diagnostics.
+- Preserve dedicated bypass permissions only as an explicit higher-trust policy. A generic OP level, wildcard accident, malformed node, provider outage, or missing metadata cannot silently become a zero-second cooldown.
+- Snapshot the resolved duration when an execution is admitted. Permission refresh invalidates the resolver cache for future admissions but does not rewrite an already-recorded cooldown lease.
+- Persist qualifying cooldowns by player UUID and canonical action id. A restart, disconnect, alias change, GUI use, or permission-provider refresh cannot reset an active cooldown.
+- Add `/sef cooldown explain <player> <action>` with permission-gated provider, winning node, seconds, source, fallback, bypass, persisted remaining time, and cache-revision diagnostics.
+- Add `/sef cooldown keys [page]` and generated documentation so operators can find canonical cooldown keys without reading source.
+- Add migration diagnostics for legacy `common.toml` cooldown values. The old values are reported and ignored after the permission-derived system becomes authoritative; they are never silently copied into player permissions.
+- Apply the same resolver to commands, shortcuts, GUIs, admin panels, aliases, bundles, sudo participant execution, and server-approved integrations.
+- Add provider-present, provider-absent, provider-outage, multiple-grant, explicit-denial, wildcard, direct-versus-inherited, zero, maximum, malformed, overflow, persistence, reconnect, restart, permission-refresh, shortcut-equivalence, GUI-equivalence, concurrency, and cache-bound tests.
+
+Phase 13O is incomplete if an operator-facing cooldown duration still comes from `common.toml`, an alias has a separate timer, a missing provider grants a zero cooldown, multiple matching nodes resolve nondeterministically, or cooldown persistence can be bypassed by reconnecting or changing the command route.
+
 Every Phase 13 subphase also delivers the screens and HUD rows assigned to its systems in Part XII. A subphase is not complete when its commands work but its authorized management screen, command fallback, required active-state indicator, privacy rules, or recovery presentation are missing.
 
 ### Deliverables
@@ -16764,6 +16825,7 @@ Every Phase 13 subphase also delivers the screens and HUD rows assigned to its s
 - All 15 original server-control systems, delivered through independently testable Phase 13 subphases.
 - All 25 additional essential systems, delivered through independently testable Phase 13 subphases or their earlier mapped foundation phases.
 - All 30 ultimate server-manager systems, delivered through Phase 13F through Phase 13M after their shared prerequisites.
+- Unrestricted administrative enchanting, completed super-enchanting workstation behavior, and permission-derived cooldowns, delivered through Phase 13N and Phase 13O.
 - GeoIP optional module after privacy approval.
 - Claim adapters.
 - Discord adapters.
@@ -16783,6 +16845,228 @@ Every Phase 13 subphase also delivers the screens and HUD rows assigned to its s
 - All 30 ultimate systems have their required vanilla-style full screen, server-only fallback, state projection, privacy policy, and HUD or explicit no-HUD rationale.
 - Vanilla and non-SEF administrators receive equivalent text, action-bar, boss-bar, or command status without being required to install SEF.
 - None of the 70 added systems is silently dropped. Any deferral or exclusion requires an explicit product decision recorded in this plan.
+
+## Phase 13.5. Modular responsive configuration platform
+
+### Objectives
+
+- Replace the oversized operator-facing `common.toml` surface with detailed, independently owned module configuration files.
+- Store module files under the NeoForge configuration directory at `config/sef/modules`.
+- Make each module understandable, editable, validateable, reloadable, and diagnosable without requiring operators to search through one monolithic file.
+- Keep permissions, feature state, quotas, costs, messages, GUI presentation, storage policy, integrations, and operational behavior explicit without creating duplicate authorities.
+- Preserve server-only operation and prevent any configuration file from becoming a script or arbitrary command-execution surface.
+
+### Directory layout
+
+`config/sef/common.toml` becomes a small bootstrap file. It may contain only configuration-platform startup settings, provider selection, global hard ceilings, compatibility mode, module-directory policy, and settings that genuinely require restart before module loading. It must not contain ordinary command cooldown durations after Phase 13O.
+
+The initial modular layout includes:
+
+```text
+config/sef/
+  common.toml
+  modules/
+    index.toml
+    core.toml
+    commands.toml
+    messages.toml
+    permissions.toml
+    gui.toml
+    hud.toml
+    craft.toml
+    anvil.toml
+    enchanting.toml
+    super_enchanting.toml
+    repair.toml
+    workstations.toml
+    homes.toml
+    teleport_requests.toml
+    spawn.toml
+    back.toml
+    warps.toml
+    player_warps.toml
+    random_teleport.toml
+    direct_teleport.toml
+    social.toml
+    private_messages.toml
+    social_spy.toml
+    mail.toml
+    nicknames.toml
+    connection_messages.toml
+    reminders.toml
+    moderation.toml
+    bans.toml
+    kicks.toml
+    mutes.toml
+    warnings.toml
+    jails.toml
+    freeze.toml
+    inventory_lock.toml
+    building_control.toml
+    vanish.toml
+    command_spy.toml
+    logger.toml
+    audit.toml
+    inventory.toml
+    kits.toml
+    player_utilities.toml
+    gamemode.toml
+    items.toml
+    economy.toml
+    economy_signs.toml
+    admin_panels.toml
+    aliases.toml
+    bundles.toml
+    fake_actions.toml
+    sudo.toml
+    run_and_silent.toml
+    fancy_tags.toml
+    disguise.toml
+    integrations.toml
+    server_control.toml
+    performance.toml
+    backups.toml
+    privacy.toml
+    community.toml
+    displays.toml
+```
+
+Modules added by later features receive an owned file or an explicitly documented section in the closest domain file. A new setting cannot be placed in `common.toml` merely because its final module file has not been created.
+
+`index.toml` records the configuration schema, enabled module files, recognized optional files, deterministic load order, dependency declarations, and last successful migration revision. It does not grant permissions or execute actions.
+
+### Module file contract
+
+Every module file has:
+
+- A stable module id, schema version, generated documentation version, and human-readable purpose.
+- An explicit enabled state and a truthful disabled-state description.
+- A declared apply class of `live`, `next_session`, `next_world_load`, or `restart_required`.
+- Feature dependencies, conflicts, provider ownership, and failure behavior.
+- Command root and shortcut policy where the module owns command routes.
+- Stable action ids and permission ids as read-only documentation fields.
+- Detailed bounds, quotas, rate protection, warmups, costs, confirmations, hierarchy behavior, exemptions, and source restrictions where the module owns those policies.
+- Message template ids, defaults, placeholder schemas, formatting rules, length limits, and privacy classification.
+- GUI screen, HUD, command fallback, reminder, empty-state, and accessibility settings where presentation applies.
+- Storage provider, retention, flush, recovery, import, export, and migration policy where the module owns persistent state.
+- Integration selection, fallback, health, timeout, and circuit-breaker policy where an optional provider applies.
+- Audit class, redaction class, sensitive-field rules, and operator-visible diagnostic policy.
+- Comments containing valid ranges, units, examples, reload behavior, security consequences, and related commands.
+
+Module configuration never changes a stable permission id, trusts a client decision, stores a raw secret, defines an arbitrary filesystem path, accepts executable placeholders, or embeds an unrestricted command string.
+
+Cooldown duration values are deliberately absent. A module may document its canonical Phase 13O cooldown key, such as `sef.cooldown.craft.<seconds>`, its finite internal fallback, its persistence class, and its hard ceiling, but the operator-selected duration comes from permissions.
+
+### Detailed workstation example
+
+`config/sef/modules/craft.toml` includes at least:
+
+- `schema_version`, `module_id`, `enabled`, and `apply_class`.
+- Canonical `/sef workstation craft` ownership and `/craft` and `/c` shortcut collision modes.
+- Player-only source policy, dimension allow and deny rules, combat restrictions, movement cancellation, and menu lifetime.
+- Permission documentation for use, bypass, GUI, others where applicable, and the `sef.cooldown.craft.<seconds>` permission pattern.
+- Warmup, cost, confirmation, and economy-provider behavior without duplicating cooldown duration.
+- Menu revision, distance-independent virtual-menu policy, inventory revalidation, disconnect behavior, and forced-close reasons.
+- GUI icon, title, description, category, ordering, HUD rationale, command fallback, and optional-client behavior.
+- Attempt rate limit, concurrent menu limit, audit detail, failure-message keys, and diagnostics.
+
+`anvil.toml`, `enchanting.toml`, `super_enchanting.toml`, `repair.toml`, and the remaining workstation files provide equivalent domain-specific depth. `super_enchanting.toml` additionally owns safe and unsafe level ceilings, arbitrary-item policy, incompatible-enchantment policy, warning and confirmation settings, `/set` collision behavior, and client synchronization limits.
+
+### Typed schema registry
+
+- Add a central `ModuleConfigRegistry` containing stable module ids, file names, schema codecs, defaults, validators, dependency edges, apply classes, documentation metadata, and redaction metadata.
+- Each setting has a stable path, value type, default, allowed range or enum, nullable policy, sensitivity class, reload class, and owning subsystem.
+- Collection sizes, strings, patterns, durations, numeric values, resource locations, registry references, templates, and nested records have hard bounds before allocation or publication.
+- Cross-file references use typed ids. Validation rejects unknown action, permission, panel, bundle, profile, tag, world, currency, provider, or message references.
+- Cross-module validation checks dependencies, conflicts, ownership, circular references, impossible combinations, and unsafe disabled-provider fallback.
+- Unknown fields are preserved during safe migrations where possible and reported by diagnostics. Unknown files are never deleted automatically.
+- Deprecated fields include replacement paths and removal versions. Silent reinterpretation is prohibited.
+
+### Transactional loading and responsive reload
+
+- Parse changed files off the server thread into bounded immutable candidates.
+- Use a debounced file watcher with overflow recovery and periodic low-frequency reconciliation. Never poll or access the filesystem every tick.
+- Resolve the complete affected dependency closure before validation.
+- Validate syntax, schema, hard bounds, references, permissions, providers, dependencies, compatibility, and security invariants before changing live state.
+- Publish all affected module snapshots atomically on the logical server thread with one monotonically increasing configuration revision.
+- A failed parse or validation keeps the complete previous known-good snapshot active. Partial publication is prohibited.
+- Coalesce editor save bursts and duplicate filesystem events into one reload attempt.
+- Refresh command visibility, permission-filtered GUI routes, HUD projections, caches, and diagnostics only after successful publication.
+- Runtime command-tree changes use safe dispatcher refresh and player command-tree resend. Settings that cannot change safely remain active at their previous value and are reported as restart-required drift.
+- Long-running jobs and open menus retain the policy revision under which they were admitted unless their module declares fail-closed cancellation for permission, safety, or provider loss.
+- Reload results identify changed modules and setting paths without printing secrets, absolute paths, private content, or raw credentials.
+
+The responsiveness target is one validated publication within one second after the final ordinary file save on a healthy local filesystem. This target excludes explicitly restart-required settings and large migration or provider-health work.
+
+### In-game configuration center
+
+- Add `/sef config modules`, `/sef config status`, `/sef config inspect <module>`, `/sef config diff <module>`, `/sef config validate [module]`, `/sef config reload [module]`, `/sef config history <module>`, `/sef config rollback <module> <revision>`, and `/sef config explain <module> <setting>`.
+- Add a permission-filtered vanilla-styled configuration center with category navigation, search, module status, typed field editors, enum buttons, bounded numeric fields, message preview, dependency view, validation results, semantic diff, publication confirmation, history, rollback, and restart-required indicators.
+- The editor operates on typed drafts. It cannot submit arbitrary TOML, arbitrary paths, raw commands, unknown permission ids, or executable placeholders.
+- Reading, drafting, validating, publishing, rolling back, viewing sensitive settings, and viewing provider diagnostics use separate permissions.
+- Publication uses expected revisions and rejects stale drafts.
+- Destructive or high-risk changes show affected commands, players, worlds, providers, open sessions, jobs, and required restarts before confirmation.
+- GUI-off administrators receive complete typed command fallbacks. Direct file editing remains supported.
+- Enhanced clients receive only permission-filtered schema and value projections. Secrets and server filesystem details never enter a client payload.
+
+### Profiles and contextual overrides
+
+- Modules may expose typed named profiles only where the owning subsystem supports them.
+- Supported contexts may include server, world, dimension, permission group, player state, schedule, maintenance state, or event profile.
+- Override precedence is fixed, documented, cycle-free, explainable, and tested.
+- Contextual overrides cannot grant permissions, exceed a global hard ceiling, bypass hierarchy, weaken audit, disable mandatory redaction, or select an unavailable provider silently.
+- `/sef config explain` shows the winning profile, setting source, revision, fallback, and apply class.
+- Profile activation and scheduling use stable ids and the shared approval, change-window, audit, and rollback services.
+
+### Migration from `common.toml`
+
+- Detect the last legacy monolithic schema and produce a dry-run migration report before writing module files.
+- Create a timestamped backup through the owned configuration backup path.
+- Write all candidate module files to staging, parse them again, validate the complete dependency graph, and atomically publish the migration marker only after every file passes.
+- Preserve comments and unknown safe values where the configuration library supports it. Report values that cannot be mapped.
+- Never delete the legacy file automatically. Mark migrated fields as ignored with their destination module and provide an explicit cleanup command after successful restart verification.
+- Re-running migration is idempotent and cannot overwrite newer operator edits.
+- Phase 13O cooldown values are not migrated into module files. Legacy cooldowns are reported with the permission keys an operator must assign.
+
+### Security and recovery
+
+- Resolve every module path beneath the fixed `config/sef/modules` root and reject traversal, symlinks, hard-link surprises where detectable, invalid names, hidden temporary files, and oversized input.
+- Use restrictive file permissions where supported and never weaken an operator’s stricter permissions.
+- Writes use staging, flush, atomic replacement, retained previous revision, and bounded history.
+- Recovery can restore a known-good module revision without replacing unrelated modules.
+- Audit configuration reads only when sensitive, and audit every draft, validation, publication, rollback, migration, repair, and failed security check.
+- File logging receives redacted setting paths and result metadata, never secret values.
+- Provider outage, watcher failure, event overflow, disk-full, read-only filesystem, malformed TOML, unsupported schema, and interrupted publication remain visible in `/sef doctor` and the configuration center.
+
+### Documentation generation
+
+- Generate the configuration reference from the same typed registry used at runtime.
+- Document every file, section, setting, type, default, range, unit, permission, apply class, dependency, conflict, privacy class, example, and migration path.
+- Generate example module files and a complete default directory fixture.
+- Add cross-links from command, permission, GUI, HUD, storage, integration, and troubleshooting documentation.
+- Documentation and generated examples fail verification when they drift from the registry.
+
+### Verification
+
+- Unit tests cover every schema, default, bound, enum, typed reference, dependency, conflict, precedence rule, migration, unknown field, redaction class, apply class, and documentation entry.
+- Reload tests cover single-file changes, dependency closures, multiple simultaneous files, save bursts, partial writes, rename saves, watcher overflow, malformed input, stale drafts, publication races, and rollback.
+- Failure tests cover disk-full, read-only files, invalid encoding, oversized input, traversal, symlink replacement, unsupported schema, interrupted migration, provider outage, and failed command-tree refresh.
+- Equivalence tests prove that direct file edits, in-game typed edits, startup loading, reload, rollback, server-only commands, and enhanced GUI publication produce the same authoritative snapshot.
+- Dedicated-server tests prove no client class loads from configuration code.
+- Mixed-client tests prove optional GUI behavior and prevent sensitive configuration projection.
+- Performance tests cover large valid configurations, many modules, many profiles, repeated reload events, documentation generation, and cache invalidation without tick stalls.
+
+### Exit criteria
+
+- Ordinary module settings no longer live in one oversized `common.toml`.
+- `config/sef/modules/craft.toml` and every listed owned module file are generated, documented, loaded, validated, and represented in diagnostics.
+- Cooldown duration authority remains Phase 13O permissions and is not reintroduced through modular TOML.
+- A bad module edit cannot partially mutate live state or erase the previous known-good configuration.
+- Live settings respond within the target without per-tick filesystem work.
+- Restart-required settings are truthful and never pretend to apply live.
+- In-game and command-only editors provide equivalent typed administration.
+- Configuration packets reveal no secret, unrestricted path, hidden provider detail, vanished identity, or unauthorized setting.
+- Migration, startup, reload, rollback, dedicated-server, mixed-client, performance, security, and documentation-drift tests pass.
 
 ## Phase 14. Release hardening
 

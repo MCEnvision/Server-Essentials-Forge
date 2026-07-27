@@ -16,6 +16,7 @@ import com.enviouse.sef.kernel.KernelCommands;
 import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageCommands;
+import com.enviouse.sef.automation.AutomationCommands;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -43,6 +44,7 @@ public class BfcCommands {
 			registerFilterCommands(sefRoot);
 		}
 			KernelCommands.attach(sefRoot);
+			AutomationCommands.attach(sefRoot);
 			CommandSpyCommands.attachCanonical(sefRoot);
 			LoggingCommands.attachCanonical(sefRoot);
 		VirtualWorkstationCommands.attachCanonical(sefRoot);

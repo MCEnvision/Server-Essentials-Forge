@@ -1,6 +1,12 @@
 package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.automation.AdministrativeExecutionService;
+import com.enviouse.sef.automation.AliasService;
+import com.enviouse.sef.automation.BundleService;
+import com.enviouse.sef.automation.CommandProfileService;
+import com.enviouse.sef.automation.FakeIdentityService;
+import com.enviouse.sef.automation.SudoPolicyRepository;
 import com.enviouse.sef.commandlog.CommandEventJournal;
 import com.enviouse.sef.commandlog.CommandSpyRepository;
 import com.enviouse.sef.commandlog.FileLogSink;
@@ -109,8 +115,14 @@ public final class KernelServices {
     private static ConnectionAddressService connectionAddresses;
     private static KitRepository kits;
     private static Map<String, PermissionNode<Boolean>> permissionNodes;
-    private static AliasCompiler.Registry aliases;
     private static BundleCompiler bundleCompiler;
+    private static BundleService bundles;
+    private static AliasService aliases;
+    private static CommandProfileService commandProfiles;
+    private static FakeIdentityService fakeIdentities;
+    private static SudoPolicyRepository sudoPolicies;
+    private static AdministrativeExecutionService administrativeExecution;
+    private static Path preloadedAutomationRoot;
 
     private KernelServices() {
     }
@@ -145,6 +157,7 @@ public final class KernelServices {
         registerPhaseSevenCommands();
         registerEconomyCommands();
         registerPanelCommands();
+        registerPhaseElevenCommands();
         catalog.seal();
         universalGuiCatalog = UniversalGuiCatalog.build(catalog, descriptors);
         if (!universalGuiCatalog.validate(catalog).isEmpty()) {
@@ -209,10 +222,11 @@ public final class KernelServices {
                 ConfigHandler.config.kernelMaximumBundleDepth.get(),
                 ConfigHandler.config.kernelMaximumTargets.get(),
                 ConfigHandler.config.kernelMaximumTargetSteps.get());
+        bundles = new BundleService(bundleCompiler);
         AliasCompiler aliasCompiler = new AliasCompiler(
                 catalog,
                 capabilities,
-                Set.of(),
+                bundles::publishedIds,
                 Map.of(),
                 root -> catalog.rootOwner(root)
                         .map(owner -> new AliasCompiler.RootOwnership(
@@ -227,7 +241,22 @@ public final class KernelServices {
                                                 AliasCompiler.RootOwnerKind.EXTERNAL,
                                                 "brigadier:" + root)
                                         : null)));
-        aliases = new AliasCompiler.Registry(aliasCompiler, ConfigHandler.config.kernelMaximumAliases.get());
+        aliases = new AliasService(aliasCompiler, ConfigHandler.config.kernelMaximumAliases.get());
+        commandProfiles = new CommandProfileService();
+        commandProfiles.setReferenceCheck(profileId ->
+                bundles.publications().stream()
+                        .flatMap(definition -> definition.steps().stream())
+                        .anyMatch(step -> (step.kind() == BundleCompiler.StepKind.EXTERNAL_ACTOR_COMMAND
+                                || step.kind() == BundleCompiler.StepKind.SERVER_COMMAND_PROFILE)
+                                && step.targetId().equals(profileId))
+                        || aliases.published().stream().anyMatch(alias ->
+                        (alias.kind() == AliasCompiler.AliasKind.EXTERNAL_ACTOR_COMMAND
+                                || alias.kind() == AliasCompiler.AliasKind.SERVER_COMMAND_PROFILE)
+                                && alias.targetId().equals(profileId)));
+        fakeIdentities = new FakeIdentityService(identities, messages);
+        sudoPolicies = new SudoPolicyRepository();
+        administrativeExecution =
+                new AdministrativeExecutionService(AdministrativeExecutionService.Settings.defaults());
 
         storage = new StorageCoordinator(ConfigHandler.config.kernelRepositoryFlushSeconds.get());
         locationHistory = new LocationHistoryRepository(ConfigHandler.config.kernelLocationHistoryEntries.get());
@@ -250,6 +279,11 @@ public final class KernelServices {
         storage.register(economySigns);
         storage.register(guiPreferences);
         storage.register(adminPanels);
+        storage.register(bundles);
+        storage.register(aliases);
+        storage.register(commandProfiles);
+        storage.register(fakeIdentities);
+        storage.register(sudoPolicies);
 
         initialized = true;
         reloadConfiguration();
@@ -333,12 +367,29 @@ public final class KernelServices {
                 Map.entry("sef.economy", economy.settings().enabled()),
                 Map.entry("sef.economy.signs", economy.settings().enabled()
                         && ConfigHandler.config.enableEconomySigns.get()),
+                Map.entry("sef.automation", true),
+                Map.entry("sef.fake", true),
+                Map.entry("sef.sudo", ConfigHandler.config.enableSudo.get()),
+                Map.entry("sef.run", true),
                 Map.entry("sef.gui", SefNetwork.enhancedGuiActive()));
         Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
         commandCosts = replacementCommandCosts;
         teleportSettings = replacementTeleportSettings;
+        administrativeExecution.configure(new AdministrativeExecutionService.Settings(
+                ConfigHandler.config.sudoAllowedCommands.get(),
+                ConfigHandler.config.sudoDeniedCommands.get(),
+                ConfigHandler.config.runAllowedCommands.get(),
+                ConfigHandler.config.runDeniedCommands.get(),
+                ConfigHandler.config.silentActorAllowedCommands.get(),
+                ConfigHandler.config.silentActorDeniedCommands.get(),
+                ConfigHandler.config.sudoMaximumCommandLength.get()));
+        fakeIdentities.configure(new FakeIdentityService.Formats(
+                ConfigHandler.config.fakeChatFormat.get(),
+                ConfigHandler.config.fakeJoinFormat.get(),
+                ConfigHandler.config.fakeLeaveFormat.get(),
+                ConfigHandler.config.fakeMaximumMessageLength.get()));
         ConnectionAddressService.ProviderMode configuredAddressMode =
                 ConnectionAddressService.ProviderMode.parse(
                         ConfigHandler.config.moderationAddressProvider.get());
@@ -444,10 +495,25 @@ public final class KernelServices {
         }
     }
 
+    public static synchronized void preloadAutomationDefinitions(Path managedRoot) {
+        ensureInitialized();
+        Path normalized = managedRoot.toAbsolutePath().normalize();
+        if (storage.started() || normalized.equals(preloadedAutomationRoot)) {
+            return;
+        }
+        bundles.load(normalized);
+        aliases.load(normalized);
+        commandProfiles.load(normalized);
+        fakeIdentities.load(normalized);
+        sudoPolicies.load(normalized);
+        preloadedAutomationRoot = normalized;
+    }
+
     public static synchronized StorageCoordinator.FlushResult shutdown() {
         ensureInitialized();
         fileLogs.shutdown();
         StorageCoordinator.FlushResult result = storage.shutdown();
+        preloadedAutomationRoot = null;
         warmups.clear();
         confirmations.clear();
         teleportRequests.clear();
@@ -666,7 +732,7 @@ public final class KernelServices {
         return commandJournal;
     }
 
-    public static AliasCompiler.Registry aliases() {
+    public static AliasService aliases() {
         ensureInitialized();
         return aliases;
     }
@@ -674,6 +740,31 @@ public final class KernelServices {
     public static BundleCompiler bundleCompiler() {
         ensureInitialized();
         return bundleCompiler;
+    }
+
+    public static BundleService bundles() {
+        ensureInitialized();
+        return bundles;
+    }
+
+    public static CommandProfileService commandProfiles() {
+        ensureInitialized();
+        return commandProfiles;
+    }
+
+    public static FakeIdentityService fakeIdentities() {
+        ensureInitialized();
+        return fakeIdentities;
+    }
+
+    public static SudoPolicyRepository sudoPolicies() {
+        ensureInitialized();
+        return sudoPolicies;
+    }
+
+    public static AdministrativeExecutionService administrativeExecution() {
+        ensureInitialized();
+        return administrativeExecution;
     }
 
     public static PermissionNode<Boolean> permissionNode(String id) {
@@ -1651,6 +1742,211 @@ public final class KernelServices {
                 "sef.core",
                 AuditService.AuditClass.CONFIG_DEFINITION,
                 "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+    }
+
+    private static void registerPhaseElevenCommands() {
+        for (String action : List.of(
+                "list", "inspect", "create", "validate", "publish",
+                "disable", "rollback", "delete", "run", "help")) {
+            registerDomainCommand(
+                    "sef:alias." + action,
+                    "sef alias " + action,
+                    Set.of(),
+                    "sef.commands.alias." + action,
+                    action.equals("run")
+                            ? CommandDefinition.AccessClass.TRUSTED_PLAYER
+                            : CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.NONE,
+                    "sef.automation",
+                    action.equals("run")
+                            ? AuditService.AuditClass.WORKFLOW_EXECUTION
+                            : AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:aliases",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        for (String action : List.of(
+                "list", "inspect", "create", "edit", "preview", "publish",
+                "run", "cancel", "recover", "disable", "rollback", "delete")) {
+            registerDomainCommand(
+                    "sef:bundle." + action,
+                    "sef bundle " + action,
+                    Set.of(),
+                    "sef.commands.bundle." + action,
+                    action.equals("run") || action.equals("cancel")
+                            ? CommandDefinition.AccessClass.STAFF
+                            : CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    action.equals("run")
+                            ? CommandDefinition.TargetBehavior.BOUNDED_PLAYERS
+                            : CommandDefinition.TargetBehavior.NONE,
+                    "sef.automation",
+                    action.equals("run") || action.equals("cancel") || action.equals("recover")
+                            ? AuditService.AuditClass.WORKFLOW_EXECUTION
+                            : AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:aliases",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        for (String action : List.of(
+                "list", "inspect", "create", "validate", "test", "publish",
+                "reference", "enable", "execute", "rollback", "delete")) {
+            registerDomainCommand(
+                    "sef:profile." + action,
+                    "sef profile " + action,
+                    Set.of(),
+                    "sef.commands.profile." + action,
+                    CommandDefinition.AccessClass.OWNER,
+                    STANDARD_COMMAND_SOURCES,
+                    action.equals("execute")
+                            ? CommandDefinition.TargetBehavior.BOUNDED_PLAYERS
+                            : CommandDefinition.TargetBehavior.NONE,
+                    "sef.automation",
+                    action.equals("execute")
+                            ? AuditService.AuditClass.WORKFLOW_EXECUTION
+                            : AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:aliases",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        registerDomainCommand(
+                "sef:fake.join",
+                "fakejoin",
+                Set.of("fakejoin"),
+                "sef.commands.fakejoin",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.fake",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:fake.leave",
+                "fakeleave",
+                Set.of("fakeleave"),
+                "sef.commands.fakeleave",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.fake",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:fake.message",
+                "fakemessage",
+                Set.of("fakemessage"),
+                "sef.commands.fakemessage",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.fake",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:fake.rank_message",
+                "fakerankmessage",
+                Set.of("fakerankmessage"),
+                "sef.commands.fakerankmessage",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.fake",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        for (String action : List.of("profile", "scene", "schedule")) {
+            registerDomainCommand(
+                    "sef:fake." + action,
+                    "sef fake " + action,
+                    Set.of(),
+                    "sef.commands.fake." + action,
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.NONE,
+                    "sef.fake",
+                    AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:identity",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        registerDomainCommand(
+                "sef:sudo.run",
+                "sudo run",
+                Set.of("sudo"),
+                "sef.commands.sudo.run",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.sudo",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:sudo.chat",
+                "sudo chat",
+                Set.of(),
+                "sef.commands.sudo.chat",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.sudo",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        for (String action : List.of("dryrun", "consent", "lock")) {
+            registerDomainCommand(
+                    "sef:sudo." + action,
+                    "sudo " + action,
+                    Set.of(),
+                    "sef.commands.sudo." + action,
+                    action.equals("consent")
+                            ? CommandDefinition.AccessClass.PLAYER
+                            : CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    action.equals("lock")
+                            ? CommandDefinition.TargetBehavior.REQUIRED_PLAYER
+                            : CommandDefinition.TargetBehavior.NONE,
+                    "sef.sudo",
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:identity",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        registerDomainCommand(
+                "sef:run.server",
+                "run",
+                Set.of("run"),
+                "sef.commands.run",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.SERVER,
+                "sef.run",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:core",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:silent.actor",
+                "silent",
+                Set.of("silent"),
+                "sef.commands.silent.actor",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.run",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:core",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:silent.server",
+                "silent server",
+                Set.of(),
+                "sef.commands.silent.server",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.SERVER,
+                "sef.run",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:core",
                 CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
     }
 

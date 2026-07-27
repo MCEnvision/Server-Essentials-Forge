@@ -1038,7 +1038,25 @@ Recovery:
 
 The full Phase 8 verification matrix is in [docs/PHASE_8_TESTS.md](docs/PHASE_8_TESTS.md).
 
-## 19. Troubleshooting
+## 19. Automation and administrative execution
+
+Phase 11 stores reviewed automation definitions in five managed documents. `aliases.json` owns alias drafts, publications, and revision history. `bundles.json` owns bundle definitions and recoverable jobs. `command-profiles.json` owns actor, targeted-actor, and server command templates. `fake-identities.json` owns fake profiles, scenes, and schedules. `sudo-policy.json` owns UUID-addressed consent and locks. Recovery, unsupported schema, error, and closed states reject mutations.
+
+Aliases target a catalog action, published bundle, external actor profile, or server profile. Publication compiles the definition against current root ownership, capability strength, source type, access class, audit class, argument schema, and recursion policy. Runtime requests do not carry arbitrary command text. Published roots load before command registration so restart activation is deterministic.
+
+Bundles contain typed SEF actions, nested bundle references, notices, delays, or reviewed profile references. Raw command steps are rejected. A run freezes the issuer, target UUID cohort, bundle revision, expanded plan, deadline, and correlation id. Each tick rechecks the issuer, target availability, permission, hierarchy, exemption, vanish visibility, feature state, profile revision, source policy, and execution budget. Successful target applications are recorded before the next tick so paced jobs do not repeat a mutation. Interrupted queued jobs load in recovery state and require explicit recovery.
+
+Command profiles use an immutable published template and an exact placeholder allowlist. Runtime values must equal the required placeholder set. Newlines, separators, wrapper roots, unknown placeholders, overlong text, stale revisions, changed roots, and excess target counts fail closed. Server profiles publish disabled and require explicit enablement. Targeted profiles require `{target}` and overwrite it with the server-resolved player name. Privileged server and targeted execution uses an actor-bound, target-bound, revision-bound confirmation.
+
+Fake join, leave, chat, rank chat, scene, and scheduled output is sent as unsigned system presentation. It never constructs signed player chat. Existing players resolve through the active nickname and metadata providers. Unknown players use default metadata. Vanish visibility and audience permission are checked before delivery.
+
+Sudo execution requires an online visible target, hierarchy and exemption approval, target consent, no active lock, an allowlisted non-wrapper root, Brigadier preflight under the effective context, and confirmation. Bypass consent, bypass lock, bypass exemption, and hierarchy bypass are independent denied-by-default capabilities. Sudo chat is also unsigned system presentation.
+
+`/run` executes through the server command source only after allow and deny policy, Brigadier preflight, root-specific permission, and confirmation. `/silent` has separate actor and server permissions. It suppresses only feedback emitted through the wrapped command source. Security audit, command spy, enabled SEF command files, logger failures, and independent output remain unsuppressible.
+
+The complete automated evidence and remaining manual release matrix are in [docs/PHASE_11_TESTS.md](docs/PHASE_11_TESTS.md).
+
+## 20. Troubleshooting
 
 Permission appears denied:
 
@@ -1067,7 +1085,7 @@ Configuration edit appears ignored:
 
 Wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded values and does not force a raw disk read.
 
-## 20. Security and privacy
+## 21. Security and privacy
 
 Trust boundaries include player command input, chat input, optional permission providers, JSON and TOML files, persistent player data, mixin packet filtering, and future client payloads.
 
@@ -1094,7 +1112,7 @@ Command observation and optional file logging consume only immutable redacted re
 
 Inventory and item commands recheck permissions at mutation time. Live administrative menus bind to their authorization revision and close or downgrade after revocation. Kit and item transactions validate capacity and registry state before commit. The self-only item shortcut cannot select another target or exceed its configured amount bound.
 
-## 21. Release process
+## 22. Release process
 
 No automated public release workflow is currently documented as complete.
 
@@ -1108,6 +1126,6 @@ Before an approved release:
 6. Record compatibility and migration notes.
 7. Publish only after explicit approval.
 
-## 22. Roadmap
+## 23. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 9 have implementation coverage, but the remaining mixed-client, player driven, packet visible, shutdown race, registry fixture, external-adapter, and profiler release gates remain open. Phase 10 is next and covers universal GUI coverage. Fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 11 have implementation coverage, but mixed-client, player-driven, packet-visible, shutdown-race, registry-fixture, external-adapter, deliberate storage-failure, and profiler release gates remain open. Phase 12 covers Fancy Tags and disguise. Phase 13 covers the remaining advanced server-control systems.

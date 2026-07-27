@@ -725,6 +725,40 @@ public class PermissionsHandler {
 			registerPhasePermission("economy.sign." + sign + ".create", false, "Create " + sign + " signs", "Allows creating enabled " + sign + " economy signs");
 		}
 
+		for (String action : new String[]{"list", "inspect", "create", "validate", "publish", "disable", "rollback", "delete", "run", "help"}) {
+			registerPhasePermission("commands.alias." + action, false, "Alias " + action, "Allows the reviewed alias " + action + " lifecycle action");
+		}
+		for (String action : new String[]{"list", "inspect", "create", "edit", "preview", "publish", "run", "cancel", "recover", "disable", "rollback", "delete"}) {
+			registerPhasePermission("commands.bundle." + action, false, "Bundle " + action, "Allows the reviewed bundle " + action + " lifecycle action");
+		}
+		for (String action : new String[]{"list", "inspect", "create", "validate", "test", "publish", "reference", "enable", "execute", "rollback", "delete"}) {
+			registerPhasePermission("commands.profile." + action, false, "Command profile " + action, "Allows the reviewed command profile " + action + " lifecycle action");
+		}
+		registerPhasePermission("commands.profile.server", false, "Server command profiles", "Allows creating and enabling reviewed server source command profiles");
+		registerPhasePermission("commands.profile.targeted", false, "Targeted actor command profiles", "Allows creating and enabling strict participant command profiles");
+		registerPhasePermission("commands.fakejoin", false, "Fake join messages", "Allows audited unsigned fake join presentation");
+		registerPhasePermission("commands.fakeleave", false, "Fake leave messages", "Allows audited unsigned fake leave presentation");
+		registerPhasePermission("commands.fakemessage", false, "Fake chat messages", "Allows audited unsigned fake chat presentation");
+		registerPhasePermission("commands.fakerankmessage", false, "Fake rank messages", "Allows audited unsigned synthetic rank chat presentation");
+		registerPhasePermission("commands.fake.profile", false, "Fake identity profiles", "Allows managing bounded fake identity profiles");
+		registerPhasePermission("commands.fake.scene", false, "Fake identity scenes", "Allows managing bounded fake message scenes");
+		registerPhasePermission("commands.fake.schedule", false, "Fake identity schedules", "Allows scheduling bounded fake message scenes");
+		registerPhasePermission("commands.sudo.run", false, "Sudo run", "Allows forcing an eligible consenting online player command source");
+		registerPhasePermission("commands.sudo.chat", false, "Sudo chat", "Allows emitting audited unsigned system chat styled as an eligible online player");
+		registerPhasePermission("commands.sudo.dryrun", false, "Sudo dry run", "Allows previewing sudo policy without execution");
+		registerPhasePermission("commands.sudo.consent", true, "Sudo consent", "Allows controlling personal targeted actor consent");
+		registerPhasePermission("commands.sudo.lock", false, "Sudo locks", "Allows locking eligible players from sudo execution");
+		registerPhasePermission("commands.sudo.bypass.consent", false, "Bypass sudo consent", "Allows reviewed sudo execution without target consent");
+		registerPhasePermission("commands.sudo.bypass.lock", false, "Bypass sudo lock", "Allows reviewed sudo execution against a locked target");
+		registerPhasePermission("sudo.hierarchy.bypass", false, "Sudo hierarchy bypass", "Allows sudo execution across target hierarchy");
+		phaseSixSevenNodes.put("sef.sudo.bypass.exempt", sudoBypassExempt);
+		phaseSixSevenNodes.put("sef.sudo.exempt", sudoExempt);
+		registerPhasePermission("commands.run", false, "Run server commands", "Allows reviewed direct server source command execution");
+		registerPhasePermission("commands.run.root.any", false, "Run any approved root", "Allows any root that passes the configured run policy");
+		registerPhasePermission("commands.silent.actor", false, "Silent actor commands", "Allows direct actor source output suppression");
+		registerPhasePermission("commands.silent.server", false, "Silent server commands", "Allows reviewed direct server source output suppression");
+		registerPhasePermission("commands.silent.unsuppressible", false, "Accept unsuppressible output", "Allows execution when independent command output cannot be suppressed");
+
 		quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
 		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
 		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
