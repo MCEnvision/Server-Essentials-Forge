@@ -29,6 +29,7 @@ public final class DisguiseService implements StorageRepository {
     public static final int HARD_MAXIMUM_ACTIVE = 4_096;
     public static final int HARD_MAXIMUM_PRESETS = 1_024;
     public static final int HARD_MAXIMUM_PROFILE_CACHE = 2_048;
+    public static final int HARD_MAXIMUM_MOB_ADAPTERS = 8_192;
 
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Instant.class, new InstantJsonAdapter())
@@ -492,6 +493,28 @@ public final class DisguiseService implements StorageRepository {
         return List.copyOf(mobAdapters.values());
     }
 
+    public synchronized boolean registerEnhancedMobAdapter(
+            String entityType,
+            String displayName,
+            boolean vanillaProxySupported
+    ) {
+        MobAdapter adapter = new MobAdapter(
+                entityType,
+                displayName,
+                true,
+                vanillaProxySupported,
+                Set.of(),
+                Map.of());
+        if (mobAdapters.containsKey(adapter.entityType())) {
+            return false;
+        }
+        if (mobAdapters.size() >= HARD_MAXIMUM_MOB_ADAPTERS) {
+            throw new IllegalStateException("disguise mob adapter limit reached");
+        }
+        mobAdapters.put(adapter.entityType(), adapter);
+        return true;
+    }
+
     public synchronized Optional<Projection> projection(
             UUID viewerId,
             UUID subjectId,
@@ -545,13 +568,20 @@ public final class DisguiseService implements StorageRepository {
         if (record == null) {
             return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "player is not disguised");
         }
-        if (!settings.abilitiesEnabled() || !record.abilitiesEnabled()) {
+        if (!settings.abilitiesEnabled()) {
             return ActionResult.failure(ActionResult.ReasonCode.FEATURE_DISABLED, "disguise abilities are disabled");
         }
         MobAdapter adapter = mobAdapters.get(record.reference());
         AbilityDefinition ability = adapter == null ? null : adapter.abilities().get(slot);
         if (ability == null) {
-            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "disguise ability slot is unavailable");
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.NOT_FOUND,
+                    "this disguise has no " + slot.name().toLowerCase(Locale.ROOT) + " ability");
+        }
+        if (!record.abilitiesEnabled()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.FEATURE_DISABLED,
+                    "abilities are disabled for this disguise");
         }
         EnumMap<AbilitySlot, Instant> cooldowns =
                 abilityCooldowns.computeIfAbsent(subjectId, ignored -> new EnumMap<>(AbilitySlot.class));

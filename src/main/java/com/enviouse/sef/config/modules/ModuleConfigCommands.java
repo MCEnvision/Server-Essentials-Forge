@@ -720,7 +720,7 @@ public final class ModuleConfigCommands {
         info(source, "GUI preference " + preference.presentationMode().name().toLowerCase(Locale.ROOT)
                 + ", HUD " + preference.hudEnabled()
                 + ", pause button " + preference.pauseButtonVisible()
-                + ", blur " + preference.backgroundBlur());
+                + ", background sharp");
         return 1;
     }
 

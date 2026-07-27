@@ -1456,7 +1456,7 @@ Then run complete forms:
 /give playerb minecraft:stone 3
 /enchant @s minecraft:sharpness 5
 /invsee playerb
-/disguise minecraft:blaze
+/disguise mob minecraft:blaze
 ```
 
 Actions:
@@ -1465,8 +1465,8 @@ Actions:
 2. Confirm each complete form executes immediately and does not open a workflow.
 3. Set the effective GUI policy to `command_only`, then `off`, and repeat. Bare commands must show their established usage or command fallback rather than `This action has no valid typed workflow`.
 4. Repeat from console, RCON, command block, function, a client without SEF, and a client with an incompatible protocol minor. Player-only GUI roots must not alter non-player command behavior.
-5. In each player field, open the picker. Confirm it lists every known profile the viewer may see, marks online state, supports authenticated username and nickname search, and never reveals an unauthorized vanished profile.
-6. Toggle `Online only`. Confirm offline profiles disappear, current online state refreshes, paging remains stable, and the selected value is the authenticated command name.
+5. In each player field, open the picker. Confirm it lists every bounded known profile the viewer may see, marks online and offline state, supports authenticated username and nickname search, and never reveals an unauthorized vanished profile.
+6. Cycle the filter through `all players`, `online`, and `offline`. Confirm each result set is correct, current state refreshes when the picker opens, paging remains stable, and an individual selection uses the authenticated command name.
 7. Revoke the action permission, target visibility, hierarchy access, or enhanced feature while the picker or workflow is open. Submit the stale selection.
 8. Enter a never-seen name. It must not be treated as an authenticated offline profile.
 
@@ -1477,22 +1477,52 @@ Expected:
 - Search and filter happen against bounded server-projected profiles, not a client-owned authority list.
 - Permission or visibility loss invalidates the workflow before execution.
 
+### Give picker and batch regression
+
+Prepare three visible online players, two known offline profiles, one unauthorized vanished player, and at least one modded item.
+
+1. Enter bare `/give`. Confirm the first mode is `one item` and the alternate mode is `custom amount`.
+2. Open the target picker. Cycle `all players`, `online`, and `offline`; search by authenticated username and nickname in each view.
+3. Check two individual online players and one offline player, uncheck one row, change pages, return, and confirm the remaining checks persist.
+4. Press `use selected`. Preview and confirm the displayed route summarizes the selected count instead of exposing an oversized comma-separated command.
+5. Run the batch. Confirm each currently online selected UUID receives exactly one grant and the offline UUID creates exactly one pending login action.
+6. Repeat with `all online`. Confirm only visible players online at preview are frozen into the batch. A player who joins after preview must not be added.
+7. Repeat with `everyone`. Confirm every visible known UUID within the `1000` target ceiling is frozen. Online targets run now and offline targets queue independently.
+8. Vanish a target after opening the picker but before preview. Preview must reject or remove that stale target.
+9. Disconnect one frozen target after preview but before submit. Confirm that UUID changes from immediate execution to one login queue record without changing identity.
+10. Revoke the issuer’s give permission after preview. Submit must invalidate without giving or queueing anything.
+11. Forge the bulk token, a hidden username, an unknown username, a selector, an empty list, duplicate names with different case, and `1001` distinct targets. Confirm hidden, unknown, selector, empty, and oversized submissions fail. Confirm duplicates collapse to one UUID.
+12. Open the item picker. Confirm it shows `All items`, vanilla creative tabs, item icons, normal item tooltips, tab paging, and item paging.
+13. Search by localized item name, `minecraft:diamond`, a namespace fragment, and a modded namespaced id. Confirm clicking an entry returns its canonical registry id.
+14. Remove the selected mod or registry item between preview and submit. The server must reject the stale id without substituting another item.
+15. In custom amount mode, use `-10`, `-1`, `+1`, and `+10`. Confirm the value clamps to the compiled minimum and maximum and no typed amount is required.
+16. Resize at GUI scales 1 through 4 while the player picker, item picker, and confirmation view are open. Confirm buttons do not overlap, selection remains intact, search retains focus, and tooltips remain inside the screen.
+17. Navigate every control by keyboard and narration. Confirm selected rows, filter state, item identity, amount, page counts, preview, and result are understandable without color alone.
+
+Expected:
+
+- The client never supplies an authoritative UUID, permission result, item object, target set, or final mutation.
+- Preview freezes only server-visible UUIDs. Submit rechecks the action, permission, visibility, target, item registry entry, amount, and canonical route.
+- Batch results separately report grants run now, actions queued for login, and failures.
+- Each target is processed once. A partial target failure does not duplicate successful grants.
+
 ### Offline give queue
 
-This queue is intentionally limited to the reviewed enhanced `/give` workflow. Direct command text and unrelated workflows are not persisted.
+This queue is intentionally limited to the reviewed enhanced `/give` workflow. Direct command text and unrelated workflows are not persisted. A multi-target give stores one UUID-bound record for each selected offline player.
 
 1. Ensure `playeroffline` has joined at least once, then disconnect that player.
 2. Run bare `/give`, select `playeroffline`, select `minecraft:diamond`, set amount `2`, preview, and run.
-3. Verify the result reports a queued action id and `<world>/serverconfig/sef/offline-actions.json` contains one bounded pending record.
+3. Verify the result reports one queued target and `<world>/serverconfig/sef/offline-actions.json` contains one bounded pending record.
 4. Restart the server before the target joins. Verify the record remains pending.
 5. Join as `playeroffline` while the issuer remains online. Verify exactly two diamonds are granted and the queue record reaches its terminal state.
 6. Queue another action, disconnect the issuer, then join the target. Verify execution waits until both authenticated players are online.
 7. Queue another action, revoke `sef.commands.item.give.others` from the issuer, and join the target. Verify the recheck refuses the grant.
 8. Queue another action, disable the items module or action route, and join the target. Verify no item is granted.
 9. Queue another action, change the target nickname and authenticated username projection, and join. Verify execution binds the stored UUID and substitutes the current authenticated command name.
-10. Attempt to queue `/msg`, `/invsee`, `/enchant`, `/disguise`, a selector, multiple targets, an unknown profile, excessive amount, invalid item, and a forged workflow payload.
-11. Advance a copied record beyond its seven-day expiry and restart.
-12. Corrupt, oversize, duplicate, or schema-upgrade a copied `offline-actions.json`.
+10. Queue a mixed selection containing two online players and two offline players. Confirm two grants run immediately and exactly two independent records persist.
+11. Attempt to queue `/msg`, `/invsee`, `/enchant`, `/disguise`, a selector, an unknown profile, excessive amount, invalid item, and a forged workflow payload.
+12. Advance a copied record beyond its seven-day expiry and restart.
+13. Corrupt, oversize, duplicate, or schema-upgrade a copied `offline-actions.json`.
 
 Expected:
 
@@ -1937,8 +1967,8 @@ Expected:
 Enable disguise only in staging. Test:
 
 ```text
-/disguise blaze
 /disguise mob minecraft:blaze
+/disguise mob minecraft:bat
 /disguise player playerb
 /disguise preset <preset_id>
 /disguise clear
@@ -1964,9 +1994,12 @@ Before projection testing:
 2. Run `/sef config reload disguise`, `/sef config inspect disguise`, `/disguise`, and `/disguise status`.
 3. Grant `sef.*` through LuckPerms, refresh the user, and reconnect.
 4. Confirm the root and authorized subcommands appear in tab completion.
-5. Remove only `sef.commands.disguise.mob` and confirm the mob route disappears while independently authorized status and clear routes remain.
-6. Set the module false, reload, and confirm behavior reports the module state rather than an unknown command caused by skipped registration.
-7. Re-enable it and confirm a command-tree refresh restores the routes without replacing the JAR.
+5. At `/disguise `, confirm only authorized subcommands appear. Entity ids must not be mixed into the root suggestions.
+6. At `/disguise mob `, `/disguise preview `, `/disguise set playera `, and `/disguise presets create test `, confirm canonical namespaced entity ids are suggested.
+7. Execute both `minecraft:bat` and an installed mod’s `namespace:path` entity id. Confirm the colon parses as part of one resource location and does not produce trailing-data syntax.
+8. Remove only `sef.commands.disguise.mob` and confirm the mob route disappears while independently authorized status and clear routes remain.
+9. Set the module false, reload, and confirm behavior reports the module state rather than an unknown command caused by skipped registration.
+10. Re-enable it and confirm a command-tree refresh restores the routes without replacing the JAR.
 
 Expected:
 
@@ -1992,6 +2025,9 @@ Expected:
 5. Move in and out of tracking range.
 6. Disconnect observer and subject.
 7. Test player-profile cache failure and untrusted texture URL.
+8. Apply bat and Enderman disguises. Walk, sprint, crouch, swim, jump, rotate slowly, snap 180 degrees, attack, and stand still while observing at low and high frame rates.
+9. Confirm the proxy follows the real current and previous position, pitch, body rotation, head rotation, pose, swing, and animation state without rapid left-right oscillation.
+10. Repeat after reconnect, dimension change, tracking-range exit, and disguise revision replacement.
 
 Expected:
 
@@ -2009,6 +2045,8 @@ Expected:
 6. Change disguise revision between input and handling.
 7. Force projectile or effect creation failure.
 8. Undisguise while an effect is active.
+9. Apply bat and Enderman, then trigger `primary`. Confirm the response says the disguise has no primary ability. It must not say the global ability system is disabled while the module setting is enabled.
+10. Disable `runtime.disguise_abilities_enabled`, reapply a disguise that has a registered ability, and confirm the global-disabled response appears only in that case.
 
 Expected:
 
@@ -2685,18 +2723,19 @@ Actions:
 6. Disable a module with its screen open.
 7. Revoke screen and control permissions separately.
 8. Test world change and disconnect.
-9. Start with no GUI preference record and open the dashboard, homes, player picker, typed workflow, control editor, and Fancy Tags studio. Confirm background blur defaults to off.
-10. Run `/sef client preference blur on`, reopen every screen, reconnect, and restart. Confirm blur is enabled and persisted.
-11. Run `/sef client preference blur off`, repeat the screen, reconnect, and restart checks. Confirm the world remains sharp behind SEF screens.
-12. Inspect `<world>/serverconfig/sef/gui-preferences.json`. Remove only `backgroundBlur` from a copied legacy record and restart the copy. Confirm migration defaults the missing value to false.
-13. Change the preference while a screen is already open. Close and reopen the screen and confirm the refreshed value applies.
+9. Start with no GUI preference record and open the dashboard, homes, player picker, item picker, suggestion picker, typed workflow, control editor, Fancy Tags studio, and InvSee. Confirm the world remains sharp behind every SEF screen.
+10. Run `/sef client preference blur on`. Confirm it is rejected and `/sef client status` still reports `background: sharp`.
+11. Run `/sef client preference blur off`, reopen every screen, reconnect, and restart. Confirm the world remains sharp.
+12. Inspect `<world>/serverconfig/sef/gui-preferences.json`. Test copied legacy records with `backgroundBlur` missing and with it set to true. Restart each copy and confirm both normalize to false and are flushed safely.
+13. Confirm the server’s effective feature set never includes the reserved background-blur bit even if an older compatible client advertises it.
+14. Open every SEF screen over moving water, entities, weather, and particles. Confirm the scene remains live and sharp with no blur pass, dark full-screen dirt background, or accidental pause.
 
 Expected:
 
 - Effective mode resolves from hard safety, global, module, action, client capability, permission, preference, and state in that order.
 - Turning GUI off closes and invalidates server-owned enhanced state without removing command access.
 - Administrators cannot force a screen onto a client that did not negotiate it.
-- Background blur is a player presentation preference, defaults to off, persists by UUID, and grants no authority.
+- SEF backgrounds are always transparent and sharp. Legacy blur state cannot re-enable a blur pass or grant authority.
 
 ### Module enabled-state consistency
 

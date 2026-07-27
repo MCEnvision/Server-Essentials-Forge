@@ -66,7 +66,7 @@ Current verification evidence:
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack.
 - Enhanced and no-SEF clients join the same GUI-enabled server. Provider refresh, metadata, ownership, inventory adapter, cooldown persistence, filesystem failure, crash recovery, packet bounds, session invalidation, and performance behavior have deterministic or runtime verification.
 
-The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, searchable known-player picking, deferred offline give execution, Fancy Tags, disguise, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
+The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, all, online, and offline player filtering, bounded give multi-selection, creative-style item browsing, deferred per-target offline give execution, Fancy Tags, namespaced disguise selection, stable disguise interpolation, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
 
 ## Source-of-truth order
 
@@ -7502,16 +7502,15 @@ The real player remains the authenticated, persistent, permission-bearing entity
 ### Commands
 
 ```text
-/disguise <entity type>
-/disguise mob <entity type>
+/disguise mob <namespace:path>
 /disguise player <player|profile>
 /disguise preset <preset id>
 /disguise clear
 /undisguise
 /disguise status [player]
-/disguise list [category]
-/disguise preview <entity type|profile>
-/disguise set <player> <entity type|profile|preset>
+/disguise list
+/disguise preview <namespace:path>
+/disguise set <player> <namespace:path>
 /disguise clear <player>
 /disguise ability <primary|secondary|utility>
 /dability <primary|secondary|utility>
@@ -7523,7 +7522,6 @@ The real player remains the authenticated, persistent, permission-bearing entity
 Examples:
 
 ```text
-/disguise blaze
 /disguise mob minecraft:blaze
 /disguise player Notch
 /disguise ability primary
@@ -7647,7 +7645,7 @@ Rules:
 
 ### Mob disguises
 
-Support begins with an explicit allowlist of entity types whose models and metadata can be projected safely.
+Explicit reviewed adapters own metadata, sounds, traits, abilities, and vanilla proxy support. At server startup, registered non-misc entity types may also receive a bounded enhanced-render-only adapter. This permits namespaced modded visual entries without granting generic metadata, traits, abilities, or vanilla proxy authority.
 
 Each supported type defines:
 
@@ -7665,7 +7663,7 @@ enhanced support
 known incompatibilities
 ```
 
-Unsupported or data-incompatible entity types fail with an explanation. They do not fall through to unsafe generic metadata.
+Unsupported, missing, or data-incompatible entity types fail with an explanation. Dynamically discovered entries use only their ordinary local entity renderer on compatible enhanced clients. They do not fall through to unsafe generic metadata or server-authoritative gameplay capability.
 
 ### Sound profiles
 
@@ -7739,7 +7737,7 @@ Examples:
 Blaze example:
 
 ```text
-/disguise blaze
+/disguise mob minecraft:blaze
 /disguise ability primary
 ```
 
@@ -17314,7 +17312,6 @@ Personal presentation preference:
 /sef gui auto
 /sef gui reset
 /sef gui status
-/sef client preference blur on
 /sef client preference blur off
 ```
 
@@ -17324,7 +17321,7 @@ Rules:
 - `/sef gui on` changes only the executing player’s preference. It cannot override a server or module denial.
 - Console and RCON may control server GUI policy but cannot open a client screen.
 - Player preference is UUID-owned, bounded, versioned, and does not store permission results.
-- Background blur is a presentation-only UUID preference, defaults to off, and missing legacy values migrate to off.
+- SEF screens always render a transparent sharp-world background. `/sef client preference blur on` is rejected. Missing legacy values and stored true values normalize to off, and the server clears the reserved blur feature bit.
 - An administrator cannot silently force a client-only screen onto a player whose client did not negotiate it.
 - `/sef guis explain` reports the global setting, module setting, action setting, client capability, permission decision, preference, winning mode, fallback route, and current revision without revealing sensitive fields.
 
@@ -17387,7 +17384,7 @@ Supplying a complete argument form executes the command immediately without forc
 /give Notch minecraft:cobblestone 64
 /enchant sharpness 5
 /invsee Notch
-/disguise blaze
+/disguise mob minecraft:blaze
 ```
 
 Rules:
@@ -17397,7 +17394,7 @@ Rules:
 - A complete valid argument form always follows its canonical command path even when GUI preference is enabled.
 - An incomplete non-empty form returns Brigadier syntax and suggestions. It does not silently discard entered arguments and open a screen.
 - Commands with an intentional existing zero-argument mutation, such as a self toggle or self gamemode shortcut, preserve that documented behavior by default. Their dedicated GUI remains reachable from `/sef`, `/sef gui open <action id>`, the pause-screen entry, and their feature manager. An explicit per-action `bare_command_behavior = "gui"` may replace the bare mutation only after collision, migration, help-text, and route-equivalence validation.
-- Commands that require arguments to do useful work, including `/msg`, `/give`, `/enchant`, `/invsee`, and `/disguise`, default to opening their dedicated GUI when entered bare.
+- Commands that require arguments to do useful work, including `/msg`, `/give`, `/enchant`, `/invsee`, and `/disguise`, default to opening their dedicated GUI when entered bare. Disguise entity ids begin only after the explicit `mob`, `preview`, `set`, or preset-management literal, so mob suggestions never pollute the root subcommand list.
 - The server command dispatcher decides whether the source has an enhanced session and may open the workflow.
 - If the workflow cannot open, the server returns typed command help or performs the established safe bare-command behavior.
 - Commands used by command blocks, functions, console, RCON, automation, aliases, bundles, sudo, and external integrations never depend on a screen.
@@ -17560,14 +17557,14 @@ Bare `/i` opens a self-only item browser. Bare `/give` opens the administrative 
 
 The browser uses a vanilla creative-inventory and recipe-book presentation:
 
-- Registry-backed item grid with namespace, tag, creative tab, mod, and localized-name filters.
+- Registry-backed item grid with an all-items view, creative tabs, tab paging, item paging, normal icons and tooltips, and localized-name or namespaced-id search.
 - Item icon, tooltip, registry id, maximum stack size, and bounded policy status.
-- Amount editor bounded by the canonical action and inventory policy.
+- Click-based amount controls bounded by the compiled canonical action and inventory policy.
 - Self-only `/i` target is always derived from the authenticated actor. No target field exists.
-- `/give` target picker uses UUID-bound authorized targets with hierarchy and exemption state.
+- `/give` target picker uses UUID-bound authorized targets with hierarchy and exemption state. It provides all, online, and offline filters, checked individual multi-selection, all visible online selection, and every visible known profile selection.
 - Optional safe component editors are separate typed fields. Raw SNBT and unrestricted component patches are rejected.
 - Inventory fit preview reports inserted, stacked, overflow, dropped, or rejected counts under configured policy.
-- Mass give uses frozen bounded targets, impact preview, confirmation, pacing, per-target results, and audit.
+- Mass give freezes up to `1000` server-visible UUIDs at preview, rechecks the action at submit, executes online targets independently, creates one UUID-bound login action for each offline target, and reports immediate, queued, and failed counts.
 - Favorites and recent items are player preferences, not permission grants.
 - Items hidden by permission, banned-item policy, feature state, or registry availability are not submitted successfully even if a stale client still displays them.
 
@@ -17598,7 +17595,7 @@ Bare `/invsee` opens a vanilla player-selection screen. `/invsee <player>` conti
 
 Player selection:
 
-- Uses UUID-bound known-player rows with current online state and an online-only filter.
+- Uses UUID-bound known-player rows with current online state and all, online, and offline filters.
 - Shows head, approved display identity, real username only where the viewer may see it, world summary where permitted, online state, and inspect eligibility.
 - Filters vanished, exempt, protected, higher-hierarchy, hidden, and unauthorized targets before sending rows or counts.
 - Supports known offline targets only through the versioned offline-inventory provider and separate permission. Provider failure does not prevent online inspection.
@@ -17653,7 +17650,7 @@ Normal `/enchant <enchantment> <level>`, advanced command fallback, GUI submissi
 
 #### Dedicated disguise workflow
 
-Bare `/disguise` opens a vanilla advancement and inventory-style disguise gallery. `/disguise <entity type>`, `/disguise player <profile>`, `/disguise preset <id>`, and other complete forms continue executing immediately.
+Bare `/disguise` opens a vanilla advancement and inventory-style disguise gallery. `/disguise mob <namespace:path>`, `/disguise player <profile>`, `/disguise preset <id>`, and other complete forms continue executing immediately. There is no positional entity argument at the root.
 
 Gallery pages:
 
@@ -17675,13 +17672,16 @@ staff inspection
 Behavior:
 
 - Mob entries use registered entity ids and the client’s normal entity renderer when available.
-- The server distributes only its safe supported adapter catalog. A locally renderable entity is not automatically an authorized disguise.
+- Every entity argument uses Brigadier resource-location parsing and canonical namespaced suggestions. `minecraft:bat` and permitted mod ids remain one argument.
+- The server distributes only its safe supported adapter catalog. A registered non-misc mod entity may receive enhanced-render-only support, but it gains no trait, ability, metadata, sound, or vanilla-proxy authority without a reviewed adapter.
 - Preview uses an isolated non-authoritative client render scene and never spawns a server entity.
 - The active-state page explains enhanced self-view, vanilla-client proxy support, hitbox policy, equipment policy, nickname composition, sounds, traits, abilities, cooldowns, costs, and known incompatibilities.
 - Player-profile selection shows trusted server-resolved profiles only. It never accepts a player-supplied skin URL.
 - Protected player, staff, console, or server identities require their separate permissions and warning.
 - Ability buttons send typed ability-slot activations bound to the current disguise revision.
 - Trait, ability, sound, particle, model, and metadata controls appear only when the selected server adapter exposes them and the player may use them.
+- Projection copies current and previous position, pitch, head rotation, body rotation, pose, movement, attack, swing, and animation tick state before render so interpolation remains stable across frame rates.
+- Ability admission reports that a selected disguise has no requested slot before considering per-record ability state. It reports the global ability system as disabled only when the module setting is disabled.
 - Unsupported modded entities show an exact compatibility reason rather than falling through to generic unsafe metadata.
 - Staff inspection always resolves the real authenticated subject and audit identity.
 - Applying or clearing a disguise uses a server-computed preview and invalidates on entity-registry, adapter, permission, policy, profile, vanish, nickname, world, or subject revision changes.
@@ -17718,7 +17718,7 @@ Rules:
 - Missing client assets use a vanilla missing-state icon and bounded explanation. They never crash the screen or substitute a different registry entry.
 - Modded items work in `/i`, `/give`, kits, inventory inspection, economy, banned-item, repair, anvil, and enchanting screens when their ordinary `ItemStack` and data components pass the owning policy.
 - Modded enchantments appear when registered, server-allowed, compatible with the selected item under authoritative rules, and safe within configured level ceilings.
-- Modded entities appear in disguise browsing only when a reviewed server adapter declares enhanced rendering, vanilla proxy support where applicable, metadata mapping, sounds, traits, abilities, cleanup, and known conflicts.
+- Registered non-misc modded entities may appear through a bounded enhanced-render-only adapter. Vanilla proxy support, metadata mapping, sounds, traits, and abilities remain unavailable until a reviewed server adapter declares those capabilities and cleanup rules.
 - Modded dimensions and worlds appear in teleport, home, warp, spawn, back, RTP, border, and server-control screens only when current server policy permits them.
 - Mod-owned custom inventories, energy, fluids, capabilities, attachments, recipes, or equipment slots require typed optional adapters. Core SEF starts and remains usable when those mods or adapters are absent.
 - Optional integration classes remain isolated behind runtime checks. Common server signatures do not require optional client or mod classes.
@@ -17858,11 +17858,11 @@ Manual acceptance examples:
 - With global GUI mode off, both commands remain command-based and no GUI packet is sent.
 - With home GUI mode `command_only`, bare `/home` produces command help or established command behavior instead of a screen.
 - Bare `/i` opens the self-only item browser. No GUI field can select another player.
-- Bare `/give` opens the authorized target and item workflow. A target change invalidates preview and confirmation. Selecting one known offline UUID queues only this reviewed give action for bounded persistent revalidation when issuer and target are online.
+- Bare `/give` opens the authorized target and item workflow. A target change invalidates preview and confirmation. The picker supports checked targets, all visible online players, or every visible known profile. Preview freezes bounded UUIDs, online targets run independently, and each offline target queues only this reviewed give action for persistent revalidation when issuer and target are online.
 - Bare `/enchant` opens the normal enchanting workflow. Bare `/set` opens the advanced workflow only when its collision, feature, and permission policies allow it.
 - Bare `/msg` opens the active-player messaging screen. `/msg Notch hello` sends directly through the canonical private-message action.
-- Bare `/invsee` opens the permission-filtered known-player browser with search and an online-only filter. `/invsee Notch` opens the authorized target directly.
-- Bare `/disguise` opens the supported entity and profile gallery. `/disguise blaze` applies the supported Blaze disguise directly.
+- Bare `/invsee` opens the permission-filtered known-player browser with search and all, online, and offline filters. `/invsee Notch` opens the authorized target directly.
+- Bare `/disguise` opens the supported entity and profile gallery. `/disguise mob minecraft:blaze` applies the supported Blaze disguise directly. `/disguise set Notch minecraft:bat` accepts the full resource location and offers namespaced entity suggestions after the target.
 - A permitted modded item, enchantment, entity, or dimension appears through the same native-looking screen patterns as vanilla content, subject to registry compatibility and adapter policy.
 - A vanilla client can perform every equivalent action with commands.
 - Permission removal while any screen is open closes or downgrades it before another privileged field or submit succeeds.
@@ -17979,7 +17979,7 @@ The responsiveness target is one validated publication within one second after t
 - Every player-facing action has a dedicated feature-specific workflow with typed argument editing, authoritative preview, risk-based confirmation, truthful results, recovery behavior, and command fallback, or a reviewed `command_only` reason.
 - Home, item, give, normal enchantment, and advanced enchantment workflows pass their dedicated security, equivalence, mixed-client, protocol, accessibility, and visual tests.
 - Private messaging, inventory inspection, disguise, and every remaining SEF command family have real vanilla-style screens rather than generic execute rows.
-- `/msg <player> <message>`, `/give <player> <item> [amount]`, `/enchant <enchantment> [level]`, `/invsee <player>`, `/disguise <type>`, and all equivalent complete forms still execute directly when enhanced GUIs are enabled.
+- `/msg <player> <message>`, `/give <player> <item> [amount]`, `/enchant <enchantment> [level]`, `/invsee <player>`, `/disguise mob <namespace:path>`, and all equivalent complete forms still execute directly when enhanced GUIs are enabled.
 - Permitted modded items, components, enchantments, effects, entities, dimensions, recipes, equipment, and optional inventories appear through registry-driven screens or explicit healthy adapters without making those mods mandatory.
 - Turning GUIs off closes and invalidates active enhanced sessions without removing command access or requiring the client mod.
 - Generic execute buttons do not count as completed GUI coverage.

@@ -13,6 +13,10 @@ public final class GuiWorkflowPayloads {
     public static final int MAXIMUM_VARIANTS = 64;
     public static final int MAXIMUM_FIELDS = 24;
     public static final int MAXIMUM_SUGGESTIONS = 1_000;
+    public static final int MAXIMUM_FIELD_VALUE = 32_768;
+    public static final int MAXIMUM_BATCH_TARGETS = 1_000;
+    public static final String PLAYER_SELECTION_ALL_ONLINE = "__sef_all_online__";
+    public static final String PLAYER_SELECTION_ALL_KNOWN = "__sef_all_known__";
 
     private GuiWorkflowPayloads() {
     }
@@ -584,12 +588,12 @@ public final class GuiWorkflowPayloads {
             text(label, 128);
             text(type, 32);
             text(renderMode, 32);
-            text(value, 4096);
+            text(value, MAXIMUM_FIELD_VALUE);
             text(suggestionKind, 32);
             choices = boundedList(choices, MAXIMUM_SUGGESTIONS, "workflow field choices");
             choices.forEach(choice -> text(choice, 128));
             if (!Double.isFinite(minimum) || !Double.isFinite(maximum)
-                    || minimum > maximum || maximumLength < 1 || maximumLength > 4096
+                    || minimum > maximum || maximumLength < 1 || maximumLength > MAXIMUM_FIELD_VALUE
                     || value.length() > maximumLength) {
                 throw new IllegalArgumentException("Workflow field is invalid");
             }
@@ -604,7 +608,7 @@ public final class GuiWorkflowPayloads {
             buffer.writeDouble(value.minimum());
             buffer.writeDouble(value.maximum());
             buffer.writeVarInt(value.maximumLength());
-            PayloadCodecSupport.writeString(buffer, value.value(), 4096);
+            PayloadCodecSupport.writeString(buffer, value.value(), MAXIMUM_FIELD_VALUE);
             PayloadCodecSupport.writeList(
                     buffer,
                     value.choices(),
@@ -623,7 +627,7 @@ public final class GuiWorkflowPayloads {
                     buffer.readDouble(),
                     buffer.readDouble(),
                     buffer.readVarInt(),
-                    PayloadCodecSupport.readString(buffer, 4096),
+                    PayloadCodecSupport.readString(buffer, MAXIMUM_FIELD_VALUE),
                     PayloadCodecSupport.readList(
                             buffer,
                             MAXIMUM_SUGGESTIONS,
@@ -635,18 +639,18 @@ public final class GuiWorkflowPayloads {
     public record WorkflowFieldValue(String id, String value) {
         public WorkflowFieldValue {
             text(id, 64);
-            text(value, 4096);
+            text(value, MAXIMUM_FIELD_VALUE);
         }
 
         private static void encode(FriendlyByteBuf buffer, WorkflowFieldValue value) {
             PayloadCodecSupport.writeString(buffer, value.id(), 64);
-            PayloadCodecSupport.writeString(buffer, value.value(), 4096);
+            PayloadCodecSupport.writeString(buffer, value.value(), MAXIMUM_FIELD_VALUE);
         }
 
         private static WorkflowFieldValue decode(FriendlyByteBuf buffer) {
             return new WorkflowFieldValue(
                     PayloadCodecSupport.readString(buffer, 64),
-                    PayloadCodecSupport.readString(buffer, 4096));
+                    PayloadCodecSupport.readString(buffer, MAXIMUM_FIELD_VALUE));
         }
     }
 

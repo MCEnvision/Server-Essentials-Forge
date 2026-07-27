@@ -54,7 +54,7 @@ public final class SefWorkflowScreen extends Screen {
         GuiWorkflowPayloads.WorkflowVariant variant = selectedVariant();
 
         Button variantButton = Button.builder(
-                        Component.literal("variant, " + fit(variant.label(), 190)),
+                        Component.literal("mode, " + fit(variantLabel(variant), 210)),
                         ignored -> {
                             capture();
                             selectedVariant = (selectedVariant + 1) % snapshot.variants().size();
@@ -93,6 +93,41 @@ public final class SefWorkflowScreen extends Screen {
                         .build();
                 choice.active = !snapshot.confirmationPending();
                 addRenderableWidget(choice);
+                visibleFields.add(new FieldWidget(field, null));
+                continue;
+            }
+            if (field.type().equals("player") || field.type().equals("players")) {
+                Button selectPlayers = Button.builder(
+                                Component.literal(playerSelectionLabel(value)),
+                                ignored -> openPlayerPicker(field))
+                        .bounds(left + 152, y, 244, 20)
+                        .tooltip(Tooltip.create(Component.literal(
+                                field.type().equals("players")
+                                        ? "select players, all online, or every known profile"
+                                        : "select one server known player")))
+                        .build();
+                selectPlayers.active = !snapshot.confirmationPending();
+                addRenderableWidget(selectPlayers);
+                visibleFields.add(new FieldWidget(field, null));
+                continue;
+            }
+            if (field.type().equals("item")) {
+                Button selectItem = Button.builder(
+                                Component.literal(value.isBlank()
+                                        ? "select item"
+                                        : fit(value, 220)),
+                                ignored -> openItemPicker(field))
+                        .bounds(left + 152, y, 244, 20)
+                        .tooltip(Tooltip.create(Component.literal(
+                                "browse searchable creative style item tabs")))
+                        .build();
+                selectItem.active = !snapshot.confirmationPending();
+                addRenderableWidget(selectItem);
+                visibleFields.add(new FieldWidget(field, null));
+                continue;
+            }
+            if (field.type().equals("integer")) {
+                addIntegerControls(field, value, left + 152, y);
                 visibleFields.add(new FieldWidget(field, null));
                 continue;
             }
@@ -210,7 +245,7 @@ public final class SefWorkflowScreen extends Screen {
                 width / 2,
                 top + 9,
                 SefVanillaTheme.TEXT);
-        graphics.drawString(font, "workflow variant", left + 12, top + 33, SefVanillaTheme.MUTED_TEXT);
+        graphics.drawString(font, "workflow mode", left + 12, top + 33, SefVanillaTheme.MUTED_TEXT);
         for (int index = 0; index < visibleFields.size(); index++) {
             GuiWorkflowPayloads.WorkflowField field = visibleFields.get(index).field();
             graphics.drawString(
@@ -321,47 +356,120 @@ public final class SefWorkflowScreen extends Screen {
             EditBox input
     ) {
         capture();
-        List<GuiWorkflowPayloads.WorkflowSuggestion> available = suggestions.get(field.id());
-        if (available == null || available.isEmpty()) {
-            SefClientTransport.requestWorkflowSuggestions(
-                    snapshot,
-                    selectedVariant().id(),
-                    field.id(),
-                    input.getValue(),
-                    UUID.randomUUID());
-            liveStatus = "Requesting server suggestions for " + field.label() + ".";
+        if (minecraft == null) {
             return;
         }
-        if (field.type().equals("player") || field.type().equals("players")) {
-            if (minecraft != null) {
-                minecraft.setScreen(new SefPlayerPickerScreen(
-                        this,
-                        field.id(),
-                        available,
-                        replacement -> {
-                            input.setValue(replacement);
-                            values().put(field.id(), replacement);
-                            liveStatus =
-                                    "Selected a player. Preview again before execution.";
-                        }));
-            }
+        minecraft.setScreen(new SefSuggestionPickerScreen(
+                this,
+                field.id(),
+                field.label(),
+                suggestions.getOrDefault(field.id(), List.of()),
+                replacement -> {
+                    input.setValue(replacement);
+                    values().put(field.id(), replacement);
+                    liveStatus = "Selected a server value. Preview again before execution.";
+                }));
+    }
+
+    private void openPlayerPicker(GuiWorkflowPayloads.WorkflowField field) {
+        capture();
+        if (minecraft == null) {
             return;
         }
-        int current = -1;
-        for (int index = 0; index < available.size(); index++) {
-            if (available.get(index).value().equals(input.getValue())) {
-                current = index;
-                break;
-            }
+        minecraft.setScreen(new SefPlayerPickerScreen(
+                this,
+                field.id(),
+                field.type().equals("players")
+                        && snapshot.actionId().equals("sef:item.give.others"),
+                values().getOrDefault(field.id(), ""),
+                suggestions.getOrDefault(field.id(), List.of()),
+                replacement -> {
+                    values().put(field.id(), replacement);
+                    liveStatus = replacement.equals(GuiWorkflowPayloads.PLAYER_SELECTION_ALL_ONLINE)
+                            ? "Selected every visible online player."
+                            : replacement.equals(GuiWorkflowPayloads.PLAYER_SELECTION_ALL_KNOWN)
+                            ? "Selected every visible known player. Offline actions will queue."
+                            : "Selected player targets. Preview again before execution.";
+                }));
+    }
+
+    private void openItemPicker(GuiWorkflowPayloads.WorkflowField field) {
+        capture();
+        if (minecraft == null) {
+            return;
         }
-        String replacement =
-                available.get(Math.floorMod(current + 1, available.size())).value();
-        input.setValue(replacement);
-        values().put(field.id(), replacement);
-        liveStatus = "Selected a server suggestion. Preview again before execution.";
+        minecraft.setScreen(new SefItemPickerScreen(this, replacement -> {
+            values().put(field.id(), replacement);
+            liveStatus = "Selected " + replacement + ". Preview again before execution.";
+        }));
+    }
+
+    private void addIntegerControls(
+            GuiWorkflowPayloads.WorkflowField field,
+            String value,
+            int x,
+            int y
+    ) {
+        addIntegerStep(field, x, y, 34, "-10", -10L);
+        addIntegerStep(field, x + 36, y, 34, "-1", -1L);
+        Button display = Button.builder(
+                        Component.literal(value.isBlank() ? "select amount" : fit(value, 88)),
+                        ignored -> {
+                        })
+                .bounds(x + 72, y, 100, 20)
+                .tooltip(Tooltip.create(fieldTooltip(field)))
+                .build();
+        display.active = false;
+        addRenderableWidget(display);
+        addIntegerStep(field, x + 174, y, 34, "+1", 1L);
+        addIntegerStep(field, x + 210, y, 34, "+10", 10L);
+    }
+
+    private void addIntegerStep(
+            GuiWorkflowPayloads.WorkflowField field,
+            int x,
+            int y,
+            int width,
+            String label,
+            long delta
+    ) {
+        Button step = Button.builder(Component.literal(label), ignored -> {
+                    long minimum = field.minimum() <= Long.MIN_VALUE
+                            ? Long.MIN_VALUE
+                            : (long) Math.ceil(field.minimum());
+                    long maximum = field.maximum() >= Long.MAX_VALUE
+                            ? Long.MAX_VALUE
+                            : (long) Math.floor(field.maximum());
+                    long current;
+                    try {
+                        current = Long.parseLong(values().getOrDefault(field.id(), ""));
+                    } catch (NumberFormatException exception) {
+                        current = Math.clamp(1L, minimum, maximum);
+                    }
+                    long replacement;
+                    try {
+                        replacement = Math.addExact(current, delta);
+                    } catch (ArithmeticException exception) {
+                        replacement = delta < 0L ? minimum : maximum;
+                    }
+                    values().put(
+                            field.id(),
+                            Long.toString(Math.clamp(replacement, minimum, maximum)));
+                    liveStatus = "Amount changed. Preview again before execution.";
+                    rebuildWidgets();
+                })
+                .bounds(x, y, width, 20)
+                .tooltip(Tooltip.create(fieldTooltip(field)))
+                .build();
+        step.active = !snapshot.confirmationPending();
+        addRenderableWidget(step);
     }
 
     void requestPlayerSuggestions(String fieldId, String value) {
+        requestSuggestions(fieldId, value);
+    }
+
+    void requestSuggestions(String fieldId, String value) {
         SefClientTransport.requestWorkflowSuggestions(
                 snapshot,
                 selectedVariant().id(),
@@ -418,6 +526,29 @@ public final class SefWorkflowScreen extends Screen {
                 ? ""
                 : ", suggestions " + field.suggestionKind();
         return Component.literal(field.type().replace('_', ' ') + range + source);
+    }
+
+    private String playerSelectionLabel(String value) {
+        if (value.isBlank()) {
+            return "select player targets";
+        }
+        if (value.equals(GuiWorkflowPayloads.PLAYER_SELECTION_ALL_ONLINE)) {
+            return "all visible online players";
+        }
+        if (value.equals(GuiWorkflowPayloads.PLAYER_SELECTION_ALL_KNOWN)) {
+            return "everyone, online and offline";
+        }
+        int count = value.split(",", -1).length;
+        return count == 1 ? fit(value, 220) : count + " selected players";
+    }
+
+    private String variantLabel(GuiWorkflowPayloads.WorkflowVariant variant) {
+        if (snapshot.actionId().equals("sef:item.give.others")) {
+            return variant.fields().stream().anyMatch(field -> field.type().equals("integer"))
+                    ? "custom amount"
+                    : "one item";
+        }
+        return variant.label();
     }
 
     private String fit(String value, int maximumPixels) {

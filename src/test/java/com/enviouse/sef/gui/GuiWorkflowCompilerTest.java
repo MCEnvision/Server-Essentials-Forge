@@ -3,6 +3,7 @@ package com.enviouse.sef.gui;
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -114,6 +115,23 @@ class GuiWorkflowCompilerTest {
                         .size());
     }
 
+    @Test
+    void multiPlayerFieldsHaveRoomForBoundedGuiSelections() {
+        CommandDispatcher<String> dispatcher = new CommandDispatcher<>();
+        dispatcher.register(literal("give")
+                .then(argument("targets", new FakeEntityArgument())
+                        .executes(context -> 1)));
+
+        GuiWorkflowCompiler.WorkflowDefinition workflow = GuiWorkflowCompiler.compile(
+                definition("sef:item.give.others", "give"),
+                dispatcher,
+                "source");
+
+        GuiWorkflowCompiler.Field field = workflow.variants().getFirst().fields().getFirst();
+        assertEquals(GuiWorkflowCompiler.FieldType.PLAYERS, field.type());
+        assertEquals(GuiWorkflowCompiler.MAXIMUM_MULTI_TARGET_LENGTH, field.maximumLength());
+    }
+
     private static CommandDefinition definition(String id, String route) {
         return new CommandDefinition(
                 id,
@@ -149,5 +167,12 @@ class GuiWorkflowCompilerTest {
             ArgumentType<T> type
     ) {
         return RequiredArgumentBuilder.argument(name, type);
+    }
+
+    private static final class FakeEntityArgument implements ArgumentType<String> {
+        @Override
+        public String parse(StringReader reader) {
+            return reader.readUnquotedString();
+        }
     }
 }

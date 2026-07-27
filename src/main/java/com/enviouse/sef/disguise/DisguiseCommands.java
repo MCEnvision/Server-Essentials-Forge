@@ -12,9 +12,12 @@ import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
 
@@ -49,31 +52,14 @@ public final class DisguiseCommands {
                                 context.getSource(),
                                 "status",
                                 () -> status(context.getSource(), player(context.getSource()))));
-        root.then(Commands.argument("entity_type", StringArgumentType.word())
-                .requires(source -> has(source, "commands.disguise.mob"))
-                .suggests((context, builder) -> {
-                    KernelServices.disguises().supportedMobs()
-                            .forEach(adapter -> builder.suggest(adapter.entityType()));
-                    return builder.buildFuture();
-                })
-                .executes(context -> execute(context.getSource(), "set.mob",
-                        () -> setMob(
-                                context.getSource(),
-                                player(context.getSource()),
-                                StringArgumentType.getString(context, "entity_type")))));
         root.then(Commands.literal("mob")
                 .requires(source -> has(source, "commands.disguise.mob"))
-                .then(Commands.argument("entity_type", StringArgumentType.word())
-                        .suggests((context, builder) -> {
-                            KernelServices.disguises().supportedMobs()
-                                    .forEach(adapter -> builder.suggest(adapter.entityType()));
-                            return builder.buildFuture();
-                        })
+                .then(entityTypeArgument()
                         .executes(context -> execute(context.getSource(), "set.mob",
                                 () -> setMob(
                                         context.getSource(),
                                         player(context.getSource()),
-                                        StringArgumentType.getString(context, "entity_type"))))));
+                                        entityType(context))))));
         root.then(Commands.literal("player")
                 .requires(source -> has(source, "commands.disguise.player"))
                 .then(Commands.argument("profile", StringArgumentType.word())
@@ -119,26 +105,25 @@ public final class DisguiseCommands {
                         () -> list(context.getSource()))));
         root.then(Commands.literal("preview")
                 .requires(source -> has(source, "commands.disguise.preview"))
-                .then(Commands.argument("entity_type", StringArgumentType.word())
-                        .suggests((context, builder) -> {
-                            KernelServices.disguises().supportedMobs()
-                                    .forEach(adapter -> builder.suggest(adapter.entityType()));
-                            return builder.buildFuture();
-                        })
+                .then(entityTypeArgument()
                         .executes(context -> execute(context.getSource(), "preview",
                                 () -> preview(
                                         context.getSource(),
-                                        StringArgumentType.getString(context, "entity_type"))))));
+                                        entityType(context))))));
         root.then(presetManagementRoot());
+        RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> setEntityType =
+                entityTypeArgument();
+        setEntityType.executes(context -> execute(
+                context.getSource(),
+                "set.mob",
+                () -> setMob(
+                        context.getSource(),
+                        target(context, "player"),
+                        entityType(context))));
         root.then(Commands.literal("set")
                 .requires(source -> has(source, "commands.disguise.set.others"))
                 .then(Commands.argument("player", EntityArgument.player())
-                        .then(Commands.argument("entity_type", StringArgumentType.word())
-                                .executes(context -> execute(context.getSource(), "set.mob",
-                                        () -> setMob(
-                                                context.getSource(),
-                                                target(context, "player"),
-                                                StringArgumentType.getString(context, "entity_type")))))));
+                        .then(setEntityType)));
         root.then(abilityRoot("ability"));
         root.then(Commands.literal("inspect")
                 .requires(source -> has(source, "commands.disguise.inspect"))
@@ -158,14 +143,18 @@ public final class DisguiseCommands {
                 .requires(source -> has(source, "commands.disguise.preset.manage"))
                 .executes(context -> execute(context.getSource(), "preset.manage",
                         () -> listPresets(context.getSource())));
+        RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> presetEntityType =
+                entityTypeArgument();
+        presetEntityType.executes(context -> execute(
+                context.getSource(),
+                "preset.manage",
+                () -> createPreset(
+                        context.getSource(),
+                        StringArgumentType.getString(context, "preset_id"),
+                        entityType(context))));
         root.then(Commands.literal("create")
                 .then(Commands.argument("preset_id", StringArgumentType.word())
-                        .then(Commands.argument("entity_type", StringArgumentType.word())
-                                .executes(context -> execute(context.getSource(), "preset.manage",
-                                        () -> createPreset(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "preset_id"),
-                                                StringArgumentType.getString(context, "entity_type")))))));
+                        .then(presetEntityType)));
         root.then(Commands.literal("delete")
                 .then(Commands.argument("preset_id", StringArgumentType.word())
                         .executes(context -> execute(context.getSource(), "preset.manage",
@@ -183,6 +172,21 @@ public final class DisguiseCommands {
                                                         context,
                                                         "enabled")))))));
         return root;
+    }
+
+    private static RequiredArgumentBuilder<CommandSourceStack, ResourceLocation> entityTypeArgument() {
+        return Commands.argument("entity_type", ResourceLocationArgument.id())
+                .suggests((context, builder) -> {
+                    KernelServices.disguises().supportedMobs()
+                            .forEach(adapter -> builder.suggest(adapter.entityType()));
+                    return builder.buildFuture();
+                });
+    }
+
+    private static String entityType(
+            com.mojang.brigadier.context.CommandContext<CommandSourceStack> context
+    ) {
+        return ResourceLocationArgument.getId(context, "entity_type").toString();
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> optionsRoot() {
@@ -260,12 +264,23 @@ public final class DisguiseCommands {
         if (!has(source, "disguise.type." + normalizedType.replace(':', '.'))) {
             return fail(source, "you do not have permission for that disguise type");
         }
+        DisguiseService.MobAdapter adapter = KernelServices.disguises().supportedMobs().stream()
+                .filter(candidate -> candidate.entityType().equals(normalizedType))
+                .findFirst()
+                .orElse(null);
+        boolean traits = adapter != null
+                && !adapter.traits().isEmpty()
+                && has(source, "disguise.traits")
+                && ConfigHandler.config.disguiseTraitsEnabled.get();
+        boolean abilities = adapter != null
+                && !adapter.abilities().isEmpty()
+                && ConfigHandler.config.disguiseAbilitiesEnabled.get();
         ActionResult<DisguiseService.DisguiseRecord> result = KernelServices.disguises().setMob(
                 subject.getUUID(),
                 normalizedType,
                 actorId(source),
-                has(source, "disguise.traits") && ConfigHandler.config.disguiseTraitsEnabled.get(),
-                has(source, "disguise.abilities") && ConfigHandler.config.disguiseAbilitiesEnabled.get(),
+                traits,
+                abilities,
                 null);
         if (!result.successful()) {
             return fail(source, result.detail());

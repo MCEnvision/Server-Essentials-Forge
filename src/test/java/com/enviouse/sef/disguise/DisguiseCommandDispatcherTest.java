@@ -3,9 +3,11 @@ package com.enviouse.sef.disguise;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.tree.ArgumentCommandNode;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.PermissionAPI;
 import org.junit.jupiter.api.AfterEach;
@@ -16,6 +18,7 @@ import org.mockito.MockedStatic;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -94,6 +97,43 @@ class DisguiseCommandDispatcherTest {
                             root.getChild("player").getChild("profile"));
             assertInstanceOf(StringArgumentType.class, profile.getType());
             assertNotNull(profile.getCustomSuggestions());
+        }
+    }
+
+    @Test
+    void entityTypesStayUnderNamedBranchesAndAcceptNamespaces() {
+        ConfigHandler.config.enableDisguises.set(true);
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(
+                            player,
+                            PermissionsHandler.phasePermission("commands.disguise")))
+                    .thenReturn(true);
+            permissions.when(() -> PermissionAPI.getPermission(
+                            player,
+                            PermissionsHandler.phasePermission("commands.disguise.mob")))
+                    .thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+            var root = dispatcher.getRoot().getChild("disguise");
+
+            assertNull(root.getChild("entity_type"));
+            ArgumentCommandNode<CommandSourceStack, ?> mobType = assertInstanceOf(
+                    ArgumentCommandNode.class,
+                    root.getChild("mob").getChild("entity_type"));
+            assertInstanceOf(ResourceLocationArgument.class, mobType.getType());
+            assertNotNull(mobType.getCustomSuggestions());
+            ArgumentCommandNode<CommandSourceStack, ?> setType = assertInstanceOf(
+                    ArgumentCommandNode.class,
+                    root.getChild("set").getChild("player").getChild("entity_type"));
+            assertInstanceOf(ResourceLocationArgument.class, setType.getType());
+            assertNotNull(setType.getCustomSuggestions());
+
+            ParseResults<CommandSourceStack> parsed =
+                    dispatcher.parse("disguise mob minecraft:bat", source);
+            assertFalse(parsed.getReader().canRead());
+            assertNotNull(parsed.getContext().getCommand());
         }
     }
 

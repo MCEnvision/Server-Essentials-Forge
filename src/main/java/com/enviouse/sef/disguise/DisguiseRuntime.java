@@ -14,12 +14,14 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.MobCategory;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
 import net.neoforged.neoforge.event.entity.living.LivingFallEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.time.Instant;
@@ -31,9 +33,15 @@ import java.util.UUID;
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public final class DisguiseRuntime {
     private static long lastProjectionRevision;
+    private static int synchronizedEntityTypeCount = -1;
     private static final Map<UUID, EnumMap<SoundKind, Integer>> LAST_SOUND_TICKS = new HashMap<>();
 
     private DisguiseRuntime() {
+    }
+
+    @SubscribeEvent
+    public static void serverStarted(ServerStartedEvent event) {
+        synchronizeEntityAdapters();
     }
 
     @SubscribeEvent
@@ -82,6 +90,7 @@ public final class DisguiseRuntime {
 
     public static void reset() {
         lastProjectionRevision = 0L;
+        synchronizedEntityTypeCount = -1;
         synchronized (LAST_SOUND_TICKS) {
             LAST_SOUND_TICKS.clear();
         }
@@ -89,6 +98,24 @@ public final class DisguiseRuntime {
         if (server != null) {
             DisguiseProxyService.clear(server);
         }
+    }
+
+    static synchronized void synchronizeEntityAdapters() {
+        int registrySize = BuiltInRegistries.ENTITY_TYPE.size();
+        if (synchronizedEntityTypeCount == registrySize) {
+            return;
+        }
+        DisguiseService service = KernelServices.disguises();
+        for (var entry : BuiltInRegistries.ENTITY_TYPE.entrySet()) {
+            if (entry.getValue().getCategory() == MobCategory.MISC) {
+                continue;
+            }
+            service.registerEnhancedMobAdapter(
+                    entry.getKey().location().toString(),
+                    entry.getValue().getDescription().getString(),
+                    entry.getKey().location().getNamespace().equals("minecraft"));
+        }
+        synchronizedEntityTypeCount = registrySize;
     }
 
     public static void playBlazeShoot(ServerPlayer subject) {

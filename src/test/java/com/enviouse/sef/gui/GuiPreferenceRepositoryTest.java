@@ -11,6 +11,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GuiPreferenceRepositoryTest {
@@ -32,7 +33,7 @@ class GuiPreferenceRepositoryTest {
                 false,
                 true,
                 24);
-        repository.updateBackgroundBlur(playerId, true);
+        repository.updateBackgroundBlur(playerId, false);
         repository.flush();
 
         GuiPreferenceRepository reloaded = new GuiPreferenceRepository();
@@ -46,7 +47,10 @@ class GuiPreferenceRepositoryTest {
         assertEquals(false, preference.hudEnabled());
         assertTrue(preference.reducedMotion());
         assertEquals(24, preference.preferredPageSize());
-        assertTrue(preference.backgroundBlur());
+        assertFalse(preference.backgroundBlur());
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> reloaded.updateBackgroundBlur(playerId, true));
     }
 
     @Test

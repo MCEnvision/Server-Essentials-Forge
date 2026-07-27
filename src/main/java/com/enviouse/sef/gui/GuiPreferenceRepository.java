@@ -73,7 +73,9 @@ public final class GuiPreferenceRepository implements StorageRepository {
                     || snapshot.preferences().size() > MAXIMUM_PROFILES) {
                 throw new IllegalStateException("GUI preference collection is invalid");
             }
+            boolean normalizedLegacyBlur = false;
             for (Preference preference : snapshot.preferences()) {
+                normalizedLegacyBlur |= Boolean.TRUE.equals(preference.backgroundBlur());
                 Preference migrated = migrate(preference);
                 validate(migrated);
                 if (preferences.putIfAbsent(migrated.playerId(), migrated) != null) {
@@ -81,7 +83,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 }
             }
             state = RepositoryState.READY;
-            if (document.migrated()) {
+            if (document.migrated() || normalizedLegacyBlur) {
                 revision++;
             }
             return new LoadResult(state, "loaded " + preferences.size() + " GUI preferences");
@@ -111,7 +113,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 current.hudEnabled(),
                 current.reducedMotion(),
                 current.preferredPageSize(),
-                current.backgroundBlur(),
+                false,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -130,7 +132,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 current.hudEnabled(),
                 current.reducedMotion(),
                 current.preferredPageSize(),
-                current.backgroundBlur(),
+                false,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -156,7 +158,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 hudEnabled == null ? current.hudEnabled() : hudEnabled,
                 reducedMotion == null ? current.reducedMotion() : reducedMotion,
                 preferredPageSize == null ? current.preferredPageSize() : preferredPageSize,
-                current.backgroundBlur(),
+                false,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -164,6 +166,9 @@ public final class GuiPreferenceRepository implements StorageRepository {
 
     public synchronized Preference updateBackgroundBlur(UUID playerId, boolean enabled) {
         writable();
+        if (enabled) {
+            throw new IllegalArgumentException("SEF screens always keep the world sharp");
+        }
         Preference current = preference(playerId);
         Preference replacement = new Preference(
                 playerId,
@@ -175,7 +180,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 current.hudEnabled(),
                 current.reducedMotion(),
                 current.preferredPageSize(),
-                enabled,
+                false,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -276,7 +281,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                         || preference.hudEnabled(),
                 preference.reducedMotion(),
                 preference.preferredPageSize() == 0 ? 12 : preference.preferredPageSize(),
-                preference.backgroundBlur() != null && preference.backgroundBlur(),
+                false,
                 Math.max(1L, preference.revision()));
     }
 

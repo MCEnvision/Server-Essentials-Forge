@@ -38,6 +38,28 @@ class DisguiseServiceTest {
     }
 
     @Test
+    void mobWithoutAbilitiesReportsUnavailableSlotInsteadOfGlobalDisable() {
+        DisguiseService service = new DisguiseService(settings(true, true, true));
+        service.load(directory);
+        UUID player = UUID.randomUUID();
+        assertTrue(service.setMob(
+                player,
+                "minecraft:enderman",
+                player,
+                false,
+                false,
+                null).successful());
+
+        var result = service.admitAbility(
+                player,
+                DisguiseService.AbilitySlot.PRIMARY,
+                Instant.now());
+
+        assertFalse(result.successful());
+        assertEquals("this disguise has no primary ability", result.detail());
+    }
+
+    @Test
     void projectionHonorsVanishAndVanillaSelfViewLimits() {
         DisguiseService service = new DisguiseService(settings(true, false, false));
         service.load(directory);
@@ -177,6 +199,29 @@ class DisguiseServiceTest {
                 true,
                 false,
                 null).successful());
+    }
+
+    @Test
+    void registeredModdedLivingEntityCanUseNamespacedDisguiseId() {
+        DisguiseService service = new DisguiseService(settings(true, false, false));
+        service.load(directory);
+
+        assertTrue(service.registerEnhancedMobAdapter("example:yak", "Yak", false));
+        var result = service.setMob(
+                UUID.randomUUID(),
+                "example:yak",
+                UUID.randomUUID(),
+                false,
+                false,
+                null);
+
+        assertTrue(result.successful());
+        assertEquals("example:yak", result.value().reference());
+        assertFalse(service.supportedMobs().stream()
+                .filter(adapter -> adapter.entityType().equals("example:yak"))
+                .findFirst()
+                .orElseThrow()
+                .vanillaProxySupported());
     }
 
     @Test

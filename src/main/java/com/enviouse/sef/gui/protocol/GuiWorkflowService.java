@@ -364,33 +364,33 @@ public final class GuiWorkflowService {
             GuiWorkflowCompiler.Variant variant = workflow.definition.requireVariant(variantId);
             Map<String, String> values = validatedValues(variant, submitted);
             String command = render(variant, values);
-            DeferredTarget deferred = deferredTarget(
+            BatchTargets batch = batchTargets(
                     player,
                     workflow.definition,
                     variant,
                     values);
             String validationCommand = command;
-            if (deferred != null) {
+            if (batch != null) {
                 Map<String, String> validationValues = new LinkedHashMap<>(values);
                 validationValues.put(
-                        deferred.fieldId(),
+                        batch.fieldId(),
                         player.getGameProfile().getName());
                 validationCommand = render(variant, validationValues);
             }
             validateCommand(player, workflow, validationCommand);
             workflow.selectedVariant = variant.id();
             workflow.values.put(variant.id(), new LinkedHashMap<>(values));
-            workflow.previewCommand = command;
-            workflow.previewDisplay = redact(variant, values);
-            workflow.deferredTargetId = deferred == null ? null : deferred.targetId();
-            workflow.deferredTargetFieldId = deferred == null ? "" : deferred.fieldId();
+            workflow.previewCommand = validationCommand;
+            workflow.previewDisplay = batch == null
+                    ? redact(variant, values)
+                    : redactBatch(variant, values, batch);
+            workflow.selectedTargetIds = batch == null ? List.of() : batch.targetIds();
+            workflow.selectedTargetFieldId = batch == null ? "" : batch.fieldId();
             workflow.confirmationToken = workflow.definition.requiresConfirmation()
                     ? UUID.randomUUID()
                     : null;
-            workflow.status = deferred != null
-                    ? workflow.definition.requiresConfirmation()
-                    ? "Target is offline. Confirm to queue this typed action."
-                    : "Target is offline. Run to queue this typed action."
+            workflow.status = batch != null
+                    ? batchStatus(workflow, batch)
                     : workflow.definition.requiresConfirmation()
                     ? "Preview validated. A second confirmation is required."
                     : "Preview validated. The action is ready.";
@@ -408,22 +408,9 @@ public final class GuiWorkflowService {
             publish(player, workflow);
             return;
         }
-        if (workflow.deferredTargetId != null
-                && player.server.getPlayerList().getPlayer(workflow.deferredTargetId) == null) {
-            queueOffline(player, workflow);
+        if (!workflow.selectedTargetIds.isEmpty()) {
+            executeBatch(player, workflow);
             return;
-        }
-        if (workflow.deferredTargetId != null) {
-            ServerPlayer target =
-                    player.server.getPlayerList().getPlayer(workflow.deferredTargetId);
-            GuiWorkflowCompiler.Variant variant =
-                    workflow.definition.requireVariant(workflow.selectedVariant);
-            Map<String, String> currentValues =
-                    new LinkedHashMap<>(workflow.values(workflow.selectedVariant));
-            currentValues.put(
-                    workflow.deferredTargetFieldId,
-                    target.getGameProfile().getName());
-            workflow.previewCommand = render(variant, currentValues);
         }
         try {
             validateCommand(player, workflow, workflow.previewCommand);
@@ -484,43 +471,99 @@ public final class GuiWorkflowService {
         }
     }
 
-    private static void queueOffline(ServerPlayer player, WorkflowSession workflow) {
-        try {
-            OfflineActionRepository.QueuedAction queued = KernelServices.offlineActions().enqueue(
-                    player.getUUID(),
-                    workflow.deferredTargetId,
-                    workflow.definition.actionId(),
-                    workflow.selectedVariant,
-                    workflow.deferredTargetFieldId,
-                    workflow.values(workflow.selectedVariant),
-                    Instant.now(),
-                    Duration.ofDays(7L));
-            workflow.confirmationToken = null;
-            workflow.bump();
-            String status = "Queued action " + queued.id()
-                    + ". It will recheck access when the player is online.";
-            PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowProgress(
-                    workflow.transportSessionId,
-                    workflow.id,
-                    workflow.revision,
-                    100,
-                    status));
-            PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowResult(
-                    workflow.transportSessionId,
-                    workflow.id,
-                    workflow.revision,
-                    true,
-                    true,
-                    status,
-                    workflow.returnPanel));
-            synchronized (SESSIONS) {
-                if (SESSIONS.get(player.getUUID()) == workflow) {
-                    SESSIONS.remove(player.getUUID());
+    private static void executeBatch(ServerPlayer player, WorkflowSession workflow) {
+        GuiWorkflowCompiler.Variant variant =
+                workflow.definition.requireVariant(workflow.selectedVariant);
+        Map<String, String> baseValues =
+                new LinkedHashMap<>(workflow.values(workflow.selectedVariant));
+        workflow.confirmationToken = null;
+        workflow.bump();
+        PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowProgress(
+                workflow.transportSessionId,
+                workflow.id,
+                workflow.revision,
+                25,
+                "The server is rechecking every selected player."));
+        int completed = 0;
+        int queued = 0;
+        int failed = 0;
+        for (UUID targetId : workflow.selectedTargetIds) {
+            ServerPlayer target = player.server.getPlayerList().getPlayer(targetId);
+            if (target == null) {
+                try {
+                    Map<String, String> queuedValues = new LinkedHashMap<>(baseValues);
+                    String targetName = KernelServices.profiles()
+                            .find(targetId)
+                            .map(profile -> Objects.requireNonNullElse(
+                                    profile.authenticatedUsername(),
+                                    targetId.toString()))
+                            .orElse(targetId.toString());
+                    queuedValues.put(workflow.selectedTargetFieldId, targetName);
+                    KernelServices.offlineActions().enqueue(
+                            player.getUUID(),
+                            targetId,
+                            workflow.definition.actionId(),
+                            workflow.selectedVariant,
+                            workflow.selectedTargetFieldId,
+                            queuedValues,
+                            Instant.now(),
+                            Duration.ofDays(7L));
+                    queued++;
+                } catch (IllegalArgumentException | IllegalStateException exception) {
+                    failed++;
+                    ServerEssentialsForge.LOGGER.warn(
+                            "[SEF] Could not queue GUI action {} for {}",
+                            workflow.definition.actionId(),
+                            targetId,
+                            exception);
                 }
+                continue;
             }
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            workflow.fail("The offline action could not be queued, " + safeMessage(exception));
-            publish(player, workflow);
+            try {
+                Map<String, String> currentValues = new LinkedHashMap<>(baseValues);
+                currentValues.put(
+                        workflow.selectedTargetFieldId,
+                        target.getGameProfile().getName());
+                String command = render(variant, currentValues);
+                validateCommand(player, workflow, command);
+                int result = player.server.getCommands().getDispatcher().execute(
+                        command,
+                        player.createCommandSourceStack());
+                if (result > 0) {
+                    completed++;
+                } else {
+                    failed++;
+                }
+            } catch (com.mojang.brigadier.exceptions.CommandSyntaxException | RuntimeException exception) {
+                failed++;
+                ServerEssentialsForge.LOGGER.warn(
+                        "[SEF] GUI batch action {} failed for {}",
+                        workflow.definition.actionId(),
+                        targetId,
+                        exception);
+            }
+        }
+        String status = "Batch complete. " + completed + " ran now, "
+                + queued + " queued for login, " + failed + " failed.";
+        boolean successful = failed == 0 && completed + queued > 0;
+        PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowProgress(
+                workflow.transportSessionId,
+                workflow.id,
+                workflow.revision,
+                100,
+                status));
+        PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowResult(
+                workflow.transportSessionId,
+                workflow.id,
+                workflow.revision,
+                successful,
+                true,
+                status,
+                workflow.returnPanel));
+        synchronized (SESSIONS) {
+            if (SESSIONS.get(player.getUUID()) == workflow) {
+                SESSIONS.remove(player.getUUID());
+            }
         }
     }
 
@@ -640,7 +683,7 @@ public final class GuiWorkflowService {
         return command.toString();
     }
 
-    private static DeferredTarget deferredTarget(
+    private static BatchTargets batchTargets(
             ServerPlayer player,
             GuiWorkflowCompiler.WorkflowDefinition workflow,
             GuiWorkflowCompiler.Variant variant,
@@ -664,17 +707,75 @@ public final class GuiWorkflowService {
                         || field.type() == GuiWorkflowCompiler.FieldType.PLAYERS)
                 .toList();
         if (playerFields.size() != 1) {
-            return null;
+            throw new IllegalArgumentException("This batch action requires one player field.");
         }
         GuiWorkflowCompiler.Field field = playerFields.getFirst();
-        UUID targetId = KernelServices.profiles()
-                .resolve(values.get(field.id()), true)
-                .orElse(null);
-        if (targetId == null
-                || player.server.getPlayerList().getPlayer(targetId) != null) {
-            return null;
+        String selection = values.get(field.id());
+        boolean bulkSelection = GuiWorkflowPayloads.PLAYER_SELECTION_ALL_ONLINE.equals(selection)
+                || GuiWorkflowPayloads.PLAYER_SELECTION_ALL_KNOWN.equals(selection);
+        Map<String, UUID> visible = new LinkedHashMap<>();
+        List<GuiWorkflowPayloads.WorkflowSuggestion> allowedSuggestions = bulkSelection
+                ? playerSuggestionProjection(player, "")
+                : playerSuggestions(player, "");
+        for (GuiWorkflowPayloads.WorkflowSuggestion suggestion : allowedSuggestions) {
+            ServerPlayer online =
+                    player.server.getPlayerList().getPlayerByName(suggestion.value());
+            UUID playerId = online == null
+                    ? KernelServices.profiles().resolve(suggestion.value(), true).orElse(null)
+                    : online.getUUID();
+            if (playerId != null) {
+                visible.put(suggestion.value().toLowerCase(Locale.ROOT), playerId);
+            }
         }
-        return new DeferredTarget(targetId, field.id());
+        Set<UUID> onlineTargets = new LinkedHashSet<>();
+        player.server.getPlayerList().getPlayers().forEach(target -> onlineTargets.add(target.getUUID()));
+        List<UUID> targets = parseBatchSelection(selection, visible, onlineTargets);
+        long online = targets.stream()
+                .filter(onlineTargets::contains)
+                .count();
+        return new BatchTargets(field.id(), targets, (int) online);
+    }
+
+    static List<UUID> parseBatchSelection(
+            String selection,
+            Map<String, UUID> visible,
+            Set<UUID> online
+    ) {
+        Objects.requireNonNull(visible, "visible");
+        Objects.requireNonNull(online, "online");
+        if (selection == null) {
+            throw new IllegalArgumentException("Select at least one visible player.");
+        }
+        List<UUID> targets;
+        if (GuiWorkflowPayloads.PLAYER_SELECTION_ALL_ONLINE.equals(selection)) {
+            targets = visible.values().stream()
+                    .filter(online::contains)
+                    .distinct()
+                    .toList();
+        } else if (GuiWorkflowPayloads.PLAYER_SELECTION_ALL_KNOWN.equals(selection)) {
+            targets = visible.values().stream().distinct().toList();
+        } else {
+            LinkedHashSet<UUID> selected = new LinkedHashSet<>();
+            for (String identity : selection.split(",", -1)) {
+                UUID targetId = visible.get(identity.strip().toLowerCase(Locale.ROOT));
+                if (targetId == null) {
+                    throw new IllegalArgumentException(
+                            "A selected player is unknown, hidden, or no longer available.");
+                }
+                selected.add(targetId);
+                if (selected.size() > GuiWorkflowPayloads.MAXIMUM_BATCH_TARGETS) {
+                    throw new IllegalArgumentException("Too many players were selected.");
+                }
+            }
+            targets = List.copyOf(selected);
+        }
+        if (targets.isEmpty()) {
+            throw new IllegalArgumentException("Select at least one visible player.");
+        }
+        if (targets.size() > GuiWorkflowPayloads.MAXIMUM_BATCH_TARGETS) {
+            throw new IllegalArgumentException("The visible player set exceeds the batch limit.");
+        }
+        return targets;
     }
 
     static boolean supportsOfflineQueue(String actionId) {
@@ -696,6 +797,25 @@ public final class GuiWorkflowService {
                     : values.get(field.id()));
         }
         return render(variant, display);
+    }
+
+    private static String redactBatch(
+            GuiWorkflowCompiler.Variant variant,
+            Map<String, String> values,
+            BatchTargets batch
+    ) {
+        Map<String, String> display = new LinkedHashMap<>(values);
+        display.put(batch.fieldId(), "<" + batch.targetIds().size() + " selected players>");
+        return redact(variant, display);
+    }
+
+    private static String batchStatus(WorkflowSession workflow, BatchTargets batch) {
+        int offline = batch.targetIds().size() - batch.online();
+        String instruction = workflow.definition.requiresConfirmation()
+                ? " Confirm to run and queue."
+                : " Run to execute and queue.";
+        return batch.targetIds().size() + " players selected, "
+                + batch.online() + " online, " + offline + " offline." + instruction;
     }
 
     private static String suggestionCommand(
@@ -813,14 +933,27 @@ public final class GuiWorkflowService {
                 workflow.revision,
                 requestId,
                 fieldId,
-                suggestions.stream()
-                        .sorted(Comparator
-                                .comparing(GuiWorkflowPayloads.WorkflowSuggestion::online)
-                                .reversed()
-                                .thenComparing(
-                                        suggestion -> suggestion.label().toLowerCase(Locale.ROOT)))
-                        .limit(GuiWorkflowPayloads.MAXIMUM_SUGGESTIONS)
-                        .toList()));
+                playerSuggestionProjection(suggestions)));
+    }
+
+    private static List<GuiWorkflowPayloads.WorkflowSuggestion> playerSuggestionProjection(
+            ServerPlayer viewer,
+            String query
+    ) {
+        return playerSuggestionProjection(playerSuggestions(viewer, query));
+    }
+
+    private static List<GuiWorkflowPayloads.WorkflowSuggestion> playerSuggestionProjection(
+            List<GuiWorkflowPayloads.WorkflowSuggestion> suggestions
+    ) {
+        return suggestions.stream()
+                .sorted(Comparator
+                        .comparing(GuiWorkflowPayloads.WorkflowSuggestion::online)
+                        .reversed()
+                        .thenComparing(
+                                suggestion -> suggestion.label().toLowerCase(Locale.ROOT)))
+                .limit(GuiWorkflowPayloads.MAXIMUM_SUGGESTIONS)
+                .toList();
     }
 
     private static List<GuiWorkflowPayloads.WorkflowSuggestion> playerSuggestions(
@@ -1002,8 +1135,8 @@ public final class GuiWorkflowService {
         private String previewCommand = "";
         private String previewDisplay = "";
         private UUID confirmationToken;
-        private UUID deferredTargetId;
-        private String deferredTargetFieldId = "";
+        private List<UUID> selectedTargetIds = List.of();
+        private String selectedTargetFieldId = "";
 
         private WorkflowSession(
                 UUID id,
@@ -1041,8 +1174,8 @@ public final class GuiWorkflowService {
             previewCommand = "";
             previewDisplay = "";
             confirmationToken = null;
-            deferredTargetId = null;
-            deferredTargetFieldId = "";
+            selectedTargetIds = List.of();
+            selectedTargetFieldId = "";
             status = replacementStatus;
             bump();
         }
@@ -1061,6 +1194,9 @@ public final class GuiWorkflowService {
         }
     }
 
-    private record DeferredTarget(UUID targetId, String fieldId) {
+    private record BatchTargets(String fieldId, List<UUID> targetIds, int online) {
+        private BatchTargets {
+            targetIds = List.copyOf(targetIds);
+        }
     }
 }

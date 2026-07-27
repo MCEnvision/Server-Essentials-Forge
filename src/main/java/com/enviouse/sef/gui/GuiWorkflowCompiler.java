@@ -26,6 +26,7 @@ public final class GuiWorkflowCompiler {
     public static final int MAXIMUM_FIELDS = 24;
     public static final int MAXIMUM_DEPTH = 24;
     public static final int MAXIMUM_VALUE_LENGTH = 4096;
+    public static final int MAXIMUM_MULTI_TARGET_LENGTH = 32_768;
 
     private GuiWorkflowCompiler() {
     }
@@ -242,6 +243,9 @@ public final class GuiWorkflowCompiler {
             maximumLength = string.getType() == StringType.SINGLE_WORD ? 256 : MAXIMUM_VALUE_LENGTH;
         } else {
             fieldType = classifyArgument(id, type.getClass().getSimpleName());
+        }
+        if (fieldType == FieldType.PLAYERS) {
+            maximumLength = MAXIMUM_MULTI_TARGET_LENGTH;
         }
 
         String suggestionKind = node.getCustomSuggestions() != null

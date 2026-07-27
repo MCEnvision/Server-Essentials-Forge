@@ -89,11 +89,16 @@ public final class SefClientEvents {
         if ((minecraft.screen instanceof SefPanelScreen
                 || minecraft.screen instanceof SefControlEditorScreen
                 || minecraft.screen instanceof SefWorkflowScreen
-                || minecraft.screen instanceof SefPlayerPickerScreen)
+                || minecraft.screen instanceof SefPlayerPickerScreen
+                || minecraft.screen instanceof SefItemPickerScreen
+                || minecraft.screen instanceof SefSuggestionPickerScreen)
                 && !ClientProtocolState.negotiated(SefProtocol.Feature.DASHBOARD)) {
             minecraft.screen.onClose();
         }
-        if (minecraft.screen instanceof SefWorkflowScreen
+        if ((minecraft.screen instanceof SefWorkflowScreen
+                || minecraft.screen instanceof SefPlayerPickerScreen
+                || minecraft.screen instanceof SefItemPickerScreen
+                || minecraft.screen instanceof SefSuggestionPickerScreen)
                 && !ClientProtocolState.negotiated(SefProtocol.Feature.GUI_WORKFLOW)) {
             minecraft.screen.onClose();
         }
@@ -120,6 +125,8 @@ public final class SefClientEvents {
                 workflow.acceptSuggestions(suggestions);
             } else if (minecraft.screen instanceof SefPlayerPickerScreen picker) {
                 picker.acceptSuggestions(suggestions);
+            } else if (minecraft.screen instanceof SefSuggestionPickerScreen picker) {
+                picker.acceptSuggestions(suggestions);
             }
         });
         ClientProtocolState.takeWorkflowProgress().ifPresent(progress -> {
@@ -136,6 +143,10 @@ public final class SefClientEvents {
             if (minecraft.screen instanceof SefWorkflowScreen workflow) {
                 workflow.acceptInvalidation(invalidation);
             } else if (minecraft.screen instanceof SefPlayerPickerScreen picker) {
+                picker.acceptInvalidation(invalidation);
+            } else if (minecraft.screen instanceof SefItemPickerScreen picker) {
+                picker.acceptInvalidation(invalidation);
+            } else if (minecraft.screen instanceof SefSuggestionPickerScreen picker) {
                 picker.acceptInvalidation(invalidation);
             } else if (minecraft.player != null) {
                 minecraft.player.displayClientMessage(
@@ -335,7 +346,10 @@ public final class SefClientEvents {
                 if (entity == null) {
                     return;
                 }
-                cached = new DisguiseRenderProxy(projection.disguiseRevision(), entity);
+                cached = new DisguiseRenderProxy(
+                        projection.disguiseRevision(),
+                        entity,
+                        Integer.MIN_VALUE);
                 DISGUISE_PROXIES.put(projection.subjectId(), cached);
             }
             Entity proxy = cached.entity();
@@ -343,7 +357,25 @@ public final class SefClientEvents {
             proxy.setPos(player.getX(), player.getY(), player.getZ());
             proxy.setYRot(player.getYRot());
             proxy.setXRot(player.getXRot());
+            proxy.xo = player.xo;
+            proxy.yo = player.yo;
+            proxy.zo = player.zo;
+            proxy.xOld = player.xOld;
+            proxy.yOld = player.yOld;
+            proxy.zOld = player.zOld;
+            proxy.yRotO = player.yRotO;
+            proxy.xRotO = player.xRotO;
+            proxy.tickCount = player.tickCount;
+            proxy.walkDistO = player.walkDistO;
+            proxy.walkDist = player.walkDist;
+            proxy.moveDist = player.moveDist;
+            proxy.flyDist = player.flyDist;
             proxy.setPose(player.getPose());
+            proxy.setOnGround(player.onGround());
+            proxy.setDeltaMovement(player.getDeltaMovement());
+            proxy.setSprinting(player.isSprinting());
+            proxy.setShiftKeyDown(player.isShiftKeyDown());
+            proxy.setSwimming(player.isSwimming());
             proxy.setInvisible(player.isInvisible());
             proxy.setGlowingTag(player.isCurrentlyGlowing());
             ClientProtocolState.identity(player.getUUID()).ifPresent(identity -> {
@@ -353,6 +385,20 @@ public final class SefClientEvents {
             if (proxy instanceof LivingEntity living) {
                 living.setYHeadRot(player.getYHeadRot());
                 living.setYBodyRot(player.yBodyRot);
+                living.yHeadRotO = player.yHeadRotO;
+                living.yBodyRotO = player.yBodyRotO;
+                living.attackAnim = player.attackAnim;
+                living.swinging = player.swinging;
+                living.swingingArm = player.swingingArm;
+                living.swingTime = player.swingTime;
+                if (cached.animationTick() != player.tickCount) {
+                    living.walkAnimation.update(player.walkAnimation.speed(), 1.0F);
+                    cached = new DisguiseRenderProxy(
+                            cached.revision(),
+                            cached.entity(),
+                            player.tickCount);
+                    DISGUISE_PROXIES.put(projection.subjectId(), cached);
+                }
             }
             renderingDisguiseProxy = true;
             try {
@@ -435,6 +481,6 @@ public final class SefClientEvents {
     private record Placement(int x, int y) {
     }
 
-    private record DisguiseRenderProxy(long revision, Entity entity) {
+    private record DisguiseRenderProxy(long revision, Entity entity, int animationTick) {
     }
 }

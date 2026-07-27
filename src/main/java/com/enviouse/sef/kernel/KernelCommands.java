@@ -151,7 +151,7 @@ public final class KernelCommands {
                         .then(Commands.literal("blur")
                                 .then(Commands.argument("value", StringArgumentType.word())
                                         .suggests((context, builder) -> {
-                                            builder.suggest("on").suggest("off");
+                                            builder.suggest("off");
                                             return builder.buildFuture();
                                         })
                                         .executes(context -> updatePreference(
@@ -381,7 +381,7 @@ public final class KernelCommands {
                     "&7Preference: &f" + preference.presentationMode().name().toLowerCase(java.util.Locale.ROOT)
                             + " &8| &7pause: &f" + preference.pauseButtonVisible()
                             + " &8| &7hud: &f" + preference.hudEnabled()
-                            + " &8| &7blur: &f" + preference.backgroundBlur()
+                            + " &8| &7background: &fsharp"
                             + " &8| &7reduced motion: &f" + preference.reducedMotion()
                             + " &8| &7page size: &f" + preference.preferredPageSize()), false);
         }
@@ -436,7 +436,12 @@ public final class KernelCommands {
                                             value.toUpperCase(java.util.Locale.ROOT));
                             case "sef:gui.preference.pause" -> pause = toggle(value);
                             case "sef:gui.preference.hud" -> hud = toggle(value);
-                            case "sef:gui.preference.blur" -> backgroundBlur = toggle(value);
+                            case "sef:gui.preference.blur" -> {
+                                backgroundBlur = toggle(value);
+                                if (backgroundBlur) {
+                                    throw new IllegalArgumentException("background blur is disabled");
+                                }
+                            }
                             case "sef:gui.preference.motion" -> reducedMotion = switch (value) {
                                 case "full" -> false;
                                 case "reduced" -> true;
@@ -458,8 +463,10 @@ public final class KernelCommands {
                                     backgroundBlur);
                         }
                         SefSessionManager.instance().refresh(player);
-                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
-                                "&aYour GUI preference was updated."), false);
+                        String message = backgroundBlur == null
+                                ? "&aYour GUI preference was updated."
+                                : "&aSEF screens will keep the world sharp.";
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(message), false);
                         return 1;
                     } catch (IllegalArgumentException exception) {
                         source.sendFailure(TextFormatter.stringToFormattedText(

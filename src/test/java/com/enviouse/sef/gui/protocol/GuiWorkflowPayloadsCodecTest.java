@@ -187,6 +187,25 @@ class GuiWorkflowPayloadsCodecTest {
                                         false))));
     }
 
+    @Test
+    void boundedBatchTargetFieldRoundTripsAtItsHardLimit() {
+        String value = "a".repeat(GuiWorkflowPayloads.MAXIMUM_FIELD_VALUE);
+        assertRoundTrip(
+                GuiWorkflowPayloads.GuiWorkflowPreview.CODEC,
+                new GuiWorkflowPayloads.GuiWorkflowPreview(
+                        SESSION,
+                        1L,
+                        WORKFLOW,
+                        1L,
+                        "variant_1",
+                        List.of(new GuiWorkflowPayloads.WorkflowFieldValue("targets", value))));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new GuiWorkflowPayloads.WorkflowFieldValue(
+                        "targets",
+                        value + "a"));
+    }
+
     private static <T> void assertRoundTrip(StreamCodec<FriendlyByteBuf, T> codec, T value) {
         FriendlyByteBuf buffer = new FriendlyByteBuf(Unpooled.buffer());
         try {
