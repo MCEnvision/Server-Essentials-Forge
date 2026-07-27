@@ -66,7 +66,7 @@ Current automated and smoke verification evidence:
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack. These runs prove startup isolation only.
 - Authenticated multiplayer, live LuckPerms metadata and refresh, FTB nickname mutations, Curios inventory interaction, server list and packet visible behavior, dirty shutdown races, qualifying player cooldown persistence, and profiler results remain manual work. No release approval may infer those results from headless startup.
 
-The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable `/sef` catalog action enters the shared runtime policy and audit pipeline. Versioned location history, persistent cooldown, teleport, social, command-spy, moderation, and kit repositories use bounded persistence and recovery contracts. Full sudo modes, offline inventory persistence, enhanced client GUIs, economy, disguise, alias publication, bundle execution, and administrative panel editing remain assigned to later phases.
+The shared command and policy kernel now owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every currently executable catalog action enters the shared runtime policy and audit pipeline. Versioned location history, persistent cooldown, teleport, social, command-spy, moderation, kit, native economy, and economy-sign repositories use bounded persistence and recovery contracts. Phase 8 now includes provider ownership, exact accounts and ledger, payments and administration, worth and sales, scaled command costs, import-once backup and reporting, and all twelve server-authoritative economy sign types. Full sudo modes, offline inventory persistence, enhanced client GUIs, disguise, alias publication, bundle execution, and administrative panel editing remain assigned to later phases.
 
 ## Source-of-truth order
 
@@ -16347,6 +16347,16 @@ The server-side Phase 7 implementation is present on `envy/phase-7`.
 - Super-enchant limits and unsafe policy are verified on client and server.
 
 ## Phase 8. Native economy and signs
+
+### Implementation status, 2026-07-26
+
+Server-side implementation coverage is present on `envy/sef2_complete`. The native provider uses integer minor units, request fingerprints, idempotency, bounded accounts and ledger, crash-recoverable cost holds, cached balance snapshots, exact payment and administration confirmation, account freeze, component-safe worth and sales, and synchronous managed persistence. External mode owns no native shadow balances. Import once requires a matching adapter preview, persists and backs up the empty native store, writes an aggregate report, synchronously commits the imported state, and rejects later imports.
+
+All player and administrative command roots are registered with separate permission, hierarchy, exemption, feature, source, cost, and audit policy. Command cost definitions support fixed, per-use, per-target, per-distance, and per-item components and are displayed in `/sef commands`. Native cost audit context includes amount, reservation UUID, and ledger transaction UUID.
+
+All twelve planned economy sign types use strict normalized parsing, UUID ownership, side-specific location keys, text fingerprints, separate create and use permissions, enabled-type policy, value and quantity caps, atomic inventory compensation, edit invalidation, removal cleanup, and audited creation and use. `/eco sign` provides paged inspection, confirmed removal, and hierarchy-aware ownership adoption.
+
+The full unit suite passes all 234 tests, all 11 required GameTests pass, the build and JAR integrity gates pass, and a dedicated server reaches ready state, reports healthy economy diagnostics, accepts the Phase 8 operator commands, and stops normally. The artifact and diagnostic record is in `docs/PHASE_8_TESTS.md`. Authenticated multiplayer, a real external provider, a real unmodified vanilla client, deliberate forced-crash and filesystem-failure cases, and profiler rows remain manual release gates. Phase 8 is not public-release approved until those applicable rows are recorded.
 
 ### Deliverables
 

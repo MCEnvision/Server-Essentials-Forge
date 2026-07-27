@@ -72,8 +72,11 @@ public final class KernelCommands {
             String roots = definition.convenienceRoots().isEmpty()
                     ? ""
                     : " &8| &7/" + String.join(", /", definition.convenienceRoots());
+            String cost = KernelServices.commandCostDescription(definition.id());
+            String costText = cost.isBlank() ? "" : " &8| &6cost &f" + cost;
             source.sendSuccess(() -> TextFormatter.stringToFormattedText(
-                    "&e/" + definition.canonicalRoute() + roots + " &8| &f" + definition.id()), false);
+                    "&e/" + definition.canonicalRoute() + roots + " &8| &f"
+                            + definition.id() + costText), false);
         }
         if (visible.isEmpty()) {
             source.sendSuccess(() -> TextFormatter.stringToFormattedText("&7No catalog entries are currently available."), false);
@@ -108,6 +111,7 @@ public final class KernelCommands {
         var repositories = storage.diagnostics();
         var profiles = KernelServices.profiles().diagnostic();
         var quotaProviderProblems = KernelServices.quotas().providerDiagnostics();
+        var restartRequiredDrift = KernelServices.restartRequiredConfigurationDrift();
         var securityAudit = SecurityAuditService.health();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText("&6SEF doctor"), false);
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
@@ -136,6 +140,9 @@ public final class KernelCommands {
                 "&7Quota provider failures: "
                         + (quotaProviderProblems.isEmpty() ? "&a0" : "&c" + quotaProviderProblems.size())), false);
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Restart required changes: "
+                        + (restartRequiredDrift.isEmpty() ? "&a0" : "&e" + restartRequiredDrift.size())), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Security audit: "
                         + (securityAudit.running() && securityAudit.writerAlive()
                         && securityAudit.failures() == 0L && securityAudit.dropped() == 0L
@@ -154,8 +161,13 @@ public final class KernelCommands {
             source.sendFailure(TextFormatter.stringToFormattedText(
                     "&c" + problem.providerId() + ": " + problem.detail()));
         }
+        for (String setting : restartRequiredDrift) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&eRestart required: " + setting + "."));
+        }
         boolean healthy = catalogProblems.isEmpty()
                 && quotaProviderProblems.isEmpty()
+                && restartRequiredDrift.isEmpty()
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.UNSUPPORTED
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.ERROR

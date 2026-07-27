@@ -672,6 +672,37 @@ public class PermissionsHandler {
 		registerPhasePermission("kits.bypass.exempt", false, "Kit exemption bypass", "Allows kit administration against exempt players");
 		registerPhasePermission("kits.exempt", false, "Kit administration exemption", "Prevents ordinary targeted kit administration");
 
+		registerPhasePermission("commands.balance", true, "View balance", "Allows viewing the executing account balance");
+		registerPhasePermission("commands.balance.others", false, "View other balances", "Allows viewing an eligible account balance");
+		registerPhasePermission("commands.pay", true, "Pay players", "Allows transferring funds to an eligible account");
+		registerPhasePermission("commands.paytoggle", true, "Toggle payments", "Allows changing incoming payment preference");
+		registerPhasePermission("commands.payconfirmtoggle", true, "Toggle payment confirmation", "Allows changing large payment confirmation preference");
+		registerPhasePermission("commands.balancetop", true, "View balance top", "Allows viewing the cached balance ranking");
+		registerPhasePermission("commands.worth", true, "View item worth", "Allows inspecting configured item worth");
+		registerPhasePermission("commands.sell", true, "Sell items", "Allows atomic item sales to the active economy");
+		registerPhasePermission("commands.eco.give", false, "Give economy funds", "Allows administrative deposits");
+		registerPhasePermission("commands.eco.take", false, "Take economy funds", "Allows administrative withdrawals");
+		registerPhasePermission("commands.eco.set", false, "Set economy balances", "Allows administrative balance replacement");
+		registerPhasePermission("commands.eco.reset", false, "Reset economy balances", "Allows administrative balance reset");
+		registerPhasePermission("commands.eco.freeze", false, "Freeze economy accounts", "Allows freezing eligible accounts");
+		registerPhasePermission("commands.eco.unfreeze", false, "Unfreeze economy accounts", "Allows unfreezing eligible accounts");
+		registerPhasePermission("commands.eco.history", false, "View economy history", "Allows viewing eligible account ledger history");
+		registerPhasePermission("commands.eco.import", false, "Import economy accounts", "Allows previewing and confirming import once operations");
+		registerPhasePermission("commands.setworth", false, "Set item worth", "Allows changing server defined item worth");
+		registerPhasePermission("economy.hierarchy.bypass", false, "Economy hierarchy bypass", "Allows economy administration across target hierarchy");
+		registerPhasePermission("economy.bypass.exempt", false, "Economy exemption bypass", "Allows economy administration against exempt accounts");
+		registerPhasePermission("economy.exempt", false, "Economy administration exemption", "Prevents ordinary targeted economy administration");
+		registerPhasePermission("economy.pay.bypass.toggle", false, "Bypass payment toggle", "Allows paying accounts that disabled incoming payments");
+		registerPhasePermission("economy.pay.bypass.ignore", false, "Bypass payment ignore", "Allows paying accounts that ignore the sender");
+		registerPhasePermission("economy.pay.offline", true, "Pay offline accounts", "Allows paying unambiguous known offline identities when configured");
+		registerPhasePermission("economy.cost.bypass", false, "Bypass command costs", "Allows explicit command cost bypass");
+		registerPhasePermission("economy.sign.manage", false, "Manage economy signs", "Allows inspecting and removing registered economy signs");
+		registerPhasePermission("economy.sign.bypass.owner", false, "Bypass economy sign ownership", "Allows editing another creator's economy signs");
+		for (String sign : new String[]{"balance", "buy", "sell", "trade", "free", "disposal", "kit", "heal", "repair", "time", "weather", "warp"}) {
+			registerPhasePermission("economy.sign." + sign + ".use", true, "Use " + sign + " signs", "Allows using enabled " + sign + " economy signs");
+			registerPhasePermission("economy.sign." + sign + ".create", false, "Create " + sign + " signs", "Allows creating enabled " + sign + " economy signs");
+		}
+
 		quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
 		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
 		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));

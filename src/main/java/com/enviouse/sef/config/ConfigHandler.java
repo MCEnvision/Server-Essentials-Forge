@@ -241,6 +241,8 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enablePlayerUtilities;
 		public final ModConfigSpec.ConfigValue<Boolean> enableGamemodeShortcuts;
 		public final ModConfigSpec.ConfigValue<Boolean> enableItemShortcut;
+		public final ModConfigSpec.ConfigValue<Boolean> enableEconomy;
+		public final ModConfigSpec.ConfigValue<Boolean> enableEconomySigns;
 		public final ModConfigSpec.ConfigValue<String> socialSpyFormat;
 		public final ModConfigSpec.ConfigValue<Integer> socialSpyRecentLimit;
 		public final ModConfigSpec.ConfigValue<Integer> socialSpyEventsPerSecond;
@@ -294,6 +296,33 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Boolean> enableSuicideCommand;
 		public final ModConfigSpec.ConfigValue<Double> maximumFlySpeed;
 		public final ModConfigSpec.ConfigValue<Double> maximumWalkSpeed;
+
+		// Phase 8 economy
+		public final ModConfigSpec.ConfigValue<String> economyProviderMode;
+		public final ModConfigSpec.ConfigValue<String> economyExternalProvider;
+		public final ModConfigSpec.ConfigValue<String> economyCurrency;
+		public final ModConfigSpec.ConfigValue<String> economyCurrencySymbol;
+		public final ModConfigSpec.ConfigValue<Integer> economyMinorUnits;
+		public final ModConfigSpec.ConfigValue<Long> economyDefaultBalance;
+		public final ModConfigSpec.ConfigValue<Long> economyMinimumBalance;
+		public final ModConfigSpec.ConfigValue<Long> economyMaximumBalance;
+		public final ModConfigSpec.ConfigValue<Long> economyMaximumTransaction;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumAccounts;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumLedgerEntries;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumPendingCosts;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumWorthEntries;
+		public final ModConfigSpec.ConfigValue<Boolean> economyAllowOfflinePayments;
+		public final ModConfigSpec.ConfigValue<Boolean> economyAllowSelfPayments;
+		public final ModConfigSpec.ConfigValue<Long> economyConfirmationThreshold;
+		public final ModConfigSpec.ConfigValue<Integer> economyBalanceTopPageSize;
+		public final ModConfigSpec.ConfigValue<Integer> economyHistoryPageSize;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumImportAccounts;
+		public final ModConfigSpec.ConfigValue<Integer> economyMaximumSigns;
+		public final ModConfigSpec.ConfigValue<Integer> economySignClaimSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> economySignMaximumQuantity;
+		public final ModConfigSpec.ConfigValue<Long> economySignMaximumValue;
+		public final ModConfigSpec.ConfigValue<String> economyEnabledSignTypes;
+		public final ModConfigSpec.ConfigValue<String> economyCommandCosts;
 
 		// Warn System
 		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
@@ -431,6 +460,8 @@ public class ConfigHandler {
 			enablePlayerUtilities = builder.comment("  Player state and position utility commands").define("player_utilities", true);
 			enableGamemodeShortcuts = builder.comment("  Bounded gamemode shortcut family").define("gamemode_shortcuts", true);
 			enableItemShortcut = builder.comment("  Bounded self only item shortcut").define("item_shortcut", true);
+			enableEconomy = builder.comment("  Native or adapter backed economy, worth, sell, and command costs").define("economy", true);
+			enableEconomySigns = builder.comment("  Server authoritative vanilla economy signs").define("economy_signs", true);
 			builder.pop(); // modules
 
 			playerNameFormat = builder
@@ -542,6 +573,38 @@ public class ConfigHandler {
 			enableSuicideCommand = builder.comment("  Enable the self only suicide command").define("suicide", false);
 			maximumFlySpeed = builder.comment("  Maximum fly speed multiplier accepted by the speed command").defineInRange("maximumFlySpeed", 10.0D, 0.1D, 10.0D);
 			maximumWalkSpeed = builder.comment("  Maximum walk speed multiplier accepted by the speed command").defineInRange("maximumWalkSpeed", 10.0D, 0.1D, 10.0D);
+			builder.pop();
+
+			builder.comment("Native economy and provider ownership",
+					"  Balances use integer minor units only.",
+					"  Provider mode changes require a restart.",
+					"  External mode never mirrors provider balances into SEF storage.",
+					"  Import once requires an explicit in game preview and confirm operation.").push("economy");
+			economyProviderMode = builder.comment("  native, external, disabled, or import_once").define("providerMode", "native");
+			economyExternalProvider = builder.comment("  Registered external provider id. Empty selects the highest priority adapter").define("externalProvider", "");
+			economyCurrency = builder.comment("  Stable currency identifier").define("currency", "coin");
+			economyCurrencySymbol = builder.comment("  Display only currency prefix").define("currencySymbol", "$");
+			economyMinorUnits = builder.comment("  Decimal minor units used when parsing and formatting").defineInRange("minorUnits", 2, 0, 8);
+			economyDefaultBalance = builder.comment("  Opening account balance in minor units").defineInRange("defaultBalance", 0L, -9_000_000_000_000_000L, 9_000_000_000_000_000L);
+			economyMinimumBalance = builder.comment("  Minimum account balance in minor units. Use zero to disallow debt").defineInRange("minimumBalance", 0L, -9_000_000_000_000_000L, 9_000_000_000_000_000L);
+			economyMaximumBalance = builder.comment("  Maximum account balance in minor units").defineInRange("maximumBalance", 1_000_000_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyMaximumTransaction = builder.comment("  Maximum value of one transaction in minor units").defineInRange("maximumTransaction", 1_000_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyMaximumAccounts = builder.comment("  Maximum native accounts").defineInRange("maximumAccounts", 100_000, 1, 1_000_000);
+			economyMaximumLedgerEntries = builder.comment("  Maximum retained native ledger entries").defineInRange("maximumLedgerEntries", 100_000, 100, 1_000_000);
+			economyMaximumPendingCosts = builder.comment("  Maximum crash recoverable pending command costs").defineInRange("maximumPendingCosts", 10_000, 1, 100_000);
+			economyMaximumWorthEntries = builder.comment("  Maximum server defined item worth entries").defineInRange("maximumWorthEntries", 10_000, 1, 100_000);
+			economyAllowOfflinePayments = builder.comment("  Allow payments to unambiguous known offline identities").define("allowOfflinePayments", true);
+			economyAllowSelfPayments = builder.comment("  Allow a player to pay the same account").define("allowSelfPayments", false);
+			economyConfirmationThreshold = builder.comment("  Payments at or above this value require confirmation when the player preference is enabled. Zero disables the threshold").defineInRange("confirmationThreshold", 100_000L, 0L, 9_000_000_000_000_000L);
+			economyBalanceTopPageSize = builder.comment("  Entries shown per balance top page").defineInRange("balanceTopPageSize", 10, 1, 100);
+			economyHistoryPageSize = builder.comment("  Transactions shown per history page").defineInRange("historyPageSize", 10, 1, 100);
+			economyMaximumImportAccounts = builder.comment("  Maximum accounts accepted by one import once operation").defineInRange("maximumImportAccounts", 100_000, 1, 1_000_000);
+			economyMaximumSigns = builder.comment("  Maximum registered economy sign sides").defineInRange("maximumSigns", 100_000, 1, 1_000_000);
+			economySignClaimSeconds = builder.comment("  Seconds a placed sign remains claimable by its placer").defineInRange("signClaimSeconds", 300, 10, 3600);
+			economySignMaximumQuantity = builder.comment("  Maximum items in one economy sign transaction").defineInRange("signMaximumQuantity", 2304, 1, 100_000);
+			economySignMaximumValue = builder.comment("  Maximum economy sign transaction value in minor units").defineInRange("signMaximumValue", 1_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyEnabledSignTypes = builder.comment("  Comma separated enabled sign types").define("enabledSignTypes", "balance,buy,sell,trade,free,disposal,kit,heal,repair,time,weather,warp");
+			economyCommandCosts = builder.comment("  Comma separated action cost mappings. Components are fixed, use, target, distance, and item. Example sef:teleport.spawn=5.00,sef:teleport.spawn@distance=0.01").define("commandCosts", "");
 			builder.pop();
 
 			builder.comment("Teleport essentials",

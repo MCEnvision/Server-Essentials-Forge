@@ -49,6 +49,16 @@ public final class CommandExecutionService {
                     policy.auditClass(), elapsedMillis(startedNanos));
             return ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "permission denied");
         }
+        final java.math.BigDecimal effectiveCost;
+        try {
+            effectiveCost = request.costBypass()
+                    ? java.math.BigDecimal.ZERO
+                    : quotedCost(request, policy.cost());
+        } catch (IllegalArgumentException exception) {
+            audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
+                    policy.auditClass(), elapsedMillis(startedNanos));
+            return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, exception.getMessage());
+        }
 
         if (!request.cooldownBypass() && !policy.cooldown().isZero()) {
             CooldownService.Decision current = cooldowns.inspect(request.actorId(), request.actionId());
@@ -112,7 +122,7 @@ public final class CommandExecutionService {
         ActionResult<CostService.Reservation> cost = costs.reserve(
                 request.actorId(),
                 request.actionId(),
-                policy.cost());
+                effectiveCost);
         if (!cost.successful()) {
             clearCooldown(request, cooldownAcquired);
             audit(request, AuditService.Result.REJECTED, cost.reason(), policy.auditClass(), elapsedMillis(startedNanos));
@@ -124,7 +134,7 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_REQUIRED,
-                        policy.auditClass(), elapsedMillis(startedNanos));
+                        policy.auditClass(), elapsedMillis(startedNanos), cost.value().auditContext());
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, "confirmation required");
             }
             ConfirmationService.Request binding = request.confirmationBinding();
@@ -136,7 +146,7 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_INVALID,
-                        policy.auditClass(), elapsedMillis(startedNanos));
+                        policy.auditClass(), elapsedMillis(startedNanos), cost.value().auditContext());
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_INVALID, "confirmation binding mismatch");
             }
             ActionResult<ConfirmationService.Request> confirmation =
@@ -145,7 +155,7 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, confirmation.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos));
+                        elapsedMillis(startedNanos), cost.value().auditContext());
                 return ActionResult.failure(confirmation.reason(), confirmation.detail());
             }
         }
@@ -164,6 +174,25 @@ public final class CommandExecutionService {
         }
     }
 
+    private static java.math.BigDecimal quotedCost(
+            Request request,
+            java.math.BigDecimal policyCost
+    ) {
+        String quoted = request.providerContext().get("quoted_cost");
+        if (quoted == null) {
+            return policyCost;
+        }
+        try {
+            java.math.BigDecimal amount = new java.math.BigDecimal(quoted);
+            if (amount.signum() < 0) {
+                throw new IllegalArgumentException("Quoted cost cannot be negative");
+            }
+            return amount;
+        } catch (NumberFormatException exception) {
+            throw new IllegalArgumentException("Quoted cost is invalid", exception);
+        }
+    }
+
     private void audit(
             Request request,
             AuditService.Result result,
@@ -171,6 +200,19 @@ public final class CommandExecutionService {
             AuditService.AuditClass auditClass,
             long durationMillis
     ) {
+        audit(request, result, reason, auditClass, durationMillis, Map.of());
+    }
+
+    private void audit(
+            Request request,
+            AuditService.Result result,
+            ActionResult.ReasonCode reason,
+            AuditService.AuditClass auditClass,
+            long durationMillis,
+            Map<String, String> executionContext
+    ) {
+        Map<String, String> providerContext = new java.util.LinkedHashMap<>(request.providerContext());
+        providerContext.putAll(executionContext);
         AuditService.record(new AuditService.Event(
                 1,
                 UUID.randomUUID(),
@@ -190,7 +232,7 @@ public final class CommandExecutionService {
                 null,
                 request.definitionRevision(),
                 policies.revision(),
-                request.providerContext(),
+                providerContext,
                 AuditService.RedactionClass.METADATA,
                 List.of(),
                 null,
@@ -235,11 +277,11 @@ public final class CommandExecutionService {
                         cooldowns.clear(request.actorId(), request.actionId());
                     }
                     audit(request, AuditService.Result.FAILED, committed.reason(), policy.auditClass(),
-                            elapsedMillis(startedNanos));
+                            elapsedMillis(startedNanos), cost.auditContext());
                     return committed;
                 }
                 audit(request, AuditService.Result.SUCCESS, ActionResult.ReasonCode.SUCCESS, policy.auditClass(),
-                        elapsedMillis(startedNanos));
+                        elapsedMillis(startedNanos), cost.auditContext());
                 return ActionResult.success(null);
             }
 
@@ -250,7 +292,8 @@ public final class CommandExecutionService {
             ActionResult.ReasonCode reason = failureReason == null
                     ? ActionResult.ReasonCode.PROVIDER_ERROR
                     : failureReason;
-            audit(request, AuditService.Result.FAILED, reason, policy.auditClass(), elapsedMillis(startedNanos));
+            audit(request, AuditService.Result.FAILED, reason, policy.auditClass(),
+                    elapsedMillis(startedNanos), cost.auditContext());
             return ActionResult.failure(reason, "action failed");
         }
 
@@ -272,6 +315,7 @@ public final class CommandExecutionService {
             String dimensionId,
             boolean permissionGranted,
             boolean cooldownBypass,
+            boolean costBypass,
             boolean warmupBypass,
             String confirmationToken,
             ConfirmationService.Request confirmationBinding,
@@ -283,6 +327,50 @@ public final class CommandExecutionService {
             Map<String, String> providerContext,
             String origin
     ) {
+        public Request(
+                UUID sessionId,
+                UUID actorId,
+                String actorName,
+                String actionId,
+                CommandDefinition.SourceType sourceType,
+                String worldId,
+                String dimensionId,
+                boolean permissionGranted,
+                boolean cooldownBypass,
+                boolean warmupBypass,
+                String confirmationToken,
+                ConfirmationService.Request confirmationBinding,
+                WarmupService.Position warmupPosition,
+                Set<WarmupService.CancelReason> warmupCancellationPolicy,
+                Map<String, String> normalizedParameters,
+                List<UUID> targetIds,
+                long definitionRevision,
+                Map<String, String> providerContext,
+                String origin
+        ) {
+            this(
+                    sessionId,
+                    actorId,
+                    actorName,
+                    actionId,
+                    sourceType,
+                    worldId,
+                    dimensionId,
+                    permissionGranted,
+                    cooldownBypass,
+                    false,
+                    warmupBypass,
+                    confirmationToken,
+                    confirmationBinding,
+                    warmupPosition,
+                    warmupCancellationPolicy,
+                    normalizedParameters,
+                    targetIds,
+                    definitionRevision,
+                    providerContext,
+                    origin);
+        }
+
         public Request {
             Objects.requireNonNull(sessionId, "sessionId");
             Objects.requireNonNull(actorId, "actorId");

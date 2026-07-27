@@ -401,6 +401,14 @@ public final class VirtualWorkstationCommands {
     ) {
         String dimension = player.serverLevel().dimension().location().toString();
         PermissionService.Decision permissionDecision = PermissionService.decide(player, permission);
+        final String quotedCost;
+        try {
+            quotedCost = KernelServices.quoteCommandCost(actionId, Map.of(), List.of()).toPlainString();
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe configured command cost could not be calculated."));
+            return 0;
+        }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
                         SecurityAuditService.currentSessionId(),
@@ -412,6 +420,7 @@ public final class VirtualWorkstationCommands {
                         dimension,
                         permissionDecision.granted(),
                         hasPlayerPermission(player, bypassPermission),
+                        KernelServices.costBypass(source),
                         false,
                         "",
                         null,
@@ -422,7 +431,8 @@ public final class VirtualWorkstationCommands {
                         1L,
                         Map.of(
                                 "permission_provider", permissionDecision.provider(),
-                                "permission_default_use", permissionDecision.defaultUse().name()),
+                                "permission_default_use", permissionDecision.defaultUse().name(),
+                                "quoted_cost", quotedCost),
                         "command"));
         if (!started.successful()) {
             if (started.reason() == ActionResult.ReasonCode.COOLDOWN_ACTIVE) {

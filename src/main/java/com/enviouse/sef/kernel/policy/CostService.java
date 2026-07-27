@@ -4,6 +4,7 @@ import com.enviouse.sef.kernel.ActionResult;
 
 import java.math.BigDecimal;
 import java.util.Objects;
+import java.util.Map;
 import java.util.UUID;
 
 public interface CostService {
@@ -17,6 +18,10 @@ public interface CostService {
         ActionResult<Void> commit();
 
         ActionResult<Void> refund();
+
+        default Map<String, String> auditContext() {
+            return Map.of("cost_amount", amount().toPlainString());
+        }
 
         @Override
         void close();

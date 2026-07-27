@@ -115,6 +115,23 @@ final class TeleportCommandSupport {
         if (settings.cancelOnDamage()) {
             cancellation.add(WarmupService.CancelReason.DAMAGE);
         }
+        List<UUID> targetIds = actor == target ? List.of() : List.of(target.getUUID());
+        long distance = destination.dimensionId().equals(dimension)
+                ? (long) Math.ceil(Math.sqrt(
+                        square(destination.x() - actor.getX())
+                                + square(destination.y() - actor.getY())
+                                + square(destination.z() - actor.getZ())))
+                : 0L;
+        Map<String, String> parameters = Map.of(
+                "reason", reason,
+                "distance", Long.toString(distance));
+        final String quotedCost;
+        try {
+            quotedCost = KernelServices.quoteCommandCost(actionId, parameters, targetIds).toPlainString();
+        } catch (IllegalArgumentException exception) {
+            fail(source, "The configured teleport cost could not be calculated.");
+            return 0;
+        }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
                         SecurityAuditService.currentSessionId(),
@@ -126,6 +143,7 @@ final class TeleportCommandSupport {
                         dimension,
                         permission.granted(),
                         has(actor, PermissionsHandler.teleportCooldownBypass),
+                        KernelServices.costBypass(source),
                         has(actor, PermissionsHandler.teleportWarmupBypass),
                         "",
                         null,
@@ -137,12 +155,13 @@ final class TeleportCommandSupport {
                                 actor.getYRot(),
                                 actor.getXRot()),
                         cancellation,
-                        Map.of("reason", reason),
-                        actor == target ? List.of() : List.of(target.getUUID()),
+                        parameters,
+                        targetIds,
                         1,
                         Map.of(
                                 "permission_provider", permission.provider(),
-                                "permission_default_use", permission.defaultUse().name()),
+                                "permission_default_use", permission.defaultUse().name(),
+                                "quoted_cost", quotedCost),
                         "command"));
         if (!started.successful()) {
             if (started.reason() == ActionResult.ReasonCode.WARMUP_ACTIVE
@@ -195,6 +214,10 @@ final class TeleportCommandSupport {
             success(source, "Teleported safely.");
             return 1;
         }
+    }
+
+    private static double square(double value) {
+        return value * value;
     }
 
     static long quota(ServerPlayer player, String quotaId, String actionId, long currentUsage) {

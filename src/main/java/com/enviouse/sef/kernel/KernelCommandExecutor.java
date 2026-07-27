@@ -75,6 +75,7 @@ public final class KernelCommandExecutor {
         CommandDefinition definition = definition(actionId);
         PermissionSummary permission = permissions(source, definition, additionalPermissions);
         boolean effectiveCooldownBypass = cooldownBypass || KernelServices.cooldownBypass(source, actionId);
+        boolean effectiveCostBypass = KernelServices.costBypass(source);
         CommandDefinition.SourceType sourceType = sourceType(source);
         UUID actorId = actorId(source, sourceType);
         String dimensionId = dimensionId(source);
@@ -82,6 +83,20 @@ public final class KernelCommandExecutor {
 
         Map<String, String> providerContext = new LinkedHashMap<>(permission.providerContext());
         providerContext.put("source_class", sourceType.name().toLowerCase(Locale.ROOT));
+        providerContext.put("cost_bypass", Boolean.toString(effectiveCostBypass));
+        try {
+            providerContext.put(
+                    "quoted_cost",
+                    KernelServices.quoteCommandCost(actionId, normalizedParameters, targetIds).toPlainString());
+        } catch (IllegalArgumentException exception) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    ActionResult.ReasonCode.INVALID_INPUT.name().toLowerCase(Locale.ROOT));
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe configured command cost could not be calculated."));
+            return 0;
+        }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
                         SecurityAuditService.currentSessionId(),
@@ -93,6 +108,7 @@ public final class KernelCommandExecutor {
                         dimensionId,
                         permission.granted(),
                         effectiveCooldownBypass,
+                        effectiveCostBypass,
                         false,
                         "",
                         null,

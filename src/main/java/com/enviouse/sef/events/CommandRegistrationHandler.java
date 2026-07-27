@@ -20,6 +20,7 @@ import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.countdown.CountdownCommand;
 import com.enviouse.sef.disablebuilding.DisableBuildingCommand;
+import com.enviouse.sef.economy.EconomyCommands;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
@@ -90,6 +91,7 @@ public class CommandRegistrationHandler {
         InventoryUtilityCommands.register(e.getDispatcher());
         PlayerUtilityCommands.register(e.getDispatcher());
         GamemodeCommands.register(e.getDispatcher());
+        EconomyCommands.register(e.getDispatcher());
 
         // Register filter commands if enabled
         if(ConfigHandler.config.enableFilterSystem.get()) {

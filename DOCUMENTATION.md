@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 7 have implementation coverage in the current branch. The Phase 6 and Phase 7 implementation audit passes the automated unit, GameTest, build, artifact, and dedicated-server gates recorded in `docs/PHASE_6_TESTS.md` and `docs/PHASE_7_TESTS.md`. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live provider mutation, deliberate filesystem and shutdown failures, and profiler cases in the phase matrices remain required before approval. Economy, enhanced GUI networking, and other later roadmap families remain planned.
+SEF 2 Phases 1 through 8 have implementation coverage in the current branch. The automated unit, GameTest, build, artifact, and dedicated-server gates for the implemented phases are recorded in the phase verification matrices. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live optional-provider mutation, deliberate filesystem and shutdown failures, vanilla-client compatibility, and profiler cases in the matrices remain required before approval. Enhanced GUI networking and later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -921,7 +921,54 @@ Repository recovery procedure:
 
 Do not rename a future schema into the current schema or copy records between domains. Recovery mode is intentionally non writable. A crash can leave the previous complete target or an uncommitted temporary file, but atomic replacement prevents a partially written target from being accepted. On clean shutdown, profiles flush before the coordinated location and cooldown repository flush.
 
-## 18. Troubleshooting
+## 18. Economy architecture and operation
+
+Phase 8 supplies a server-authoritative economy without Bukkit or Vault abstractions. `EconomyService` selects exactly one ownership mode. `native` uses `EconomyRepository`, `external` delegates to one registered adapter without writing shadow balances, `disabled` makes every dependent action unavailable, and `import_once` exposes no active provider until an approved migration commits into an empty native account store. An unavailable required external adapter prevents economy initialization instead of silently changing ownership.
+
+Provider ownership, economy enablement, currency identity, minor units, account bounds, transaction bounds, account capacity, ledger capacity, pending hold capacity, worth capacity, import capacity, and the selected external adapter are restart required. A reload keeps the active startup snapshot and `/sef doctor` reports pending drift instead of partially activating incompatible settings. Economy sign enablement and command cost entries remain live reloadable within the active economy snapshot.
+
+Native values are signed `long` minor units. `minorUnits` controls decimal parsing and display only. Parsing rejects exponent notation, unsupported precision, non-finite forms, out-of-range balances, negative player transfers, and arithmetic overflow. Every mutation carries an idempotency key, actor UUID, reason, currency id, exact amount, bounded metadata, and a request fingerprint. Reusing a key with the same fingerprint returns the prior transaction. Reusing it for different input fails.
+
+`economy.json` stores accounts, payment preferences, the bounded ledger, crash-recoverable command-cost holds, item worth values, and import records. Native transfers update both account candidates and append one ledger transaction while holding the repository lock. Administrative give, take, set, reset, freeze, and unfreeze operations also append ledger transactions. A balance change invalidates the cached sorted balance snapshot. Repeated `/balancetop` reads reuse that immutable snapshot until the balance revision changes.
+
+Player routes are `/balance`, `/bal`, `/money`, `/pay`, `/paytoggle`, `/payconfirmtoggle`, `/balancetop`, `/baltop`, `/worth`, and `/sell`. Administrative routes are `/eco give`, `/eco take`, `/eco set`, `/eco reset`, `/eco freeze`, `/eco unfreeze`, `/eco history`, `/eco import`, `/eco sign`, and `/setworth`. Other-player balance access, each administrative operation, import, sign management, hierarchy bypass, exemption bypass, payment-policy bypasses, and cost bypass use separate permission nodes. Ambiguous nicknames never resolve to an account. Offline payments require both configuration and permission.
+
+Large payments use a bounded, actor-bound, target-bound, amount-bound, 30-second confirmation. Destructive resets always require confirmation. Give, take, and set require the same confirmation flow at or above `confirmationThreshold`. The confirmed command must exactly match the pending operation.
+
+Command costs are configured in the economy `commandCosts` value. Native mode supplies synchronous crash-safe holds. An external adapter must also implement `EconomyProvider.CostReservationProvider`; otherwise nonzero command costs fail closed while ordinary provider operations remain available. Entries use exact major-unit decimals:
+
+```text
+sef:teleport.spawn=5.00
+sef:teleport.random@distance=0.01
+sef:item.give@item=0.25
+sef:teleport.direct@target=2.00
+sef:workstation.repair@use=1.00
+```
+
+The unqualified form is a fixed cost. Supported qualified components are `fixed`, `use`, `target`, `distance`, and `item`, with `per_use`, `per_target`, `per_distance`, and `per_item` accepted as explicit equivalents. Components may be combined for one action. The calculated quote must remain within `maximumTransaction`. `/sef commands` shows configured cost components. The execution kernel validates feature, source, permission, cooldown, warmup, and confirmation policy, then reserves the quote immediately before mutation. Success commits the hold. Failure, cancellation, or invalid confirmation refunds it and clears any newly acquired cooldown. Native startup refunds uncommitted holds. Audit provider context records the exact charged amount, reservation UUID, and native ledger transaction UUID.
+
+Worth entries are native economy state keyed by item registry id. Sales accept only plain stacks whose data components match a default stack of that item. Inventory state is snapshotted before removal. Provider failure restores the snapshot. `/sell inventory` computes all quantities and total value before changing any slot.
+
+Economy signs use `economy-signs.json`. A key contains dimension, block position, and front or back side. A record contains creator UUID, sign type, normalized arguments, SHA-256 text fingerprint, revision, and update time. Enabled types are `balance`, `buy`, `sell`, `trade`, `free`, `disposal`, `kit`, `heal`, `repair`, `time`, `weather`, and `warp`. Creation and use permissions are distinct for every type. Editing text changes the fingerprint and requires creator authorization again. Another creator requires the owner-bypass permission. Placement claims bind initial authorization to the placing UUID for the configured bounded period.
+
+Sign syntax is strict. Balance and disposal accept no arguments. Buy and sell use item id, quantity, and price. Trade uses `item*quantity` on each item line. Free uses item and quantity. Kit uses one kit id. Heal and repair use one price. Time uses `day` or `night` and a price. Weather uses `clear`, `rain`, or `thunder` and a price. Warp uses a warp id and price. Quantities and values are capped. Buy, sell, trade, and free use component-safe inventory transactions with deterministic compensation. A provider error, insufficient funds, insufficient items, or full inventory leaves value and items unchanged. Sign removal and explosions invalidate stored records. `/eco sign list`, `info`, `remove <id> confirm`, and `adopt` provide audited operator management.
+
+Kit and warp signs invoke the normal canonical command route after their sign charge is reserved. The linked route still enforces its own feature, permission, cooldown, warmup, confirmation, command-cost, hierarchy, and audit policy. A configured sign price and a configured linked-command cost are separate charges. A rejected linked route compensates the sign charge. A successfully scheduled warmup counts as accepted work and remains governed by the normal teleport cancellation and cost rules.
+
+Import once requires `/eco import preview` followed by `/eco import execute confirm`. Before mutation, the current native economy is synchronously persisted and copied to the managed `backups` directory with a `preimport` suffix. The adapter export must exactly match its preview and remain inside account and balance bounds. Commit writes an aggregate JSON report under `economy-import-reports` and synchronously persists the imported repository. A report or persistence failure rolls back the in-memory import and removes the incomplete report. After success, native ownership becomes active and a second import is rejected.
+
+Recovery:
+
+1. Stop the server.
+2. Preserve `economy.json`, `economy-signs.json`, `backups`, and `economy-import-reports`.
+3. For a failed or incorrect import, restore the matching `preimport` snapshot to `economy.json`.
+4. Do not merge native and external account stores or enable dual writes.
+5. Start a staging copy, run `/sef storage status`, `/sef doctor`, `/eco import status`, and representative balance-history checks.
+6. Keep economy and sign repositories read only while either reports recovery, unsupported schema, or error state.
+
+The full Phase 8 verification matrix is in [docs/PHASE_8_TESTS.md](docs/PHASE_8_TESTS.md).
+
+## 19. Troubleshooting
 
 Permission appears denied:
 
@@ -950,7 +997,7 @@ Configuration edit appears ignored:
 
 Wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded values and does not force a raw disk read.
 
-## 19. Security and privacy
+## 20. Security and privacy
 
 Trust boundaries include player command input, chat input, optional permission providers, JSON and TOML files, persistent player data, mixin packet filtering, and future client payloads.
 
@@ -977,7 +1024,7 @@ Command observation and optional file logging consume only immutable redacted re
 
 Inventory and item commands recheck permissions at mutation time. Live administrative menus bind to their authorization revision and close or downgrade after revocation. Kit and item transactions validate capacity and registry state before commit. The self-only item shortcut cannot select another target or exceed its configured amount bound.
 
-## 20. Release process
+## 21. Release process
 
 No automated public release workflow is currently documented as complete.
 
@@ -991,6 +1038,6 @@ Before an approved release:
 6. Record compatibility and migration notes.
 7. Publish only after explicit approval.
 
-## 21. Roadmap
+## 22. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 7 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, registry fixture, and profiler release gates remain open. Phase 8 is next and covers native economy and signs. GUI networking, fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 8 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, registry fixture, external-adapter, and profiler release gates remain open. Phase 9 is next and covers the optional client protocol and GUI pilot. Fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

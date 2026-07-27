@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 7 have implementation coverage in this branch. The latest Phase 6 and Phase 7 repair pass covers fail closed mandatory audit writes, command redaction control characters, persistent control disablement, jail lifecycle enforcement, inventory lock packet paths, connection address adapters, and kit claim transaction boundaries. The automated unit, GameTest, build, artifact, and dedicated server gates are recorded in their verification matrices. Public release acceptance still requires the authenticated multiplayer, real optional integration, deliberate failure, client visible, and profiler cases in the phase matrices. Economy, enhanced client GUI, and later parity phases remain planned.
+SEF 2 Phases 1 through 8 have implementation coverage in this branch. Phase 8 adds the native and adapter backed economy, command costs, worth and selling, administrative account controls, import once migration, and server authoritative economy signs. The automated unit, GameTest, build, artifact, and dedicated server gates are recorded in their verification matrices. Public release acceptance still requires the authenticated multiplayer, real optional integration, deliberate failure, client visible, and profiler cases in the phase matrices. Enhanced client GUI and later parity phases remain planned.
 
 ## Current features
 
@@ -65,6 +65,7 @@ The current implementation includes:
 38. Hardened self and other-player inventory tools including `/clearinventory`, `/enderchest`, `/disposal`, `/more`, `/condense`, `/hat`, `/itemname`, `/itemlore`, `/itemdb`, `/book`, and `/recipe`. Live inventory and ender-chest menus close or downgrade when permission, feature, or policy revisions change. InvSee preserves preexisting Brigadier routes cooperatively instead of deleting another mod’s command node.
 39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
 40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces configurable minimum and maximum nonzero levels from 1 through 255 and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
+41. Integer minor-unit economy storage with idempotent ledger mutations, crash-recoverable cost reservations, cached balance ranking, exact payment confirmation, account freezes, component-safe worth and sales, external provider ownership, import-once backup and reports, configurable fixed and scaled command costs, and all twelve strict vanilla economy sign types. Sign creation, use, ownership bypass, and management are separately permissioned and audited.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 
@@ -92,6 +93,7 @@ Every exposed command path is expected to use a permission node. The current sec
 18. Password like roots, every private chat alias, moderation reasons, nested command wrappers, data command arguments, unknown roots, and every IP moderation alias are redacted before command spy, recent history, file logging, search, export, or audit projection. Newlines, control characters, and Unicode format controls cannot hide a sensitive root.
 19. File logging is off by default. Disabled startup creates no `logs/sef` directory or writer. Enabled logging owns only fixed descendants of `logs/sef`, refuses symlink escapes, bounds its queue and record sizes, preserves mandatory security audit independently from capture filters, and remains degraded until an earlier incomplete-session marker is acknowledged.
 20. Item grants, kit claims, inventory edits, live menus, and super enchanting validate capacity, registry state, configuration revision, and current authorization before committing a mutation. Inventory lock denies drop, swap, crafting, container click, creative slot, pickup, and item use paths on the logical server.
+21. Economy values use exact integer minor units. Player transfers, administrative adjustments, command charges, imports, and sign transactions apply independent permissions, bounds, hierarchy, confirmation, idempotency, rollback, and audit policy. External mode never creates native shadow balances.
 
 Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative commands.
 
@@ -140,6 +142,9 @@ Primary configuration:
 12. `<world>/serverconfig/sef/command-spy.json` contains bounded observer profiles and filters. Recent command events remain runtime bounded state.
 13. `<world>/serverconfig/sef/kits.json` contains versioned kit definitions and UUID-addressed claim history.
 14. `<server>/logs/sef` is the optional fixed logging root. It is absent while file logging remains disabled.
+15. `<world>/serverconfig/sef/economy.json` contains native accounts, preferences, ledger entries, pending cost reservations, worth definitions, and import records.
+16. `<world>/serverconfig/sef/economy-signs.json` contains UUID-owned, side-specific economy sign definitions and text fingerprints.
+17. `<world>/serverconfig/sef/economy-import-reports` contains aggregate import-once reports. The matching pre-import economy snapshot is stored under `<world>/serverconfig/sef/backups`.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 

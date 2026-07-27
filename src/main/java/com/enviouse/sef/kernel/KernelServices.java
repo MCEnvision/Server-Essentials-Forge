@@ -6,6 +6,11 @@ import com.enviouse.sef.commandlog.CommandSpyRepository;
 import com.enviouse.sef.commandlog.FileLogSink;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.economy.CommandCostSchedule;
+import com.enviouse.sef.economy.EconomyCostService;
+import com.enviouse.sef.economy.EconomyRepository;
+import com.enviouse.sef.economy.EconomyService;
+import com.enviouse.sef.economy.EconomySignRepository;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.identity.PlayerProfileRepository;
 import com.enviouse.sef.freeze.FreezeManager;
@@ -73,6 +78,10 @@ public final class KernelServices {
     private static WarmupService warmups;
     private static ConfirmationService confirmations;
     private static CostService costs;
+    private static EconomyRepository economyRepository;
+    private static EconomySignRepository economySigns;
+    private static EconomyService economy;
+    private static CommandCostSchedule commandCosts = CommandCostSchedule.empty();
     private static MessageService messages;
     private static PlayerProfileRepository profiles;
     private static IdentityService identities;
@@ -126,6 +135,7 @@ public final class KernelServices {
         descriptors.registerCommandOnly("sef:inventory");
         descriptors.registerCommandOnly("sef:kits");
         descriptors.registerCommandOnly("sef:utilities");
+        descriptors.registerCommandOnly("sef:economy");
 
         catalog = new CommandCatalog(capabilities, descriptors);
         registerCoreCommands();
@@ -134,6 +144,7 @@ public final class KernelServices {
         registerObservationCommands();
         registerModerationCommands();
         registerPhaseSevenCommands();
+        registerEconomyCommands();
         catalog.seal();
 
         shortcuts = new ShortcutRegistry(catalog, capabilities);
@@ -149,7 +160,12 @@ public final class KernelServices {
         registerCooldownAliases();
         warmups = new WarmupService();
         confirmations = new ConfirmationService();
-        costs = new CostService.Disabled();
+        economyRepository = new EconomyRepository(economyRepositorySettings());
+        economySigns = new EconomySignRepository(ConfigHandler.config.economyMaximumSigns.get());
+        economy = new EconomyService(economyRepository, economyServiceSettings());
+        costs = economy.settings().enabled()
+                ? new EconomyCostService(economy)
+                : new CostService.Disabled();
         commandExecutions = new CommandExecutionService(
                 commandPolicies,
                 cooldowns,
@@ -217,6 +233,8 @@ public final class KernelServices {
         storage.register(commandSpies);
         storage.register(moderation);
         storage.register(kits);
+        storage.register(economyRepository);
+        storage.register(economySigns);
 
         initialized = true;
         reloadConfiguration();
@@ -234,6 +252,20 @@ public final class KernelServices {
             return;
         }
         long revision = CONFIG_REVISION.incrementAndGet();
+        final CommandCostSchedule replacementCommandCosts;
+        try {
+            replacementCommandCosts = CommandCostSchedule.parse(
+                    ConfigHandler.config.economyCommandCosts.get(),
+                    economy.provider()
+                            .map(com.enviouse.sef.economy.EconomyProvider::minorUnits)
+                            .orElse(economyRepository.minorUnits()),
+                    economy.settings().maximumTransaction());
+        } catch (IllegalArgumentException exception) {
+            com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Economy command cost reload was rejected. The previous snapshot remains active",
+                    exception);
+            return;
+        }
         Map<String, Boolean> features = Map.ofEntries(
                 Map.entry("sef.core", true),
                 Map.entry("sef.filter", ConfigHandler.config.enableFilterSystem.get()),
@@ -282,10 +314,14 @@ public final class KernelServices {
                 Map.entry("sef.utilities", ConfigHandler.config.enablePlayerUtilities.get()),
                 Map.entry("sef.gamemode", ConfigHandler.config.enableGamemodeShortcuts.get()),
                 Map.entry("sef.item.self", ConfigHandler.config.enableItemShortcut.get()),
-                Map.entry("sef.workstation.additional", ConfigHandler.config.enableAdditionalWorkstations.get()));
+                Map.entry("sef.workstation.additional", ConfigHandler.config.enableAdditionalWorkstations.get()),
+                Map.entry("sef.economy", economy.settings().enabled()),
+                Map.entry("sef.economy.signs", economy.settings().enabled()
+                        && ConfigHandler.config.enableEconomySigns.get()));
         Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
+        commandCosts = replacementCommandCosts;
         teleportSettings = replacementTeleportSettings;
         ConnectionAddressService.ProviderMode configuredAddressMode =
                 ConnectionAddressService.ProviderMode.parse(
@@ -336,6 +372,49 @@ public final class KernelServices {
                 : "";
         PermissionNode<Boolean> node = permission.isEmpty() ? null : permissionNode(permission);
         return node != null && com.enviouse.sef.permissions.PermissionService.has(source, node);
+    }
+
+    public static boolean costBypass(net.minecraft.commands.CommandSourceStack source) {
+        PermissionNode<Boolean> node = permissionNode("sef.economy.cost.bypass");
+        return node != null && com.enviouse.sef.permissions.PermissionService.has(source, node);
+    }
+
+    public static BigDecimal quoteCommandCost(
+            String actionId,
+            Map<String, String> normalizedParameters,
+            List<java.util.UUID> targetIds
+    ) {
+        ensureInitialized();
+        return commandCosts.configured(actionId)
+                ? commandCosts.quote(actionId, normalizedParameters, targetIds)
+                : costFor(actionId);
+    }
+
+    public static String commandCostDescription(String actionId) {
+        ensureInitialized();
+        if (commandCosts.configured(actionId)) {
+            return commandCosts.describe(actionId, economy.settings().symbol());
+        }
+        BigDecimal cost = costFor(actionId);
+        return cost.signum() == 0
+                ? ""
+                : "fixed " + economy.settings().symbol() + cost.toPlainString();
+    }
+
+    public static List<String> restartRequiredConfigurationDrift() {
+        ensureInitialized();
+        List<String> drift = new ArrayList<>();
+        try {
+            if (!economy.settings().equals(economyServiceSettings())) {
+                drift.add("economy provider or transaction settings");
+            }
+            if (!economyRepository.settings().equals(economyRepositorySettings())) {
+                drift.add("native economy account or storage bounds");
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            drift.add("invalid pending economy configuration");
+        }
+        return List.copyOf(drift);
     }
 
     public static synchronized void startStorage(Path managedRoot) {
@@ -431,6 +510,21 @@ public final class KernelServices {
     public static CostService costs() {
         ensureInitialized();
         return costs;
+    }
+
+    public static EconomyRepository economyRepository() {
+        ensureInitialized();
+        return economyRepository;
+    }
+
+    public static EconomyService economy() {
+        ensureInitialized();
+        return economy;
+    }
+
+    public static EconomySignRepository economySigns() {
+        ensureInitialized();
+        return economySigns;
     }
 
     public static synchronized void installCostProvider(CostService provider) {
@@ -1148,6 +1242,100 @@ public final class KernelServices {
                 "sef:utilities", CommandDefinition.ConflictPolicy.PREFER_SEF);
     }
 
+    private static void registerEconomyCommands() {
+        registerDomainCommand("sef:economy.balance", "balance", Set.of("balance", "bal", "money"),
+                "sef.commands.balance", CommandDefinition.AccessClass.PLAYER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.pay", "pay", Set.of("pay"),
+                "sef.commands.pay", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.pay.toggle", "paytoggle", Set.of("paytoggle"),
+                "sef.commands.paytoggle", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.pay.confirm", "payconfirmtoggle", Set.of("payconfirmtoggle"),
+                "sef.commands.payconfirmtoggle", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.top", "balancetop", Set.of("balancetop", "baltop"),
+                "sef.commands.balancetop", CommandDefinition.AccessClass.PLAYER,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.NONE,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.worth", "worth", Set.of("worth"),
+                "sef.commands.worth", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:economy.sell", "sell", Set.of("sell"),
+                "sef.commands.sell", CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
+                "sef.economy", AuditService.AuditClass.METADATA_ONLY,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+
+        for (String action : List.of("give", "take", "set", "reset", "freeze", "unfreeze", "history", "import")) {
+            registerDomainCommand("sef:economy.admin." + action, "eco " + action, Set.of(),
+                    "sef.commands.eco." + action, CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    action.equals("import")
+                            ? CommandDefinition.TargetBehavior.SERVER
+                            : CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                    "sef.economy", AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        registerDomainCommand("sef:economy.worth.set", "setworth", Set.of("setworth"),
+                "sef.commands.setworth", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.NONE,
+                "sef.economy", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:economy", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        for (String type : List.of(
+                "balance", "buy", "sell", "trade", "free", "disposal",
+                "kit", "heal", "repair", "time", "weather", "warp")) {
+            registerDomainCommand(
+                    "sef:economy.sign." + type,
+                    "sign " + type,
+                    Set.of(),
+                    "sef.economy.sign." + type + ".use",
+                    CommandDefinition.AccessClass.PLAYER,
+                    Set.of(CommandDefinition.SourceType.PLAYER),
+                    CommandDefinition.TargetBehavior.SELF,
+                    "sef.economy.signs",
+                    AuditService.AuditClass.METADATA_ONLY,
+                    "sef:economy",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+            registerDomainCommand(
+                    "sef:economy.sign.create." + type,
+                    "sign create " + type,
+                    Set.of(),
+                    "sef.economy.sign." + type + ".create",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    Set.of(CommandDefinition.SourceType.PLAYER),
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.economy.signs",
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:economy",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        registerDomainCommand(
+                "sef:economy.sign.manage",
+                "eco sign",
+                Set.of(),
+                "sef.economy.sign.manage",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.SERVER,
+                "sef.economy.signs",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:economy",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+    }
+
     private static void registerDomainCommand(
             String id,
             String route,
@@ -1470,6 +1658,10 @@ public final class KernelServices {
     }
 
     private static BigDecimal costFor(String actionId) {
+        BigDecimal configured = commandCosts.cost(actionId);
+        if (configured.signum() > 0) {
+            return configured;
+        }
         return actionId.startsWith("sef:teleport.")
                 && (actionId.endsWith(".use")
                 || actionId.equals("sef:teleport.back")
@@ -1477,6 +1669,35 @@ public final class KernelServices {
                 || actionId.equals("sef:teleport.random"))
                 ? teleportSettings.cost()
                 : BigDecimal.ZERO;
+    }
+
+    private static EconomyRepository.Settings economyRepositorySettings() {
+        return new EconomyRepository.Settings(
+                ConfigHandler.config.economyCurrency.get(),
+                ConfigHandler.config.economyMinorUnits.get(),
+                ConfigHandler.config.economyDefaultBalance.get(),
+                ConfigHandler.config.economyMinimumBalance.get(),
+                ConfigHandler.config.economyMaximumBalance.get(),
+                ConfigHandler.config.economyMaximumTransaction.get(),
+                ConfigHandler.config.economyMaximumAccounts.get(),
+                ConfigHandler.config.economyMaximumLedgerEntries.get(),
+                ConfigHandler.config.economyMaximumPendingCosts.get(),
+                ConfigHandler.config.economyMaximumWorthEntries.get());
+    }
+
+    private static EconomyService.Settings economyServiceSettings() {
+        return new EconomyService.Settings(
+                ConfigHandler.config.enableEconomy.get(),
+                EconomyService.Mode.parse(ConfigHandler.config.economyProviderMode.get()),
+                ConfigHandler.config.economyExternalProvider.get(),
+                ConfigHandler.config.economyCurrencySymbol.get(),
+                ConfigHandler.config.economyAllowOfflinePayments.get(),
+                ConfigHandler.config.economyAllowSelfPayments.get(),
+                ConfigHandler.config.economyConfirmationThreshold.get(),
+                ConfigHandler.config.economyMaximumTransaction.get(),
+                ConfigHandler.config.economyBalanceTopPageSize.get(),
+                ConfigHandler.config.economyHistoryPageSize.get(),
+                ConfigHandler.config.economyMaximumImportAccounts.get());
     }
 
     private static void ensureInitialized() {
