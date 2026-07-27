@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-public final class SefControlEditorScreen extends Screen {
+public final class SefControlEditorScreen extends SefScreen {
     private static final int PANEL_WIDTH = 368;
     private static final int PANEL_HEIGHT = 270;
     private static final int FIELDS_PER_PAGE = 5;

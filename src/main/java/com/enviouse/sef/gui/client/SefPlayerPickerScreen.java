@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
-public final class SefPlayerPickerScreen extends Screen {
+public final class SefPlayerPickerScreen extends SefScreen {
     private static final int PANEL_WIDTH = 420;
     private static final int PANEL_HEIGHT = 330;
     private static final int PAGE_SIZE = 8;

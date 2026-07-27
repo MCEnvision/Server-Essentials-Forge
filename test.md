@@ -1492,7 +1492,7 @@ Prepare three visible online players, two known offline profiles, one unauthoriz
 9. Disconnect one frozen target after preview but before submit. Confirm that UUID changes from immediate execution to one login queue record without changing identity.
 10. Revoke the issuer’s give permission after preview. Submit must invalidate without giving or queueing anything.
 11. Forge the bulk token, a hidden username, an unknown username, a selector, an empty list, duplicate names with different case, and `1001` distinct targets. Confirm hidden, unknown, selector, empty, and oversized submissions fail. Confirm duplicates collapse to one UUID.
-12. Open the item picker. Confirm it shows `All items`, vanilla creative tabs, item icons, normal item tooltips, tab paging, and item paging.
+12. Open the item picker. Confirm it shows `All items`, vanilla creative tabs, item icons, normal item tooltips, tab paging, and item paging. Confirm no item or tab name is drawn over an icon and hovering an item produces exactly one tooltip.
 13. Search by localized item name, `minecraft:diamond`, a namespace fragment, and a modded namespaced id. Confirm clicking an entry returns its canonical registry id.
 14. Remove the selected mod or registry item between preview and submit. The server must reject the stale id without substituting another item.
 15. In custom amount mode, use `-10`, `-1`, `+1`, and `+10`. Confirm the value clamps to the compiled minimum and maximum and no typed amount is required.
@@ -2026,7 +2026,7 @@ Expected:
 6. Disconnect observer and subject.
 7. Test player-profile cache failure and untrusted texture URL.
 8. Apply bat and Enderman disguises. Walk, sprint, crouch, swim, jump, rotate slowly, snap 180 degrees, attack, and stand still while observing at low and high frame rates.
-9. Confirm the proxy follows the real current and previous position, pitch, body rotation, head rotation, pose, swing, and animation state without rapid left-right oscillation.
+9. Confirm the proxy follows the real current and previous position, pitch, body rotation, head rotation, pose, swing, and animation state without rapid left-right oscillation. Confirm walking and sprinting animate limbs, the bat flight animation runs, idle animations advance, and returning to rest does not freeze the model in a movement frame.
 10. Repeat after reconnect, dimension change, tracking-range exit, and disguise revision replacement.
 
 Expected:
@@ -2723,7 +2723,7 @@ Actions:
 6. Disable a module with its screen open.
 7. Revoke screen and control permissions separately.
 8. Test world change and disconnect.
-9. Start with no GUI preference record and open the dashboard, homes, player picker, item picker, suggestion picker, typed workflow, control editor, Fancy Tags studio, and InvSee. Confirm the world remains sharp behind every SEF screen.
+9. Start with no GUI preference record and open the dashboard, homes, player picker, item picker, suggestion picker, typed workflow, control editor, Fancy Tags studio, and InvSee. Confirm the world remains sharp behind every SEF screen. Confirm panels and buttons are not darkened by a second superclass background pass.
 10. Run `/sef client preference blur on`. Confirm it is rejected and `/sef client status` still reports `background: sharp`.
 11. Run `/sef client preference blur off`, reopen every screen, reconnect, and restart. Confirm the world remains sharp.
 12. Inspect `<world>/serverconfig/sef/gui-preferences.json`. Test copied legacy records with `backgroundBlur` missing and with it set to true. Restart each copy and confirm both normalize to false and are flushed safely.

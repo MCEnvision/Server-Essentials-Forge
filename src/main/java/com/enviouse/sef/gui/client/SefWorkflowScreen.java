@@ -16,7 +16,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-public final class SefWorkflowScreen extends Screen {
+public final class SefWorkflowScreen extends SefScreen {
     private static final int PANEL_WIDTH = 408;
     private static final int PANEL_HEIGHT = 292;
     private static final int FIELDS_PER_PAGE = 6;

@@ -66,7 +66,7 @@ Current verification evidence:
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack.
 - Enhanced and no-SEF clients join the same GUI-enabled server. Provider refresh, metadata, ownership, inventory adapter, cooldown persistence, filesystem failure, crash recovery, packet bounds, session invalidation, and performance behavior have deterministic or runtime verification.
 
-The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, all, online, and offline player filtering, bounded give multi-selection, creative-style item browsing, deferred per-target offline give execution, Fancy Tags, namespaced disguise selection, stable disguise interpolation, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
+The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, all, online, and offline player filtering, bounded give multi-selection, creative-style item browsing with icon-only slots and one tooltip, deferred per-target offline give execution, Fancy Tags, namespaced disguise selection, stable animated disguise projection, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
 
 ## Source-of-truth order
 
@@ -7605,6 +7605,9 @@ Required design:
 - Allocate collision-safe virtual entity ids from a managed namespace.
 - Send a supported vanilla entity spawn representation to the observer.
 - Mirror position, rotation, head rotation, velocity, pose, effects, equipment policy, metadata, animation, and removal.
+- Advance a detached mob proxy once per observed client player tick with sound and physics suppressed, then restore authoritative copied transform state before rendering.
+- Preserve the mob’s entity-specific idle and movement animation states while copied walk animation supplies limb movement.
+- Recreate a cached proxy after a client level change and fall back to copied walk animation when a modded entity cannot safely tick while detached.
 - Recreate the projection after tracking-range changes and dimension transitions.
 - Remove every proxy on undisguise, logout, observer disconnect, subject disconnect, world unload, or protocol reset.
 - Never add a player disguise to the public online count.

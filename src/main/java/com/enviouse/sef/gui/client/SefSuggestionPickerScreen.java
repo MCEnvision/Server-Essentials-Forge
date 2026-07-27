@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public final class SefSuggestionPickerScreen extends Screen {
+public final class SefSuggestionPickerScreen extends SefScreen {
     private static final int PANEL_WIDTH = 400;
     private static final int PANEL_HEIGHT = 320;
     private static final int PAGE_SIZE = 9;

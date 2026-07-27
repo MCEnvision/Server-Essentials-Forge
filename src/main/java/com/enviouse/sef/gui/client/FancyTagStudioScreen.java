@@ -19,7 +19,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-public final class FancyTagStudioScreen extends Screen {
+public final class FancyTagStudioScreen extends SefScreen {
     private static final int PANEL_WIDTH = 360;
     private static final int PANEL_HEIGHT = 244;
     private static final int AUTOSAVE_TICKS = 200;

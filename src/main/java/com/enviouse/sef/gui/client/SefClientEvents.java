@@ -319,7 +319,9 @@ public final class SefClientEvents {
         }
         try {
             DisguiseRenderProxy cached = DISGUISE_PROXIES.get(projection.subjectId());
-            if (cached == null || cached.revision() != projection.disguiseRevision()) {
+            if (cached == null
+                    || cached.revision() != projection.disguiseRevision()
+                    || cached.entity().level() != minecraft.level) {
                 Entity entity;
                 if (projection.kind().equals("player")) {
                     if (projection.profileId() == null || projection.profileName().isBlank()) {
@@ -346,14 +348,38 @@ public final class SefClientEvents {
                 if (entity == null) {
                     return;
                 }
+                entity.setSilent(true);
+                entity.noPhysics = true;
                 cached = new DisguiseRenderProxy(
                         projection.disguiseRevision(),
                         entity,
-                        Integer.MIN_VALUE);
+                        Integer.MIN_VALUE,
+                        true);
                 DISGUISE_PROXIES.put(projection.subjectId(), cached);
             }
             Entity proxy = cached.entity();
             Player player = event.getEntity();
+            boolean advanceAnimation = cached.animationTick() != player.tickCount;
+            boolean entityAnimationAdvanced = false;
+            if (advanceAnimation
+                    && cached.tickAnimations()
+                    && !(proxy instanceof Player)) {
+                prepareAnimationTick(proxy, player);
+                try {
+                    proxy.tick();
+                    entityAnimationAdvanced = true;
+                } catch (RuntimeException exception) {
+                    cached = new DisguiseRenderProxy(
+                            cached.revision(),
+                            cached.entity(),
+                            cached.animationTick(),
+                            false);
+                    ServerEssentialsForge.LOGGER.warn(
+                            "Could not tick disguise animation for {}",
+                            projection.reference(),
+                            exception);
+                }
+            }
             proxy.setPos(player.getX(), player.getY(), player.getZ());
             proxy.setYRot(player.getYRot());
             proxy.setXRot(player.getXRot());
@@ -391,12 +417,17 @@ public final class SefClientEvents {
                 living.swinging = player.swinging;
                 living.swingingArm = player.swingingArm;
                 living.swingTime = player.swingTime;
-                if (cached.animationTick() != player.tickCount) {
-                    living.walkAnimation.update(player.walkAnimation.speed(), 1.0F);
+                if (advanceAnimation) {
+                    if (entityAnimationAdvanced) {
+                        living.walkAnimation.setSpeed(player.walkAnimation.speed());
+                    } else {
+                        living.walkAnimation.update(player.walkAnimation.speed(), 1.0F);
+                    }
                     cached = new DisguiseRenderProxy(
                             cached.revision(),
                             cached.entity(),
-                            player.tickCount);
+                            player.tickCount,
+                            cached.tickAnimations());
                     DISGUISE_PROXIES.put(projection.subjectId(), cached);
                 }
             }
@@ -425,6 +456,33 @@ public final class SefClientEvents {
                     "Could not render disguise projection {}",
                     projection.reference(),
                     exception);
+        }
+    }
+
+    private static void prepareAnimationTick(Entity proxy, Player player) {
+        proxy.setPos(player.getX(), player.getY(), player.getZ());
+        proxy.xo = player.xo;
+        proxy.yo = player.yo;
+        proxy.zo = player.zo;
+        proxy.xOld = player.xOld;
+        proxy.yOld = player.yOld;
+        proxy.zOld = player.zOld;
+        proxy.setYRot(player.getYRot());
+        proxy.setXRot(player.getXRot());
+        proxy.yRotO = player.yRotO;
+        proxy.xRotO = player.xRotO;
+        proxy.tickCount = Math.max(0, player.tickCount - 1);
+        proxy.setPose(player.getPose());
+        proxy.setOnGround(player.onGround());
+        proxy.setDeltaMovement(player.getDeltaMovement());
+        proxy.setSprinting(player.isSprinting());
+        proxy.setShiftKeyDown(player.isShiftKeyDown());
+        proxy.setSwimming(player.isSwimming());
+        if (proxy instanceof LivingEntity living) {
+            living.setYHeadRot(player.getYHeadRot());
+            living.setYBodyRot(player.yBodyRot);
+            living.yHeadRotO = player.yHeadRotO;
+            living.yBodyRotO = player.yBodyRotO;
         }
     }
 
@@ -481,6 +539,11 @@ public final class SefClientEvents {
     private record Placement(int x, int y) {
     }
 
-    private record DisguiseRenderProxy(long revision, Entity entity, int animationTick) {
+    private record DisguiseRenderProxy(
+            long revision,
+            Entity entity,
+            int animationTick,
+            boolean tickAnimations
+    ) {
     }
 }

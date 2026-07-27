@@ -16,7 +16,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class SefPanelScreen extends Screen {
+public final class SefPanelScreen extends SefScreen {
     private static final int PANEL_WIDTH = 310;
     private static final int PANEL_HEIGHT = 218;
 

@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-public final class SefItemPickerScreen extends Screen {
+public final class SefItemPickerScreen extends SefScreen {
     private static final int PANEL_WIDTH = 500;
     private static final int PANEL_HEIGHT = 360;
     private static final int COLUMNS = 11;
@@ -122,8 +122,6 @@ public final class SefItemPickerScreen extends Screen {
             int x = gridLeft + offset % COLUMNS * 24;
             int y = top + 86 + offset / COLUMNS * 24;
             ItemButton button = new ItemButton(x, y, entry.stack(), ignored -> choose(entry));
-            button.setTooltip(Tooltip.create(Component.literal(
-                    entry.stack().getHoverName().getString() + ", " + entry.id())));
             itemButtons.add(button);
             addRenderableWidget(button);
         }
@@ -330,6 +328,14 @@ public final class SefItemPickerScreen extends Screen {
         ) {
             super.renderWidget(graphics, mouseX, mouseY, partialTick);
             graphics.renderItem(stack, getX() + 3, getY() + 3);
+        }
+
+        @Override
+        public void renderString(
+                GuiGraphics graphics,
+                net.minecraft.client.gui.Font font,
+                int color
+        ) {
         }
 
         @Override
