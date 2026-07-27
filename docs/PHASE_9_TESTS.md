@@ -15,7 +15,8 @@ This record covers the optional enhanced client protocol and GUI pilot on NeoFor
 | Enhanced client game directory | Isolated temporary directory |
 | Dedicated server directory | Repository `run` directory |
 
-The final commit and artifact hash are recorded in the Phase 9 status block in `sef2.md` after the verified source is committed.
+| Phase 9 implementation commit | `9ef8c8f` |
+| Phase 9 artifact SHA-256 | `62b3d14fccc1486a4867a50d4dedd82ec88f7ff2f5c5095cfc6b971170bd9433` |
 
 ## Automated verification
 
@@ -30,6 +31,8 @@ The final commit and artifact hash are recorded in the Phase 9 status block in `
 | Dedicated server with GUI enabled | Passed | Reached `Done`, protocol active, and no client classloading failure |
 | Headless enhanced client | Passed | Reached the title and accessibility flow and rendered through Xvfb |
 | Enhanced multiplayer session | Passed | Client negotiated 10 features and joined the GUI enabled server |
+| Non-SEF multiplayer session | Passed | `runFallbackClient` excluded the SEF source output, joined the GUI enabled server, received the optional reminder, and remained connected |
+| Non-SEF session isolation | Passed | `/sef doctor` reported zero active and zero pending enhanced sessions while the fallback client was online |
 
 ## Live GUI review
 
@@ -78,14 +81,14 @@ java.lang.IllegalStateException: Capability has not been initialised
 
 The exception originates in `UserCapabilityImpl.getQueryOptionsCache` during LuckPerms `NeoForgeConnectionListener.onPlayerLoggedIn`. The same server accepts the enhanced client when the affected external build is absent. SEF does not catch or suppress another mod's login event exception. Operators must use a LuckPerms build verified against their exact NeoForge version. This external compatibility failure is tracked in the integration matrix and does not weaken SEF's fail closed permission behavior.
 
-## Final release matrix
+## Phase 14 release repetition
 
 Phase 14 repeats the full mixed client matrix using release artifacts:
 
-- A client with no SEF development mod loaded through `runFallbackClient`.
+- The already passing client with no SEF development mod loaded through `runFallbackClient`.
 - A compatible enhanced client.
 - A deliberately incompatible GUI protocol fixture.
 - GUI disabled and GUI enabled server configurations.
 - Multiple GUI scales, narrow and wide aspect ratios, narration, and long translated strings.
 
-Phase 9 implementation is accepted after the final build, JAR inspection, and definitive matrix results are appended.
+Phase 9 is accepted. The deliberately incompatible protocol path is covered by the configuration negotiation and session tests. Phase 14 repeats it with a release fixture and repeats the complete connection and visual matrix against the final artifact.

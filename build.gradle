@@ -24,6 +24,13 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
+sourceSets {
+    fallbackRuntime {
+        compileClasspath += sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.runtimeClasspath - sourceSets.main.output
+    }
+}
+
 neoForge {
     // Specify the version of NeoForge to use.
     version = project.neo_version
@@ -63,6 +70,7 @@ neoForge {
         fallbackClient {
             client()
             loadedMods = []
+            sourceSet = sourceSets.fallbackRuntime
 
             if (providers.gradleProperty('sefFallbackClientGameDirectory').isPresent()) {
                 gameDirectory = file(providers.gradleProperty('sefFallbackClientGameDirectory').get())
