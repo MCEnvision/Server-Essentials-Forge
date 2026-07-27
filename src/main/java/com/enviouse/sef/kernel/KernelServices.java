@@ -11,6 +11,8 @@ import com.enviouse.sef.economy.EconomyCostService;
 import com.enviouse.sef.economy.EconomyRepository;
 import com.enviouse.sef.economy.EconomyService;
 import com.enviouse.sef.economy.EconomySignRepository;
+import com.enviouse.sef.gui.GuiPreferenceRepository;
+import com.enviouse.sef.gui.protocol.SefNetwork;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.identity.PlayerProfileRepository;
 import com.enviouse.sef.freeze.FreezeManager;
@@ -92,6 +94,7 @@ public final class KernelServices {
     private static SafeTeleportService safeTeleports;
     private static TeleportRequestService teleportRequests;
     private static TeleportSettings teleportSettings;
+    private static GuiPreferenceRepository guiPreferences;
     private static SocialRepository social;
     private static ObservationService observations;
     private static CommandSpyRepository commandSpies;
@@ -136,6 +139,7 @@ public final class KernelServices {
         descriptors.registerCommandOnly("sef:kits");
         descriptors.registerCommandOnly("sef:utilities");
         descriptors.registerCommandOnly("sef:economy");
+        registerGuiDescriptors();
 
         catalog = new CommandCatalog(capabilities, descriptors);
         registerCoreCommands();
@@ -226,6 +230,7 @@ public final class KernelServices {
         safeTeleports = new SafeTeleportService(locationHistory);
         teleportRequests = new TeleportRequestService();
         teleportSettings = TeleportSettings.fromConfig();
+        guiPreferences = new GuiPreferenceRepository();
         storage.register(locationHistory);
         storage.register(cooldownRepository);
         storage.register(teleports);
@@ -235,6 +240,7 @@ public final class KernelServices {
         storage.register(kits);
         storage.register(economyRepository);
         storage.register(economySigns);
+        storage.register(guiPreferences);
 
         initialized = true;
         reloadConfiguration();
@@ -317,7 +323,8 @@ public final class KernelServices {
                 Map.entry("sef.workstation.additional", ConfigHandler.config.enableAdditionalWorkstations.get()),
                 Map.entry("sef.economy", economy.settings().enabled()),
                 Map.entry("sef.economy.signs", economy.settings().enabled()
-                        && ConfigHandler.config.enableEconomySigns.get()));
+                        && ConfigHandler.config.enableEconomySigns.get()),
+                Map.entry("sef.gui", SefNetwork.enhancedGuiActive()));
         Map<String, Boolean> actionOverrides = replacementTeleportSettings.disabledActions().stream()
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
@@ -410,6 +417,9 @@ public final class KernelServices {
             }
             if (!economyRepository.settings().equals(economyRepositorySettings())) {
                 drift.add("native economy account or storage bounds");
+            }
+            if (SefNetwork.configurationDrift()) {
+                drift.add("enhanced gui protocol");
             }
         } catch (IllegalArgumentException | IllegalStateException exception) {
             drift.add("invalid pending economy configuration");
@@ -602,6 +612,11 @@ public final class KernelServices {
         return teleportSettings;
     }
 
+    public static GuiPreferenceRepository guiPreferences() {
+        ensureInitialized();
+        return guiPreferences;
+    }
+
     public static SocialRepository social() {
         ensureInitialized();
         return social;
@@ -642,6 +657,146 @@ public final class KernelServices {
         return permissionNodes.get(id);
     }
 
+    private static void registerGuiDescriptors() {
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui",
+                "sef.gui.dashboard",
+                3,
+                "sef.kernel.gui.use",
+                List.of(
+                        panelControl(
+                                "homes",
+                                0,
+                                "sef:teleport.home.list",
+                                "sef.commands.homes",
+                                PanelContracts.TargetPolicy.SELF,
+                                "minecraft:red_bed"),
+                        panelControl(
+                                "warps",
+                                1,
+                                "sef:teleport.warp.list",
+                                "sef.commands.warps",
+                                PanelContracts.TargetPolicy.NONE,
+                                "minecraft:ender_pearl"),
+                        panelControl(
+                                "requests",
+                                2,
+                                "sef:teleport.request.list",
+                                "sef.commands.tprequests",
+                                PanelContracts.TargetPolicy.SELF,
+                                "minecraft:paper"),
+                        panelControl(
+                                "help",
+                                3,
+                                "sef:core.commands",
+                                "sef.commands.sef.commands",
+                                PanelContracts.TargetPolicy.SELF,
+                                "minecraft:knowledge_book")),
+                new PanelContracts.CommandFallback("sef dashboard", "sef.gui.dashboard.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.homes",
+                "sef.gui.homes",
+                6,
+                "sef.commands.homes",
+                List.of(panelControl(
+                        "home",
+                        0,
+                        "sef:teleport.home.use",
+                        "sef.commands.home",
+                        PanelContracts.TargetPolicy.SELF,
+                        "minecraft:red_bed")),
+                new PanelContracts.CommandFallback("homes", "sef.gui.homes.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.warps",
+                "sef.gui.warps",
+                6,
+                "sef.commands.warps",
+                List.of(
+                        panelControl(
+                                "warp",
+                                0,
+                                "sef:teleport.warp.use",
+                                "sef.commands.warp",
+                                PanelContracts.TargetPolicy.SELF,
+                                "minecraft:ender_pearl"),
+                        panelControl(
+                                "player_warp",
+                                1,
+                                "sef:teleport.player_warp.use",
+                                "sef.commands.pwarp",
+                                PanelContracts.TargetPolicy.SELF,
+                                "minecraft:lodestone")),
+                new PanelContracts.CommandFallback("warps", "sef.gui.warps.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.teleport_requests",
+                "sef.gui.teleport_requests",
+                6,
+                "sef.commands.tprequests",
+                List.of(
+                        panelControl(
+                                "accept",
+                                0,
+                                "sef:teleport.request.accept",
+                                "sef.commands.tpaccept",
+                                PanelContracts.TargetPolicy.SELECTED_VISIBLE_PLAYER,
+                                "minecraft:lime_dye"),
+                        panelControl(
+                                "deny",
+                                1,
+                                "sef:teleport.request.deny",
+                                "sef.commands.tpdeny",
+                                PanelContracts.TargetPolicy.SELECTED_VISIBLE_PLAYER,
+                                "minecraft:red_dye"),
+                        panelControl(
+                                "cancel",
+                                2,
+                                "sef:teleport.request.cancel",
+                                "sef.commands.tpcancel",
+                                PanelContracts.TargetPolicy.SELECTED_VISIBLE_PLAYER,
+                                "minecraft:barrier")),
+                new PanelContracts.CommandFallback("tprequests", "sef.gui.teleport_requests.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.help",
+                "sef.gui.help",
+                6,
+                "sef.commands.sef.commands",
+                List.of(),
+                new PanelContracts.CommandFallback("sef commands", "sef.gui.help.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.staff",
+                "sef.gui.staff",
+                6,
+                "sef.kernel.panel.use",
+                List.of(),
+                new PanelContracts.CommandFallback("sef doctor", "sef.gui.staff.usage")));
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                "sef:gui.players",
+                "sef.gui.players",
+                6,
+                "sef.kernel.panel.use",
+                List.of(),
+                new PanelContracts.CommandFallback("list", "sef.gui.players.usage")));
+    }
+
+    private static PanelContracts.ControlDescriptor panelControl(
+            String id,
+            int slot,
+            String actionId,
+            String permissionId,
+            PanelContracts.TargetPolicy targetPolicy,
+            String iconId
+    ) {
+        return new PanelContracts.ControlDescriptor(
+                id,
+                slot,
+                1,
+                actionId,
+                permissionId,
+                targetPolicy,
+                false,
+                iconId);
+    }
+
     private static void registerCoreCommands() {
         register("sef:core.info", "sef info", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
                 CommandDefinition.AccessClass.PLAYER, STANDARD_COMMAND_SOURCES,
@@ -664,6 +819,15 @@ public final class KernelServices {
         register("sef:core.doctor", "sef doctor", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.doctor",
                 CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.core", AuditService.AuditClass.SENSITIVE_ACCESS, "sef:core", "diagnostic view has no persistent hud");
+        register("sef:gui.dashboard.open", "sef dashboard", Set.of(), "sef.commands.sef.allowed", "sef.kernel.gui.use",
+                CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER),
+                "sef.gui", AuditService.AuditClass.METADATA_ONLY, "sef:gui", "dashboard state is sent through the client protocol");
+        register("sef:gui.client.status", "sef client status", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
+                CommandDefinition.AccessClass.PLAYER, STANDARD_COMMAND_SOURCES,
+                "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:gui", "client status is immediate");
+        register("sef:gui.reminder.dismiss", "sef client reminder dismiss", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
+                CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER),
+                "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:gui", "reminder preference is persisted");
         register("sef:filter.add", "sef filter add", Set.of(), "sef.commands.sef.allowed", "sef.filter.manage",
                 CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.filter", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "filter changes are immediate");

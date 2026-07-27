@@ -232,10 +232,11 @@ public class NickCommands {
 			MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
 			if(server == null) return;
 			ServerPlayer player = server.getPlayerList().getPlayer(playerId);
-			if(player != null) {
-				player.refreshTabListName();
+				if(player != null) {
+					player.refreshTabListName();
+					com.enviouse.sef.gui.protocol.SefGuiRuntime.refreshIdentityProjections(server);
+				}
 			}
-		}
 
 		private static boolean ownsIntegratedNicknameData() {
 			return ServerEssentialsForge.instance == null

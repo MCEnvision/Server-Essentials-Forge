@@ -16380,6 +16380,24 @@ The full unit suite passes all 234 tests, all 11 required GameTests pass, the bu
 
 ## Phase 9. Client protocol and GUI pilot
 
+### Implementation status, 2026-07-26
+
+Implemented on `envy/sef2_complete`.
+
+- Added an optional configuration phase hello and acknowledgement handshake. Vanilla, non-SEF, and protocol incompatible connections remain on command fallback without receiving play payloads.
+- Added protocol major and minor versions, negotiated feature masks, connection bound pending negotiations, UUID session identifiers, monotonic client sequences, session revisions, permission refresh, expiry, replay rejection, rate limiting, and bounded active state.
+- Added typed and size bounded codecs for panel snapshots, panel actions, HUD deltas, projected identity, Fancy Tags manifests, content requests, and content transfer.
+- Added the dashboard, homes, warps, teleport requests, help, staff overview, vanish safe player picker, detail, confirmation, progress, form, search, paging, and server revalidation flows.
+- Added a vanilla styled client screen, reusable theme, item icons, narration summary, keybind, collision safe pause screen entry, resize support, and command fallback behavior.
+- Added delta based private HUD tiles for vanish, observation state, AFK, flight, god mode, and teleport warmups. Non-enhanced teleport warmups retain the server owned action bar fallback.
+- Added viewer specific nickname projections without changing UUID or authenticated profile identity. Projection refresh is event driven for joins, leaves, nickname changes, LuckPerms recalculation, and vanish changes.
+- Added a static Fancy Tags prototype with a server manifest, SHA-256 content identity, bounded transfer, persistent verified client cache, inline screen rendering, direct HUD rendering, reconnect cache reuse, and server switch cleanup.
+- Added a versioned GUI preference repository for reminder delivery and dismissal. Reminder audience, delay, frequency, revision, message, and dismissal are configurable.
+- Added a non-SEF development client run harness through `runFallbackClient` and configurable isolated client game directories and quick play targets.
+- Removed nickname and component formatter debug output from hot paths discovered during multiplayer verification.
+- Added unit coverage for negotiation, sessions, replay, bounds, codecs, projected identity, HUD deltas, panel actions, panel layout, reminder preferences, tag cache decisions, PNG preflight, and descriptor contracts.
+- Live Xvfb review opened the permission filtered pause button and dashboard at 854 by 480 and after resize to 1200 by 600. See `docs/PHASE_9_TESTS.md`.
+
 ### Objectives
 
 - Prove the universal-JAR and optional-client architecture with a limited feature set.

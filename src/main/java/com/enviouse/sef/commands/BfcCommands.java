@@ -7,6 +7,9 @@ import com.enviouse.sef.config.ConfigurationEventHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.SefProtocol;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.commandlog.CommandSpyCommands;
 import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.kernel.KernelCommands;
@@ -70,6 +73,25 @@ public class BfcCommands {
 	static LiteralArgumentBuilder<CommandSourceStack> coreRoot() {
 		return Commands.literal("sef")
 			.requires(c -> checkPermission(c, PermissionsHandler.sefCommand))
+				.executes(ctx -> {
+					var player = ctx.getSource().getPlayer();
+					if(player != null
+							&& checkPermission(ctx.getSource(), PermissionsHandler.kernelGui)
+							&& SefSessionManager.instance().session(player)
+									.map(session -> session.supports(SefProtocol.Feature.DASHBOARD))
+									.orElse(false)) {
+						return KernelCommandExecutor.execute(
+								ctx.getSource(),
+								"sef:gui.dashboard.open",
+								Map.of(),
+								() -> SefGuiServer.openDashboard(player) ? 1 : 0);
+					}
+					return KernelCommandExecutor.execute(
+							ctx.getSource(),
+							"sef:core.info",
+							Map.of(),
+							() -> infoCommand(ctx));
+				})
 			.then(Commands.literal("info")
 					.requires(c -> checkPermission(c, PermissionsHandler.sefCommandInfoSubCommand))
 					.executes(ctx -> KernelCommandExecutor.execute(

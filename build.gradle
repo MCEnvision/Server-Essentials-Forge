@@ -42,8 +42,41 @@ neoForge {
         client {
             client()
 
+            if (providers.gradleProperty('sefClientGameDirectory').isPresent()) {
+                gameDirectory = file(providers.gradleProperty('sefClientGameDirectory').get())
+            }
+            if (providers.gradleProperty('sefClientQuickPlayServer').isPresent()) {
+                programArguments.addAll(
+                        '--quickPlayMultiplayer',
+                        providers.gradleProperty('sefClientQuickPlayServer').get())
+            }
+            if (providers.gradleProperty('sefClientUsername').isPresent()) {
+                programArguments.addAll(
+                        '--username',
+                        providers.gradleProperty('sefClientUsername').get())
+            }
+
             // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        fallbackClient {
+            client()
+            loadedMods = []
+
+            if (providers.gradleProperty('sefFallbackClientGameDirectory').isPresent()) {
+                gameDirectory = file(providers.gradleProperty('sefFallbackClientGameDirectory').get())
+            }
+            if (providers.gradleProperty('sefFallbackClientQuickPlayServer').isPresent()) {
+                programArguments.addAll(
+                        '--quickPlayMultiplayer',
+                        providers.gradleProperty('sefFallbackClientQuickPlayServer').get())
+            }
+            if (providers.gradleProperty('sefFallbackClientUsername').isPresent()) {
+                programArguments.addAll(
+                        '--username',
+                        providers.gradleProperty('sefFallbackClientUsername').get())
+            }
         }
 
         server {

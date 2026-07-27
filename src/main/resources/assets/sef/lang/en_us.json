@@ -1,3 +1,13 @@
 {
-  "container.sef.disposal": "Disposal"
+  "container.sef.disposal": "Disposal",
+  "gui.sef.close": "Close",
+  "gui.sef.dashboard": "Dashboard",
+  "gui.sef.page": "%s / %s",
+  "gui.sef.pause_button": "SEF",
+  "gui.sef.pause_tooltip": "Open Server Essentials",
+  "gui.sef.refresh": "Refresh",
+  "gui.sef.search": "Search",
+  "gui.sef.search.narration": "Search SEF panel",
+  "key.categories.sef": "Server Essentials",
+  "key.sef.open_dashboard": "Open SEF Dashboard"
 }

@@ -191,6 +191,17 @@ public class ConfigHandler {
 		public final ModConfigSpec.ConfigValue<Integer> kernelLocationHistoryEntries;
 		public final ModConfigSpec.ConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
 		public final ModConfigSpec.ConfigValue<Integer> kernelRepositoryFlushSeconds;
+		public final ModConfigSpec.ConfigValue<Boolean> enableEnhancedGui;
+		public final ModConfigSpec.ConfigValue<Boolean> guiReminderEnabled;
+		public final ModConfigSpec.ConfigValue<Integer> guiReminderDelaySeconds;
+		public final ModConfigSpec.ConfigValue<Integer> guiReminderFrequencyHours;
+		public final ModConfigSpec.ConfigValue<String> guiReminderAudience;
+		public final ModConfigSpec.ConfigValue<Integer> guiReminderRevision;
+		public final ModConfigSpec.ConfigValue<Integer> guiPanelSessionSeconds;
+		public final ModConfigSpec.ConfigValue<Integer> guiPanelRequestsPerSecond;
+		public final ModConfigSpec.ConfigValue<Integer> guiMaximumPanelEntries;
+		public final ModConfigSpec.ConfigValue<Boolean> fancyTagsPrototypeEnabled;
+		public final ModConfigSpec.ConfigValue<Integer> fancyTagsPrototypeMaximumBytes;
 		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportEssentials;
 		public final ModConfigSpec.ConfigValue<Boolean> enableHomes;
 		public final ModConfigSpec.ConfigValue<Boolean> enableTeleportRequests;
@@ -518,6 +529,28 @@ public class ConfigHandler {
 			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
 			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
 			kernelRepositoryFlushSeconds = builder.comment("  Maximum seconds dirty kernel repositories remain only in memory").defineInRange("repositoryFlushSeconds", 30, 1, 600);
+			builder.pop();
+
+			builder.comment("Optional enhanced client protocol and vanilla style GUI",
+					"  Disabled keeps SEF fully server only for connecting players.",
+					"  Vanilla and non SEF clients remain allowed when enabled.",
+					"  Protocol registration and enablement changes require a restart.").push("gui");
+			enableEnhancedGui = builder.comment("  Enable optional client capability negotiation and enhanced screens").define("enabled", false);
+			guiReminderEnabled = builder.comment("  Remind command fallback players that the optional client exists").define("reminderEnabled", true);
+			guiReminderDelaySeconds = builder.comment("  Delay after login before a fallback reminder").defineInRange("reminderDelaySeconds", 5, 0, 3600);
+			guiReminderFrequencyHours = builder.comment("  Minimum hours between reminders. Zero means once per configured revision").defineInRange("reminderFrequencyHours", 0, 0, 8760);
+			guiReminderAudience = builder.comment("  Reminder audience. all, players, or staff").define(
+					"reminderAudience",
+					"all",
+					value -> value instanceof String audience
+							&& java.util.Set.of("all", "players", "staff").contains(
+							audience.trim().toLowerCase(java.util.Locale.ROOT)));
+			guiReminderRevision = builder.comment("  Increment to show a once per revision reminder again").defineInRange("reminderRevision", 1, 1, 1_000_000);
+			guiPanelSessionSeconds = builder.comment("  Lifetime of one server authoritative panel snapshot").defineInRange("panelSessionSeconds", 60, 10, 600);
+			guiPanelRequestsPerSecond = builder.comment("  Maximum accepted GUI requests from one connection each second").defineInRange("panelRequestsPerSecond", 20, 1, 100);
+			guiMaximumPanelEntries = builder.comment("  Maximum entries encoded into one server page").defineInRange("maximumPanelEntries", 45, 1, 100);
+			fancyTagsPrototypeEnabled = builder.comment("  Enable the Phase 9 bounded static Fancy Tags transport prototype").define("fancyTagsPrototype", true);
+			fancyTagsPrototypeMaximumBytes = builder.comment("  Maximum bytes accepted by the prototype tag transfer").defineInRange("fancyTagsPrototypeMaximumBytes", 262144, 1024, 1048576);
 			builder.pop();
 
 			builder.comment("Moderation and command observation",

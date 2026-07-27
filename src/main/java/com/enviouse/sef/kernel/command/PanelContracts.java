@@ -2,7 +2,9 @@ package com.enviouse.sef.kernel.command;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -55,7 +57,9 @@ public final class PanelContracts {
             String permissionId,
             TargetPolicy targetPolicy,
             boolean destructive,
-            String iconId
+            String iconId,
+            ExecutionContext executionContext,
+            AudienceDescriptor audience
     ) {
         public ControlDescriptor {
             id = normalize(id);
@@ -63,9 +67,65 @@ public final class PanelContracts {
             permissionId = normalize(permissionId);
             iconId = normalize(iconId);
             Objects.requireNonNull(targetPolicy, "targetPolicy");
+            Objects.requireNonNull(executionContext, "executionContext");
+            Objects.requireNonNull(audience, "audience");
             if (span < 1 || span > 9) {
                 throw new IllegalArgumentException("Control span must be between one and nine");
             }
+            if (audience.kind() != AudienceKind.fromTargetPolicy(targetPolicy)) {
+                throw new IllegalArgumentException("Control audience does not match target policy");
+            }
+            if ((executionContext == ExecutionContext.SERVER_PROFILE
+                    || executionContext == ExecutionContext.NATIVE_BULK
+                    || executionContext == ExecutionContext.AS_EACH_PARTICIPANT)
+                    && !audience.permissionId().equals(permissionId)) {
+                throw new IllegalArgumentException("Delegated controls require the control permission");
+            }
+        }
+
+        public ControlDescriptor(
+                String id,
+                int slot,
+                int span,
+                String actionId,
+                String permissionId,
+                TargetPolicy targetPolicy,
+                boolean destructive,
+                String iconId
+        ) {
+            this(
+                    id,
+                    slot,
+                    span,
+                    actionId,
+                    permissionId,
+                    targetPolicy,
+                    destructive,
+                    iconId,
+                    ExecutionContext.defaultFor(targetPolicy),
+                    AudienceDescriptor.forTargetPolicy(targetPolicy, permissionId));
+        }
+    }
+
+    public record AudienceDescriptor(AudienceKind kind, int maximumTargets, String permissionId) {
+        public AudienceDescriptor {
+            Objects.requireNonNull(kind, "kind");
+            permissionId = normalize(permissionId);
+            if (maximumTargets < 1 || maximumTargets > 512) {
+                throw new IllegalArgumentException("Audience target limit is outside hard bounds");
+            }
+            if ((kind == AudienceKind.SELF
+                    || kind == AudienceKind.ONE_VISIBLE_PLAYER
+                    || kind == AudienceKind.SERVER)
+                    && maximumTargets != 1) {
+                throw new IllegalArgumentException("Single target audience must have a limit of one");
+            }
+        }
+
+        public static AudienceDescriptor forTargetPolicy(TargetPolicy targetPolicy, String permissionId) {
+            AudienceKind kind = AudienceKind.fromTargetPolicy(targetPolicy);
+            int maximumTargets = kind == AudienceKind.BOUNDED_AUDIENCE ? 64 : 1;
+            return new AudienceDescriptor(kind, maximumTargets, permissionId);
         }
     }
 
@@ -112,6 +172,41 @@ public final class PanelContracts {
         SERVER
     }
 
+    public enum ExecutionContext {
+        ACTOR,
+        TARGET_ACTOR,
+        SERVER_PROFILE,
+        NATIVE_BULK,
+        AS_EACH_PARTICIPANT;
+
+        private static ExecutionContext defaultFor(TargetPolicy targetPolicy) {
+            return switch (Objects.requireNonNull(targetPolicy, "targetPolicy")) {
+                case NONE, SELF -> ACTOR;
+                case EXPLICIT_VISIBLE_PLAYER, SELECTED_VISIBLE_PLAYER -> TARGET_ACTOR;
+                case BOUNDED_AUDIENCE -> NATIVE_BULK;
+                case SERVER -> SERVER_PROFILE;
+            };
+        }
+    }
+
+    public enum AudienceKind {
+        SELF,
+        ONE_VISIBLE_PLAYER,
+        SELECTED_VISIBLE_PLAYERS,
+        BOUNDED_AUDIENCE,
+        SERVER;
+
+        private static AudienceKind fromTargetPolicy(TargetPolicy targetPolicy) {
+            return switch (Objects.requireNonNull(targetPolicy, "targetPolicy")) {
+                case NONE, SELF -> SELF;
+                case EXPLICIT_VISIBLE_PLAYER -> ONE_VISIBLE_PLAYER;
+                case SELECTED_VISIBLE_PLAYER -> SELECTED_VISIBLE_PLAYERS;
+                case BOUNDED_AUDIENCE -> BOUNDED_AUDIENCE;
+                case SERVER -> SERVER;
+            };
+        }
+    }
+
     public static final class Registry {
         private final java.util.Map<String, PanelDescriptor> panels = new java.util.LinkedHashMap<>();
         private final Set<String> nonPanelDescriptors = new java.util.LinkedHashSet<>();
@@ -143,6 +238,18 @@ public final class PanelContracts {
         public synchronized boolean contains(String id) {
             String normalized = normalize(id);
             return panels.containsKey(normalized) || nonPanelDescriptors.contains(normalized);
+        }
+
+        public synchronized Optional<PanelDescriptor> panel(String id) {
+            return Optional.ofNullable(panels.get(normalize(id)));
+        }
+
+        public synchronized Map<String, PanelDescriptor> panels() {
+            return Map.copyOf(panels);
+        }
+
+        public synchronized Set<String> commandOnlyDescriptors() {
+            return Set.copyOf(nonPanelDescriptors);
         }
 
         public synchronized int size() {

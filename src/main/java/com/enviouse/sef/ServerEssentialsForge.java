@@ -13,6 +13,9 @@ import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.events.ExternalModLoadingEvent;
 import com.enviouse.sef.events.PlayerEventHandler;
 import com.enviouse.sef.freeze.FreezeManager;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.SefNetwork;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionManifest;
 import com.enviouse.sef.storage.StorageExportService;
@@ -37,8 +40,8 @@ import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.minecraft.world.level.storage.LevelResource;
 
-// Server Essentials Forge (SEF) — NeoForge 1.21.1 port.
-// Server-side only (neoforge.mods.toml: displayTest = "IGNORE_SERVER_VERSION").
+// Server Essentials Forge for NeoForge 1.21.1.
+// The enhanced client protocol is optional. Vanilla clients remain supported.
 @Mod(ServerEssentialsForge.MODID)
 public class ServerEssentialsForge {
     public static final String CHAT_ID_STR =
@@ -67,6 +70,8 @@ public class ServerEssentialsForge {
 
     public ServerEssentialsForge(IEventBus modEventBus, ModContainer modContainer) {
         instance = this;
+        modEventBus.addListener(SefNetwork::registerPayloads);
+        modEventBus.addListener(SefNetwork::registerConfigurationTask);
 
         ConfigurationEventHandler.registerReloadable(playerEventHandler);
         ConfigurationEventHandler.registerReloadable(chatHandler);
@@ -109,6 +114,7 @@ public class ServerEssentialsForge {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent ev) {
+        SefNetwork.activateConfiguredState();
         java.nio.file.Path sefDataDirectory = ev.getServer().getServerDirectory()
                 .resolve("serverconfig")
                 .resolve("sef");
@@ -189,6 +195,9 @@ public class ServerEssentialsForge {
         }
         if (ConfigHandler.config.enableTeleportEssentials.get())
             com.enviouse.sef.teleport.TeleportWarmupManager.tick(ev.getServer());
+        if (ev.getServer().getTickCount() % 20 == 0) {
+            com.enviouse.sef.gui.protocol.SefGuiRuntime.tick(ev.getServer());
+        }
     }
 
     @SubscribeEvent
@@ -206,6 +215,9 @@ public class ServerEssentialsForge {
         com.enviouse.sef.player.PlayerStateService.clearAll();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
+        SefGuiServer.clear();
+        com.enviouse.sef.gui.protocol.SefGuiRuntime.clear();
+        SefSessionManager.instance().clear();
         com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(
                 com.enviouse.sef.kernel.policy.WarmupService.CancelReason.FEATURE_DISABLE);
         ExternalModLoadingEvent.stopOptionalIntegrations();

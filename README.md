@@ -2,9 +2,9 @@
 
 SEFPORTED is a server essentials mod for Minecraft 1.21.1 on NeoForge. It provides chat tools, moderation, vanish, announcements, virtual workstations, inventory administration, and other server management features through native Minecraft and NeoForge systems.
 
-The project is the NeoForge 1.21.1 port and active development base for SEF 2. The current mod remains server only. Vanilla clients and clients without SEF can connect because the mod metadata uses `displayTest = "IGNORE_SERVER_VERSION"`.
+The project is the NeoForge 1.21.1 port and active development base for SEF 2. The current mod uses one universal JAR. With enhanced GUIs disabled it remains server only. With enhanced GUIs enabled, compatible clients may install the same JAR for optional screens and private HUD state. Vanilla clients and clients without SEF can still connect because the enhanced protocol is optional and the mod metadata uses `displayTest = "IGNORE_SERVER_VERSION"`.
 
-Enhanced client GUIs described in [sef2.md](sef2.md) are planned and are not implemented yet.
+The Phase 9 enhanced GUI pilot is implemented. It covers the dashboard, homes, warps, teleport requests, help, staff overview, a vanish safe player picker, identity projection, private HUD primitives, and a static Fancy Tags transport prototype. Universal GUI coverage remains Phase 10 work.
 
 ## Current status
 
@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is under active development. Treat builds as test builds until a release is approved.
 
-SEF 2 Phases 1 through 8 have implementation coverage in this branch. Phase 8 adds the native and adapter backed economy, command costs, worth and selling, administrative account controls, import once migration, and server authoritative economy signs. The automated unit, GameTest, build, artifact, and dedicated server gates are recorded in their verification matrices. Public release acceptance still requires the authenticated multiplayer, real optional integration, deliberate failure, client visible, and profiler cases in the phase matrices. Enhanced client GUI and later parity phases remain planned.
+SEF 2 Phases 1 through 9 have implementation coverage in this branch. Phase 8 adds the native and adapter backed economy, command costs, worth and selling, administrative account controls, import once migration, and server authoritative economy signs. Phase 9 adds the optional client handshake, server authoritative GUI sessions, the pilot screen set, private HUD deltas, projected nicknames, reminder preferences, and the static Fancy Tags prototype. The automated unit, GameTest, build, artifact, dedicated server, and Phase 9 client gates are recorded in their verification matrices. Public release acceptance still requires the complete mixed-client, real optional integration, deliberate failure, and profiler cases in the phase matrices. Universal GUI and later parity phases remain planned.
 
 ## Current features
 
@@ -66,6 +66,7 @@ The current implementation includes:
 39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
 40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces configurable minimum and maximum nonzero levels from 1 through 255 and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
 41. Integer minor-unit economy storage with idempotent ledger mutations, crash-recoverable cost reservations, cached balance ranking, exact payment confirmation, account freezes, component-safe worth and sales, external provider ownership, import-once backup and reports, configurable fixed and scaled command costs, and all twelve strict vanilla economy sign types. Sign creation, use, ownership bypass, and management are separately permissioned and audited.
+42. Optional enhanced client capability negotiation with versioned sessions, typed bounded payloads, replay protection, permission invalidation, command fallback, configurable reminders, a vanilla styled pilot dashboard, player and staff panels, private HUD deltas, viewer-specific nickname projection, and a content-addressed static Fancy Tags prototype.
 
 The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
 

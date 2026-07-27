@@ -4,6 +4,9 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.IReloadable;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.gui.protocol.SefGuiRuntime;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.tab.TabPlaceholderRenderer;
 import com.enviouse.sef.tab.TabAnimationManager;
 import com.enviouse.sef.utils.SEFUtilities;
@@ -88,6 +91,10 @@ public class PlayerEventHandler implements IReloadable {
 		            KernelServices.warmups().clear(sp.getUUID());
 		            KernelServices.confirmations().revokeActor(sp.getUUID());
 		            KernelServices.observations().clear(sp.getUUID());
+		            SefGuiRuntime.departing(sp);
+		            SefGuiServer.logout(sp.getUUID());
+		            SefGuiServer.untrackPlayer(sp);
+		            SefSessionManager.instance().logout(sp.getUUID());
 		            TeleportLifecycleEvents.handleLogout(sp);
 		        }
     }
@@ -99,6 +106,12 @@ public class PlayerEventHandler implements IReloadable {
 		            KernelServices.profiles().rememberDeferred(
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
+		            SefGuiServer.trackPlayer(sp);
+		            SefSessionManager.instance().bind(sp).ifPresent(session -> {
+		                SefGuiServer.sendTagManifest(sp);
+		            });
+		            SefGuiRuntime.login(sp);
+		            SefGuiRuntime.refreshIdentityProjections(sp.server);
 		            TeleportLifecycleEvents.handleLogin(sp, firstJoin);
 		            if (ConfigHandler.config.enableSocialEssentials.get()
 		                    && ConfigHandler.config.enableMail.get()) {

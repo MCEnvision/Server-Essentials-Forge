@@ -14,7 +14,7 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 8 have implementation coverage in the current branch. The automated unit, GameTest, build, artifact, and dedicated-server gates for the implemented phases are recorded in the phase verification matrices. Release verification is not complete. Authenticated multiplayer, packet-visible behavior, live optional-provider mutation, deliberate filesystem and shutdown failures, vanilla-client compatibility, and profiler cases in the matrices remain required before approval. Enhanced GUI networking and later roadmap families remain planned.
+SEF 2 Phases 1 through 9 have implementation coverage in the current branch. The automated unit, GameTest, build, artifact, dedicated-server, and Phase 9 client gates are recorded in the phase verification matrices. Release verification is not complete. The full mixed-client matrix, live optional-provider mutation, deliberate filesystem and shutdown failures, and profiler cases remain required before approval. Universal GUI coverage and later roadmap families remain planned.
 
 ## 2. Platform and toolchain
 
@@ -34,7 +34,7 @@ The project currently pins:
 
 The mod id is `sef`. Preserve it because configuration paths, permission nodes, mixin identifiers, and existing server data depend on that namespace.
 
-The current artifact is server only. Common initialization must never reference `net.minecraft.client` classes. Optional enhanced clients and GUI networking are roadmap work.
+The artifact is a universal JAR. With `gui.enabled = false`, it behaves as a server only mod and registers no enhanced payloads. With `gui.enabled = true`, compatible clients may install the same JAR and negotiate optional screens, HUD state, identity projection, and the static Fancy Tags prototype. Vanilla and non-SEF clients remain command fallback clients. Common initialization must never reference `net.minecraft.client` classes.
 
 ## 3. Initialization and lifecycle
 
@@ -730,6 +730,76 @@ Required Phase 1 integration verification includes:
 
 The headless dedicated startup matrix has passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every run reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. These results prove optional dependency isolation and startup compatibility only. Authenticated LuckPerms refresh and metadata behavior, FTB nickname ownership mutations, and Curios inventory interaction remain manual release gates recorded in `docs/PHASE_1_MANUAL_TESTS.md`.
 
+### 14.1 Optional enhanced client protocol
+
+`ConfigHandler.config.guiEnabled` selects the startup mode. This option is restart required because payload registration occurs during NeoForge network registration.
+
+When disabled:
+
+1. SEF does not register its enhanced configuration or play payloads.
+2. No `net.minecraft.client` class is referenced from common startup.
+3. Every implemented action remains available through its typed command route.
+4. Warmup state continues to use the server owned action bar fallback.
+
+When enabled:
+
+1. The server registers an optional configuration phase hello and acknowledgement pair.
+2. A compatible SEF client validates the protocol major, echoes the negotiation identifier and nonce, and intersects its supported feature mask with the server mask.
+3. A player login binds an accepted negotiation to a new random session identifier.
+4. The server recomputes authorization and effective features from current permissions.
+5. Client requests carry the session identifier and a strictly increasing sequence.
+6. Panel snapshots carry a server revision. Controls bind to random or stable UUID identifiers, domain revisions, expiry, the target UUID, and a server side predicate.
+7. The server repeats session, feature, permission, policy, target visibility, target revision, and control revision checks before mutation.
+8. Logout, server stop, permission loss, feature loss, and server switch clear client and server session state.
+
+Protocol feature bits currently cover the dashboard, homes, warps, teleport requests, help and diagnostics, staff overview, HUD, pause button, static Fancy Tags prototype, and projected identity. A major mismatch produces command fallback. Unknown minor features are removed by mask intersection.
+
+The Phase 9 payload limits include:
+
+1. 100 panel entries.
+2. 16 HUD tiles.
+3. 256 projected identities.
+4. 8,192 encoded bytes per projected display component.
+5. 1,048,576 bytes per static tag object.
+6. Bounded panel ids, control ids, titles, subtitles, icon ids, queries, hashes, and tag labels.
+7. A configurable per-session panel request rate.
+
+The client receives only presentation records. It never receives a permission grant, unrestricted command text, filesystem path, raw log record, hidden target, or authoritative mutable state.
+
+### 14.2 GUI pilot
+
+`SefGuiServer` owns pilot panel composition and every open panel session. The dashboard links only to panels allowed by the current session and domain permission. Homes, warps, teleport requests, help records, staff diagnostics, and player targets are paginated on the server. Player targets are filtered per viewer through vanish rules before they are placed in a snapshot.
+
+`SefPanelScreen` is client only. It provides the Phase 9 dashboard, list, detail, form, picker, confirmation, and progress views with vanilla widgets, item icons, keyboard focus, narration summaries, search, refresh, paging, and resize initialization. The pause screen button is added only while the current session has the pause capability. The configurable keybind is unbound by default.
+
+HUD updates are server composed and delta based. Current tiles cover vanish, social spy, command spy, AFK, flight, god mode, and teleport warmup state. Losing authorization or the negotiated HUD feature clears retained client tiles.
+
+Projected identity records are viewer specific and do not alter the authenticated `GameProfile`, UUID, signed chat identity, or command source. The server refreshes projections after join, leave, nickname mutation, LuckPerms recalculation, and vanish mutation. Vanished subjects are absent for unauthorized viewers.
+
+The static Fancy Tags pilot sends a content-addressed manifest and transfers bytes only after an authorized request. The client verifies the SHA-256 hash, validates the PNG signature and first IHDR dimensions before native decode, publishes cache files atomically, registers textures on the render thread, reuses a verified cache hit, and deletes runtime texture state on server switch. The pilot object is not the Phase 12 authoring and publication system.
+
+GUI reminder preferences are versioned persistent records. Operators configure the audience, login delay, repeat frequency, reminder revision, and message. A player can dismiss the current revision through `/sef client reminder dismiss`.
+
+Development runs support isolated client directories and quick play:
+
+```bash
+./gradlew runClient \
+  -PsefClientGameDirectory=/tmp/sef-client \
+  -PsefClientQuickPlayServer=127.0.0.1:25565 \
+  -PsefClientUsername=EnhancedClient
+```
+
+The non-SEF NeoForge client fixture excludes the development mod:
+
+```bash
+./gradlew runFallbackClient \
+  -PsefFallbackClientGameDirectory=/tmp/sef-fallback-client \
+  -PsefFallbackClientQuickPlayServer=127.0.0.1:25565 \
+  -PsefFallbackClientUsername=FallbackClient
+```
+
+See `docs/PHASE_9_TESTS.md` for the implementation verification record.
+
 ## 15. Mixins and access transformation
 
 Vanish relies on narrow mixins declared in `src/main/resources/sef.mixins.json`. They modify player list, entity tracking, chat, sound, combat, advancements, status response, and related visibility behavior.
@@ -1040,4 +1110,4 @@ Before an approved release:
 
 ## 22. Roadmap
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 8 have implementation coverage, but their applicable authenticated multiplayer, player driven, packet visible, shutdown race, registry fixture, external-adapter, and profiler release gates remain open. Phase 9 is next and covers the optional client protocol and GUI pilot. Fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.
+[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 9 have implementation coverage, but the remaining mixed-client, player driven, packet visible, shutdown race, registry fixture, external-adapter, and profiler release gates remain open. Phase 10 is next and covers universal GUI coverage. Fake message, sudo, disguise, alias publication, bundle execution, panel editors, and broader EssentialsX parity remain planned for their assigned later phases.

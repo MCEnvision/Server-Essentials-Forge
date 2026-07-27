@@ -4,6 +4,11 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.gui.protocol.SefGuiRuntime;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.SefNetwork;
+import com.enviouse.sef.gui.protocol.SefProtocol;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.ShortcutRegistry;
 import com.enviouse.sef.permissions.PermissionService;
@@ -55,6 +60,29 @@ public final class KernelCommands {
                         "sef:core.doctor",
                         Map.of(),
                         () -> doctor(context.getSource()))));
+        root.then(Commands.literal("dashboard")
+                .requires(source -> source.getPlayer() != null
+                        && PermissionService.has(source, PermissionsHandler.kernelGui))
+                .executes(context -> KernelCommandExecutor.execute(
+                        context.getSource(),
+                        "sef:gui.dashboard.open",
+                        Map.of(),
+                        () -> dashboard(context.getSource()))));
+        root.then(Commands.literal("client")
+                .then(Commands.literal("status")
+                        .executes(context -> KernelCommandExecutor.execute(
+                                context.getSource(),
+                                "sef:gui.client.status",
+                                Map.of(),
+                                () -> clientStatus(context.getSource()))))
+                .then(Commands.literal("reminder")
+                        .then(Commands.literal("dismiss")
+                                .requires(source -> source.getPlayer() != null)
+                                .executes(context -> KernelCommandExecutor.execute(
+                                        context.getSource(),
+                                        "sef:gui.reminder.dismiss",
+                                        Map.of(),
+                                        () -> dismissReminder(context.getSource()))))));
     }
 
     private static int commands(CommandSourceStack source, int requestedPage) {
@@ -148,6 +176,10 @@ public final class KernelCommands {
                         && securityAudit.failures() == 0L && securityAudit.dropped() == 0L
                         ? "&ahealthy"
                         : "&crequires attention")), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Enhanced GUI protocol: &f" + (SefNetwork.enhancedGuiActive() ? "active" : "disabled")
+                        + " &8| &7sessions: &f" + SefSessionManager.instance().activeCount()
+                        + " &8| &7pending: &f" + SefSessionManager.instance().pendingCount()), false);
         for (var repository : repositories) {
             source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                     "&7" + repository.id() + " &8| &f" + repository.state().name().toLowerCase(java.util.Locale.ROOT)
@@ -178,6 +210,48 @@ public final class KernelCommands {
                 && !storage.recoveryMode();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 healthy ? "&aNo kernel errors detected." : "&eKernel requires operator attention."), false);
+        return 1;
+    }
+
+    private static int clientStatus(CommandSourceStack source) {
+        var player = source.getPlayer();
+        String connection = player == null
+                ? "not applicable"
+                : SefSessionManager.instance().session(player)
+                        .map(session -> session.authorized()
+                                ? "enhanced, " + Long.bitCount(session.features()) + " features"
+                                : "connected, unauthorized")
+                        .orElse("command fallback");
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&6SEF client protocol &7version &f" + SefProtocol.MAJOR + "." + SefProtocol.MINOR), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Server mode: &f" + (SefNetwork.enhancedGuiActive() ? "enhanced optional" : "command only")
+                        + " &8| &7connection: &f" + connection), false);
+        return 1;
+    }
+
+    private static int dashboard(CommandSourceStack source) {
+        if (SefGuiServer.openDashboard(source.getPlayer())) {
+            return 1;
+        }
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&eThe enhanced dashboard is unavailable for this connection. "
+                        + "Use &f/sef commands&e and the normal command routes instead."), false);
+        return 1;
+    }
+
+    private static int dismissReminder(CommandSourceStack source) {
+        var player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cOnly players can dismiss this reminder."));
+            return 0;
+        }
+        if (!SefGuiRuntime.dismissReminder(player)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThe reminder preference could not be saved."));
+            return 0;
+        }
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&aThe optional client reminder is dismissed for its current revision."), false);
         return 1;
     }
 
