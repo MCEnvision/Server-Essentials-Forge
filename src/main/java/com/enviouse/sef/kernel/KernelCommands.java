@@ -17,6 +17,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
 import java.util.List;
@@ -71,6 +72,34 @@ public final class KernelCommands {
                         "sef:gui.dashboard.open",
                         Map.of(),
                         () -> dashboard(context.getSource()))));
+        root.then(Commands.literal("cooldown")
+                .then(Commands.literal("keys")
+                        .requires(source -> has(source, "sef.commands.cooldown.keys"))
+                        .executes(context -> cooldownKeys(context.getSource(), 1))
+                        .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                                .executes(context -> cooldownKeys(
+                                        context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "page")))))
+                .then(Commands.literal("explain")
+                        .requires(source -> has(source, "sef.commands.cooldown.explain"))
+                        .then(Commands.argument("player", StringArgumentType.word())
+                                .suggests((context, builder) -> {
+                                    context.getSource().getServer().getPlayerList().getPlayers()
+                                            .forEach(player -> builder.suggest(player.getGameProfile().getName()));
+                                    return builder.buildFuture();
+                                })
+                                .then(Commands.argument("action", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            KernelServices.cooldownDurations().definitions().forEach(definition -> {
+                                                builder.suggest(definition.actionId());
+                                                builder.suggest(definition.permissionKey());
+                                            });
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(context -> cooldownExplain(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "player"),
+                                                StringArgumentType.getString(context, "action")))))));
         root.then(Commands.literal("client")
                 .then(Commands.literal("status")
                         .executes(context -> KernelCommandExecutor.execute(
@@ -134,6 +163,64 @@ public final class KernelCommands {
                                         .executes(context -> updatePageSize(
                                                 context.getSource(),
                                                 IntegerArgumentType.getInteger(context, "value")))))));
+    }
+
+    private static int cooldownKeys(CommandSourceStack source, int requestedPage) {
+        var definitions = KernelServices.cooldownDurations().definitions();
+        int pages = Math.max(1, (definitions.size() + PAGE_SIZE - 1) / PAGE_SIZE);
+        int page = Math.min(requestedPage, pages);
+        int start = (page - 1) * PAGE_SIZE;
+        int end = Math.min(definitions.size(), start + PAGE_SIZE);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&6Cooldown keys &7page &f" + page + "&7/&f" + pages), false);
+        for (int index = start; index < end; index++) {
+            var definition = definitions.get(index);
+            source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                    "&e" + definition.actionId()
+                            + " &8| &fsef.cooldown." + definition.permissionKey() + ".<seconds>"
+                            + " &8| &7default " + definition.internalDefault().toSeconds() + " seconds"), false);
+        }
+        return 1;
+    }
+
+    private static int cooldownExplain(CommandSourceStack source, String playerInput, String actionInput) {
+        var identity = KernelServices.identities().resolve(playerInput, source.getPlayer());
+        if (!identity.successful() || identity.value().playerId() == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player identity is unavailable."));
+            return 0;
+        }
+        String action = KernelServices.cooldownDurations().definitions().stream()
+                .filter(definition -> definition.actionId().equalsIgnoreCase(actionInput)
+                        || definition.permissionKey().equalsIgnoreCase(actionInput))
+                .map(com.enviouse.sef.permissions.PermissionCooldownResolver.Definition::actionId)
+                .findFirst()
+                .orElse("");
+        if (action.isEmpty()) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat cooldown action is unknown."));
+            return 0;
+        }
+        var resolution = KernelServices.cooldownDurations().explain(identity.value().playerId(), action);
+        var persisted = KernelServices.cooldowns().inspect(identity.value().playerId(), action);
+        ServerPlayer target = source.getServer().getPlayerList().getPlayer(identity.value().playerId());
+        boolean bypass = target != null
+                && KernelServices.cooldownBypass(target.createCommandSourceStack(), action);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&6Cooldown explanation &8| &f" + identity.value().authenticatedUsername()), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Action: &f" + resolution.actionId()
+                        + " &8| &7key: &f" + resolution.permissionKey()
+                        + " &8| &7seconds: &f" + resolution.duration().toSeconds()), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Provider: &f" + resolution.provider()
+                        + " &8| &7node: &f" + (resolution.winningNode().isBlank()
+                        ? "internal default"
+                        : resolution.winningNode())
+                        + " &8| &7fallback: &f" + resolution.fallback()
+                        + " &8| &7bypass: &f" + (target == null ? "offline unknown" : bypass)), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Persisted remaining: &f" + persisted.remainingSeconds()
+                        + " seconds &8| &7resolver revision: &f" + resolution.revision()), false);
+        return 1;
     }
 
     private static int commands(CommandSourceStack source, int requestedPage) {

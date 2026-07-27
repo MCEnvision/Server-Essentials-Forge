@@ -219,6 +219,12 @@ public final class SefSessionManager {
         if (!PermissionService.has(player, PermissionsHandler.kernelEditor)) {
             result &= ~SefProtocol.Feature.PANEL_EDITOR.flag();
         }
+        var localOverlayPermission = PermissionsHandler.phasePermission("tags.local.overlay.connected");
+        if (!ConfigHandler.config.fancyTagsAllowLocalOverlaysConnected.get()
+                || localOverlayPermission == null
+                || !PermissionService.has(player, localOverlayPermission)) {
+            result &= ~SefProtocol.Feature.FANCY_TAGS_LOCAL_OVERLAY.flag();
+        }
         return result;
     }
 

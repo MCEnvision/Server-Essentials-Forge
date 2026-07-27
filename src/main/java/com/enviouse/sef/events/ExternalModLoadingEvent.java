@@ -9,6 +9,8 @@ import com.enviouse.sef.utils.moddeps.LuckPermsProvider;
 import com.enviouse.sef.permissions.PermissionRefreshBridge;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.utils.moddeps.LuckPermsQuotaProvider;
+import com.enviouse.sef.utils.moddeps.LuckPermsFancyTagGroupProvider;
+import com.enviouse.sef.fancytags.FancyTagGroupResolver;
 
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,6 +24,7 @@ public class ExternalModLoadingEvent {
 		permissionRefreshCleanup.run();
 		permissionRefreshCleanup = () -> {};
 		KernelServices.resetQuotaProviders();
+		FancyTagGroupResolver.clear();
 	}
 
 	@SubscribeEvent public void onServerStarted(ServerStartedEvent e) {
@@ -61,7 +64,8 @@ public class ExternalModLoadingEvent {
 				try {
 						net.luckperms.api.LuckPerms api = net.luckperms.api.LuckPermsProvider.get();
 						ServerEssentialsForge.instance.metadataProvider = new LuckPermsProvider();
-						KernelServices.installQuotaProvider(new LuckPermsQuotaProvider(api));
+							KernelServices.installQuotaProvider(new LuckPermsQuotaProvider(api));
+							FancyTagGroupResolver.install(new LuckPermsFancyTagGroupProvider(api));
 						PermissionRefreshBridge.start(api);
 						permissionRefreshCleanup = PermissionRefreshBridge::stop;
 					ServerEssentialsForge.LOGGER.info("LuckPerms API found and integrated successfully!");

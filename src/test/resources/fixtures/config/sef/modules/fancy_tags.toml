@@ -1,0 +1,82 @@
+# Controls fancy tags behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "fancy_tags"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Allow clearly local only enhanced client tag overlays while connected `true` or `false` Apply class restart_required.
+fancy_tags_allow_local_overlays_connected = false
+# Allow negotiated enhanced clients to receive authorized static artwork `true` or `false` Apply class restart_required.
+fancy_tags_enhanced_rendering = true
+# Required stable file interval before an inbox candidate is reviewable 0 through 300 Apply class restart_required.
+fancy_tags_import_settle_seconds = 2
+# Maximum tag assignments 1 through 65536 Apply class restart_required.
+fancy_tags_maximum_assignments = 16384
+# Maximum enabled assignments for one target 1 through 1024 Apply class restart_required.
+fancy_tags_maximum_assignments_per_target = 32
+# Maximum tag categories 1 through 512 Apply class restart_required.
+fancy_tags_maximum_categories = 128
+# Maximum decoded rgba bytes 4096 through 4194304 Apply class restart_required.
+fancy_tags_maximum_decoded_bytes = 1048576
+# Maximum canonical encoded image bytes 1024 through 1048576 Apply class restart_required.
+fancy_tags_maximum_encoded_bytes = 262144
+# Maximum decoded image height 1 through 256 Apply class restart_required.
+fancy_tags_maximum_height = 64
+# Maximum bounded import inbox candidates 1 through 512 Apply class restart_required.
+fancy_tags_maximum_import_candidates = 128
+# Maximum decoded image pixels 1 through 65536 Apply class restart_required.
+fancy_tags_maximum_pixels = 16384
+# Maximum retained artwork revisions per tag 1 through 100 Apply class restart_required.
+fancy_tags_maximum_revisions_per_tag = 20
+# Maximum content addressed object store bytes 1048576 through 8589934592 Apply class restart_required.
+fancy_tags_maximum_store_bytes = 1073741824
+# Maximum tag definitions 1 through 4096 Apply class restart_required.
+fancy_tags_maximum_tags = 1024
+# Maximum decoded image width 1 through 512 Apply class restart_required.
+fancy_tags_maximum_width = 256
+# Enable the Phase 9 bounded static Fancy Tags transport prototype `true` or `false` Apply class restart_required.
+fancy_tags_prototype_enabled = true
+# Maximum bytes accepted by the prototype tag transfer 1024 through 1048576 Apply class restart_required.
+fancy_tags_prototype_maximum_bytes = 262144
+# Allow the fixed owned import inbox workflow `true` or `false` Apply class restart_required.
+fancy_tags_server_inbox_enabled = false

@@ -2,19 +2,19 @@
 
 ## 1. Scope and source of truth
 
-SEFPORTED is the NeoForge 1.21.1 server essentials implementation that will evolve into SEF 2. Current source and tests define shipped behavior. [sef2.md](sef2.md) defines unfinished product requirements, architecture decisions, security findings, command plans, GUI plans, and phase acceptance criteria.
+SEFPORTED is the NeoForge 1.21.1 implementation of SEF 2. Current source and tests define release-candidate behavior. [sef2.md](sef2.md) defines the complete product requirements, architecture decisions, security findings, command plans, GUI plans, and phase acceptance criteria.
 
 Use this source order when requirements appear to conflict:
 
 1. The current user approved request.
-2. `sef2.md` for planned behavior and unfinished work.
+2. `sef2.md` for product behavior and architecture.
 3. `gradle.properties`, `build.gradle`, and generated mod metadata for pinned platform versions.
 4. Current implementation and tests for shipped behavior.
 5. This document and `README.md`.
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 1 through 9 have implementation coverage in the current branch. The automated unit, GameTest, build, artifact, dedicated-server, and Phase 9 client gates are recorded in the phase verification matrices. Release verification is not complete. The full mixed-client matrix, live optional-provider mutation, deliberate filesystem and shutdown failures, and profiler cases remain required before approval. Universal GUI coverage and later roadmap families remain planned.
+SEF 2 Phases 0 through 14, global verification, and final product acceptance are complete on the current phase branch. The authoritative status and evidence are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
 
 ## 2. Platform and toolchain
 
@@ -34,7 +34,7 @@ The project currently pins:
 
 The mod id is `sef`. Preserve it because configuration paths, permission nodes, mixin identifiers, and existing server data depend on that namespace.
 
-The artifact is a universal JAR. With `gui.enabled = false`, it behaves as a server only mod and registers no enhanced payloads. With `gui.enabled = true`, compatible clients may install the same JAR and negotiate optional screens, HUD state, identity projection, and the static Fancy Tags prototype. Vanilla and non-SEF clients remain command fallback clients. Common initialization must never reference `net.minecraft.client` classes.
+The artifact is a universal JAR. With `gui.enabled = false`, it behaves as a server only mod and registers no enhanced payloads. With `gui.enabled = true`, compatible clients may install the same JAR and negotiate optional screens, HUD state, identity projection, Fancy Tags, disguise, typed configuration, and server-control workflows. Vanilla and non-SEF clients remain command fallback clients. Common initialization must never reference `net.minecraft.client` classes.
 
 ## 3. Initialization and lifecycle
 
@@ -49,11 +49,11 @@ Construction performs these operations:
 5. Registers stateful event handler instances on `NeoForge.EVENT_BUS`.
 6. Registers vanish commands and vanish permission nodes.
 
-Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens the location history, cooldown, teleport, social, command-spy, moderation, and kit repositories under `<server>/serverconfig/sef`, loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It creates the optional file-log worker and `logs/sef` tree only when file logging is enabled. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
+Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens 26 managed repository domains under `<server>/serverconfig/sef`, including location history, cooldowns, teleports, social state, moderation, kits, economy, aliases, bundles, profiles, GUI preferences, Fancy Tags, disguise, recovery, server controls, community state, approvals, access leases, administrative locks, and escrow. It loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It creates the optional file-log worker and `logs/sef` tree only when file logging is enabled. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
 
-Server ticks update announcements, banned item scans, persistent moderation expiry, jail enforcement, long-lived player-state authorization, countdown state, teleport expiry, teleport warmups, tab presentation, and scheduled reminders when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Moderation release teleports are validated through the shared safe-teleport service. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Managed repository snapshots are captured on the server thread and written asynchronously. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
+Server ticks update announcements, banned item scans, persistent moderation expiry, jail enforcement, long-lived player-state authorization, countdown state, teleport expiry, teleport warmups, tab presentation, reminders, server-control schedules, maintenance, guardrails, cleanup, world policy, admission state, and escrow expiry when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Moderation release teleports are validated through the shared safe-teleport service. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Managed repository snapshots are captured on the server thread and written asynchronously. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
 
-Server shutdown drains mute, banned item, alternate account, player profile, location history, persistent cooldown, teleport, social, command-spy, moderation, and kit writers with bounded waits. It then closes the optional file sink with its configured bounded drain, writes an incomplete-session marker when necessary, stops optional integrations, clears warmups and confirmations, and clears runtime cooldown, observation, player-state, and vanish state. Coordinated repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
+Server shutdown drains every managed repository and the mute, banned item, alternate account, and player profile writers with bounded waits. It then closes Fancy Tags transfers and client sessions, closes the optional file sink with its configured bounded drain, writes an incomplete-session marker when necessary, stops optional integrations, clears warmups and confirmations, and clears runtime cooldown, observation, player-state, and vanish state. Coordinated repository writes run on a dedicated shutdown worker. A timed out worker blocks repository reuse by another world until it ends. Shutdown flush failures are logged rather than silently treated as successful.
 
 ## 4. Package map
 
@@ -83,8 +83,15 @@ Important package ownership:
 22. `com.enviouse.sef.kits` owns versioned kit definitions, item serialization, claim policy, cooldown history, per-kit permissions, validation, and administrative commands.
 23. `com.enviouse.sef.inventory` owns self and target inventory utilities, live ender-chest authorization, transient disposal, and safe item editing.
 24. `com.enviouse.sef.player` owns runtime player utility state, authorization reconciliation, personal time and weather, experience, movement, and gamemode shortcuts.
+25. `com.enviouse.sef.gui` and `com.enviouse.sef.gui.protocol` own the universal descriptor catalog, typed workflows, sessions, bounded payloads, server validation, client screens, and private HUD projection.
+26. `com.enviouse.sef.fancytags` owns tag definitions, assignments, secure import, content-addressed objects, publication recovery, transfers, cleanup, and server authority. Client rendering and local projects stay under `com.enviouse.sef.gui.client`.
+27. `com.enviouse.sef.disguise` owns disguise definitions, assignments, traits, abilities, proxy identity, target policy, expiry, persistence, and projection.
+28. `com.enviouse.sef.control` owns the 70 server-control schemas, persistent records, community workflows, approvals, access leases, administrative locks, runtime enforcement, command fallback, and GUI bindings.
+29. `com.enviouse.sef.escrow` owns parcels, lost and found, direct trades, auctions, watches, blocks, claims, settlement, expiry, and recovery.
+30. `com.enviouse.sef.recovery` owns grave and recovery migration state.
+31. `com.enviouse.sef.config.modules` owns the 62 typed module schemas, transactional publication, migration, backup, rollback, watcher, command editor, and generated documentation model.
 
-Logical server state is authoritative. The current project has no custom client payload protocol.
+Logical server state is authoritative. The optional enhanced protocol carries bounded presentation and typed requests only after capability negotiation. Vanilla and non-SEF clients retain complete command access.
 
 ## 5. Command registration
 
@@ -126,7 +133,7 @@ The current top level command families include:
 30. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma`, with explicit target support only where the matching other-player permission is granted.
 31. `/cartographytable`, `/grindstone`, `/loom`, `/smithingtable`, `/stonecutter`, `/workbench`, and `/wb`, plus their canonical `/sef workstation` routes.
 
-`/sudo` is intentionally not registered in Phase 1. An existing `modules.sudo = true` value produces a startup warning and does not expose an execution route.
+`/sudo`, `/run`, and `/silent` are registered through the hardened Phase 11 administrative execution service. Their dangerous actions remain disabled or denied by default and do not call the retained legacy sudo executor.
 
 Aliases must reach the same executor, permission, module toggle, and cooldown policy as their canonical command.
 
@@ -250,9 +257,9 @@ Every currently executable `/sef` catalog action enters the shared execution pip
 
 `CostService.Disabled` is the active provider, so current actions cannot charge an economy. Warmup and confirmation services are active contracts, but current action policies use zero warmup and no confirmation. Rejection after cooldown acquisition clears that acquisition, and rejection after a cost reservation refunds it. Permission provider refresh invalidates quota decisions, active warmups, and confirmation tokens for the affected actor before refreshing vanish and Brigadier command state. Aliases such as `/c`, `/av`, `/et`, and `/set` resolve to the same canonical cooldown id as their long form.
 
-Alias publication is not exposed as an operator command yet. The Phase 2 compiler and revision registry reject unknown targets, recursive ids, ambiguous roots, unsupported adapters, weaker source or access policy, weaker audit policy, missing additional capabilities, stale revisions, and definition limit overflow. Publication resolves ownership across canonical catalog roots, configured shortcuts, and roots captured from the Brigadier dispatcher, then applies the definition conflict mode. A custom alias cannot replace a SEF catalog or shortcut root. `PREFER_SEF` can claim an external root, while canonical only, prefer existing, fail, and restart required collisions remain unpublished. Bundle execution is also not exposed yet. Its compiler rejects raw command steps, unknown action or bundle targets, cycles, excessive nesting, excessive steps, excessive target fan out, and expansion beyond configured bounds. Operator commands and GUI editors for these contracts remain Phase 11 work.
+Alias publication and bundle execution are exposed through separately permissioned Phase 11 lifecycle commands. The compiler and revision registry reject unknown targets, recursive ids, ambiguous roots, unsupported adapters, weaker source or access policy, weaker audit policy, missing additional capabilities, stale revisions, and definition limit overflow. Publication resolves ownership across canonical catalog roots, configured shortcuts, and roots captured from the Brigadier dispatcher, then applies the definition conflict mode. A custom alias cannot replace a SEF catalog or shortcut root. `PREFER_SEF` can claim an external root, while canonical only, prefer existing, fail, and restart required collisions remain unpublished. Bundle compilation rejects raw command steps, unknown action or bundle targets, cycles, excessive nesting, excessive steps, excessive target fan out, and expansion beyond configured bounds.
 
-The wrapper contract separates initiator, effective source, root policy, scoped output, silence capability, correlation id, recursion depth, target list, and normalized parameters. It rejects recursive wrapper roots and nested wrapper origins before any dispatcher execution. Phase 2 does not register `/run`, `/silent`, or `/sudo`.
+The wrapper contract separates initiator, effective source, root policy, scoped output, silence capability, correlation id, recursion depth, target list, and normalized parameters. It rejects recursive wrapper roots and nested wrapper origins before dispatcher execution. Phase 11 registers `/run`, `/silent`, and `/sudo` on this contract.
 
 Quota resolution uses this precedence:
 
@@ -346,22 +353,22 @@ Phase 7 inventory mutations are server authoritative and transactional where a p
 6. `/i` accepts an item id with or without the `minecraft` namespace, is strictly self only, applies `itemGiveMaximumAmount`, checks registry resolution and inventory insertion, and rolls back a failed grant.
 7. Gamemode shortcuts and parsed `/gm` routes separate self and other-player permissions. An operator with only target permissions can reach target grammar without receiving self authority. Target mutations use the same eligible-target policy as other administrative actions.
 8. Long-lived fly, god, personal time, and personal weather state is reconciled against current permissions after refreshes and during bounded event checks.
-9. Virtual workstations use vanilla menu types, so the current implementation remains server only. Canonical and shortcut routes share one action id, permission, feature gate, cooldown identity, and audit policy.
-10. Super enchanting snapshots the registry and configuration policy at open time, validates again before mutation, enforces `1 <= minimum <= maximum <= 255`, permits zero only as removal, and refuses missing enchantments, invalid targets, unsafe policy changes, invalid bounds, or stale menus.
+9. Virtual workstations use vanilla menu types for command fallback. Enhanced clients may use the matching typed workflow. Canonical, shortcut, command, panel, and GUI routes share one action id, permission, feature gate, cooldown identity, and audit policy.
+10. Super enchanting snapshots the registry and configuration policy at open time, validates again before mutation, applies distinct unsafe-level, arbitrary-item, incompatible, remove, clear, self, other-player, and bulk permissions, and refuses missing enchantments, overflow, invalid targets, unsafe policy changes, invalid bounds, or stale menus. Level `1000` storage and synchronization are covered by GameTests.
 
-## 7. Sudo stabilization boundary
+## 7. Sudo execution boundary
 
-Phase 1 does not register `/sudo`. The old implementation class and configuration keys remain only to preserve source and configuration compatibility while the later secured sudo phase is built.
+The hardened Phase 11 implementation owns `/sudo`. The retained legacy `SudoCommand` class is not registered.
 
-Operational behavior:
+Ordinary `respect` mode and compatibility boolean `false` parse, suggest, and execute with the online target’s real current command source. They cannot borrow the issuer’s operator level or permissions. Target suggestions apply vanish visibility, hierarchy, and exemption policy.
 
-1. No Brigadier command node is registered.
-2. No alias, panel, announcement, or indirect SEF route can reach the old executor.
-3. `modules.sudo = true` produces a warning explaining that the value is ignored.
-4. Existing sudo permission nodes and allow or deny configuration values are retained for migration. They do not enable execution.
-5. A dedicated server smoke test verifies that `sudo say should_not_run` returns an unknown command.
+Delegated mode and compatibility boolean `true` are disabled by default. The issuer needs the normal sudo permission plus separate ignore-permission, delegation, preview, confirmation, root, and profile permissions. Self-delegation, target consent, target lock, hierarchy, ordinary exemption, and delegated exemption remain independent checks.
 
-Do not expose the legacy `SudoCommand` class from new code. The later sudo phase must implement the split operation permissions, hierarchy, exemptions, confirmation, rate limits, source policy, structured audit, and Brigadier projection specified in `sef2.md`.
+The only built-in published delegation profile is revision `1` of `effect`. It permits vanilla permission level `2` only for `effect`, and its bounded analyzer permits `give` or `clear` only when the selector is `@s`, the target UUID, or the exact effective target username. Code-hard-denied roots include operator mutation, shutdown, reload, moderation, permission-provider mutation, wrapper, execution, function, schedule, data, debug, save, and publish roots. Unknown profiles, external checks, aliases, redirects, forks, asynchronous work, nested parsers, broad selectors, and unsupported indirection fail closed.
+
+After preview and confirmation, the server creates one immutable `EphemeralExecutionGrant`. It binds the issuer, effective actor, target session, normalized root and command digest, action, command tree, profile, temporary authority, sudo policy, permission provider, feature, configuration, expiry, confirmation, and audit correlation. The grant is consumed before dispatcher entry, can be used once, is scoped to the executing thread and exact action, rejects nested authority, and is removed in `finally`.
+
+No delegated operation writes operator state, LuckPerms data, NeoForge permission storage, group membership, persistent player data, or a permanent target command tree. Admission, confirmation, dispatch, result, and cleanup have distinct delegated audit events. The issuer and effective actor remain separate fields. `/sudo policy` reports the active bounded profiles and warns when LuckPerms contains a broad wildcard that covers delegated sudo.
 
 ## 8. Command announcement containment
 
@@ -382,7 +389,7 @@ Current controls:
 11. Type specific modification and removal cannot cast a text record to a command record or the reverse.
 12. Dispatch is not audited as success. The server command callback records success or failure, and a dispatch without a synchronous callback is recorded as outcome unknown until a callback arrives.
 
-Future source profiles, hierarchy, and confirmation workflows remain later phase work.
+Reviewed source profiles, hierarchy, exemptions, and revision-bound confirmations are implemented through the shared policy kernel and Phase 11 administrative execution service.
 
 ## 9. Nickname policy
 
@@ -618,11 +625,15 @@ The common `modules.vanish_system` value is the master kill switch. When false, 
 
 NeoForge `defineInRange` validates numeric configuration values such as nickname limits, cooldowns, super enchanting level, scan interval, scan budget, privacy retention, audit retention, audit file size, and tab refresh interval.
 
-Existing TOML entries override changed defaults. Operators must review `modules.sudo`, alternate account collection, banned block scanning, and sensitive feature values after upgrading an existing server. A true sudo value remains ignored in this phase.
+Existing TOML entries override changed defaults. Operators must review the generated `modules/sudo.toml`, alternate account collection, banned block scanning, and sensitive feature values after upgrading an existing server. Delegated sudo remains disabled by default.
 
 Configuration reload publishes a new immutable feature and command policy revision, then invalidates quota decisions. Existing in flight confirmation tokens bind to the policy revision that created them and cannot approve a changed action policy.
 
-The configuration system does not yet have the complete SEF 2 schema version and migration report framework. Phase 3 import outcomes are available in memory through `/sef doctor`.
+The modular configuration registry owns schema version `1`, per-module documentation versions, typed defaults, bounds, apply classes, dependencies, conflicts, privacy classes, and generated TOML. A documentation-version upgrade writes a fixed-path recovery backup before atomically replacing a module file.
+
+`/sef config migrate dryrun` parses the bounded NeoForge legacy document without exposing values and reports exact mappings, retained fields, ignored cooldowns, and validation errors. `/sef config migrate apply <expected_revision>` binds a single-use confirmation to the configuration revision, command-policy revision, and SHA-256 hash of `common.toml`. The service writes all 62 candidates to fixed owned staging, parses them again, validates the complete dependency graph, retains exact common and module backups, verifies that no input changed, publishes through atomic per-file replacements, and writes `config/sef/modules/migration.toml` only after live publication succeeds. A failed publication restores every replaced module. `common.toml` is always retained. Repeating a completed migration is an unchanged success.
+
+The generated [configuration reference](docs/CONFIGURATION_REFERENCE.md) is the exact registry projection. Its drift test covers every module and setting. Run `./gradlew generateProjectReferences` after changing registry metadata.
 
 ## 13. Persistent data
 
@@ -728,7 +739,7 @@ Required Phase 1 integration verification includes:
 4. FTB Essentials with its required dependencies.
 5. All three integration families installed together.
 
-The headless dedicated startup matrix has passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every run reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. These results prove optional dependency isolation and startup compatibility only. Authenticated LuckPerms refresh and metadata behavior, FTB nickname ownership mutations, and Curios inventory interaction remain manual release gates recorded in `docs/PHASE_1_MANUAL_TESTS.md`.
+The dedicated startup matrix passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every run reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. Provider absence, failure, refresh invalidation, finite fallback, metadata parsing, ownership selection, and optional-inventory behavior also have deterministic automated coverage.
 
 ### 14.1 Optional enhanced client protocol
 
@@ -776,7 +787,7 @@ HUD updates are server composed and delta based. Current tiles cover vanish, soc
 
 Projected identity records are viewer specific and do not alter the authenticated `GameProfile`, UUID, signed chat identity, or command source. The server refreshes projections after join, leave, nickname mutation, LuckPerms recalculation, and vanish mutation. Vanished subjects are absent for unauthorized viewers.
 
-The static Fancy Tags pilot sends a content-addressed manifest and transfers bytes only after an authorized request. The client verifies the SHA-256 hash, validates the PNG signature and first IHDR dimensions before native decode, publishes cache files atomically, registers textures on the render thread, reuses a verified cache hit, and deletes runtime texture state on server switch. The pilot object is not the Phase 12 authoring and publication system.
+Fancy Tags sends a viewer-filtered content-addressed manifest and transfers bytes only after an authorized request. The client verifies the SHA-256 hash, validates image structure and dimensions before native decode, publishes cache files atomically, registers textures on the render thread, reuses verified cache hits, and deletes runtime texture state on server switch. The complete authoring system adds secure imports, archive validation, publication journals, assignments, edit leases, local projects, glyph composition, world rendering, bounded caches, and recovery.
 
 GUI reminder preferences are versioned persistent records. Operators configure the audience, login delay, repeat frequency, reminder revision, and message. A player can dismiss the current revision through `/sef client reminder dismiss`.
 
@@ -824,6 +835,7 @@ Linux and macOS:
 
 ```bash
 ./gradlew test
+./gradlew generateProjectReferences
 ./gradlew build
 ./gradlew runServer
 ./gradlew runClient
@@ -835,6 +847,7 @@ Windows:
 
 ```powershell
 gradlew.bat test
+gradlew.bat generateProjectReferences
 gradlew.bat build
 gradlew.bat runServer
 gradlew.bat runClient
@@ -843,6 +856,10 @@ gradlew.bat runData
 ```
 
 There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do not claim those checks ran.
+
+`generateProjectReferences` runs the unit suite in the NeoForge test environment and rewrites the tracked [configuration](docs/CONFIGURATION_REFERENCE.md), [command](docs/COMMAND_REFERENCE.md), and [permission](docs/PERMISSION_REFERENCE.md) references from their runtime registries. Normal unit tests fail if any tracked reference drifts.
+
+`generatePerformanceReport` runs the release metadata workload gates and writes [the measured performance report](docs/PERFORMANCE_REPORT.md). It does not replace live server and client profiling.
 
 The `runServer` task forwards standard input. Use its terminal for `sef doctor`, `sef storage status`, and the literal `stop` command. Signal termination is useful only for an explicitly recorded crash test and does not replace a normal shutdown check.
 
@@ -949,7 +966,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
-Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Phase 6 authenticated moderation, real proxy and provider integration, deliberate filesystem and shutdown failures, MaxLogger coexistence, and profiler behavior remain in [the Phase 6 matrix](docs/PHASE_6_TESTS.md). Phase 7 authenticated inventory transactions, live client menus, real Curios behavior, missing-registry fixtures, player-driven persistence, super-enchant client synchronization, dirty shutdown, and profiler behavior remain in [the Phase 7 matrix](docs/PHASE_7_TESTS.md). Run every applicable matrix before approving a public release.
+The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the final 390-test unit suite, 29 required GameTests, dedicated-server checks, enhanced and fallback client matrix, migration and recovery fixtures, performance budgets, security review, and JAR inspection.
 
 ## 17. Operations and recovery
 
@@ -1052,11 +1069,53 @@ Fake join, leave, chat, rank chat, scene, and scheduled output is sent as unsign
 
 Sudo execution requires an online visible target, hierarchy and exemption approval, target consent, no active lock, an allowlisted non-wrapper root, Brigadier preflight under the effective context, and confirmation. Bypass consent, bypass lock, bypass exemption, and hierarchy bypass are independent denied-by-default capabilities. Sudo chat is also unsigned system presentation.
 
+`/sudo run <player> <respect|delegate> <command>` is canonical. Compatibility forms accept `/sudo <player> <false|true> <command>` only while `compatibility_boolean_syntax` remains enabled. `false` is exactly respect mode. `true` requests one delegated grant. Nested command suggestions are produced by the target dispatcher and filtered by the active sudo root policy. Delegated suggestions additionally require a published root profile and use only that profile’s bounded temporary authority.
+
+Delegated configuration is stored in the generated sudo module document. It controls enablement, compatibility syntax, target consent, self-delegation, the code-bounded vanilla permission ceiling, grant lifetime, confirmation, target notification, unknown external checks, redirects, forks, asynchronous behavior, allowed roots, and denied roots. The code ceiling is permission level `2`, and configuration cannot remove the hard deny list.
+
+Owned module files are materialized under `config/sef/modules`. When a module definition gains settings and its documentation version increases, startup retains a recovery copy under `config/sef/modules/history/<module>/documentation-<old>-to-<new>.bak`, fills new fields from typed defaults, preserves recognized values and bounded unknown fields, then atomically replaces the owned file. A newer documentation version is never downgraded.
+
 `/run` executes through the server command source only after allow and deny policy, Brigadier preflight, root-specific permission, and confirmation. `/silent` has separate actor and server permissions. It suppresses only feedback emitted through the wrapped command source. Security audit, command spy, enabled SEF command files, logger failures, and independent output remain unsuppressible.
 
-The complete automated evidence and remaining manual release matrix are in [docs/PHASE_11_TESTS.md](docs/PHASE_11_TESTS.md).
+The complete Phase 11 evidence is in [docs/PHASE_11_TESTS.md](docs/PHASE_11_TESTS.md).
 
-## 20. Troubleshooting
+## 20. Advanced identity, controls, escrow, and configuration
+
+### 20.1 Fancy Tags
+
+`FancyTagService` owns definition, revision, assignment, visibility, edit lease, and publication policy. `FancyTagObjectStore` owns fixed content-addressed object roots, import inbox settlement, canonical image validation, archive expansion limits, publication journals, backup manifests, restore staging, retention, and garbage collection. Paths are normalized under fixed roots, symbolic links and detectable hard links are rejected, and publication uses atomic replacement.
+
+`FancyTagTransferService` binds transfers to the negotiated player and session. It enforces object and chunk limits, strict chunk order, timeouts, quotas, declared and computed hashes, and disconnect cleanup. The client cache verifies identity again before atomic publication. Decode, texture, glyph, and visible-object budgets are independent. Local projects never grant server assignment or publication authority.
+
+### 20.2 Disguise
+
+`DisguiseService` stores UUID-addressed definitions and assignments with revisions, expiry, projection policy, traits, abilities, and proxy identity. Command and GUI routes share target visibility, hierarchy, exemption, feature, permission, confirmation, and audit policy. The logical server remains authoritative for interaction and ability effects. Client projection never changes the authenticated UUID, signed chat identity, or command source. Missing or unhealthy adapters remove only the unsupported projection.
+
+### 20.3 Server controls and community workflows
+
+`ServerControlSchemaRegistry` defines all 70 server-control systems and their typed fields, defaults, bounds, permissions, confirmation policy, fallback command, workflow, and HUD decision. `ServerControlExecutionService` validates operation shape and revisions. `MinecraftServerControlRuntime` registers the live handlers and enforcement hooks for maintenance, restart, change windows, guardrails, cleanup, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and display ownership.
+
+`ServerControlRepository` stores bounded control records. `CommunityStateRepository` owns social and governance state that needs dedicated indexes and ownership rules. Approval, access lease, and administrative lock domains use separate repositories so authorization state is never inferred from a generic record. Runtime mutation rechecks feature, source, permission, hierarchy, exemption, target, revision, confirmation, rate, and recovery state.
+
+### 20.4 Escrow and recovery
+
+`EscrowService` owns parcels, lost and found, direct trades, auctions, watches, claims, settlement, returns, expiry, and freeze behavior. Records bind UUID owners, exact item state, value, source type, source reference, revision, and lifecycle. Typed lost-and-found sources are deduplicated. Recipient block state is checked through the authoritative community repository and server-control policy. Auction watches are persisted in community state. A failed persistence or unsupported schema keeps escrow mutations unavailable.
+
+Offline inventory editing uses `OfflinePlayerInventoryAdapter` and `OfflineInvSeeService`. The adapter binds the authenticated UUID to one player-data file, validates the NBT and inventory revision, writes a recovery copy, and rejects concurrent or stale changes. Online and offline routes share view and mutation permissions, hierarchy, exemptions, audit, menu revalidation, and recovery behavior.
+
+### 20.5 Administrative enchanting and cooldowns
+
+`AdministrativeEnchantCommands` owns `/enchant` and `/sef enchant`. Ordinary application, unsafe levels, arbitrary items, incompatible combinations, other-player targets, bulk targets, remove, and clear have distinct permissions. The mutation rechecks the selected stack identity, count, inventory revision, registry entry, numeric range, policy revision, and target eligibility. `/superenchantingtable` remains canonical. `/set` is only a collision-aware shortcut.
+
+`PermissionCooldownResolver` resolves durations by canonical action id. Exact assignments, inherited grants, explicit denial, provider priority, numeric suffix validation, finite registered fallback, bypass, outage, and hard ceilings are deterministic. An admitted execution snapshots its duration. Qualifying leases persist by player UUID and action id, so reconnect, restart, alias, shortcut, GUI, panel, bundle, sudo, or provider refresh cannot reset them.
+
+### 20.6 Modular configuration
+
+`ModuleConfigRegistry` owns 62 module schemas. `common.toml` is bootstrap only. Module files contain typed settings with descriptions, defaults, bounds, reload behavior, secret classification, and restart requirements. `ModuleConfigService` loads the full graph, validates it, preserves the previous known-good snapshot, stages publication, writes backups, atomically replaces owned files, and rolls back a rejected or failed transaction.
+
+The watcher is debounced and performs no per-tick filesystem polling. Command and GUI editors use optimistic revisions and the same typed validator. GUI workflows send only authorized nonsecret fields. Legacy migration binds the source digest and schema revision, stages every candidate, retains exact backups, restores on failure, preserves the bootstrap file, and writes a final marker. `generateProjectReferences` produces configuration, command, and permission references, and drift tests compare exact output.
+
+## 21. Troubleshooting
 
 Permission appears denied:
 
@@ -1066,9 +1125,14 @@ Permission appears denied:
 4. Test with `/lp user <name> permission check <node>` when LuckPerms is installed.
 5. Remember that generic operator level `2` is not a permission service bypass.
 
-`/sudo` is missing:
+Delegated `/sudo` is denied:
 
-This is expected in Phase 1. The command is intentionally unregistered during stabilization. Changing `modules.sudo`, permissions, or the retained allow and deny lists cannot enable it.
+1. Confirm `sudo.delegation.enabled` in the generated sudo module document.
+2. Confirm the issuer has the normal run permission and every delegation, preview, confirmation, root, and profile permission.
+3. Confirm the root has a published bounded profile. The current built-in profile is `effect`.
+4. Check target visibility, hierarchy, both exemption policies, consent configuration, and target lock.
+5. Repeat `/sudo preview` after permission, policy, feature, configuration, target reconnect, or command-tree changes. Pending confirmations intentionally become stale.
+6. Run `/sudo policy [player]` and review wildcard warnings. A broad LuckPerms wildcard can grant this owner capability and must be removed or narrowed.
 
 Nickname is rejected:
 
@@ -1085,7 +1149,7 @@ Configuration edit appears ignored:
 
 Wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded values and does not force a raw disk read.
 
-## 21. Security and privacy
+## 22. Security and privacy
 
 Trust boundaries include player command input, chat input, optional permission providers, JSON and TOML files, persistent player data, mixin packet filtering, and future client payloads.
 
@@ -1112,9 +1176,11 @@ Command observation and optional file logging consume only immutable redacted re
 
 Inventory and item commands recheck permissions at mutation time. Live administrative menus bind to their authorization revision and close or downgrade after revocation. Kit and item transactions validate capacity and registry state before commit. The self-only item shortcut cannot select another target or exceed its configured amount bound.
 
-## 22. Release process
+## 23. Release process
 
 No automated public release workflow is currently documented as complete.
+
+Release evidence and operator procedures are maintained in the [installation guide](docs/INSTALLATION.md), [migration guide](docs/MIGRATION_GUIDE.md), [compatibility matrix](docs/COMPATIBILITY_MATRIX.md), [performance report](docs/PERFORMANCE_REPORT.md), [security review](docs/SECURITY_REVIEW.md), and [release notes](docs/RELEASE_NOTES.md).
 
 Before an approved release:
 
@@ -1126,6 +1192,6 @@ Before an approved release:
 6. Record compatibility and migration notes.
 7. Publish only after explicit approval.
 
-## 23. Roadmap
+## 24. Completion status
 
-[sef2.md](sef2.md) remains the exhaustive roadmap. Phases 1 through 11 have implementation coverage, but mixed-client, player-driven, packet-visible, shutdown-race, registry-fixture, external-adapter, deliberate storage-failure, and profiler release gates remain open. Phase 12 covers Fancy Tags and disguise. Phase 13 covers the remaining advanced server-control systems.
+[sef2.md](sef2.md) remains the exhaustive product and architecture blueprint. Phases 0 through 14, the global verification matrix, and final product acceptance are complete on the current phase branch. The authoritative counts, runtime evidence, artifact digest, and per-phase result are in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).

@@ -5,6 +5,7 @@ import com.enviouse.sef.utils.moddeps.LuckPermsProvider;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.gui.protocol.SefGuiRuntime;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.gui.protocol.SefSessionManager;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.event.EventSubscription;
@@ -32,11 +33,13 @@ public final class PermissionRefreshBridge {
             subscription = null;
         }
         LuckPermsProvider.invalidateAll();
+        PermissionService.advanceProviderRevision();
     }
 
     private static void onUserDataRecalculated(UserDataRecalculateEvent event) {
         UUID playerId = event.getUser().getUniqueId();
         LuckPermsProvider.invalidate(playerId);
+        PermissionService.advanceProviderRevision();
         invalidateKernelActor(playerId);
         var server = ServerLifecycleHooks.getCurrentServer();
         if (server == null) return;
@@ -48,12 +51,15 @@ public final class PermissionRefreshBridge {
                 server.getCommands().sendCommands(player);
                 SefSessionManager.instance().refresh(player);
                 SefGuiRuntime.refreshIdentityProjections(server);
+                SefGuiServer.refreshFancyTags(server);
+                SefGuiServer.sendDisguiseSnapshot(server);
             }
         });
     }
 
     static void invalidateKernelActor(UUID playerId) {
         KernelServices.quotas().invalidate();
+        KernelServices.cooldownDurations().invalidate();
         KernelServices.warmups().clear(playerId);
         KernelServices.confirmations().revokeActor(playerId);
     }

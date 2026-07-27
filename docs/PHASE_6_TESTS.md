@@ -1,5 +1,7 @@
 # Phase 6 moderation and observation verification
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 ## Scope
 
 This matrix covers expanded player and address moderation, persistent warnings and controls, jails, command spy, correlated command-event journaling, optional file logging, connection-event logging, alternate-account privacy boundaries, and compatibility with the earlier protection managers.

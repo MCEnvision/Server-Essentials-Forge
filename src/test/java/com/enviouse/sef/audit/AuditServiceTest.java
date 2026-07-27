@@ -140,6 +140,28 @@ class AuditServiceTest {
         assertEquals("target name", event.normalizedParameters().get("target"));
     }
 
+    @Test
+    void recentAuditRingFiltersAndReturnsNewestFirst() {
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "first", "envy", "", "fancy_tags", "success", "success")));
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "unrelated", "envy", "", "other", "success", "success")));
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "second", "envy", "", "fancy_tags", "success", "success")));
+
+            var recent = SecurityAuditService.recent(
+                    event -> event.origin().equals("fancy_tags"),
+                    16);
+            assertEquals(2, recent.size());
+            assertEquals("second", recent.getFirst().actionId());
+            assertEquals("first", recent.getLast().actionId());
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
     private static void await(java.util.function.BooleanSupplier condition) {
         long deadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
         while (!condition.getAsBoolean() && System.nanoTime() < deadline) {

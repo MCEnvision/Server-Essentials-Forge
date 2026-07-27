@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.network.DisconnectionDetails;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import com.enviouse.sef.invlock.InvLockManager;
@@ -17,6 +18,8 @@ import com.enviouse.sef.social.ConnectionMessageService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.TraceHandler;
+import com.enviouse.sef.disguise.DisguiseProxyService;
+import com.enviouse.sef.vanish.mixin.accessor.ServerboundInteractPacketAccessor;
 
 // NOTE (1.20.2+ split): the outgoing-packet send(...) overloads moved from ServerGamePacketListenerImpl
 // to its superclass ServerCommonPacketListenerImpl, so the vanish send-filtering injectors live in
@@ -105,8 +108,17 @@ public class ServerGamePacketListenerImplMixin {
 	}
 
 	@Inject(method = "handleInteract", at = @At("HEAD"))
-	public void vanishmod$beforeHandleInteract(CallbackInfo ci) {
+	public void vanishmod$beforeHandleInteract(ServerboundInteractPacket packet, CallbackInfo ci) {
 		VanishUtil.ACTIVE_ENTITY.set(player);
+	}
+
+	@Inject(method = "handleInteract", at = @At("HEAD"), cancellable = true)
+	private void sef$remapDisguiseProxy(ServerboundInteractPacket packet, CallbackInfo ci) {
+		int entityId = ((ServerboundInteractPacketAccessor) packet).sef$getEntityId();
+		if (DisguiseProxyService.handleInteraction(player, packet, entityId)) {
+			VanishUtil.ACTIVE_ENTITY.remove();
+			ci.cancel();
+		}
 	}
 
 	@Inject(method = "tick", at = @At("HEAD"))

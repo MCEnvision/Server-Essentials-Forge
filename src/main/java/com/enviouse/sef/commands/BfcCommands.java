@@ -17,7 +17,10 @@ import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageCommands;
 import com.enviouse.sef.automation.AutomationCommands;
+import com.enviouse.sef.fancytags.FancyTagCommands;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
+import com.enviouse.sef.control.ServerControlCommands;
+import com.enviouse.sef.config.modules.ModuleConfigCommands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -45,10 +48,13 @@ public class BfcCommands {
 		}
 			KernelCommands.attach(sefRoot);
 			AutomationCommands.attach(sefRoot);
+			FancyTagCommands.attach(sefRoot);
 			CommandSpyCommands.attachCanonical(sefRoot);
 			LoggingCommands.attachCanonical(sefRoot);
-		VirtualWorkstationCommands.attachCanonical(sefRoot);
-		StorageCommands.attach(sefRoot);
+			VirtualWorkstationCommands.attachCanonical(sefRoot);
+			ServerControlCommands.attach(sefRoot);
+			ModuleConfigCommands.attach(sefRoot);
+			StorageCommands.attach(sefRoot);
 		if(ConfigHandler.config.enableMotdSystem.get()) {
 			MotdCommands.attach(sefRoot);
 		}

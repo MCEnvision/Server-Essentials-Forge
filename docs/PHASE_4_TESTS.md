@@ -1,5 +1,7 @@
 # Phase 4 teleport verification
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 ## Scope
 
 This matrix covers homes, teleport requests, back history, spawn layers, server warps, player-hosted warps, random teleportation, direct administrative teleportation, safe destination validation, persistence, and FTB Essentials ownership policy.

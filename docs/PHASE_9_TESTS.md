@@ -1,5 +1,7 @@
 # Phase 9 Verification Record
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 This record covers the optional enhanced client protocol and GUI pilot on NeoForge 1.21.1.
 
 ## Environment

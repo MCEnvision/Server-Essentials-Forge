@@ -4,10 +4,12 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -32,9 +34,8 @@ public class InvSeeCommand {
 
         dispatcher.register(Commands.literal("invsee")
             .requires(InvSeeCommand::canView)
-            .then(IdentityArguments.online("player")
+            .then(IdentityArguments.known("player")
                 .executes(ctx -> {
-                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     ServerPlayer viewer;
                     try {
                         viewer = ctx.getSource().getPlayerOrException();
@@ -43,7 +44,20 @@ public class InvSeeCommand {
                             "&c/invsee can only be used by players — it opens a GUI."));
                         return 0;
                     }
-                    return openInvSee(viewer, target, 0);
+                    var identity = KernelServices.identities().resolve(
+                            StringArgumentType.getString(ctx, "player"),
+                            viewer);
+                    if (!identity.successful() || identity.value().playerId() == null) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                "&cThat player is unavailable."));
+                        return 0;
+                    }
+                    ServerPlayer target = ctx.getSource().getServer()
+                            .getPlayerList()
+                            .getPlayer(identity.value().playerId());
+                    return target == null
+                            ? OfflineInvSeeService.open(viewer, identity.value())
+                            : openInvSee(viewer, target, 0);
                 })));
     }
 

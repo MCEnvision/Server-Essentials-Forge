@@ -188,6 +188,24 @@ dependencies {
 // Run unit tests on the JUnit 5 platform.
 test {
     useJUnitPlatform()
+    if (gradle.startParameter.taskNames.any {
+        it == 'generateProjectReferences' || it.endsWith(':generateProjectReferences')
+    }) {
+        systemProperty 'sef.updateProjectReferences', 'true'
+    }
+    if (gradle.startParameter.taskNames.any {
+        it == 'generatePerformanceReport' || it.endsWith(':generatePerformanceReport')
+    }) {
+        systemProperty 'sef.updatePerformanceReport', 'true'
+    }
+}
+
+tasks.register('generateProjectReferences') {
+    dependsOn test
+}
+
+tasks.register('generatePerformanceReport') {
+    dependsOn test
 }
 
 tasks.named('runServer') {

@@ -6,12 +6,17 @@ import java.util.Set;
 public final class SefProtocol {
     public static final String CHANNEL_VERSION = "1";
     public static final int MAJOR = 1;
-    public static final int MINOR = 0;
+    public static final int MINOR = 1;
     public static final int MAXIMUM_PANEL_ENTRIES = 100;
     public static final int MAXIMUM_HUD_TILES = 16;
     public static final int MAXIMUM_IDENTITY_PROJECTIONS = 256;
     public static final int MAXIMUM_IDENTITY_COMPONENT_BYTES = 8_192;
     public static final int MAXIMUM_TAG_BYTES = 1_048_576;
+    public static final int MAXIMUM_TAG_MANIFEST_ENTRIES = 128;
+    public static final int MAXIMUM_TAG_ASSIGNMENTS = 128;
+    public static final int MAXIMUM_TAG_DOWNLOAD_CHUNK_BYTES = 32_768;
+    public static final int MAXIMUM_TAG_UPLOAD_CHUNK_BYTES = 32_768;
+    public static final int MAXIMUM_DISGUISE_PROJECTIONS = 256;
     public static final long SERVER_FEATURES = Feature.mask(EnumSet.allOf(Feature.class));
 
     private SefProtocol() {
@@ -33,7 +38,14 @@ public final class SefProtocol {
         FANCY_TAGS_STATIC(8),
         IDENTITY_PROJECTION(9),
         UNIVERSAL_GUI(10),
-        PANEL_EDITOR(11);
+        PANEL_EDITOR(11),
+        FANCY_TAGS_REGISTRY(12),
+        DISGUISE_PROJECTION(13),
+        FANCY_TAGS_MANAGER(14),
+        DISGUISE_ABILITY_INPUT(15),
+        FANCY_TAGS_LOCAL_OVERLAY(16),
+        CONTROL_EDITOR(17),
+        GUI_WORKFLOW(18);
 
         private final int bit;
 

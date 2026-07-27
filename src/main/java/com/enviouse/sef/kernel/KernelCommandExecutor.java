@@ -2,10 +2,13 @@ package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.kernel.observation.ObservationContracts;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -36,6 +39,9 @@ public final class KernelCommandExecutor {
             PermissionNode<Boolean>... additionalPermissions
     ) {
         Objects.requireNonNull(source, "source");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            return false;
+        }
         return permissions(source, definition(actionId), additionalPermissions).granted();
     }
 
@@ -71,6 +77,11 @@ public final class KernelCommandExecutor {
         Objects.requireNonNull(normalizedParameters, "normalizedParameters");
         Objects.requireNonNull(targetIds, "targetIds");
         Objects.requireNonNull(action, "action");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe delegated execution grant does not cover this action."));
+            return 0;
+        }
 
         CommandDefinition definition = definition(actionId);
         PermissionSummary permission = permissions(source, definition, additionalPermissions);
@@ -80,6 +91,28 @@ public final class KernelCommandExecutor {
         UUID actorId = actorId(source, sourceType);
         String dimensionId = dimensionId(source);
         KernelServices.commandJournal().attachOrBegin(source, actionId);
+        ActionResult<Void> controlAuthorization =
+                MinecraftServerControlRuntime.authorizeAction(source, definition);
+        if (!controlAuthorization.successful()) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    controlAuthorization.reason().name().toLowerCase(Locale.ROOT));
+            AuditService.record(AuditService.Event.metadata(
+                    SecurityAuditService.currentSessionId(),
+                    actorId,
+                    Objects.requireNonNullElse(source.getTextName(), ""),
+                    sourceType.name(),
+                    definition.id(),
+                    targetIds,
+                    AuditService.Result.REJECTED,
+                    controlAuthorization.reason(),
+                    "server_control",
+                    definition.auditClass()));
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&c" + controlAuthorization.detail()));
+            return 0;
+        }
 
         Map<String, String> providerContext = new LinkedHashMap<>(permission.providerContext());
         providerContext.put("source_class", sourceType.name().toLowerCase(Locale.ROOT));

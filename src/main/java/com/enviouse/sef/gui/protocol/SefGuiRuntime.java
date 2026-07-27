@@ -4,6 +4,7 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.gui.GuiPreferenceRepository;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
@@ -151,6 +152,17 @@ public final class SefGuiRuntime {
                     "Teleporting " + progress + "%",
                     SefPayloads.Severity.NOTICE,
                     progress));
+        }
+        for (MinecraftServerControlRuntime.ControlHudStatus status :
+                MinecraftServerControlRuntime.hudStatuses(player)) {
+            if (tiles.size() >= SefProtocol.MAXIMUM_HUD_TILES) {
+                break;
+            }
+            tiles.add(tile(
+                    status.id(),
+                    status.text(),
+                    status.severity(),
+                    status.progress()));
         }
         if (tiles.size() > SefProtocol.MAXIMUM_HUD_TILES) {
             tiles = new ArrayList<>(tiles.subList(0, SefProtocol.MAXIMUM_HUD_TILES));

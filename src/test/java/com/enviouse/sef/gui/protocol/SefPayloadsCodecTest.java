@@ -66,6 +66,47 @@ class SefPayloadsCodecTest {
                         "visit",
                         ENTRY,
                         3L));
+        SefPayloads.ControlField controlField = new SefPayloads.ControlField(
+                "mode",
+                "enum",
+                true,
+                0L,
+                0L,
+                "open",
+                List.of("locked", "open"));
+        assertRoundTrip(
+                SefPayloads.ControlEditorSnapshot.CODEC,
+                new SefPayloads.ControlEditorSnapshot(
+                        SESSION,
+                        3L,
+                        "control_edit:" + ENTRY,
+                        ENTRY,
+                        4L,
+                        "chat_control",
+                        "Chat control",
+                        "test",
+                        "open",
+                        "dashboard",
+                        "ready",
+                        List.of(controlField),
+                        List.of("active", "paused"),
+                        List.of("configure", "preview", "execute"),
+                        true,
+                        false));
+        assertRoundTrip(
+                SefPayloads.ControlMutationRequest.CODEC,
+                new SefPayloads.ControlMutationRequest(
+                        SESSION,
+                        3L,
+                        "control_edit:" + ENTRY,
+                        3L,
+                        ENTRY,
+                        4L,
+                        "save",
+                        "Chat control",
+                        "test",
+                        "",
+                        List.of(new SefPayloads.ControlFieldValue("mode", "open"))));
         assertRoundTrip(
                 SefPayloads.HudDelta.CODEC,
                 new SefPayloads.HudDelta(
@@ -101,6 +142,135 @@ class SefPayloadsCodecTest {
         assertEquals(SESSION, decoded.sessionId());
         assertEquals(HASH, decoded.hash());
         assertArrayEquals(bytes, decoded.content());
+        assertRoundTrip(
+                SefPayloads.TagContentChunkRequest.CODEC,
+                new SefPayloads.TagContentChunkRequest(SESSION, 4L, HASH, 0));
+        SefPayloads.TagContentChunk downloaded = roundTrip(
+                SefPayloads.TagContentChunk.CODEC,
+                new SefPayloads.TagContentChunk(SESSION, HASH, 3, 0, bytes));
+        assertArrayEquals(bytes, downloaded.content());
+        assertEquals(3, downloaded.totalBytes());
+        assertEquals(0, downloaded.offset());
+        assertEquals(true, downloaded.complete());
+        UUID lease = UUID.randomUUID();
+        assertRoundTrip(
+                SefPayloads.TagUploadBegin.CODEC,
+                new SefPayloads.TagUploadBegin(SESSION, 4L, ENTRY, lease, 2L, 3, HASH));
+        SefPayloads.TagUploadChunk chunk = roundTrip(
+                SefPayloads.TagUploadChunk.CODEC,
+                new SefPayloads.TagUploadChunk(SESSION, 5L, ENTRY, 0, bytes));
+        assertArrayEquals(bytes, chunk.content());
+        assertRoundTrip(
+                SefPayloads.TagUploadFinish.CODEC,
+                new SefPayloads.TagUploadFinish(SESSION, 6L, ENTRY));
+        assertRoundTrip(
+                SefPayloads.TagUploadCancel.CODEC,
+                new SefPayloads.TagUploadCancel(SESSION, 7L, ENTRY));
+        assertRoundTrip(
+                SefPayloads.TagMutationRequest.CODEC,
+                new SefPayloads.TagMutationRequest(
+                        SESSION,
+                        8L,
+                        "lease_acquire",
+                        "founder",
+                        2L,
+                        ""));
+        assertRoundTrip(
+                SefPayloads.TagOperationResult.CODEC,
+                new SefPayloads.TagOperationResult(
+                        SESSION,
+                        8L,
+                        true,
+                        "success",
+                        "",
+                        ENTRY,
+                        3L,
+                        3,
+                        3));
+        SefPayloads.TagManifestEntry manifestEntry = new SefPayloads.TagManifestEntry(
+                ENTRY,
+                4L,
+                "sef:founder",
+                "Founder",
+                "founder tag",
+                HASH,
+                3,
+                3,
+                1);
+        assertRoundTrip(
+                SefPayloads.TagRegistryDelta.CODEC,
+                new SefPayloads.TagRegistryDelta(
+                        SESSION,
+                        9L,
+                        List.of(UUID.randomUUID()),
+                        List.of(manifestEntry)));
+        SefPayloads.TagAssignmentProjection assignment =
+                new SefPayloads.TagAssignmentProjection(
+                        UUID.randomUUID(),
+                        ENTRY,
+                        "nameplate",
+                        100,
+                        5L);
+        assertRoundTrip(
+                SefPayloads.TagAssignmentDelta.CODEC,
+                new SefPayloads.TagAssignmentDelta(
+                        SESSION,
+                        10L,
+                        List.of(new SefPayloads.TagAssignmentKey(
+                                UUID.randomUUID(),
+                                ENTRY,
+                                "chat")),
+                        List.of(assignment)));
+        assertRoundTrip(
+                SefPayloads.TagManagerQuery.CODEC,
+                new SefPayloads.TagManagerQuery(
+                        SESSION,
+                        11L,
+                        "manager",
+                        2,
+                        "founder"));
+        SefPayloads.TagManagerEntry managerEntry = new SefPayloads.TagManagerEntry(
+                "tag",
+                ENTRY,
+                ENTRY,
+                "sef:founder",
+                "Founder",
+                "founder tag",
+                "published",
+                4L);
+        assertRoundTrip(
+                SefPayloads.TagManagerSnapshot.CODEC,
+                new SefPayloads.TagManagerSnapshot(
+                        SESSION,
+                        11L,
+                        12L,
+                        "manager",
+                        1,
+                        1,
+                        List.of(managerEntry)));
+        assertRoundTrip(
+                SefPayloads.OpenFancyTagsStudio.CODEC,
+                new SefPayloads.OpenFancyTagsStudio(SESSION, "manager"));
+        SefPayloads.DisguiseProjection disguise = new SefPayloads.DisguiseProjection(
+                UUID.randomUUID(),
+                2L,
+                "mob",
+                "minecraft:blaze",
+                null,
+                "",
+                "",
+                "",
+                "disguise_type",
+                "hide_equipment",
+                true,
+                true);
+        assertRoundTrip(
+                SefPayloads.DisguiseDelta.CODEC,
+                new SefPayloads.DisguiseDelta(
+                        SESSION,
+                        13L,
+                        List.of(UUID.randomUUID()),
+                        List.of(disguise)));
     }
 
     @Test
@@ -160,6 +330,12 @@ class SefPayloadsCodecTest {
         byte[] first = payload.content();
         first[1] = 9;
         assertArrayEquals(new byte[]{1, 2, 3}, payload.content());
+        SefPayloads.TagContentChunk chunk =
+                new SefPayloads.TagContentChunk(SESSION, HASH, 3, 0, source);
+        source[0] = 7;
+        byte[] chunkCopy = chunk.content();
+        chunkCopy[1] = 7;
+        assertArrayEquals(new byte[]{9, 2, 3}, chunk.content());
     }
 
     private static <T> void assertRoundTrip(StreamCodec<FriendlyByteBuf, T> codec, T value) {

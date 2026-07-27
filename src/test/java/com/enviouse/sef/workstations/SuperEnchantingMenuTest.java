@@ -21,6 +21,12 @@ class SuperEnchantingMenuTest {
         assertThrows(IllegalArgumentException.class, () ->
                 SuperEnchantingMenu.normalizeLevel(1, 0, 5));
         assertThrows(IllegalArgumentException.class, () ->
-                SuperEnchantingMenu.normalizeLevel(1, 1, 256));
+                SuperEnchantingMenu.normalizeLevel(
+                        1,
+                        1,
+                        AdministrativeEnchantCommands.IMPLEMENTATION_MAXIMUM_LEVEL + 1));
+        assertEquals(
+                1000,
+                SuperEnchantingMenu.normalizeLevel(1000, 1, 1000));
     }
 }

@@ -1,5 +1,7 @@
 # Phase 8 economy and sign verification
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 ## Scope
 
 This matrix covers economy provider ownership, exact money parsing, native accounts and ledger persistence, payments, administration, worth and sales, command-cost reservation, import once, and all twelve server-authoritative economy sign types.

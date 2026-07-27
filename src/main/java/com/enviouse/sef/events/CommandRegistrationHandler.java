@@ -43,11 +43,21 @@ import com.enviouse.sef.social.IdentityCommands;
 import com.enviouse.sef.warn.WarnCommand;
 import com.enviouse.sef.warn.WarnManager;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
+import com.enviouse.sef.workstations.AdministrativeEnchantCommands;
 import com.enviouse.sef.teleport.CoreTeleportCommands;
 import com.enviouse.sef.teleport.HomeCommands;
 import com.enviouse.sef.teleport.TeleportRequestCommands;
 import com.enviouse.sef.teleport.WarpCommands;
 import com.enviouse.sef.automation.AutomationCommands;
+import com.enviouse.sef.fancytags.FancyTagCommands;
+import com.enviouse.sef.disguise.DisguiseCommands;
+import com.enviouse.sef.control.ServerControlCommands;
+import com.enviouse.sef.control.CommunityCommands;
+import com.enviouse.sef.control.AccessGrantCommands;
+import com.enviouse.sef.control.AdminLockCommands;
+import com.enviouse.sef.control.ApprovalCommands;
+import com.enviouse.sef.recovery.GraveCommands;
+import com.enviouse.sef.recovery.RecoveryCommands;
 
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -100,6 +110,16 @@ public class CommandRegistrationHandler {
         PlayerUtilityCommands.register(e.getDispatcher());
         GamemodeCommands.register(e.getDispatcher());
         EconomyCommands.register(e.getDispatcher());
+        FancyTagCommands.registerDirect(e.getDispatcher());
+        DisguiseCommands.register(e.getDispatcher());
+        AdministrativeEnchantCommands.register(e.getDispatcher(), e.getBuildContext());
+        CommunityCommands.register(e.getDispatcher());
+        GraveCommands.register(e.getDispatcher());
+        AccessGrantCommands.register(e.getDispatcher());
+        AdminLockCommands.register(e.getDispatcher());
+        ApprovalCommands.register(e.getDispatcher());
+        RecoveryCommands.register(e.getDispatcher());
+        ServerControlCommands.registerDirect(e.getDispatcher());
 
         // Register filter commands if enabled
         if(ConfigHandler.config.enableFilterSystem.get()) {

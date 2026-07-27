@@ -1,0 +1,72 @@
+# Controls logger behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "logger"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 100000 Apply class live.
+maximum_records = 1000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 90
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "sensitive"
+
+[runtime]
+# Maximum records written per batch 1 through 1024 Apply class live.
+file_logging_batch_records = 128
+# Capture redacted player connection events when file logging is active `true` or `false` Apply class live.
+file_logging_connection_events = false
+# Start the optional command log writer `true` or `false` Apply class live.
+file_logging_enabled = false
+# Maximum delay before flushing a nonempty batch 50 through 60000 Apply class live.
+file_logging_flush_interval_millis = 1000
+# Maximum retained command archives 1 through 10000 Apply class live.
+file_logging_maximum_archives = 100
+# Maximum active stream age before rotation 1 through 720 Apply class live.
+file_logging_maximum_file_age_hours = 24
+# Maximum active stream size before rotation 1 through 1024 Apply class live.
+file_logging_maximum_file_mi_b = 64
+# Maximum encoded bytes in one record 1024 through 1048576 Apply class live.
+file_logging_maximum_record_bytes = 16384
+# Maximum retained command archive bytes 1 through 1048576 Apply class live.
+file_logging_maximum_total_mi_b = 1024
+# Bounded event queue capacity 128 through 65536 Apply class live.
+file_logging_queue_capacity = 8192
+# Maximum archive age 1 through 3650 Apply class live.
+file_logging_retention_days = 30
+# Maximum bounded shutdown drain time 1 through 60 Apply class live.
+file_logging_shutdown_timeout_seconds = 10
+# Write a stripped human readable mirror beside JSON Lines `true` or `false` Apply class live.
+file_logging_text_mirror = false

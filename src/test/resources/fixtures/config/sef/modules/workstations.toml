@@ -1,0 +1,60 @@
+# Controls workstations behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "workstations"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Cartography, grindstone, loom, smithing, stonecutter, and workbench commands `true` or `false` Apply class restart_required.
+enable_additional_workstations = true
+# Virtual cartography table command `true` or `false` Apply class restart_required.
+enable_cartography_table_command = true
+# Virtual grindstone command `true` or `false` Apply class restart_required.
+enable_grindstone_command = true
+# Virtual loom command `true` or `false` Apply class restart_required.
+enable_loom_command = true
+# Virtual smithing table command `true` or `false` Apply class restart_required.
+enable_smithing_table_command = true
+# Virtual stonecutter command `true` or `false` Apply class restart_required.
+enable_stonecutter_command = true
+# Message shown during a cooldown. Placeholder: $seconds 0 through 8192 characters Apply class live.
+workstation_cooldown_message = "&cYou must wait &e$seconds &cseconds before using that command again."

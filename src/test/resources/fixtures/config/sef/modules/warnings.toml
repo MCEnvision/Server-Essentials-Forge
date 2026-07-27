@@ -1,0 +1,64 @@
+# Controls warnings behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "warnings"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 100000 Apply class live.
+maximum_records = 1000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 90
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "sensitive"
+
+[runtime]
+# Warning system (/warn, /warns) `true` or `false` Apply class restart_required.
+enable_warn_system = true
+# Message to admin when warning added. Placeholders: $player, $reason, $admin, $id, $duration 0 through 8192 characters Apply class live.
+warn_added_msg = "&aWarning #$id added for $player: &7$reason &e(Duration: $duration)"
+# Format for each warning entry. Placeholders: $id, $reason, $admin, $date, $expired 0 through 8192 characters Apply class live.
+warn_entry_format = "&7#$id &f$reason &7(by $admin, $date)$expired"
+# Text appended for expired warnings 0 through 8192 characters Apply class live.
+warn_expired_tag = " &c(expired)"
+# Header for warnings list. Placeholder: $player 0 through 8192 characters Apply class live.
+warn_list_header_format = "&6━━━━ Warnings for $player ━━━━"
+# Message when player has no warnings. Placeholder: $player 0 through 8192 characters Apply class live.
+warn_no_warns_msg = "&7$player has no warnings."
+# Message shown to the warned player. Placeholders: $admin, $reason 0 through 8192 characters Apply class live.
+warn_notify_player_msg = "&c⚠ You have been warned by $admin: &f$reason"
+# Play a sound when a player is warned `true` or `false` Apply class live.
+warn_play_sound = true
+# Message to admin when warning removed. Placeholders: $player, $id 0 through 8192 characters Apply class live.
+warn_removed_msg = "&eWarning #$id removed for $player."

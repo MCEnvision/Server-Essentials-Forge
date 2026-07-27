@@ -15,7 +15,6 @@ public record TeleportSettings(
         int defaultHomeLimit,
         int defaultHomePerDimensionLimit,
         int defaultPlayerWarpLimit,
-        Duration cooldown,
         BigDecimal cost,
         Duration warmup,
         boolean cancelOnMovement,
@@ -33,7 +32,6 @@ public record TeleportSettings(
 ) {
     public TeleportSettings {
         defaultHomeName = HomeRecord.normalizeName(defaultHomeName);
-        cooldown = requireDuration(cooldown, Duration.ofDays(365), "cooldown");
         cost = java.util.Objects.requireNonNull(cost, "cost");
         warmup = requireDuration(warmup, Duration.ofHours(1), "warmup");
         requestLifetime = requirePositiveDuration(requestLifetime, Duration.ofHours(1), "request lifetime");
@@ -79,7 +77,6 @@ public record TeleportSettings(
                 config.defaultHomeLimit.get(),
                 config.defaultHomePerDimensionLimit.get(),
                 config.defaultPlayerWarpLimit.get(),
-                Duration.ofSeconds(config.teleportCooldownSeconds.get()),
                 BigDecimal.valueOf(config.teleportCost.get()),
                 Duration.ofSeconds(config.teleportWarmupSeconds.get()),
                 config.teleportCancelOnMovement.get(),

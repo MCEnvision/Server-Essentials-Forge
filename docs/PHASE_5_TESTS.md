@@ -1,5 +1,7 @@
 # Phase 5 social and identity verification
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 ## Scope
 
 This matrix covers hardened private messages, reply state, ignore state, social spy, UUID-addressed mail, real custom join and leave messages, welcome and scheduled reminders, custom text pages, nickname provider ownership, server-projected identity surfaces, and the explicit Phase 9 enhanced nametag boundary.

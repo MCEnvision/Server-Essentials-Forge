@@ -78,8 +78,9 @@ public class ChatEventHandler implements IReloadable {
 		if(player == null) return;
         GameProfile profile = player.getGameProfile();
     	UUID uuid = profile.getId();
-        String msg = e.getMessage().getString();
-        if(msg == null || (msg).isEmpty()) return;
+	        String msg = e.getMessage().getString();
+	        if(msg == null || (msg).isEmpty()) return;
+			if (!com.enviouse.sef.control.MinecraftServerControlRuntime.allowChat(e)) return;
 
 		if (ConfigHandler.config.enableModerationEssentials.get()) {
 			var control = KernelServices.moderation()
@@ -195,7 +196,6 @@ public class ChatEventHandler implements IReloadable {
 		if(ConfigHandler.config.enableFilterSystem.get() && CommandRegistrationHandler.getFilterManager() != null) {
 			msg = CommandRegistrationHandler.getFilterManager().applyFilters(msg);
 		}
-
 		// Master toggle: when SEF chat formatting is off, keep the (filtered) message but let vanilla
 		// render the chat line (no prefix/suffix/color/timestamp) instead of cancelling + reformatting.
 		if(!ConfigHandler.config.enableChatFormatting.get()) {
@@ -245,6 +245,7 @@ public class ChatEventHandler implements IReloadable {
 		final String formattedName = name; // name already includes prefix/suffix from getRawPreferredPlayerName
 		final String rawName = profile.getName(); // raw username without prefix/suffix
 		player.server.execute(() -> {
+			com.enviouse.sef.control.MentionService.deliver(player, finalMsg);
 			// Record message for /ans reply system if enabled
 			long messageId = -1;
 			if(ConfigHandler.config.enableChatReplies.get()) {
@@ -268,4 +269,18 @@ public class ChatEventHandler implements IReloadable {
 		});
 		
     }
+
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public void onVanillaServerChatAccepted(ServerChatEvent event) {
+		if (!loaded
+				|| event.isCanceled()
+				|| ConfigHandler.config.enableChatFormatting.get()
+				|| event.getPlayer() == null) {
+			return;
+		}
+		String message = event.getMessage().getString();
+		if (!message.isBlank()) {
+			com.enviouse.sef.control.MentionService.deliver(event.getPlayer(), message);
+		}
+	}
 }

@@ -2,12 +2,15 @@ package com.enviouse.sef.automation;
 
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.AliasCompiler;
 import com.enviouse.sef.kernel.command.BundleCompiler;
 import com.enviouse.sef.kernel.command.CapabilityManifest;
 import com.enviouse.sef.kernel.command.CommandCatalog;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.PanelContracts;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,11 +25,50 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AutomationServicesTest {
     @TempDir
     Path temporaryDirectory;
+
+    @Test
+    void sudoCompatibilityTreeIncludesBooleanPermissionMode() {
+        KernelServices.initialize();
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        AutomationCommands.registerDirect(dispatcher);
+
+        var sudo = dispatcher.getRoot().getChild("sudo");
+        var player = sudo.getChild("player");
+        assertNotNull(player.getChild("false").getChild("command"));
+        assertNotNull(player.getChild("true").getChild("command"));
+        assertNotNull(sudo.getChild("run")
+                .getChild("player")
+                .getChild("respect")
+                .getChild("command"));
+        assertNotNull(sudo.getChild("run")
+                .getChild("player")
+                .getChild("delegate")
+                .getChild("command"));
+        assertNotNull(sudo.getChild("confirm")
+                .getChild("token")
+                .getChild("player")
+                .getChild("delegate")
+                .getChild("command"));
+        assertNotNull(sudo.getChild("preview")
+                .getChild("player")
+                .getChild("delegate")
+                .getChild("command"));
+        assertNotNull(sudo.getChild("policy"));
+        assertFalse(KernelServices.administrativeExecution().settings().delegationEnabled());
+        assertEquals(
+                2,
+                KernelServices.administrativeExecution()
+                        .settings()
+                        .delegationMaximumTemporaryVanillaPermissionLevel());
+        assertNotNull(KernelServices.permissionNode("sef.commands.sudo.delegate.root.effect"));
+        assertNotNull(KernelServices.permissionNode("sef.commands.sudo.delegate.profile.effect"));
+    }
 
     @Test
     void aliasLifecyclePersistsAndRejectsRootCollisions() throws Exception {

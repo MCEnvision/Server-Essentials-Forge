@@ -8,7 +8,7 @@ import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
-import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
 
@@ -29,16 +29,20 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.enchantment.Enchantment;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
-import net.minecraft.world.item.enchantment.EnchantmentInstance;
-import net.minecraft.world.item.enchantment.ItemEnchantments;
+
+import java.util.Map;
 
 final class SuperEnchantingMenu extends ChestMenu {
     private static final int GUI_SIZE = 54;
     private static final int PAGE_SIZE = 45;
     private static final int PREVIOUS_SLOT = 45;
-    private static final int HELP_SLOT = 47;
+    private static final int DECREASE_LARGE_SLOT = 46;
+    private static final int DECREASE_SLOT = 47;
+    private static final int STATUS_SLOT = 48;
     private static final int TARGET_SLOT = 49;
+    private static final int INCREASE_SLOT = 50;
+    private static final int INCREASE_LARGE_SLOT = 51;
+    private static final int CONFIRM_SLOT = 52;
     private static final int NEXT_SLOT = 53;
 
     private final SimpleContainer display;
@@ -48,6 +52,8 @@ final class SuperEnchantingMenu extends ChestMenu {
     private ItemStack expectedTarget;
     private List<Holder.Reference<Enchantment>> enchantments = List.of();
     private int page;
+    private Holder.Reference<Enchantment> selected;
+    private int requestedLevel;
 
     SuperEnchantingMenu(int containerId, Inventory inventory, ServerPlayer player) {
         this(containerId, inventory, player, new SimpleContainer(GUI_SIZE));
@@ -68,8 +74,6 @@ final class SuperEnchantingMenu extends ChestMenu {
         return ConfigHandler.config.enableSuperEnchantingTableCommand.get()
                 && configuredLevelsValid()
                 && !held.isEmpty()
-                && held.getCount() == 1
-                && EnchantmentHelper.canStoreEnchantments(held)
                 && PermissionService.has(player, PermissionsHandler.superEnchantingTableCommand);
     }
 
@@ -95,6 +99,7 @@ final class SuperEnchantingMenu extends ChestMenu {
             return;
         }
         if (slotId >= PAGE_SIZE) {
+            handleControl(slotId);
             return;
         }
 
@@ -106,13 +111,14 @@ final class SuperEnchantingMenu extends ChestMenu {
             return;
         }
 
-        Holder<Enchantment> enchantment = enchantments.get(enchantmentIndex);
+        Holder.Reference<Enchantment> enchantment = enchantments.get(enchantmentIndex);
         if (clickType == ClickType.QUICK_MOVE) {
-            setLevel(enchantment, ConfigHandler.config.superEnchantingMaxLevel.get());
+            select(enchantment, configuredMaximum());
         } else if (button == 1) {
-            changeLevel(enchantment, -1);
+            select(enchantment, 0);
         } else if (button == 0) {
-            changeLevel(enchantment, 1);
+            int current = enchantmentLevel(targetItem(), enchantment);
+            select(enchantment, current == 0 ? configuredMinimum() : current);
         }
     }
 
@@ -121,19 +127,60 @@ final class SuperEnchantingMenu extends ChestMenu {
         return ItemStack.EMPTY;
     }
 
-    private void changeLevel(Holder<Enchantment> enchantment, int amount) {
-        ItemStack target = targetItem();
-        int current = enchantmentLevel(target, enchantment);
-        int minimum = ConfigHandler.config.superEnchantingMinLevel.get();
-        int requested = amount < 0 && current <= minimum
-                ? 0
-                : amount > 0 && current == 0 ? minimum : current + amount;
-        setLevel(enchantment, requested);
+    private void handleControl(int slotId) {
+        if (slotId == PREVIOUS_SLOT && page > 0) {
+            page--;
+            refresh();
+            return;
+        }
+        if (slotId == NEXT_SLOT && page + 1 < pageCount()) {
+            page++;
+            refresh();
+            return;
+        }
+        if (selected == null) {
+            return;
+        }
+        switch (slotId) {
+            case DECREASE_LARGE_SLOT -> adjustLevel(-10);
+            case DECREASE_SLOT -> adjustLevel(-1);
+            case INCREASE_SLOT -> adjustLevel(1);
+            case INCREASE_LARGE_SLOT -> adjustLevel(10);
+            case CONFIRM_SLOT -> mutateSelected();
+            default -> {
+            }
+        }
     }
 
-    private void setLevel(Holder<Enchantment> enchantment, int requestedLevel) {
+    private void select(Holder.Reference<Enchantment> enchantment, int level) {
+        selected = enchantment;
+        requestedLevel = normalizeLevel(level, configuredMinimum(), configuredMaximum());
+        refresh();
+    }
+
+    private void adjustLevel(int amount) {
+        long candidate = (long) requestedLevel + amount;
+        if (candidate <= 0) {
+            requestedLevel = 0;
+        } else {
+            requestedLevel = normalizeLevel(
+                    (int) Math.min(candidate, Integer.MAX_VALUE),
+                    configuredMinimum(),
+                    configuredMaximum());
+        }
+        refresh();
+    }
+
+    private void mutateSelected() {
+        Holder.Reference<Enchantment> enchantment = resolveSelected();
+        if (enchantment == null) {
+            player.closeContainer();
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cThe selected enchantment is no longer available."));
+            return;
+        }
         ItemStack target = targetItem();
-        if (target.isEmpty() || !EnchantmentHelper.canStoreEnchantments(target)) {
+        if (target.isEmpty()) {
             player.closeContainer();
             player.sendSystemMessage(TextFormatter.stringToFormattedText("&cThe selected item is no longer available."));
             return;
@@ -142,26 +189,91 @@ final class SuperEnchantingMenu extends ChestMenu {
         int currentLevel = enchantmentLevel(target, enchantment);
         int newLevel = normalizeLevel(
                 requestedLevel,
-                ConfigHandler.config.superEnchantingMinLevel.get(),
-                ConfigHandler.config.superEnchantingMaxLevel.get());
+                configuredMinimum(),
+                configuredMaximum());
+        if (newLevel > enchantment.value().getMaxLevel()
+                && (!AdministrativeEnchantCommands.unsafeLevelsEnabled()
+                || !unsafePermission("commands.enchant.unsafe_level"))) {
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cUnsafe enchantment level permission is required."));
+            return;
+        }
         if (newLevel > currentLevel && !canApply(target, enchantment)) {
-            player.sendSystemMessage(TextFormatter.stringToFormattedText("&cThat enchantment is not compatible with this item."));
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cThe required arbitrary item or incompatibility permission is missing."));
             return;
         }
         if (newLevel == currentLevel) {
             return;
         }
-
-        if (target.is(Items.BOOK)) {
-            ItemStack enchantedBook = target.getItem().applyEnchantments(
-                    target, List.of(new EnchantmentInstance(enchantment, newLevel)));
-            player.getInventory().setItem(targetSlot, enchantedBook);
-        } else {
-            EnchantmentHelper.updateEnchantments(target, mutable -> mutable.set(enchantment, newLevel));
+        if (newLevel == 0 && !unsafePermission("commands.enchant.remove")) {
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cEnchantment removal permission is required."));
+            return;
         }
-        player.getInventory().setChanged();
-        expectedTarget = player.getInventory().getItem(targetSlot).copy();
-        player.containerMenu.broadcastChanges();
+
+        String enchantmentId = enchantment.key().location().toString();
+        KernelCommandExecutor.execute(
+                player.createCommandSourceStack(),
+                "sef:workstation.super_enchant.mutate",
+                Map.of(
+                        "enchantment", enchantmentId,
+                        "level", Integer.toString(newLevel),
+                        "amount", "1"),
+                List.of(player.getUUID()),
+                false,
+                () -> applyMutation(enchantment, currentLevel, newLevel));
+    }
+
+    private int applyMutation(
+            Holder.Reference<Enchantment> enchantment,
+            int expectedLevel,
+            int newLevel
+    ) {
+        if (!authorizationValid()) {
+            player.closeContainer();
+            return 0;
+        }
+        Holder.Reference<Enchantment> currentEnchantment = resolveSelected();
+        ItemStack current = targetItem();
+        if (currentEnchantment == null
+                || !currentEnchantment.key().equals(enchantment.key())
+                || enchantmentLevel(current, currentEnchantment) != expectedLevel
+                || newLevel < 0
+                || newLevel > configuredMaximum()) {
+            player.closeContainer();
+            player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                    "&cThe selected item, enchantment, or level changed."));
+            return 0;
+        }
+        if (newLevel > enchantment.value().getMaxLevel()
+                && (!AdministrativeEnchantCommands.unsafeLevelsEnabled()
+                || !unsafePermission("commands.enchant.unsafe_level"))) {
+            return 0;
+        }
+        if (newLevel > expectedLevel && !canApply(current, enchantment)) {
+            return 0;
+        }
+        if (newLevel == 0 && !unsafePermission("commands.enchant.remove")) {
+            return 0;
+        }
+
+        ItemStack rollback = current.copy();
+        try {
+            AdministrativeEnchantCommands.setEnchantment(
+                    player,
+                    targetSlot,
+                    current,
+                    enchantment,
+                    newLevel);
+            player.getInventory().setChanged();
+            expectedTarget = player.getInventory().getItem(targetSlot).copy();
+            player.containerMenu.broadcastChanges();
+        } catch (RuntimeException exception) {
+            player.getInventory().setItem(targetSlot, rollback);
+            player.getInventory().setChanged();
+            return 0;
+        }
         player.displayClientMessage(
                 Enchantment.getFullname(enchantment, Math.max(1, newLevel)).copy()
                         .append(newLevel == 0 ? Component.literal(" removed") : Component.literal(" applied"))
@@ -175,30 +287,33 @@ final class SuperEnchantingMenu extends ChestMenu {
                 "sef:workstation.super_enchant.mutation",
                 List.of(player.getUUID()),
                 AuditService.Result.SUCCESS,
-                ActionResult.ReasonCode.SUCCESS,
+                com.enviouse.sef.kernel.ActionResult.ReasonCode.SUCCESS,
                 "menu",
                 AuditService.AuditClass.ADMIN_ACTION));
+        requestedLevel = newLevel;
         refresh();
+        return 1;
     }
 
     private boolean canApply(ItemStack target, Holder<Enchantment> candidate) {
-        if (ConfigHandler.config.superEnchantingAllowUnsafe.get()
-                && PermissionService.has(
-                player,
-                PermissionsHandler.phasePermission("commands.superenchantingtable.unsafe"))) {
-            return true;
-        }
         if (!target.supportsEnchantment(candidate)) {
-            return false;
-        }
-
-        ItemEnchantments current = EnchantmentHelper.getEnchantmentsForCrafting(target);
-        for (Holder<Enchantment> existing : current.keySet()) {
-            if (!existing.equals(candidate) && !Enchantment.areCompatible(existing, candidate)) {
+            if (!AdministrativeEnchantCommands.arbitraryItemsEnabled()
+                    || !unsafePermission("commands.enchant.any_item")) {
                 return false;
             }
         }
+
+        for (Holder<Enchantment> existing : AdministrativeEnchantCommands.enchantments(target).keySet()) {
+            if (!existing.equals(candidate) && !Enchantment.areCompatible(existing, candidate)) {
+                return AdministrativeEnchantCommands.incompatibleEnchantmentsEnabled()
+                        && unsafePermission("commands.enchant.incompatible");
+            }
+        }
         return true;
+    }
+
+    private boolean unsafePermission(String permission) {
+        return PermissionService.has(player, PermissionsHandler.phasePermission(permission));
     }
 
     private void refresh() {
@@ -227,14 +342,19 @@ final class SuperEnchantingMenu extends ChestMenu {
         for (int index = first; index < last; index++) {
             display.setItem(index - first, enchantmentButton(target, enchantments.get(index)));
         }
-        if (page > 0) {
-            display.setItem(PREVIOUS_SLOT, namedItem(Items.ARROW, "previous page"));
-        }
-        if (page + 1 < pageCount()) {
-            display.setItem(NEXT_SLOT, namedItem(Items.ARROW, "next page"));
-        }
-        display.setItem(HELP_SLOT, helpItem());
+        display.setItem(PREVIOUS_SLOT, namedItem(
+                page > 0 ? Items.ARROW : Items.GRAY_STAINED_GLASS_PANE,
+                page > 0 ? "previous page" : "first page"));
+        display.setItem(DECREASE_LARGE_SLOT, namedItem(Items.REDSTONE, "decrease level by ten"));
+        display.setItem(DECREASE_SLOT, namedItem(Items.REDSTONE_TORCH, "decrease level by one"));
+        display.setItem(STATUS_SLOT, statusItem());
         display.setItem(TARGET_SLOT, target.copy());
+        display.setItem(INCREASE_SLOT, namedItem(Items.EXPERIENCE_BOTTLE, "increase level by one"));
+        display.setItem(INCREASE_LARGE_SLOT, namedItem(Items.LAPIS_LAZULI, "increase level by ten"));
+        display.setItem(CONFIRM_SLOT, confirmItem());
+        display.setItem(NEXT_SLOT, namedItem(
+                page + 1 < pageCount() ? Items.ARROW : Items.GRAY_STAINED_GLASS_PANE,
+                page + 1 < pageCount() ? "next page" : "last page"));
         broadcastChanges();
     }
 
@@ -251,20 +371,39 @@ final class SuperEnchantingMenu extends ChestMenu {
         button.set(DataComponents.CUSTOM_NAME, Enchantment.getFullname(enchantment, Math.max(1, currentLevel)));
         button.set(DataComponents.LORE, new ItemLore(List.of(
                 Component.literal("current level, " + currentLevel).withStyle(ChatFormatting.GRAY),
-                Component.literal("left click adds one level").withStyle(ChatFormatting.GREEN),
-                Component.literal("right click removes one level").withStyle(ChatFormatting.RED),
-                Component.literal("shift click sets the configured maximum").withStyle(ChatFormatting.YELLOW))));
+                Component.literal("left click selects this enchantment").withStyle(ChatFormatting.GREEN),
+                Component.literal("right click prepares removal").withStyle(ChatFormatting.RED),
+                Component.literal("shift click selects the configured maximum").withStyle(ChatFormatting.YELLOW))));
         return button;
     }
 
-    private ItemStack helpItem() {
-        ItemStack help = namedItem(Items.PAPER, "super enchanting table help");
-        help.set(DataComponents.LORE, new ItemLore(List.of(
+    private ItemStack statusItem() {
+        ItemStack status = namedItem(
+                selected == null ? Items.PAPER : Items.WRITABLE_BOOK,
+                selected == null ? "select an enchantment" : "pending enchantment change");
+        String selectedName = selected == null
+                ? "none"
+                : selected.key().location().toString();
+        boolean unsafe = selected != null && requestedLevel > selected.value().getMaxLevel();
+        status.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("selected, " + selectedName).withStyle(ChatFormatting.GRAY),
+                Component.literal("requested level, " + requestedLevel).withStyle(ChatFormatting.GRAY),
+                Component.literal(unsafe ? "unsafe level permission required" : "within vanilla level range")
+                        .withStyle(unsafe ? ChatFormatting.RED : ChatFormatting.GREEN),
                 Component.literal("page " + (page + 1) + " of " + pageCount()).withStyle(ChatFormatting.GRAY),
-                Component.literal("minimum level, " + ConfigHandler.config.superEnchantingMinLevel.get()).withStyle(ChatFormatting.GRAY),
-                Component.literal("maximum level, " + ConfigHandler.config.superEnchantingMaxLevel.get()).withStyle(ChatFormatting.GRAY),
-                Component.literal("changes apply to the held item immediately").withStyle(ChatFormatting.YELLOW))));
-        return help;
+                Component.literal("minimum level, " + configuredMinimum()).withStyle(ChatFormatting.GRAY),
+                Component.literal("maximum level, " + configuredMaximum()).withStyle(ChatFormatting.GRAY))));
+        return status;
+    }
+
+    private ItemStack confirmItem() {
+        ItemStack confirm = namedItem(
+                selected == null ? Items.GRAY_DYE : Items.LIME_DYE,
+                selected == null ? "nothing selected" : "apply selected level");
+        confirm.set(DataComponents.LORE, new ItemLore(List.of(
+                Component.literal("all checks run again before mutation").withStyle(ChatFormatting.GRAY),
+                Component.literal("cooldown and cost apply on success").withStyle(ChatFormatting.YELLOW))));
+        return confirm;
     }
 
     private static ItemStack namedItem(net.minecraft.world.item.Item item, String name) {
@@ -280,7 +419,6 @@ final class SuperEnchantingMenu extends ChestMenu {
     private boolean validTarget() {
         ItemStack target = targetItem();
         return !target.isEmpty()
-                && target.getCount() == 1
                 && ItemStack.matches(target, expectedTarget);
     }
 
@@ -296,24 +434,47 @@ final class SuperEnchantingMenu extends ChestMenu {
                 && ConfigHandler.config.enableSuperEnchantingTableCommand.get()
                 && configuredLevelsValid()
                 && validTarget()
-                && PermissionService.has(this.player, PermissionsHandler.superEnchantingTableCommand);
+                && KernelCommandExecutor.canUse(
+                this.player.createCommandSourceStack(),
+                "sef:workstation.super_enchant.mutate");
     }
 
     private static int enchantmentLevel(ItemStack target, Holder<Enchantment> enchantment) {
-        return EnchantmentHelper.getEnchantmentsForCrafting(target).getLevel(enchantment);
+        return AdministrativeEnchantCommands.enchantments(target).getLevel(enchantment);
     }
 
     static int normalizeLevel(int requested, int minimum, int maximum) {
-        if (minimum < 1 || maximum < minimum || maximum > 255) {
+        if (minimum < 1
+                || maximum < minimum
+                || maximum > AdministrativeEnchantCommands.IMPLEMENTATION_MAXIMUM_LEVEL) {
             throw new IllegalArgumentException("Super enchanting level bounds are invalid");
         }
         return requested <= 0 ? 0 : Math.clamp(requested, minimum, maximum);
     }
 
     private static boolean configuredLevelsValid() {
-        int minimum = ConfigHandler.config.superEnchantingMinLevel.get();
-        int maximum = ConfigHandler.config.superEnchantingMaxLevel.get();
-        return minimum >= 1 && maximum >= minimum && maximum <= 255;
+        int minimum = configuredMinimum();
+        int maximum = configuredMaximum();
+        return minimum >= 1
+                && maximum >= minimum
+                && maximum <= AdministrativeEnchantCommands.IMPLEMENTATION_MAXIMUM_LEVEL;
+    }
+
+    private static int configuredMinimum() {
+        return AdministrativeEnchantCommands.configuredMinimum();
+    }
+
+    private static int configuredMaximum() {
+        return AdministrativeEnchantCommands.configuredMaximum();
+    }
+
+    private Holder.Reference<Enchantment> resolveSelected() {
+        if (selected == null) {
+            return null;
+        }
+        Registry<Enchantment> registry =
+                player.registryAccess().registry(Registries.ENCHANTMENT).orElse(null);
+        return registry == null ? null : registry.getHolder(selected.key()).orElse(null);
     }
 
     private int pageCount() {

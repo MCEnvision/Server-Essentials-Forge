@@ -1,5 +1,6 @@
 package com.enviouse.sef.gui.protocol;
 
+import com.enviouse.sef.control.ServerControlSchemaRegistry;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -14,7 +15,13 @@ class HudContractsTest {
         assertEquals(SefPayloads.HudSurface.PROGRESS, warmup.surface());
         assertEquals(HudContracts.FallbackSurface.ACTION_BAR, warmup.fallback());
         assertEquals(HudContracts.Ownership.SEF, warmup.fallbackOwner());
-        assertEquals(7, registry.descriptors().size());
+        long controlDescriptors = ServerControlSchemaRegistry.schemas().stream()
+                .filter(schema -> schema.hud() != ServerControlSchemaRegistry.HudPolicy.NONE)
+                .count();
+        assertEquals(7 + controlDescriptors, registry.descriptors().size());
+        ServerControlSchemaRegistry.schemas().stream()
+                .filter(schema -> schema.hud() != ServerControlSchemaRegistry.HudPolicy.NONE)
+                .forEach(schema -> registry.find("control_" + schema.featureId()).orElseThrow());
     }
 
     @Test

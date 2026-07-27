@@ -1,11 +1,14 @@
 package com.enviouse.sef.gui.client;
 
+import com.mojang.authlib.GameProfile;
+import com.mojang.authlib.properties.Property;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.gui.protocol.ClientProtocolState;
 import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.gui.protocol.SefPayloads;
 import com.enviouse.sef.gui.protocol.SefProtocol;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
@@ -13,21 +16,33 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.client.event.RenderNameTagEvent;
+import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.util.TriState;
 
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID, value = Dist.CLIENT)
 public final class SefClientEvents {
+    private static final Map<UUID, DisguiseRenderProxy> DISGUISE_PROXIES = new LinkedHashMap<>();
+    private static final Map<UUID, Long> FAILED_DISGUISE_REVISIONS = new LinkedHashMap<>();
+    private static boolean renderingDisguiseProxy;
+
     private SefClientEvents() {
     }
 
@@ -40,8 +55,42 @@ public final class SefClientEvents {
                 SefClientTransport.open(SefGuiServer.DASHBOARD, 1, "");
             }
         }
-        if (minecraft.screen instanceof SefPanelScreen
+        while (SefClientModEvents.DISGUISE_PRIMARY.consumeClick()) {
+            if (minecraft.player != null
+                    && ClientProtocolState.negotiated(SefProtocol.Feature.DISGUISE_ABILITY_INPUT)) {
+                SefClientTransport.disguiseAbility("primary");
+            }
+        }
+        while (SefClientModEvents.DISGUISE_SECONDARY.consumeClick()) {
+            if (minecraft.player != null
+                    && ClientProtocolState.negotiated(SefProtocol.Feature.DISGUISE_ABILITY_INPUT)) {
+                SefClientTransport.disguiseAbility("secondary");
+            }
+        }
+        while (SefClientModEvents.DISGUISE_UTILITY.consumeClick()) {
+            if (minecraft.player != null
+                    && ClientProtocolState.negotiated(SefProtocol.Feature.DISGUISE_ABILITY_INPUT)) {
+                SefClientTransport.disguiseAbility("utility");
+            }
+        }
+        while (SefClientModEvents.OPEN_FANCY_TAGS_STUDIO.consumeClick()) {
+            if (minecraft.player != null) {
+                minecraft.setScreen(new FancyTagStudioScreen(minecraft.screen));
+            }
+        }
+        ClientProtocolState.takeFancyTagsStudioSection().ifPresent(section -> {
+            if (minecraft.player != null) {
+                minecraft.setScreen(FancyTagStudioScreen.open(minecraft.screen, section));
+            }
+        });
+        if ((minecraft.screen instanceof SefPanelScreen
+                || minecraft.screen instanceof SefControlEditorScreen
+                || minecraft.screen instanceof SefWorkflowScreen)
                 && !ClientProtocolState.negotiated(SefProtocol.Feature.DASHBOARD)) {
+            minecraft.screen.onClose();
+        }
+        if (minecraft.screen instanceof SefWorkflowScreen
+                && !ClientProtocolState.negotiated(SefProtocol.Feature.GUI_WORKFLOW)) {
             minecraft.screen.onClose();
         }
         ClientProtocolState.takePanel().ifPresent(snapshot -> {
@@ -50,9 +99,65 @@ public final class SefClientEvents {
             }
             minecraft.setScreen(new SefPanelScreen(minecraft.screen, snapshot));
         });
+        ClientProtocolState.takeControlEditor().ifPresent(snapshot -> {
+            if (minecraft.player == null) {
+                return;
+            }
+            minecraft.setScreen(new SefControlEditorScreen(minecraft.screen, snapshot));
+        });
+        ClientProtocolState.takeWorkflow().ifPresent(snapshot -> {
+            if (minecraft.player == null) {
+                return;
+            }
+            minecraft.setScreen(new SefWorkflowScreen(minecraft.screen, snapshot));
+        });
+        ClientProtocolState.takeWorkflowSuggestions().ifPresent(suggestions -> {
+            if (minecraft.screen instanceof SefWorkflowScreen workflow) {
+                workflow.acceptSuggestions(suggestions);
+            }
+        });
+        ClientProtocolState.takeWorkflowProgress().ifPresent(progress -> {
+            if (minecraft.screen instanceof SefWorkflowScreen workflow) {
+                workflow.acceptProgress(progress);
+            }
+        });
+        ClientProtocolState.takeWorkflowResult().ifPresent(result -> {
+            if (minecraft.screen instanceof SefWorkflowScreen workflow) {
+                workflow.acceptResult(result);
+            }
+        });
+        ClientProtocolState.takeWorkflowInvalidation().ifPresent(invalidation -> {
+            if (minecraft.screen instanceof SefWorkflowScreen workflow) {
+                workflow.acceptInvalidation(invalidation);
+            } else if (minecraft.player != null) {
+                minecraft.player.displayClientMessage(
+                        Component.literal(invalidation.reason()),
+                        false);
+            }
+        });
         if (minecraft.player != null) {
             FancyTagClientCache.tick(minecraft);
+            FancyTagGlyphBridge.refresh();
         }
+    }
+
+    @SubscribeEvent
+    public static void chat(ClientChatReceivedEvent event) {
+        if (event.isSystem()
+                || !ClientProtocolState.negotiated(SefProtocol.Feature.FANCY_TAGS_STATIC)) {
+            return;
+        }
+        Component prefix = FancyTagGlyphBridge.chatPrefix(event.getSender());
+        Component suffix = FancyTagGlyphBridge.chatSuffix(event.getSender());
+        if (prefix.getString().isEmpty() && suffix.getString().isEmpty()) {
+            return;
+        }
+        event.setMessage(Component.empty()
+                .append(prefix.getString().isEmpty()
+                        ? Component.empty()
+                        : prefix.copy().append(Component.literal(" ")))
+                .append(event.getMessage())
+                .append(suffix.getString().isEmpty() ? Component.empty() : Component.literal(" ").append(suffix)));
     }
 
     @SubscribeEvent
@@ -103,19 +208,145 @@ public final class SefClientEvents {
         }
         int tagY = y;
         if (ClientProtocolState.negotiated(SefProtocol.Feature.FANCY_TAGS_STATIC)) {
-            FancyTagClientCache.texture().ifPresent(texture -> renderTag(
-                    graphics,
-                    texture,
-                    right - 20,
-                    tagY));
+            boolean rendered = false;
+            if (minecraft.player != null) {
+                for (SefPayloads.TagAssignmentProjection assignment : ClientProtocolState.tagAssignments()) {
+                    if (!assignment.subjectId().equals(minecraft.player.getUUID())
+                            || !assignment.slot().equals("hud")) {
+                        continue;
+                    }
+                    var texture = FancyTagClientCache.texture(assignment.tagId());
+                    var facts = FancyTagClientCache.facts(assignment.tagId());
+                    if (texture.isPresent() && facts.isPresent()) {
+                        renderTag(
+                                graphics,
+                                texture.orElseThrow(),
+                                right - 20,
+                                tagY,
+                                facts.orElseThrow().width(),
+                                facts.orElseThrow().height());
+                        tagY += 20;
+                        rendered = true;
+                    }
+                }
+            }
+            if (!rendered) {
+                int fallbackTagY = tagY;
+                FancyTagClientCache.texture().ifPresent(texture -> renderTag(
+                        graphics,
+                        texture,
+                        right - 20,
+                        fallbackTagY,
+                        FancyTagClientCache.textureWidth(),
+                        FancyTagClientCache.textureHeight()));
+            }
         }
+        FancyTagLocalOverlay.render(graphics, minecraft, tagY);
     }
 
     @SubscribeEvent
     public static void logout(ClientPlayerNetworkEvent.LoggingOut event) {
         Minecraft minecraft = Minecraft.getInstance();
         FancyTagClientCache.close(minecraft);
+        FancyTagLocalOverlay.release(minecraft);
+        FancyTagGlyphBridge.clear();
+        DISGUISE_PROXIES.clear();
+        FAILED_DISGUISE_REVISIONS.clear();
+        renderingDisguiseProxy = false;
         ClientProtocolState.reset();
+    }
+
+    @SubscribeEvent
+    public static void renderDisguise(RenderPlayerEvent.Pre event) {
+        if (renderingDisguiseProxy
+                || !ClientProtocolState.negotiated(SefProtocol.Feature.DISGUISE_PROJECTION)) {
+            return;
+        }
+        SefPayloads.DisguiseProjection projection =
+                ClientProtocolState.disguise(event.getEntity().getUUID()).orElse(null);
+        if (projection == null
+                || FAILED_DISGUISE_REVISIONS.getOrDefault(projection.subjectId(), -1L)
+                == projection.disguiseRevision()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.level == null) {
+            return;
+        }
+        try {
+            DisguiseRenderProxy cached = DISGUISE_PROXIES.get(projection.subjectId());
+            if (cached == null || cached.revision() != projection.disguiseRevision()) {
+                Entity entity;
+                if (projection.kind().equals("player")) {
+                    if (projection.profileId() == null || projection.profileName().isBlank()) {
+                        return;
+                    }
+                    GameProfile profile = new GameProfile(projection.profileId(), projection.profileName());
+                    if (!projection.texturesValue().isBlank() && !projection.texturesSignature().isBlank()) {
+                        profile.getProperties().put(
+                                "textures",
+                                new Property(
+                                        "textures",
+                                        projection.texturesValue(),
+                                        projection.texturesSignature()));
+                    }
+                    entity = new RemotePlayer(minecraft.level, profile);
+                } else {
+                    ResourceLocation typeId = ResourceLocation.tryParse(projection.reference());
+                    entity = typeId == null
+                            ? null
+                            : BuiltInRegistries.ENTITY_TYPE.getOptional(typeId)
+                            .map(type -> type.create(minecraft.level))
+                            .orElse(null);
+                }
+                if (entity == null) {
+                    return;
+                }
+                cached = new DisguiseRenderProxy(projection.disguiseRevision(), entity);
+                DISGUISE_PROXIES.put(projection.subjectId(), cached);
+            }
+            Entity proxy = cached.entity();
+            Player player = event.getEntity();
+            proxy.setPos(player.getX(), player.getY(), player.getZ());
+            proxy.setYRot(player.getYRot());
+            proxy.setXRot(player.getXRot());
+            proxy.setPose(player.getPose());
+            proxy.setInvisible(player.isInvisible());
+            proxy.setGlowingTag(player.isCurrentlyGlowing());
+            ClientProtocolState.identity(player.getUUID()).ifPresent(identity -> {
+                proxy.setCustomName(identity.displayName());
+                proxy.setCustomNameVisible(true);
+            });
+            if (proxy instanceof LivingEntity living) {
+                living.setYHeadRot(player.getYHeadRot());
+                living.setYBodyRot(player.yBodyRot);
+            }
+            renderingDisguiseProxy = true;
+            try {
+                minecraft.getEntityRenderDispatcher().render(
+                        proxy,
+                        0.0D,
+                        0.0D,
+                        0.0D,
+                        player.getYRot(),
+                        event.getPartialTick(),
+                        event.getPoseStack(),
+                        event.getMultiBufferSource(),
+                        event.getPackedLight());
+            } finally {
+                renderingDisguiseProxy = false;
+            }
+            event.setCanceled(true);
+        } catch (RuntimeException exception) {
+            DISGUISE_PROXIES.remove(event.getEntity().getUUID());
+            FAILED_DISGUISE_REVISIONS.put(
+                    event.getEntity().getUUID(),
+                    projection.disguiseRevision());
+            ServerEssentialsForge.LOGGER.warn(
+                    "Could not render disguise projection {}",
+                    projection.reference(),
+                    exception);
+        }
     }
 
     @SubscribeEvent
@@ -133,10 +364,12 @@ public final class SefClientEvents {
             GuiGraphics graphics,
             ResourceLocation texture,
             int x,
-            int y
+            int y,
+            int width,
+            int height
     ) {
-        int sourceWidth = Math.max(1, FancyTagClientCache.textureWidth());
-        int sourceHeight = Math.max(1, FancyTagClientCache.textureHeight());
+        int sourceWidth = Math.max(1, width);
+        int sourceHeight = Math.max(1, height);
         graphics.fill(x - 2, y - 2, x + 18, y + 18, 0xb0000000);
         graphics.blit(texture, x, y, 0.0F, 0.0F, 16, 16, sourceWidth, sourceHeight);
     }
@@ -167,5 +400,8 @@ public final class SefClientEvents {
     }
 
     private record Placement(int x, int y) {
+    }
+
+    private record DisguiseRenderProxy(long revision, Entity entity) {
     }
 }

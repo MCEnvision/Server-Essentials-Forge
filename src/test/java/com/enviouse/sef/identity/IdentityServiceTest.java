@@ -73,4 +73,30 @@ class IdentityServiceTest {
             assertTrue(profiles.shutdown());
         }
     }
+
+    @Test
+    void exactUuidResolvesOneOnlinePlayerWhenNamesCollide() {
+        PlayerProfileRepository profiles = new PlayerProfileRepository();
+        profiles.load(temporaryDirectory.resolve("uuid").toFile());
+        UUID firstId = UUID.randomUUID();
+        UUID secondId = UUID.randomUUID();
+        ServerPlayer first = mock(ServerPlayer.class);
+        ServerPlayer second = mock(ServerPlayer.class);
+        when(first.getUUID()).thenReturn(firstId);
+        when(second.getUUID()).thenReturn(secondId);
+        when(first.getGameProfile()).thenReturn(new GameProfile(firstId, "duplicate"));
+        when(second.getGameProfile()).thenReturn(new GameProfile(secondId, "duplicate"));
+        PlayerList playerList = mock(PlayerList.class);
+        when(playerList.getPlayers()).thenReturn(List.of(first, second));
+        when(playerList.getPlayer(firstId)).thenReturn(first);
+        MinecraftServer server = mock(MinecraftServer.class);
+        when(server.getPlayerList()).thenReturn(playerList);
+
+        IdentityService identities = new IdentityService(() -> server, profiles);
+        ActionResult<IdentityService.Identity> result = identities.resolve(firstId.toString(), null);
+
+        assertTrue(result.successful());
+        assertEquals(firstId, result.value().playerId());
+        assertTrue(profiles.shutdown());
+    }
 }

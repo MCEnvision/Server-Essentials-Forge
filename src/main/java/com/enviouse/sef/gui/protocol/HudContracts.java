@@ -1,5 +1,7 @@
 package com.enviouse.sef.gui.protocol;
 
+import com.enviouse.sef.control.ServerControlSchemaRegistry;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -53,6 +55,22 @@ public final class HudContracts {
                 "sef.kernel.hud.use",
                 FallbackSurface.ACTION_BAR,
                 Ownership.SEF));
+        for (ServerControlSchemaRegistry.FeatureSchema schema :
+                ServerControlSchemaRegistry.schemas()) {
+            if (schema.hud() == ServerControlSchemaRegistry.HudPolicy.NONE) {
+                continue;
+            }
+            registry.register(new Descriptor(
+                    "control_" + schema.featureId(),
+                    schema.screen() == ServerControlSchemaRegistry.ScreenArchetype.PROGRESS
+                            ? SefPayloads.HudSurface.PROGRESS
+                            : schema.hud() == ServerControlSchemaRegistry.HudPolicy.REQUIRED
+                            ? SefPayloads.HudSurface.ALERT
+                            : SefPayloads.HudSurface.TILE,
+                    "sef.commands.control." + schema.featureId() + ".hud",
+                    FallbackSurface.CHAT,
+                    Ownership.COMMAND));
+        }
         return registry;
     }
 

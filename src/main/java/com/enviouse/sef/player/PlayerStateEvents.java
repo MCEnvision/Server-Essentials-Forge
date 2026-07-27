@@ -1,6 +1,7 @@
 package com.enviouse.sef.player;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.kernel.KernelServices;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -24,6 +25,8 @@ public final class PlayerStateEvents {
     public static void onDeath(LivingDeathEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             PlayerStateService.clearPlayer(player);
+            KernelServices.disguises().onDeath(player.getUUID());
+            KernelServices.disguiseProxyIds().releaseSubject(player.getUUID());
         }
     }
 

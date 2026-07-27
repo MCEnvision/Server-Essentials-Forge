@@ -1,0 +1,102 @@
+# Controls core behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "core"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = false
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Message when admin chat is disabled 0 through 8192 characters Apply class live.
+admin_chat_disabled_msg = "&cAdmin chat disabled. &7You are now in public chat."
+# Message when admin chat is enabled 0 through 8192 characters Apply class live.
+admin_chat_enabled_msg = "&aAdmin chat enabled. &7Your messages will only be seen by operators."
+# When true, enables the integrated nickname-related commands if FTB essentials is not present `true` or `false` Apply class live.
+auto_enable_chat_nickname_command = true
+# Maximum block positions inspected per server tick by the background scanner 1 through 65536 Apply class live.
+banned_block_scan_budget = 512
+# Default interval in ticks between banned-block sweeps. Override at runtime with /banned setinterval. 20 = 1s, 40 = 2s. 1 through 24000 Apply class live.
+banned_block_scan_interval = 40
+# Default radius around players to scan for banned blocks (smaller = less TPS impact). Override at runtime with /banned setradius 1 through 20 Apply class live.
+banned_block_scan_radius = 6
+# Minimum ticks between fallback banned inventory scans 1 through 24000 Apply class live.
+banned_inventory_scan_interval = 20
+# Message shown to a player when a banned item is confiscated.   Placeholders: $item, $reason, $by, $remaining.   Leave empty to use the built-in default. 0 through 8192 characters Apply class live.
+banned_item_removed_msg = ""
+# Message shown to admin when clearing all non-OP chats. Placeholder: $admin 0 through 8192 characters Apply class live.
+clear_chat_all_success_msg = "&aChat cleared for all non-OP players by $admin."
+# Number of blank lines to send to clear chat 1 through 500 Apply class live.
+clear_chat_line_count = 100
+# Message shown to the player whose chat was cleared 0 through 8192 characters Apply class live.
+clear_chat_self_msg = "&7Your chat has been cleared by an operator."
+# Message shown to admin when clearing a specific player's chat. Placeholder: $player 0 through 8192 characters Apply class live.
+clear_chat_success_msg = "&aChat cleared for $player."
+# Allow a stored command announcement to begin with a slash `true` or `false` Apply class live.
+command_announcement_allow_leading_slash = false
+# Allow entity selectors in stored command announcements `true` or `false` Apply class live.
+command_announcement_allow_selectors = false
+# Comma separated command roots allowed for scheduled command announcements. An empty value denies every command. 0 through 8192 characters Apply class live.
+command_announcement_allowed_commands = ""
+# Comma separated command roots denied for command announcements even when the allowlist contains them or a wildcard. 0 through 8192 characters Apply class live.
+command_announcement_denied_commands = "commandannouncement,sudo,execute,op,deop,stop,reload,ban,ban-ip,pardon,pardon-ip,whitelist,luckperms,lp,sef"
+# Maximum command length accepted for command announcements. 1 through 8192 Apply class live.
+command_announcement_maximum_command_length = 512
+# Comma separated canonical action ids to disable without removing their saved data 0 through 8192 characters Apply class live.
+disabled_teleport_actions = ""
+# Enable bounded background scanning for banned blocks. Event driven placement enforcement remains active when disabled. `true` or `false` Apply class restart_required.
+enable_banned_block_scanning = false
+# Allow stored command announcements to execute. Disabled by default because commands run with server authority. `true` or `false` Apply class restart_required.
+enable_command_announcements = false
+# Enable disguise commands and state `true` or `false` Apply class restart_required.
+enable_disguises = false
+# Enable Fancy Tags metadata, commands, assignments, and command fallback `true` or `false` Apply class restart_required.
+enable_fancy_tags = false
+# Enables or disables prefixes&suffixes in the tab list `true` or `false` Apply class restart_required.
+enable_metadata_in_tab_list = true
+# Enables or disables nicknames in the tab list `true` or `false` Apply class restart_required.
+enable_nicknames_in_tab_list = true
+# Message when helpop reply is sent. Placeholder: $player 0 through 8192 characters Apply class live.
+help_op_reply_sent_msg = "&aReply sent to $player"
+# Message when helpop is sent. No placeholders. 0 through 8192 characters Apply class live.
+help_op_sent_msg = "&aMessage sent to all online operators. If there is no one online make a discord ticket."
+# Message when player lacks permission 0 through 8192 characters Apply class live.
+no_permission_msg = "&cYou don't have permission to do that."
+# Message when target player is offline 0 through 8192 characters Apply class live.
+player_offline_msg = "&cThat player is offline."

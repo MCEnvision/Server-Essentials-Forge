@@ -1,6 +1,7 @@
 package com.enviouse.sef.events;
 
 import com.enviouse.sef.vanish.VanishUtil;
+import com.enviouse.sef.fancytags.FancyTagFallbackRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
@@ -45,10 +46,10 @@ public class ServerMessageEvent {
                 // Only send to the sender themselves or players who can see them
                 boolean receiverVanished = VanishUtil.isVanished(receiver);
                 if (receiver.equals(sender) || VanishUtil.playerAllowedToSeeOther(receiver, sender, receiverVanished, true)) {
-                    sendMessage((Player) receiver, message);
+                    sendMessage((Player) receiver, FancyTagFallbackRenderer.decorateChat(message.copy(), sender, receiver));
                 }
             } else {
-                sendMessage((Player) receiver, message);
+                sendMessage((Player) receiver, FancyTagFallbackRenderer.decorateChat(message.copy(), sender, receiver));
             }
         }
     }

@@ -1,6 +1,5 @@
 package com.enviouse.sef.social;
 
-import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelServices;
@@ -25,10 +24,6 @@ public final class ReminderService {
         if (!ConfigHandler.config.enableSocialEssentials.get()
                 || !ConfigHandler.config.enableReminders.get()) {
             return 0;
-        }
-        String optionalClient = ConfigHandler.config.optionalClientReminder.get();
-        if (optionalClient != null && !optionalClient.isBlank()) {
-            player.sendSystemMessage(TextFormatter.stringToFormattedText(optionalClient));
         }
         int delivered = 0;
         for (SocialRepository.ReminderDefinition definition : KernelServices.social().reminders()) {

@@ -1,6 +1,8 @@
 package com.enviouse.sef.permissions;
 
 import java.util.UUID;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.enviouse.sef.ServerEssentialsForge;
 
@@ -10,7 +12,23 @@ import net.neoforged.neoforge.server.permission.PermissionAPI;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
 public final class PermissionService {
+    private static volatile LeaseResolver leaseResolver = LeaseResolver.NONE;
+    private static final AtomicLong PROVIDER_REVISION = new AtomicLong(1L);
+
     private PermissionService() {
+    }
+
+    public static void setLeaseResolver(LeaseResolver resolver) {
+        leaseResolver = Objects.requireNonNullElse(resolver, LeaseResolver.NONE);
+        advanceProviderRevision();
+    }
+
+    public static long providerRevision() {
+        return PROVIDER_REVISION.get();
+    }
+
+    public static long advanceProviderRevision() {
+        return PROVIDER_REVISION.updateAndGet(current -> current == Long.MAX_VALUE ? 1L : current + 1L);
     }
 
     public static boolean has(CommandSourceStack source, PermissionNode<Boolean> node) {
@@ -38,6 +56,35 @@ public final class PermissionService {
     }
 
     public static Decision decide(ServerPlayer player, PermissionNode<Boolean> node) {
+        if (DelegatedPermissionScope.allows(player.getUUID(), node.getNodeName())) {
+            return new Decision(
+                    true,
+                    node.getNodeName(),
+                    "sef:one_execution_delegation",
+                    DefaultUse.NOT_USED,
+                    Evaluation.NOT_EVALUATED,
+                    Evaluation.NOT_EVALUATED,
+                    SubjectKind.ONLINE_PLAYER,
+                    DenialReason.NONE);
+        }
+        try {
+            if (leaseResolver.decide(player, node.getNodeName()) == LeaseEvaluation.GRANTED) {
+                return new Decision(
+                        true,
+                        node.getNodeName(),
+                        "sef:access_lease",
+                        DefaultUse.NOT_USED,
+                        Evaluation.NOT_EVALUATED,
+                        Evaluation.NOT_EVALUATED,
+                        SubjectKind.ONLINE_PLAYER,
+                        DenialReason.NONE);
+            }
+        } catch (RuntimeException exception) {
+            ServerEssentialsForge.LOGGER.error(
+                    "Access lease permission evaluation failed for {}",
+                    player.getUUID(),
+                    exception);
+        }
         try {
             boolean granted = PermissionAPI.getPermission(player, node);
             String provider = provider();
@@ -56,11 +103,40 @@ public final class PermissionService {
         }
     }
 
+    public static boolean hasProviderOnly(ServerPlayer player, PermissionNode<Boolean> node) {
+        Objects.requireNonNull(player, "player");
+        Objects.requireNonNull(node, "node");
+        try {
+            return PermissionAPI.getPermission(player, node);
+        } catch (RuntimeException exception) {
+            ServerEssentialsForge.LOGGER.trace("Permission provider unavailable for online player", exception);
+            return false;
+        }
+    }
+
     public static boolean has(UUID playerId, PermissionNode<Boolean> node) {
         return decide(playerId, node).granted();
     }
 
     public static Decision decide(UUID playerId, PermissionNode<Boolean> node) {
+        try {
+            if (leaseResolver.decide(playerId, node.getNodeName()) == LeaseEvaluation.GRANTED) {
+                return new Decision(
+                        true,
+                        node.getNodeName(),
+                        "sef:access_lease",
+                        DefaultUse.NOT_USED,
+                        Evaluation.NOT_EVALUATED,
+                        Evaluation.NOT_EVALUATED,
+                        SubjectKind.OFFLINE_PLAYER,
+                        DenialReason.NONE);
+            }
+        } catch (RuntimeException exception) {
+            ServerEssentialsForge.LOGGER.error(
+                    "Offline access lease permission evaluation failed for {}",
+                    playerId,
+                    exception);
+        }
         try {
             boolean granted = PermissionAPI.getOfflinePermission(playerId, node);
             String provider = provider();
@@ -142,5 +218,28 @@ public final class PermissionService {
         PERMISSION_DENIED,
         PROVIDER_UNAVAILABLE,
         SOURCE_NOT_ALLOWED
+    }
+
+    public enum LeaseEvaluation {
+        GRANTED,
+        ABSTAIN
+    }
+
+    public interface LeaseResolver {
+        LeaseResolver NONE = new LeaseResolver() {
+            @Override
+            public LeaseEvaluation decide(ServerPlayer player, String permissionId) {
+                return LeaseEvaluation.ABSTAIN;
+            }
+
+            @Override
+            public LeaseEvaluation decide(UUID playerId, String permissionId) {
+                return LeaseEvaluation.ABSTAIN;
+            }
+        };
+
+        LeaseEvaluation decide(ServerPlayer player, String permissionId);
+
+        LeaseEvaluation decide(UUID playerId, String permissionId);
     }
 }

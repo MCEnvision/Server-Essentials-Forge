@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.control.ServerControlCatalog;
 import com.enviouse.sef.permissions.PermissionManifest;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.Vanishmod;
@@ -748,8 +749,17 @@ public class PermissionsHandler {
 		registerPhasePermission("commands.sudo.dryrun", false, "Sudo dry run", "Allows previewing sudo policy without execution");
 		registerPhasePermission("commands.sudo.consent", true, "Sudo consent", "Allows controlling personal targeted actor consent");
 		registerPhasePermission("commands.sudo.lock", false, "Sudo locks", "Allows locking eligible players from sudo execution");
+		registerPhasePermission("commands.sudo.policy", false, "Sudo policy", "Allows inspecting targeted actor and delegated sudo policy");
 		registerPhasePermission("commands.sudo.bypass.consent", false, "Bypass sudo consent", "Allows reviewed sudo execution without target consent");
 		registerPhasePermission("commands.sudo.bypass.lock", false, "Bypass sudo lock", "Allows reviewed sudo execution against a locked target");
+		registerPhasePermission("commands.sudo.ignore_permissions", false, "Delegated sudo permission mode", "Allows requesting an admitted bounded permission override");
+		registerPhasePermission("commands.sudo.delegate", false, "One execution sudo delegation", "Allows one exact confirmed sudo command to use an in memory delegated permission scope");
+		registerPhasePermission("commands.sudo.delegate.preview", false, "Delegated sudo preview", "Allows previewing a bounded delegated command");
+		registerPhasePermission("commands.sudo.delegate.confirm", false, "Delegated sudo confirmation", "Allows confirming an exact delegated command");
+		registerPhasePermission("commands.sudo.delegate.self", false, "Delegated sudo self target", "Allows configured delegated execution against the issuer");
+		registerPhasePermission("commands.sudo.delegate.root.effect", false, "Delegated effect root", "Allows the effect root through a published delegation profile");
+		registerPhasePermission("commands.sudo.delegate.profile.effect", false, "Delegated effect profile", "Allows the published effect delegation profile");
+		registerPhasePermission("sudo.delegate.exempt", false, "Delegated sudo exemption", "Prevents delegated sudo from targeting this player");
 		registerPhasePermission("sudo.hierarchy.bypass", false, "Sudo hierarchy bypass", "Allows sudo execution across target hierarchy");
 		phaseSixSevenNodes.put("sef.sudo.bypass.exempt", sudoBypassExempt);
 		phaseSixSevenNodes.put("sef.sudo.exempt", sudoExempt);
@@ -759,7 +769,374 @@ public class PermissionsHandler {
 		registerPhasePermission("commands.silent.server", false, "Silent server commands", "Allows reviewed direct server source output suppression");
 		registerPhasePermission("commands.silent.unsuppressible", false, "Accept unsuppressible output", "Allows execution when independent command output cannot be suppressed");
 
-		quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
+			for (String permission : java.util.List.of(
+				"commands.tags",
+				"commands.tags.status",
+				"commands.tags.list",
+				"commands.tags.view",
+				"commands.tags.create",
+				"commands.tags.duplicate",
+				"commands.tags.edit",
+				"commands.tags.validate",
+				"commands.tags.publish",
+				"commands.tags.hide",
+				"commands.tags.archive",
+				"commands.tags.restore",
+				"commands.tags.delete",
+				"commands.tags.revision.list",
+				"commands.tags.revision.view",
+				"commands.tags.revision.restore",
+				"commands.tags.delete.finalize",
+				"commands.tags.assign.player",
+				"commands.tags.assign.offline",
+				"commands.tags.assign.group",
+				"commands.tags.assign.team",
+				"commands.tags.assign.default",
+				"commands.tags.assign.bulk",
+				"commands.tags.unassign",
+				"commands.tags.assignments.player",
+				"commands.tags.assignments.tag",
+				"commands.tags.assignments.group",
+				"commands.tags.report",
+				"commands.tags.moderation.queue",
+				"commands.tags.moderation.suspend",
+				"commands.tags.moderation.clear",
+				"commands.tags.category.list",
+				"commands.tags.category.create",
+				"commands.tags.category.edit",
+				"commands.tags.category.delete",
+				"commands.tags.palette.list",
+				"commands.tags.palette.create",
+				"commands.tags.palette.edit",
+				"commands.tags.palette.delete",
+				"commands.tags.template.list",
+				"commands.tags.template.create",
+				"commands.tags.template.edit",
+				"commands.tags.template.delete",
+				"commands.tags.import.scan",
+				"commands.tags.import.inspect",
+				"commands.tags.import.approve",
+				"commands.tags.import.reject",
+				"commands.tags.import.client",
+				"commands.tags.import.clipboard",
+				"commands.tags.import.url",
+				"commands.tags.export.png",
+				"commands.tags.export.project",
+				"commands.tags.export.manifest",
+				"commands.tags.lease.view",
+				"commands.tags.lease.acquire",
+				"commands.tags.lease.renew",
+				"commands.tags.lease.override",
+				"commands.tags.integrity.check",
+				"commands.tags.integrity.repair",
+				"commands.tags.cache.status",
+				"commands.tags.cache.invalidate",
+				"commands.tags.transfer.status",
+				"commands.tags.audit",
+				"commands.tags.backup.preview",
+				"commands.tags.backup.create",
+				"commands.tags.backup.list",
+				"commands.tags.backup.restore",
+				"commands.tags.gc.preview",
+				"commands.tags.gc.run",
+				"commands.tags.reload",
+				"commands.tags.doctor",
+				"commands.cooldown.explain",
+				"commands.cooldown.keys",
+				"commands.enchant",
+				"commands.enchant.self",
+				"commands.enchant.others",
+				"commands.enchant.bulk",
+				"commands.enchant.unsafe_level",
+				"commands.enchant.any_item",
+				"commands.enchant.incompatible",
+				"commands.enchant.remove",
+				"commands.enchant.clear",
+				"commands.enchant.hierarchy.override",
+				"commands.enchant.exempt",
+				"commands.enchant.exemption.override",
+				"tags.manage.open",
+				"tags.render.receive",
+				"tags.local.overlay.connected",
+				"tags.render.chat",
+				"tags.render.nameplate",
+				"tags.render.tab",
+				"tags.render.hud",
+				"tags.render.tooltip",
+				"tags.view.draft",
+				"tags.view.hidden",
+				"tags.view.archived",
+				"tags.view.creator",
+				"tags.view.assignments",
+				"tags.view.audit",
+				"tags.view.storage",
+				"tags.view.hash",
+				"tags.assign.hierarchy.override",
+				"tags.assign.exempt",
+				"tags.assign.exemption.override",
+				"tags.assign.vanished",
+				"tags.assign.multiple",
+				"tags.assign.all",
+				"tags.limits.bypass",
+				"tags.locks.bypass",
+				"tags.delete.force",
+				"tags.local.overlay")) {
+			boolean safe = java.util.Set.of(
+					"commands.tags",
+					"commands.tags.status",
+					"commands.tags.list",
+					"commands.tags.view",
+					"tags.render.receive",
+					"tags.render.chat",
+					"tags.render.nameplate",
+					"tags.render.tab",
+					"tags.render.hud",
+					"tags.render.tooltip").contains(permission);
+			registerPhasePermission(
+					permission,
+					safe,
+					"Fancy Tags " + permission,
+					"Controls the separately gated Fancy Tags action " + permission);
+		}
+		for (String permission : java.util.List.of(
+				"commands.disguise",
+				"commands.disguise.mob",
+				"commands.disguise.player",
+				"commands.disguise.preset",
+				"commands.disguise.clear",
+				"commands.disguise.status",
+				"commands.disguise.status.others",
+				"commands.disguise.list",
+				"commands.disguise.preview",
+				"commands.disguise.set.others",
+				"commands.disguise.clear.others",
+				"commands.disguise.ability",
+				"commands.disguise.ability.cooldown.bypass",
+				"commands.disguise.options",
+				"commands.disguise.inspect",
+				"commands.disguise.conflicts",
+				"commands.disguise.preset.manage",
+				"disguise.protected_identity",
+				"disguise.traits",
+				"disguise.abilities",
+				"disguise.hierarchy.bypass",
+				"disguise.exempt",
+				"disguise.exemption.bypass",
+				"disguise.options.equipment",
+				"disguise.options.name",
+				"disguise.options.hitbox",
+				"disguise.persist",
+				"disguise.ability.blaze.fireball",
+				"disguise.ability.blaze.hover",
+				"disguise.ability.blaze.fire_resistance",
+				"disguise.type.minecraft.blaze",
+				"disguise.type.minecraft.snow_golem",
+				"disguise.type.minecraft.enderman",
+				"disguise.type.minecraft.spider",
+				"disguise.type.minecraft.bee",
+				"disguise.type.minecraft.creeper",
+				"disguise.type.minecraft.ghast",
+				"disguise.type.minecraft.dolphin",
+				"disguise.type.minecraft.wolf",
+				"disguise.type.minecraft.witch",
+				"disguise.type.minecraft.zombie",
+				"disguise.type.minecraft.skeleton",
+				"disguise.type.minecraft.cow",
+				"disguise.type.minecraft.pig",
+				"disguise.type.minecraft.sheep",
+				"disguise.type.minecraft.chicken",
+				"disguise.type.minecraft.slime",
+				"disguise.type.minecraft.bat",
+				"disguise.type.minecraft.phantom")) {
+			boolean safe = java.util.Set.of(
+					"commands.disguise",
+					"commands.disguise.status",
+					"commands.disguise.list").contains(permission);
+				registerPhasePermission(
+						permission,
+						safe,
+						"Disguise " + permission,
+						"Controls the separately gated disguise action " + permission);
+			}
+
+			registerPhasePermission(
+					"commands.control",
+					false,
+					"Server control center",
+					"Allows opening the server control command namespace");
+			registerPhasePermission(
+					"commands.control.catalog",
+					false,
+					"Server control catalog",
+					"Allows viewing the permission filtered server control catalog");
+			registerPhasePermission(
+					"commands.control.status",
+					false,
+					"Server control status",
+					"Allows viewing bounded server control repository diagnostics");
+			for (ServerControlCatalog.FeatureDefinition feature : ServerControlCatalog.FEATURES) {
+				String prefix = "commands.control." + feature.id();
+				registerPhasePermission(
+						prefix + ".view",
+						feature.playerCreate() && !feature.sensitive(),
+						feature.title() + " view",
+						"Allows viewing authorized " + feature.title() + " records");
+				registerPhasePermission(
+						prefix + ".create",
+						feature.playerCreate(),
+						feature.title() + " create",
+						"Allows creating bounded " + feature.title() + " records");
+				registerPhasePermission(
+						prefix + ".manage",
+						false,
+						feature.title() + " manage",
+						"Allows updating and transitioning eligible " + feature.title() + " records");
+				registerPhasePermission(
+						prefix + ".others",
+						false,
+						feature.title() + " others",
+						"Allows creating or viewing " + feature.title() + " records for other players");
+				registerPhasePermission(
+						prefix + ".sensitive",
+						false,
+						feature.title() + " sensitive fields",
+						"Allows viewing sensitive fields in " + feature.title() + " records");
+				registerPhasePermission(
+						prefix + ".hud",
+						feature.playerCreate() && !feature.sensitive(),
+						feature.title() + " hud",
+						"Allows viewing privacy filtered " + feature.title() + " active state indicators");
+				registerPhasePermission(
+						prefix + ".exempt",
+						false,
+						feature.title() + " exemption",
+						"Prevents ordinary targeting by " + feature.title() + " controls");
+				registerPhasePermission(
+						prefix + ".exemption.override",
+						false,
+						feature.title() + " exemption override",
+						"Allows targeting exempt players through " + feature.title() + " controls");
+				registerPhasePermission(
+						prefix + ".hierarchy.override",
+						false,
+						feature.title() + " hierarchy override",
+						"Allows targeting across hierarchy through " + feature.title() + " controls");
+			}
+			for (String permission : java.util.List.of(
+					"commands.accessgrant.profiles",
+					"commands.accessgrant.profile.inspect",
+					"commands.accessgrant.profile.publish",
+					"commands.accessgrant.profile.retire",
+					"commands.accessgrant.preview",
+					"commands.accessgrant.create",
+					"commands.accessgrant.renew",
+					"commands.accessgrant.suspend",
+					"commands.accessgrant.resume",
+					"commands.accessgrant.revoke",
+					"commands.accessgrant.list",
+					"commands.accessgrant.inspect.self",
+					"commands.accessgrant.inspect.others",
+					"commands.accessgrant.expiring",
+					"commands.accessgrant.reconcile",
+					"commands.accessgrant.history",
+					"commands.accessgrant.protected",
+					"commands.accessgrant.hierarchy.override",
+					"commands.accessgrant.exemption.override",
+					"commands.accessgrant.exempt")) {
+				registerPhasePermission(
+						permission,
+						false,
+						"Access grant " + permission,
+						"Controls the separately gated access grant action " + permission);
+			}
+			for (String permission : java.util.List.of(
+					"commands.approval.request",
+					"commands.approval.approve",
+					"commands.approval.revoke",
+					"commands.approval.revoke.others",
+					"commands.approval.inspect",
+					"commands.approval.list",
+					"commands.approval.history")) {
+				registerPhasePermission(
+						permission,
+						false,
+						"Approval " + permission,
+						"Controls the separately gated two person approval action " + permission);
+			}
+			for (String permission : java.util.List.of(
+					"commands.adminlock.status.self",
+					"commands.adminlock.status.others",
+					"commands.adminlock.lock",
+					"commands.adminlock.unlock",
+					"commands.adminlock.challenge",
+					"commands.adminlock.session.open",
+					"commands.adminlock.session.close",
+					"commands.adminlock.require",
+					"commands.adminlock.release",
+					"commands.adminlock.invalidate",
+					"commands.adminlock.breakglass.status",
+					"commands.adminlock.breakglass.open",
+					"commands.adminlock.breakglass.close",
+					"commands.adminlock.breakglass.profile",
+					"commands.adminlock.history.self",
+					"commands.adminlock.history.others",
+					"commands.adminlock.hierarchy.override",
+					"commands.adminlock.exemption.override",
+					"commands.adminlock.exempt")) {
+				registerPhasePermission(
+						permission,
+						false,
+						"Administrative lock " + permission,
+						"Controls the separately gated administrative lock action " + permission);
+			}
+			for (String permission : java.util.List.of(
+					"commands.config.modules",
+					"commands.config.status",
+					"commands.config.inspect",
+					"commands.config.diff",
+					"commands.config.validate",
+					"commands.config.reload",
+					"commands.config.history",
+					"commands.config.rollback",
+					"commands.config.explain",
+					"commands.config.edit",
+					"commands.config.migrate",
+					"commands.config.documentation",
+					"commands.config.sensitive",
+					"commands.config.providers",
+					"commands.guis.status",
+					"commands.guis.enable",
+					"commands.guis.disable",
+					"commands.guis.auto",
+					"commands.guis.module",
+					"commands.guis.action",
+					"commands.guis.sessions",
+					"commands.guis.close",
+					"commands.guis.reload",
+					"commands.guis.doctor",
+					"commands.guis.explain",
+					"commands.guis.coverage",
+					"commands.gui.preference",
+					"gui.use",
+					"gui.open",
+					"gui.search",
+					"gui.preview",
+					"gui.confirm")) {
+				boolean safe = java.util.Set.of(
+						"commands.gui.preference",
+						"gui.use",
+						"gui.open",
+						"gui.search",
+						"gui.preview",
+						"gui.confirm").contains(permission);
+				registerPhasePermission(
+						permission,
+						safe,
+						"Modular configuration " + permission,
+						"Controls the separately gated modular configuration or GUI policy action " + permission);
+			}
+
+			quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
 		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
 		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
 		quotaTierNodes.put("sef.playerwarps.10", ezyPermission("playerwarps.10", false, "Ten player warps", "Sets the finite player warp quota tier to ten"));

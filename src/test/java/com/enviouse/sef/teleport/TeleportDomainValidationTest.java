@@ -23,7 +23,6 @@ class TeleportDomainValidationTest {
                 1,
                 1,
                 5,
-                Duration.ZERO,
                 java.math.BigDecimal.ZERO,
                 Duration.ZERO,
                 true,

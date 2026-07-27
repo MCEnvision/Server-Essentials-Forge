@@ -4,6 +4,7 @@ import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -17,6 +18,7 @@ public final class CommandExecutionService {
     private final CostService costs;
     private final WarmupService warmups;
     private final ConfirmationService confirmations;
+    private final CooldownDurationResolver cooldownDurations;
 
     public CommandExecutionService(
             CommandPolicyService policies,
@@ -25,11 +27,36 @@ public final class CommandExecutionService {
             WarmupService warmups,
             ConfirmationService confirmations
     ) {
+        this(
+                policies,
+                cooldowns,
+                costs,
+                warmups,
+                confirmations,
+                (playerId, actionId, internalDefault) -> new CooldownDurationResolver.Resolution(
+                        actionId,
+                        actionId,
+                        internalDefault,
+                        "policy_default",
+                        "",
+                        true,
+                        1L));
+    }
+
+    public CommandExecutionService(
+            CommandPolicyService policies,
+            CooldownService cooldowns,
+            CostService costs,
+            WarmupService warmups,
+            ConfirmationService confirmations,
+            CooldownDurationResolver cooldownDurations
+    ) {
         this.policies = Objects.requireNonNull(policies, "policies");
         this.cooldowns = Objects.requireNonNull(cooldowns, "cooldowns");
         this.costs = Objects.requireNonNull(costs, "costs");
         this.warmups = Objects.requireNonNull(warmups, "warmups");
         this.confirmations = Objects.requireNonNull(confirmations, "confirmations");
+        this.cooldownDurations = Objects.requireNonNull(cooldownDurations, "cooldownDurations");
     }
 
     public ActionResult<Lease> begin(Request request) {
@@ -60,11 +87,16 @@ public final class CommandExecutionService {
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, exception.getMessage());
         }
 
-        if (!request.cooldownBypass() && !policy.cooldown().isZero()) {
+        CooldownDurationResolver.Resolution resolvedCooldown =
+                cooldownDurations.resolve(request.actorId(), request.actionId(), policy.cooldown());
+        Duration cooldownDuration = resolvedCooldown.duration();
+        Map<String, String> cooldownContext =
+                cooldownAuditContext(resolvedCooldown, request.cooldownBypass());
+        if (!request.cooldownBypass() && !cooldownDuration.isZero()) {
             CooldownService.Decision current = cooldowns.inspect(request.actorId(), request.actionId());
             if (!current.allowed()) {
                 audit(request, AuditService.Result.REJECTED, current.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos));
+                        elapsedMillis(startedNanos), cooldownContext);
                 return ActionResult.failure(
                         current.reason(),
                         Long.toString(current.remainingSeconds()));
@@ -75,7 +107,7 @@ public final class CommandExecutionService {
         } else if (!policy.warmup().isZero()) {
             if (request.warmupPosition() == null) {
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
-                        policy.auditClass(), elapsedMillis(startedNanos));
+                        policy.auditClass(), elapsedMillis(startedNanos), cooldownContext);
                 return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "warmup position is required");
             }
             UUID targetId = request.targetIds().isEmpty() ? null : request.targetIds().getFirst();
@@ -100,7 +132,7 @@ public final class CommandExecutionService {
             }
             if (!warmup.successful()) {
                 audit(request, AuditService.Result.REJECTED, warmup.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos));
+                        elapsedMillis(startedNanos), cooldownContext);
                 return ActionResult.failure(warmup.reason(), warmup.detail());
             }
         }
@@ -108,16 +140,16 @@ public final class CommandExecutionService {
         CooldownService.Decision cooldown = cooldowns.tryAcquire(
                 request.actorId(),
                 request.actionId(),
-                policy.cooldown(),
+                cooldownDuration,
                 request.cooldownBypass());
         if (!cooldown.allowed()) {
             audit(request, AuditService.Result.REJECTED, cooldown.reason(), policy.auditClass(),
-                    elapsedMillis(startedNanos));
+                    elapsedMillis(startedNanos), cooldownContext);
             return ActionResult.failure(
                     cooldown.reason(),
                     Long.toString(cooldown.remainingSeconds()));
         }
-        boolean cooldownAcquired = !cooldown.bypassed() && !policy.cooldown().isZero();
+        boolean cooldownAcquired = !cooldown.bypassed() && !cooldownDuration.isZero();
 
         ActionResult<CostService.Reservation> cost = costs.reserve(
                 request.actorId(),
@@ -125,7 +157,8 @@ public final class CommandExecutionService {
                 effectiveCost);
         if (!cost.successful()) {
             clearCooldown(request, cooldownAcquired);
-            audit(request, AuditService.Result.REJECTED, cost.reason(), policy.auditClass(), elapsedMillis(startedNanos));
+            audit(request, AuditService.Result.REJECTED, cost.reason(), policy.auditClass(),
+                    elapsedMillis(startedNanos), cooldownContext);
             return ActionResult.failure(cost.reason(), cost.detail());
         }
 
@@ -134,7 +167,8 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_REQUIRED,
-                        policy.auditClass(), elapsedMillis(startedNanos), cost.value().auditContext());
+                        policy.auditClass(), elapsedMillis(startedNanos),
+                        merge(cooldownContext, cost.value().auditContext()));
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, "confirmation required");
             }
             ConfirmationService.Request binding = request.confirmationBinding();
@@ -146,7 +180,8 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_INVALID,
-                        policy.auditClass(), elapsedMillis(startedNanos), cost.value().auditContext());
+                        policy.auditClass(), elapsedMillis(startedNanos),
+                        merge(cooldownContext, cost.value().auditContext()));
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_INVALID, "confirmation binding mismatch");
             }
             ActionResult<ConfirmationService.Request> confirmation =
@@ -155,7 +190,8 @@ public final class CommandExecutionService {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
                 audit(request, AuditService.Result.REJECTED, confirmation.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos), cost.value().auditContext());
+                        elapsedMillis(startedNanos),
+                        merge(cooldownContext, cost.value().auditContext()));
                 return ActionResult.failure(confirmation.reason(), confirmation.detail());
             }
         }
@@ -165,6 +201,7 @@ public final class CommandExecutionService {
                 policy,
                 !cooldownAcquired,
                 cost.value(),
+                cooldownContext,
                 startedNanos));
     }
 
@@ -191,6 +228,29 @@ public final class CommandExecutionService {
         } catch (NumberFormatException exception) {
             throw new IllegalArgumentException("Quoted cost is invalid", exception);
         }
+    }
+
+    private static Map<String, String> cooldownAuditContext(
+            CooldownDurationResolver.Resolution resolution,
+            boolean bypass
+    ) {
+        return Map.of(
+                "cooldown_key", resolution.permissionKey(),
+                "cooldown_seconds", Long.toString(resolution.duration().getSeconds()),
+                "cooldown_provider", resolution.provider(),
+                "cooldown_winning_node", resolution.winningNode(),
+                "cooldown_fallback", Boolean.toString(resolution.fallback()),
+                "cooldown_bypass", Boolean.toString(bypass),
+                "cooldown_resolver_revision", Long.toString(resolution.revision()));
+    }
+
+    private static Map<String, String> merge(
+            Map<String, String> first,
+            Map<String, String> second
+    ) {
+        Map<String, String> result = new java.util.LinkedHashMap<>(first);
+        result.putAll(second);
+        return Map.copyOf(result);
     }
 
     private void audit(
@@ -245,6 +305,7 @@ public final class CommandExecutionService {
         private final CommandPolicyService.Decision policy;
         private final boolean cooldownNotAcquired;
         private final CostService.Reservation cost;
+        private final Map<String, String> cooldownContext;
         private final long startedNanos;
         private boolean completed;
 
@@ -253,12 +314,14 @@ public final class CommandExecutionService {
                 CommandPolicyService.Decision policy,
                 boolean cooldownNotAcquired,
                 CostService.Reservation cost,
+                Map<String, String> cooldownContext,
                 long startedNanos
         ) {
             this.request = request;
             this.policy = policy;
             this.cooldownNotAcquired = cooldownNotAcquired;
             this.cost = cost;
+            this.cooldownContext = Map.copyOf(cooldownContext);
             this.startedNanos = startedNanos;
         }
 
@@ -277,11 +340,11 @@ public final class CommandExecutionService {
                         cooldowns.clear(request.actorId(), request.actionId());
                     }
                     audit(request, AuditService.Result.FAILED, committed.reason(), policy.auditClass(),
-                            elapsedMillis(startedNanos), cost.auditContext());
+                            elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
                     return committed;
                 }
                 audit(request, AuditService.Result.SUCCESS, ActionResult.ReasonCode.SUCCESS, policy.auditClass(),
-                        elapsedMillis(startedNanos), cost.auditContext());
+                        elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
                 return ActionResult.success(null);
             }
 
@@ -293,7 +356,7 @@ public final class CommandExecutionService {
                     ? ActionResult.ReasonCode.PROVIDER_ERROR
                     : failureReason;
             audit(request, AuditService.Result.FAILED, reason, policy.auditClass(),
-                    elapsedMillis(startedNanos), cost.auditContext());
+                    elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
             return ActionResult.failure(reason, "action failed");
         }
 

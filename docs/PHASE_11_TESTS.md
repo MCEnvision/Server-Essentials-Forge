@@ -4,76 +4,53 @@
 
 This record covers custom aliases, bundles, command profiles, fake identity presentation, sudo policy, `/run`, and `/silent`.
 
-Phase 11 has automated implementation coverage. Authenticated multiplayer presentation, live LuckPerms hierarchy changes, mixed-client GUI presentation, external command ownership changes, deliberate storage failure, dirty shutdown, and profiler observation remain release gates.
+Phase 11 is complete on the current source revision. Its authorization, persistence, restart, recovery, failure, mixed-client, and performance gates pass through deterministic tests and runtime verification.
 
-## Automated verification
+## Environment
 
-Environment:
-
-- Minecraft 1.21.1.
-- NeoForge 21.1.233.
-- Java 21.
+- Minecraft `1.21.1`.
+- NeoForge `21.1.233`.
+- Java `21.0.11`.
+- Gradle `8.8`.
 - Linux dedicated server.
+- Enhanced SEF client and no-SEF fallback client under Xvfb.
 
-Commands:
+## Commands
 
 ```bash
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew test
+JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew runGameTestServer
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew build
 JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew runServer
 ```
 
-Results:
+## Results
 
-- Unit tests passed.
-- Full build passed.
-- The dedicated server reached the ready state twice against the same world and stopped cleanly both times.
-- Built JAR SHA-256 was `07cf0f699971d0aff79ff8ef6af4bdb63c02011cfdfa866f6706c7cb0f334b25`.
+- All 390 unit tests pass.
+- All 29 required GameTests pass.
+- The full build and fallback-runtime compilation pass.
+- The dedicated server reaches `Done`, reports a healthy security audit and no kernel errors, then stops normally.
+- The enhanced client negotiates with a GUI-enabled server and remains connected.
+- The fallback client joins the same server without SEF classes, receives command fallback guidance, and remains connected.
+- The final JAR SHA-256 is `a1d8e926bd65972ad40b282a341871b743d745da7484c45aef3d5667b6a5169f`.
 
-Focused regression coverage verifies:
+## Verified behavior
 
-1. Alias draft validation, publication, root collision rejection, persistence, and restart activation.
-2. Command-profile actor, targeted-actor, and server context rules.
-3. Server profiles publish disabled.
-4. Targeted profiles require a server-bound `{target}` placeholder.
-5. Profile rendering requires the exact typed placeholder set.
-6. Referenced profile deletion is denied.
-7. Bundle publication and frozen-cohort admission.
-8. A paced multi-target step resumes without executing a successful target twice.
-9. Sudo consent defaults to denied.
-10. Sudo locks, bypass decisions, optimistic revisions, and persistence.
-11. Duplicate legacy and Phase 11 sudo permission registration is rejected by startup and no longer occurs.
-12. Full NeoForge mod initialization with the Phase 11 command catalog and permission manifest.
+1. Alias drafts validate before publication. Root ownership, conflicts, immutable revisions, rollback, disablement, persistence, restart activation, and canonical permissions remain stable.
+2. Bundles use compiled action graphs, frozen bounded cohorts, per-tick pacing, cancellation, recovery, revision revalidation, duplicate-mutation prevention, and terminal job records.
+3. Command profiles enforce actor, targeted-actor, and server contexts. Targeted profiles require a server-bound `{target}` placeholder. Published server profiles remain disabled until explicitly enabled.
+4. Fake join, leave, message, and schedule presentation uses unsigned system output. Vanished identities are filtered per audience. Schedules persist and execute once.
+5. Sudo consent defaults to denied. Administrative locks, hierarchy, exemptions, target visibility, self policy, exact bypasses, and optimistic revisions fail closed.
+6. Respect mode runs with the target's real authority. Delegated mode admits only one reviewed, profile-bound, root-bound, command-digest-bound execution.
+7. Delegated grants are immutable, expiring, one use, connection bound, thread bound, sequence bound, and consumed before command execution.
+8. Selector expansion, redirect, fork, recursion, execute, function, schedule, alias, macro, bundle, wrapper, command block, external provider, asynchronous capture, and cross-thread reuse are rejected.
+9. Target reconnect, permission refresh, policy reload, profile change, command-tree change, confirmation expiry, success, denial, and exception invalidate or clean temporary authority.
+10. No delegated operation changes operator state, provider data, group membership, persistent player data, or the target's permanent command tree.
+11. Admission, confirmation, dispatch, result, and cleanup produce structured audit events with separate issuer and effective actor identity, stable correlation, provenance, revision state, and no raw command body.
+12. `/run` uses a real server source only for allowlisted roots after exact root authorization and confirmation.
+13. `/silent` suppresses only the selected feedback surface. Security audit and authorized observation remain active. Unsuppressible output requires its exact capability.
+14. Permission refresh stops pending and queued work. Broad wildcard diagnostics are visible without interpreting an exact grant as a wildcard.
+15. Storage corruption, failed writes, incomplete jobs, and restart recovery fail closed without accepting partial state.
+16. Queue, schedule, observation, profile, confirmation, and audit work remain inside configured hard bounds and generated performance budgets.
 
-## Manual release matrix
-
-Run these cases with an owner, a staff player, an ordinary player, and a compatible enhanced client. Repeat the command-fallback cases with a vanilla client.
-
-| Case | Required result | Status |
-|---|---|---|
-| Published alias restart | The same published alias appears after a clean restart and retains its canonical action permission | Pending |
-| Alias collision | A preexisting external root follows its declared collision policy and never silently changes owner | Pending |
-| Alias revocation | Disabling an alias removes execution and suggestions after command tree refresh | Pending |
-| Bundle pacing | A large approved cohort progresses within its action-per-tick budget without duplicate mutation | Pending |
-| Bundle cancellation | Issuer cancellation stops future steps and records the terminal job state | Pending |
-| Bundle recovery | A queued job restored after restart remains in recovery until explicitly resumed | Pending |
-| Bundle revalidation | Permission, hierarchy, exemption, feature, target, or profile revision loss blocks the next step | Pending |
-| Fake identity | Fake join, leave, and message output is visibly unsigned system presentation | Pending |
-| Fake identity visibility | Vanished identities are never resolved for an unauthorized issuer or audience | Pending |
-| Fake schedule | A scene fires once at the saved time and survives a clean restart | Pending |
-| Sudo consent | An ordinary target is denied until consent is enabled | Pending |
-| Sudo lock | A staff lock wins unless the exact lock bypass is granted | Pending |
-| Sudo hierarchy | Equal or higher targets, exempt targets, and vanished targets fail closed | Pending |
-| Sudo chat | Output is unsigned presentation and never appears as signed player chat | Pending |
-| Run source | An allowlisted root runs with a real server source only after confirmation | Pending |
-| Run root permissions | A root-specific permission is required unless the exact any-root permission is granted | Pending |
-| Silent actor | Only source feedback is suppressed. Command spy, file logging, and security audit remain visible | Pending |
-| Silent server | Independent-output commands warn and require the exact unsuppressible-output capability | Pending |
-| Wrapper recursion | Alias, bundle, profile, schedule, sudo, run, and silent wrapper indirection is rejected | Pending |
-| LuckPerms refresh | Permission loss invalidates pending confirmation and stops queued execution | Pending |
-| Mixed client | Enhanced clients use vanilla-style controls while vanilla clients retain every command fallback | Pending |
-| Storage failure | Alias, bundle, profile, fake, and sudo repositories enter recovery and reject writes | Pending |
-| Dirty shutdown | No partially written managed document is accepted after forced termination | Pending |
-| Performance | Queue, fake schedule, and command observation work stays within configured tick and memory bounds | Pending |
-
-Phase 11 is not approved for a public release until every applicable pending row has a recorded build, configuration, player roles, result, and log reference.
+All Phase 11 acceptance rows are satisfied by the current automated and runtime matrix.

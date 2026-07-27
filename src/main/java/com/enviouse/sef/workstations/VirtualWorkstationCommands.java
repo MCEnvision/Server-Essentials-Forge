@@ -85,9 +85,7 @@ public final class VirtualWorkstationCommands {
         }
 
         if (ConfigHandler.config.enableSuperEnchantingTableCommand.get()) {
-            if (KernelServices.shortcuts().isActive("superenchantingtable")) {
-                registerSuperEnchantingCommand(dispatcher, "superenchantingtable");
-            }
+            registerSuperEnchantingCommand(dispatcher, "superenchantingtable");
             if (ConfigHandler.config.enableSuperEnchantingTableAlias.get()
                     && KernelServices.shortcuts().isActive("set")) {
                 registerSuperEnchantingCommand(dispatcher, "set");
@@ -201,7 +199,7 @@ public final class VirtualWorkstationCommands {
                             ignored -> {
                                 if (!SuperEnchantingMenu.canOpen(player)) {
                                     player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                                            "&cHold one enchantable item in your main hand first."));
+                                            "&cHold an item in your main hand first."));
                                     return 0;
                                 }
                                 return openSuperEnchantingTable(player);

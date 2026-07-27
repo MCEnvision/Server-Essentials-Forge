@@ -7,6 +7,7 @@ import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.control.CommunityCommands;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -320,6 +321,13 @@ public final class TeleportRequestCommands {
             TeleportCommandSupport.fail(source, "That player is not accepting your teleport requests.");
             return 0;
         }
+        if (CommunityCommands.interactionBlocked(
+                target.getUUID(),
+                sender.getUUID(),
+                "teleports")) {
+            TeleportCommandSupport.fail(source, "That player is not accepting your teleport requests.");
+            return 0;
+        }
         ActionResult<TeleportRequestService.Request> result = KernelServices.teleportRequests().create(
                 type,
                 sender.getUUID(),
@@ -382,7 +390,12 @@ public final class TeleportRequestCommands {
         }
         TeleportRepository.TeleportPreference preference =
                 KernelServices.teleports().preference(target.getUUID());
-        if (!preference.tpaEnabled() || preference.blockedPlayers().contains(sender.getUUID())) {
+        if (!preference.tpaEnabled()
+                || preference.blockedPlayers().contains(sender.getUUID())
+                || CommunityCommands.interactionBlocked(
+                        target.getUUID(),
+                        sender.getUUID(),
+                        "teleports")) {
             KernelServices.teleportRequests().invalidate(request.id(), TeleportRequestService.State.REJECTED);
             TeleportCommandSupport.fail(source, "The request is no longer allowed.");
             return 0;

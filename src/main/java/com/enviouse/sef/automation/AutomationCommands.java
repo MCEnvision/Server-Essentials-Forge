@@ -14,14 +14,21 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.CommandWrapperService;
 import com.enviouse.sef.kernel.policy.ConfirmationService;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
 import com.enviouse.sef.permissions.DynamicPermissionService;
+import com.enviouse.sef.permissions.EphemeralExecutionGrant;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -47,6 +54,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class AutomationCommands {
     private static final int PAGE_SIZE = 10;
@@ -69,6 +77,7 @@ public final class AutomationCommands {
         dispatcher.register(sudoRoot());
         dispatcher.register(runRoot());
         dispatcher.register(silentRoot());
+        KernelServices.administrativeExecution().markCommandTreePublished();
     }
 
     public static void registerPublishedAliases(CommandDispatcher<CommandSourceStack> dispatcher) {
@@ -1024,36 +1033,66 @@ public final class AutomationCommands {
                         "sef:sudo.chat",
                         "sef:sudo.dryrun",
                         "sef:sudo.consent",
-                        "sef:sudo.lock"));
+                        "sef:sudo.lock",
+                        "sef:sudo.policy"));
         root.then(Commands.literal("run")
                 .requires(source -> can(source, "sef:sudo.run"))
-                .then(IdentityArguments.online("player")
+                .then(sudoPlayerArgument("player")
+                        .then(sudoRunMode("respect", false, false))
+                        .then(sudoRunMode("delegate", true, false))
                         .then(Commands.argument("command", StringArgumentType.greedyString())
+                                .suggests((context, builder) ->
+                                        suggestSudoCommand(context, builder, false))
                                 .executes(context -> requestSudo(
                                         context.getSource(),
                                         IdentityArguments.getOnline(context, "player"),
-                                        StringArgumentType.getString(context, "command"))))));
+                                        StringArgumentType.getString(context, "command"),
+                                        false,
+                                        false)))));
         root.then(Commands.literal("confirm")
                 .requires(source -> can(source, "sef:sudo.run"))
                 .then(Commands.argument("token", StringArgumentType.word())
-                        .then(IdentityArguments.online("player")
+                        .then(sudoPlayerArgument("player")
+                                .then(sudoConfirmMode("respect", false))
+                                .then(sudoConfirmMode("delegate", true))
+                                .then(sudoConfirmMode("false", false))
+                                .then(sudoConfirmMode("true", true))
                                 .then(Commands.argument("command", StringArgumentType.greedyString())
+                                        .suggests((context, builder) ->
+                                                suggestSudoCommand(context, builder, false))
                                         .executes(context -> confirmSudo(
                                                 context.getSource(),
-                                                StringArgumentType.getString(context, "token"),
-                                                IdentityArguments.getOnline(context, "player"),
-                                                StringArgumentType.getString(context, "command")))))));
+                                                        StringArgumentType.getString(context, "token"),
+                                                        IdentityArguments.getOnline(context, "player"),
+                                                        "respect",
+                                                        StringArgumentType.getString(context, "command")))))));
         root.then(Commands.literal("dryrun")
                 .requires(source -> can(source, "sef:sudo.dryrun"))
-                .then(IdentityArguments.online("player")
+                .then(sudoPlayerArgument("player")
                         .then(Commands.argument("command", StringArgumentType.greedyString())
+                                .suggests((context, builder) ->
+                                        suggestSudoCommand(context, builder, false))
                                 .executes(context -> sudoDryRun(
                                         context.getSource(),
                                         IdentityArguments.getOnline(context, "player"),
-                                        StringArgumentType.getString(context, "command"))))));
+                                        StringArgumentType.getString(context, "command"),
+                                        false)))));
+        root.then(Commands.literal("preview")
+                .requires(source -> can(source, "sef:sudo.dryrun"))
+                .then(sudoPlayerArgument("player")
+                        .then(sudoPreviewMode("respect", false))
+                        .then(sudoPreviewMode("delegate", true))
+                        .then(Commands.argument("command", StringArgumentType.greedyString())
+                                .suggests((context, builder) ->
+                                        suggestSudoCommand(context, builder, false))
+                                .executes(context -> sudoDryRun(
+                                        context.getSource(),
+                                        IdentityArguments.getOnline(context, "player"),
+                                        StringArgumentType.getString(context, "command"),
+                                        false)))));
         root.then(Commands.literal("chat")
                 .requires(source -> can(source, "sef:sudo.chat"))
-                .then(IdentityArguments.online("player")
+                .then(sudoPlayerArgument("player")
                         .then(Commands.argument("message", StringArgumentType.greedyString())
                                 .executes(context -> sudoChat(
                                         context.getSource(),
@@ -1069,7 +1108,7 @@ public final class AutomationCommands {
                                 parseState(StringArgumentType.getString(context, "state"))))));
         root.then(Commands.literal("lock")
                 .requires(source -> can(source, "sef:sudo.lock"))
-                .then(IdentityArguments.online("player")
+                .then(sudoPlayerArgument("player")
                         .then(Commands.argument("state", StringArgumentType.word())
                                 .suggests((context, builder) -> SharedSuggestionProvider.suggest(
                                         new String[]{"on", "off"}, builder))
@@ -1088,14 +1127,128 @@ public final class AutomationCommands {
                                                 StringArgumentType.getString(
                                                         context,
                                                         "reason")))))));
-        root.then(IdentityArguments.online("player")
+        root.then(Commands.literal("policy")
+                .requires(source -> can(source, "sef:sudo.policy"))
+                .executes(context -> sudoPolicy(context.getSource(), null))
+                .then(sudoPlayerArgument("player")
+                        .executes(context -> sudoPolicy(
+                                context.getSource(),
+                                IdentityArguments.getOnline(context, "player")))));
+        root.then(sudoPlayerArgument("player")
                 .requires(source -> can(source, "sef:sudo.run"))
+                .then(sudoRunMode("false", false, true))
+                .then(sudoRunMode("true", true, true))
                 .then(Commands.argument("command", StringArgumentType.greedyString())
+                        .suggests((context, builder) ->
+                                suggestSudoCommand(context, builder, false))
                         .executes(context -> requestSudo(
                                 context.getSource(),
                                 IdentityArguments.getOnline(context, "player"),
-                                StringArgumentType.getString(context, "command")))));
+                                StringArgumentType.getString(context, "command"),
+                                false,
+                                true))));
         return root;
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> sudoRunMode(
+            String mode,
+            boolean delegated,
+            boolean compatibilitySyntax
+    ) {
+        return Commands.literal(mode)
+                .then(Commands.argument("command", StringArgumentType.greedyString())
+                        .suggests((context, builder) ->
+                                suggestSudoCommand(context, builder, delegated))
+                        .executes(context -> requestSudo(
+                                context.getSource(),
+                                IdentityArguments.getOnline(context, "player"),
+                                StringArgumentType.getString(context, "command"),
+                                delegated,
+                                compatibilitySyntax)));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> sudoConfirmMode(
+            String mode,
+            boolean delegated
+    ) {
+        return Commands.literal(mode)
+                .then(Commands.argument("command", StringArgumentType.greedyString())
+                        .suggests((context, builder) ->
+                                suggestSudoCommand(context, builder, delegated))
+                        .executes(context -> confirmSudo(
+                                context.getSource(),
+                                StringArgumentType.getString(context, "token"),
+                                IdentityArguments.getOnline(context, "player"),
+                                mode,
+                                StringArgumentType.getString(context, "command"))));
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> sudoPreviewMode(
+            String mode,
+            boolean delegated
+    ) {
+        return Commands.literal(mode)
+                .then(Commands.argument("command", StringArgumentType.greedyString())
+                        .suggests((context, builder) ->
+                                suggestSudoCommand(context, builder, delegated))
+                        .executes(context -> sudoDryRun(
+                                context.getSource(),
+                                IdentityArguments.getOnline(context, "player"),
+                                StringArgumentType.getString(context, "command"),
+                                delegated)));
+    }
+
+    private static RequiredArgumentBuilder<CommandSourceStack, String> sudoPlayerArgument(String name) {
+        return Commands.argument(name, StringArgumentType.string())
+                .suggests((context, builder) -> SharedSuggestionProvider.suggest(
+                        context.getSource().getServer().getPlayerList().getPlayers().stream()
+                                .filter(target -> eligibleTarget(
+                                        context.getSource(),
+                                        target,
+                                        "sudo.exempt",
+                                        "sudo.bypass.exempt",
+                                        "sudo.hierarchy.bypass"))
+                                .map(target -> StringArgumentType.escapeIfRequired(
+                                        target.getGameProfile().getName())),
+                        builder));
+    }
+
+    private static CompletableFuture<Suggestions> suggestSudoCommand(
+            CommandContext<CommandSourceStack> context,
+            SuggestionsBuilder builder,
+            boolean delegated
+    ) {
+        ServerPlayer target;
+        try {
+            target = IdentityArguments.getOnline(context, "player");
+        } catch (Exception exception) {
+            return builder.buildFuture();
+        }
+        if (!eligibleTarget(
+                context.getSource(),
+                target,
+                "sudo.exempt",
+                "sudo.bypass.exempt",
+                "sudo.hierarchy.bypass")
+                || delegated && !eligibleTarget(
+                context.getSource(),
+                target,
+                "sudo.delegate.exempt",
+                "sudo.bypass.exempt",
+                "sudo.hierarchy.bypass")) {
+            return builder.buildFuture();
+        }
+        int offset = builder.getStart();
+        return KernelServices.administrativeExecution()
+                .suggest(context.getSource(), target, builder.getRemaining(), delegated)
+                .thenApply(suggestions -> {
+                    SuggestionsBuilder shifted =
+                            builder.createOffset(offset + suggestions.getRange().getStart());
+                    suggestions.getList().forEach(suggestion ->
+                            shifted.suggest(suggestion.getText(), suggestion.getTooltip()));
+                    return shifted.build();
+                })
+                .exceptionally(exception -> builder.build());
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> runRoot() {
@@ -1921,23 +2074,123 @@ public final class AutomationCommands {
         });
     }
 
-    private static int requestSudo(CommandSourceStack source, ServerPlayer target, String command) {
-        SudoPreflight preflight = sudoPreflight(source, target, command);
+    private static int requestSudo(
+            CommandSourceStack source,
+            ServerPlayer target,
+            String command,
+            boolean delegated,
+            boolean compatibilitySyntax
+    ) {
+        SudoPreflight preflight = sudoPreflight(
+                source,
+                target,
+                command,
+                delegated,
+                compatibilitySyntax);
         if (!preflight.allowed()) {
+            if (delegated) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.ADMISSION,
+                        source,
+                        target,
+                        UUID.randomUUID(),
+                        null,
+                        "",
+                        "",
+                        AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.POLICY_DENIED,
+                        preflight.detail());
+            }
             return fail(source, preflight.detail());
+        }
+        if (delegated) {
+            SudoDelegationAudit.record(
+                    SudoDelegationAudit.Stage.ADMISSION,
+                    source,
+                    target,
+                    preflight.preview().correlationId(),
+                    null,
+                    preflight.preview().root(),
+                    preflight.delegationProfile().id(),
+                    AuditService.Result.SUCCESS,
+                    ActionResult.ReasonCode.SUCCESS,
+                    "admission facts accepted");
+        }
+        if (delegated && !KernelServices.administrativeExecution()
+                .settings()
+                .delegationConfirmationRequired()) {
+            if (!has(source, "commands.sudo.delegate.confirm")) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.CONFIRMATION,
+                        source,
+                        target,
+                        preflight.preview().correlationId(),
+                        null,
+                        preflight.preview().root(),
+                        preflight.delegationProfile().id(),
+                        AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.PERMISSION_DENIED,
+                        "delegated dispatch permission denied");
+                return fail(source, "Delegated sudo dispatch is not allowed.");
+            }
+            SudoDelegationAudit.record(
+                    SudoDelegationAudit.Stage.CONFIRMATION,
+                    source,
+                    target,
+                    preflight.preview().correlationId(),
+                    null,
+                    preflight.preview().root(),
+                    preflight.delegationProfile().id(),
+                    AuditService.Result.SUCCESS,
+                    ActionResult.ReasonCode.SUCCESS,
+                    "confirmation disabled by policy");
+            return dispatchSudo(
+                    source,
+                    target,
+                    true,
+                    preflight,
+                    UUID.randomUUID());
         }
         ConfirmationService.Request request = confirmation(
                 source,
                 "sef:sudo.run",
-                commandMetadata(preflight.preview()),
+                sudoCommandMetadata(preflight, delegated),
                 List.of(target.getUUID()));
         ActionResult<ConfirmationService.IssuedToken> issued =
                 KernelServices.confirmations().issue(request, Duration.ofSeconds(60));
         if (!issued.successful()) {
+            if (delegated) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.CONFIRMATION,
+                        source,
+                        target,
+                        preflight.preview().correlationId(),
+                        null,
+                        preflight.preview().root(),
+                        preflight.delegationProfile().id(),
+                        AuditService.Result.FAILED,
+                        issued.reason(),
+                        issued.detail());
+            }
             return fail(source, "A sudo confirmation token could not be issued.");
         }
+        if (delegated) {
+            SudoDelegationAudit.record(
+                    SudoDelegationAudit.Stage.CONFIRMATION,
+                    source,
+                    target,
+                    preflight.preview().correlationId(),
+                    null,
+                    preflight.preview().root(),
+                    preflight.delegationProfile().id(),
+                    AuditService.Result.SUCCESS,
+                    ActionResult.ReasonCode.SUCCESS,
+                    "confirmation issued");
+        }
         success(source, "Confirmation required. /sudo confirm " + issued.value().token()
-                + " " + target.getGameProfile().getName() + " " + preflight.preview().normalizedCommand());
+                + " " + target.getGameProfile().getName()
+                + " " + (delegated ? "delegate" : "respect")
+                + " " + preflight.preview().normalizedCommand());
         return 1;
     }
 
@@ -1945,57 +2198,248 @@ public final class AutomationCommands {
             CommandSourceStack source,
             String token,
             ServerPlayer target,
+            String permissionMode,
             String command
     ) {
-        SudoPreflight preflight = sudoPreflight(source, target, command);
+        boolean delegated;
+        try {
+            delegated = parseDelegatedMode(permissionMode);
+        } catch (IllegalArgumentException exception) {
+            return fail(source, exception.getMessage());
+        }
+        boolean compatibilitySyntax = permissionMode.equalsIgnoreCase("true")
+                || permissionMode.equalsIgnoreCase("false");
+        if (delegated && !has(source, "commands.sudo.delegate.confirm")) {
+            return fail(source, "Delegated sudo confirmation is not allowed.");
+        }
+        SudoPreflight preflight = sudoPreflight(
+                source,
+                target,
+                command,
+                delegated,
+                compatibilitySyntax);
         if (!preflight.allowed()) {
+            if (delegated) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.ADMISSION,
+                        source,
+                        target,
+                        UUID.randomUUID(),
+                        null,
+                        "",
+                        "",
+                        AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.POLICY_DENIED,
+                        preflight.detail());
+            }
             return fail(source, preflight.detail());
         }
         ConfirmationService.Request request = confirmation(
                 source,
                 "sef:sudo.run",
-                commandMetadata(preflight.preview()),
+                sudoCommandMetadata(preflight, delegated),
                 List.of(target.getUUID()));
         ActionResult<ConfirmationService.Request> consumed =
                 KernelServices.confirmations().consume(token, request);
         if (!consumed.successful()) {
+            if (delegated) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.CONFIRMATION,
+                        source,
+                        target,
+                        preflight.preview().correlationId(),
+                        null,
+                        preflight.preview().root(),
+                        preflight.delegationProfile().id(),
+                        AuditService.Result.REJECTED,
+                        consumed.reason(),
+                        consumed.detail());
+            }
             return fail(source, "Sudo confirmation is invalid, expired, used, or changed.");
         }
-        return execute(source, "sef:sudo.run", Map.of(
-                "root", preflight.preview().root(),
-                "command_length", Integer.toString(preflight.preview().normalizedCommand().length())),
-                List.of(target.getUUID()), () -> {
-                    ActionResult<Integer> executed =
-                            KernelServices.administrativeExecution().sudoRun(
-                                    source,
-                                    target,
-                                    preflight.preview().normalizedCommand());
-                    if (!executed.successful()) {
-                        return fail(source, "Sudo execution failed. " + executed.detail());
-                    }
-                    if (ConfigHandler.config.sudoNotifyTarget.get()) {
-                        target.sendSystemMessage(TextFormatter.stringToFormattedText(
-                                ConfigHandler.config.sudoNotifyMsg.get()
-                                        .replace("$admin", source.getTextName())
-                                        .replace("$command", preflight.preview().normalizedCommand())));
-                    }
-                    success(source, "Sudo command executed as " + target.getGameProfile().getName() + ".");
-                    return Math.max(1, executed.value());
-                });
+        if (delegated) {
+            SudoDelegationAudit.record(
+                    SudoDelegationAudit.Stage.CONFIRMATION,
+                    source,
+                    target,
+                    preflight.preview().correlationId(),
+                    null,
+                    preflight.preview().root(),
+                    preflight.delegationProfile().id(),
+                    AuditService.Result.SUCCESS,
+                    ActionResult.ReasonCode.SUCCESS,
+                    "confirmation consumed");
+        }
+        return dispatchSudo(
+                source,
+                target,
+                delegated,
+                preflight,
+                UUID.nameUUIDFromBytes(
+                        ("sef:sudo:confirmation:" + digest(token))
+                                .getBytes(StandardCharsets.UTF_8)));
     }
 
-    private static int sudoDryRun(CommandSourceStack source, ServerPlayer target, String command) {
-        SudoPreflight preflight = sudoPreflight(source, target, command);
+    private static int dispatchSudo(
+            CommandSourceStack source,
+            ServerPlayer target,
+            boolean delegated,
+            SudoPreflight preflight,
+            UUID confirmationId
+    ) {
+        EphemeralExecutionGrant grant = null;
+        if (delegated) {
+            if (!preflight.revisionsCurrent(target)) {
+                return fail(source, "Delegated sudo admission changed before dispatch.");
+            }
+            Instant createdAt = Instant.now();
+            AdministrativeExecutionService.DelegationProfile profile =
+                    preflight.delegationProfile();
+            grant = new EphemeralExecutionGrant(
+                    UUID.randomUUID(),
+                    actorId(source),
+                    target.getUUID(),
+                    preflight.targetSessionRevision(),
+                    preflight.preview().root(),
+                    profile.canonicalActionId(),
+                    digest(preflight.preview().normalizedCommand()),
+                    preflight.commandTreeRevision(),
+                    profile.id(),
+                    profile.revision(),
+                    profile.maximumTemporaryVanillaPermissionLevel(),
+                    profile.temporarySefPermissionIds(),
+                    profile.approvedAdapterCapabilities(),
+                    preflight.sudoPolicyRevision(),
+                    preflight.permissionProviderRevision(),
+                    preflight.featureRevision(),
+                    preflight.configurationRevision(),
+                    createdAt,
+                    createdAt.plusSeconds(KernelServices.administrativeExecution()
+                            .settings()
+                            .delegationGrantLifetimeSeconds()),
+                    confirmationId,
+                    preflight.preview().correlationId());
+        }
+        EphemeralExecutionGrant executionGrant = grant;
+        boolean[] bodyEntered = {false};
+        if (executionGrant != null) {
+            SudoDelegationAudit.record(
+                    SudoDelegationAudit.Stage.DISPATCH,
+                    source,
+                    target,
+                    preflight.preview().correlationId(),
+                    executionGrant,
+                    preflight.preview().root(),
+                    preflight.delegationProfile().id(),
+                    AuditService.Result.OUTCOME_UNKNOWN,
+                    ActionResult.ReasonCode.SUCCESS,
+                    "grant created for dispatcher invocation");
+        }
+        try {
+            int outcome = execute(source, "sef:sudo.run", sudoExecutionMetadata(
+                    preflight,
+                    executionGrant),
+                    List.of(target.getUUID()), () -> {
+                        bodyEntered[0] = true;
+                        ActionResult<Integer> executed =
+                                delegated
+                                        ? KernelServices.administrativeExecution().sudoRun(
+                                                source,
+                                                target,
+                                                preflight.preview().normalizedCommand(),
+                                                executionGrant)
+                                        : KernelServices.administrativeExecution().sudoRun(
+                                                source,
+                                                target,
+                                                preflight.preview().normalizedCommand());
+                        if (executionGrant != null) {
+                            SudoDelegationAudit.record(
+                                    SudoDelegationAudit.Stage.RESULT,
+                                    source,
+                                    target,
+                                    preflight.preview().correlationId(),
+                                    executionGrant,
+                                    preflight.preview().root(),
+                                    preflight.delegationProfile().id(),
+                                    executed.successful()
+                                            ? AuditService.Result.SUCCESS
+                                            : AuditService.Result.FAILED,
+                                    executed.reason(),
+                                    executed.detail());
+                        }
+                        if (!executed.successful()) {
+                            return fail(source, "Sudo execution failed. " + executed.detail());
+                        }
+                        if (ConfigHandler.config.sudoNotifyTarget.get()
+                                && (!delegated || KernelServices.administrativeExecution()
+                                .settings()
+                                .delegationNotifyTarget())) {
+                            target.sendSystemMessage(TextFormatter.stringToFormattedText(
+                                    ConfigHandler.config.sudoNotifyMsg.get()
+                                            .replace("$admin", source.getTextName())
+                                            .replace("$command", preflight.preview().normalizedCommand())));
+                        }
+                        success(source, "Sudo command executed as " + target.getGameProfile().getName()
+                                + (delegated ? " with one execution delegated permission." : "."));
+                        return Math.max(1, executed.value());
+                    });
+            if (executionGrant != null && !bodyEntered[0]) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.RESULT,
+                        source,
+                        target,
+                        preflight.preview().correlationId(),
+                        executionGrant,
+                        preflight.preview().root(),
+                        preflight.delegationProfile().id(),
+                        AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.POLICY_DENIED,
+                        "shared execution policy rejected dispatch");
+            }
+            return outcome;
+        } finally {
+            if (executionGrant != null) {
+                SudoDelegationAudit.record(
+                        SudoDelegationAudit.Stage.CLEANUP,
+                        source,
+                        target,
+                        preflight.preview().correlationId(),
+                        executionGrant,
+                        preflight.preview().root(),
+                        preflight.delegationProfile().id(),
+                        AuditService.Result.SUCCESS,
+                        ActionResult.ReasonCode.SUCCESS,
+                        DelegatedPermissionScope.active()
+                                ? "temporary scope remained active"
+                                : "temporary scope removed");
+            }
+        }
+    }
+
+    private static int sudoDryRun(
+            CommandSourceStack source,
+            ServerPlayer target,
+            String command,
+            boolean delegated
+    ) {
+        SudoPreflight preflight = sudoPreflight(source, target, command, delegated, false);
         return execute(source, "sef:sudo.dryrun", Map.of(
                 "target", target.getUUID().toString(),
                 "allowed", Boolean.toString(preflight.allowed()),
+                "permission_mode", delegated ? "delegated_once" : "target",
                 "command_length", Integer.toString(command.length())), List.of(target.getUUID()), () -> {
             if (!preflight.allowed()) {
                 info(source, "Sudo dry run denied. " + preflight.detail());
                 return 0;
             }
             info(source, "Sudo dry run accepted root " + preflight.preview().root()
-                    + ", command length " + preflight.preview().normalizedCommand().length() + ".");
+                    + ", command length " + preflight.preview().normalizedCommand().length()
+                    + (delegated
+                    ? ", profile " + preflight.delegationProfile().id()
+                    + ", temporary vanilla level "
+                    + preflight.delegationProfile().maximumTemporaryVanillaPermissionLevel()
+                    : "")
+                    + ".");
             return 1;
         });
     }
@@ -2086,11 +2530,80 @@ public final class AutomationCommands {
                 "Sudo lock changed."));
     }
 
+    private static int sudoPolicy(CommandSourceStack source, ServerPlayer target) {
+        AdministrativeExecutionService.Settings settings =
+                KernelServices.administrativeExecution().settings();
+        List<UUID> targets = target == null ? List.of() : List.of(target.getUUID());
+        return execute(source, "sef:sudo.policy", Map.of(
+                "scope", target == null ? "server" : "target"),
+                targets, () -> {
+            info(source, "Delegated sudo " + (settings.delegationEnabled() ? "enabled" : "disabled")
+                    + ", allowed roots " + settings.delegationAllowedRoots()
+                    + ", denied roots " + settings.delegationDeniedRoots()
+                    + ", maximum vanilla level "
+                    + settings.delegationMaximumTemporaryVanillaPermissionLevel()
+                    + ", lifetime " + settings.delegationGrantLifetimeSeconds() + " seconds.");
+            settings.delegationProfiles().values().stream()
+                    .sorted(java.util.Comparator.comparing(
+                            AdministrativeExecutionService.DelegationProfile::id))
+                    .forEach(profile -> info(source, "Delegation profile " + profile.id()
+                            + ", revision " + profile.revision()
+                            + ", roots " + String.join(",", profile.allowedRoots()) + "."));
+            Set<String> broadDelegationGrants = DynamicPermissionService.broadGrants(
+                    source.getPlayer(),
+                    Set.of(
+                            "sef.commands.sudo.ignore_permissions",
+                            "sef.commands.sudo.delegate",
+                            "sef.commands.sudo.delegate.preview",
+                            "sef.commands.sudo.delegate.confirm",
+                            "sef.commands.sudo.delegate.root.effect",
+                            "sef.commands.sudo.delegate.profile.effect"));
+            if (!broadDelegationGrants.isEmpty()) {
+                info(source, "Warning. broad permission grants include delegated sudo. "
+                        + String.join(",", broadDelegationGrants) + ".");
+            }
+            if (target != null) {
+                SudoPolicyRepository.Policy policy =
+                        KernelServices.sudoPolicies().policy(target.getUUID());
+                info(source, "Target " + target.getGameProfile().getName()
+                        + ", consent " + policy.consent()
+                        + ", locked " + policy.locked()
+                        + ", session revision "
+                        + SefGuiServer.targetSessionRevision(target.getUUID())
+                        + ", policy revision " + policy.revision() + ".");
+            }
+            return 1;
+        });
+    }
+
     private static SudoPreflight sudoPreflight(
             CommandSourceStack source,
             ServerPlayer target,
-            String command
+            String command,
+            boolean delegated,
+            boolean compatibilitySyntax
     ) {
+        AdministrativeExecutionService.Settings settings =
+                KernelServices.administrativeExecution().settings();
+        if (compatibilitySyntax && !settings.delegationCompatibilityBooleanSyntax()) {
+            return SudoPreflight.denied("The sudo compatibility boolean syntax is disabled.");
+        }
+        if (delegated && !settings.delegationEnabled()) {
+            return SudoPreflight.denied("Delegated sudo is disabled.");
+        }
+        if (delegated
+                && (!has(source, "commands.sudo.ignore_permissions")
+                || !has(source, "commands.sudo.delegate")
+                || !has(source, "commands.sudo.delegate.preview"))) {
+            return SudoPreflight.denied("One execution delegated permission is not allowed.");
+        }
+        if (delegated
+                && source.getPlayer() != null
+                && source.getPlayer().getUUID().equals(target.getUUID())
+                && (!settings.delegationAllowSelf()
+                || !has(source, "commands.sudo.delegate.self"))) {
+            return SudoPreflight.denied("Delegated sudo cannot target the issuer.");
+        }
         if (!eligibleTarget(
                 source,
                 target,
@@ -2099,24 +2612,63 @@ public final class AutomationCommands {
                 "sudo.hierarchy.bypass")) {
             return SudoPreflight.denied("That player is unavailable.");
         }
+        if (delegated && !eligibleTarget(
+                source,
+                target,
+                "sudo.delegate.exempt",
+                "sudo.bypass.exempt",
+                "sudo.hierarchy.bypass")) {
+            return SudoPreflight.denied("That player is exempt from delegated sudo.");
+        }
         SudoPolicyRepository.Decision targetPolicy = KernelServices.sudoPolicies().decide(
                 target.getUUID(),
-                has(source, "commands.sudo.bypass.consent"),
+                has(source, "commands.sudo.bypass.consent")
+                        || delegated && !settings.delegationRequireTargetConsent(),
                 has(source, "commands.sudo.bypass.lock"));
         if (!targetPolicy.allowed()) {
             return SudoPreflight.denied(targetPolicy.detail() + ".");
         }
-        ActionResult<AdministrativeExecutionService.Preview> preview =
-                KernelServices.administrativeExecution().preview(
-                        source,
-                        target.createCommandSourceStack(),
-                        command,
-                        AdministrativeExecutionService.Context.TARGETED_ACTOR,
-                        CommandWrapperService.Origin.DIRECT);
-        if (!preview.successful()) {
-            return SudoPreflight.denied("Sudo denied. " + preview.detail() + ".");
+        if (!delegated) {
+            ActionResult<AdministrativeExecutionService.Preview> preview =
+                    KernelServices.administrativeExecution().preview(
+                            source,
+                            target.createCommandSourceStack(),
+                            command,
+                            AdministrativeExecutionService.Context.TARGETED_ACTOR,
+                            CommandWrapperService.Origin.DIRECT);
+            return preview.successful()
+                    ? SudoPreflight.respect(preview.value())
+                    : SudoPreflight.denied("Sudo denied. " + preview.detail() + ".");
         }
-        return new SudoPreflight(true, "", preview.value());
+        long targetSessionRevision = SefGuiServer.targetSessionRevision(target.getUUID());
+        if (targetSessionRevision < 1L) {
+            return SudoPreflight.denied("The target session is unavailable.");
+        }
+        ActionResult<AdministrativeExecutionService.DelegatedPreview> preview =
+                KernelServices.administrativeExecution().previewDelegated(
+                        source,
+                        target,
+                        command);
+        if (!preview.successful()) {
+            return SudoPreflight.denied("Delegated sudo denied. " + preview.detail() + ".");
+        }
+        AdministrativeExecutionService.DelegatedPreview delegatedPreview = preview.value();
+        if (!has(source, "commands.sudo.delegate.root." + delegatedPreview.preview().root())) {
+            return SudoPreflight.denied("Delegated sudo root permission is denied.");
+        }
+        if (!has(source, "commands.sudo.delegate.profile." + delegatedPreview.profile().id())) {
+            return SudoPreflight.denied("Delegated sudo profile permission is denied.");
+        }
+        long configurationRevision = KernelServices.configurationRevision();
+        return SudoPreflight.delegated(
+                delegatedPreview.preview(),
+                delegatedPreview.profile(),
+                delegatedPreview.commandTreeRevision(),
+                targetSessionRevision,
+                targetPolicy.policy().revision(),
+                PermissionService.providerRevision(),
+                configurationRevision,
+                configurationRevision);
     }
 
     private static int requestRun(CommandSourceStack source, String command) {
@@ -2381,6 +2933,64 @@ public final class AutomationCommands {
                 "context", preview.context().name().toLowerCase(Locale.ROOT));
     }
 
+    private static Map<String, String> sudoCommandMetadata(SudoPreflight preflight, boolean delegated) {
+        Map<String, String> metadata = new LinkedHashMap<>(commandMetadata(preflight.preview()));
+        metadata.put("permission_mode", delegated ? "delegated_once" : "target");
+        if (delegated) {
+            AdministrativeExecutionService.DelegationProfile profile =
+                    preflight.delegationProfile();
+            metadata.put("canonical_action", profile.canonicalActionId());
+            metadata.put("profile", profile.id());
+            metadata.put("profile_revision", Long.toString(profile.revision()));
+            metadata.put("command_tree_revision", Long.toString(preflight.commandTreeRevision()));
+            metadata.put("target_session_revision", Long.toString(preflight.targetSessionRevision()));
+            metadata.put("sudo_policy_revision", Long.toString(preflight.sudoPolicyRevision()));
+            metadata.put("permission_provider_revision", Long.toString(
+                    preflight.permissionProviderRevision()));
+            metadata.put("feature_revision", Long.toString(preflight.featureRevision()));
+            metadata.put("configuration_revision", Long.toString(
+                    preflight.configurationRevision()));
+            metadata.put("temporary_vanilla_level", Integer.toString(
+                    profile.maximumTemporaryVanillaPermissionLevel()));
+            metadata.put("temporary_sef_permissions", profile.temporarySefPermissionIds().stream()
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(",")));
+            metadata.put("adapter_capabilities", profile.approvedAdapterCapabilities().stream()
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(",")));
+        }
+        return Map.copyOf(metadata);
+    }
+
+    private static Map<String, String> sudoExecutionMetadata(
+            SudoPreflight preflight,
+            EphemeralExecutionGrant grant
+    ) {
+        Map<String, String> metadata = new LinkedHashMap<>();
+        metadata.put("root", preflight.preview().root());
+        metadata.put("permission_mode", grant == null ? "target" : "delegated_once");
+        metadata.put(
+                "command_length",
+                Integer.toString(preflight.preview().normalizedCommand().length()));
+        metadata.put("command_digest", digest(preflight.preview().normalizedCommand()));
+        metadata.put("audit_correlation", preflight.preview().correlationId().toString());
+        if (grant != null) {
+            metadata.put("grant_id", grant.grantId().toString());
+            metadata.put("profile", grant.profileId());
+            metadata.put("profile_revision", Long.toString(grant.profileRevision()));
+            metadata.put(
+                    "temporary_vanilla_level",
+                    Integer.toString(grant.maximumTemporaryVanillaPermissionLevel()));
+            metadata.put("temporary_sef_permissions", grant.temporarySefPermissionIds().stream()
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(",")));
+            metadata.put("adapter_capabilities", grant.approvedAdapterCapabilities().stream()
+                    .sorted()
+                    .collect(java.util.stream.Collectors.joining(",")));
+        }
+        return Map.copyOf(metadata);
+    }
+
     private static int dispatch(
             CommandSourceStack reporter,
             CommandSourceStack executionSource,
@@ -2567,6 +3177,15 @@ public final class AutomationCommands {
         };
     }
 
+    private static boolean parseDelegatedMode(String value) {
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "respect", "false" -> false;
+            case "delegate", "true" -> true;
+            default -> throw new IllegalArgumentException(
+                    "Permission mode must be respect, delegate, false, or true.");
+        };
+    }
+
     private static Collection<ServerPlayer> selfTargets(CommandSourceStack source) {
         return source.getPlayer() == null ? List.of() : List.of(source.getPlayer());
     }
@@ -2668,10 +3287,63 @@ public final class AutomationCommands {
     private record SudoPreflight(
             boolean allowed,
             String detail,
-            AdministrativeExecutionService.Preview preview
+            AdministrativeExecutionService.Preview preview,
+            AdministrativeExecutionService.DelegationProfile delegationProfile,
+            long commandTreeRevision,
+            long targetSessionRevision,
+            long sudoPolicyRevision,
+            long permissionProviderRevision,
+            long featureRevision,
+            long configurationRevision
     ) {
         private static SudoPreflight denied(String detail) {
-            return new SudoPreflight(false, detail, null);
+            return new SudoPreflight(false, detail, null, null, 0L, 0L, 0L, 0L, 0L, 0L);
+        }
+
+        private static SudoPreflight respect(AdministrativeExecutionService.Preview preview) {
+            return new SudoPreflight(true, "", preview, null, 0L, 0L, 0L, 0L, 0L, 0L);
+        }
+
+        private static SudoPreflight delegated(
+                AdministrativeExecutionService.Preview preview,
+                AdministrativeExecutionService.DelegationProfile profile,
+                long commandTreeRevision,
+                long targetSessionRevision,
+                long sudoPolicyRevision,
+                long permissionProviderRevision,
+                long featureRevision,
+                long configurationRevision
+        ) {
+            return new SudoPreflight(
+                    true,
+                    "",
+                    preview,
+                    profile,
+                    commandTreeRevision,
+                    targetSessionRevision,
+                    sudoPolicyRevision,
+                    permissionProviderRevision,
+                    featureRevision,
+                    configurationRevision);
+        }
+
+        private boolean revisionsCurrent(ServerPlayer target) {
+            AdministrativeExecutionService.Settings settings =
+                    KernelServices.administrativeExecution().settings();
+            AdministrativeExecutionService.DelegationProfile currentProfile =
+                    settings.profileForRoot(preview.root()).orElse(null);
+            return target.server.getPlayerList().getPlayer(target.getUUID()) == target
+                    && SefGuiServer.targetSessionRevision(target.getUUID()) == targetSessionRevision
+                    && KernelServices.sudoPolicies().policy(target.getUUID()).revision()
+                    == sudoPolicyRevision
+                    && PermissionService.providerRevision() == permissionProviderRevision
+                    && KernelServices.configurationRevision() == featureRevision
+                    && KernelServices.configurationRevision() == configurationRevision
+                    && KernelServices.administrativeExecution().commandTreeRevision()
+                    == commandTreeRevision
+                    && currentProfile != null
+                    && currentProfile.id().equals(delegationProfile.id())
+                    && currentProfile.revision() == delegationProfile.revision();
         }
     }
 }

@@ -77,7 +77,10 @@ public class PlayerEventHandler implements IReloadable {
 
 	@SubscribeEvent
 	public void onPlayerLogout(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedOutEvent e) {
-        if(e.getEntity() instanceof ServerPlayer sp) {
+		        if(e.getEntity() instanceof ServerPlayer sp) {
+				com.enviouse.sef.control.MinecraftServerControlRuntime.logout(sp.getUUID());
+				KernelServices.adminLocks().logout(sp.getUUID());
+				com.enviouse.sef.control.MentionService.logout(sp.getUUID());
             // Clean up admin chat toggle state
             AdminChatHandler.handleLogout(sp.getUUID());
             // Clean up private msg toggle and /r tracking
@@ -89,6 +92,7 @@ public class PlayerEventHandler implements IReloadable {
 		            SDLinkHideTracker.clearAll(sp.getUUID());
 		            com.enviouse.sef.vanish.VanishUtil.forgetPlayer(sp.getUUID());
 		            com.enviouse.sef.utils.moddeps.LuckPermsProvider.invalidate(sp.getUUID());
+		            KernelServices.cooldownDurations().invalidate(sp.getUUID());
 		            KernelServices.warmups().clear(sp.getUUID());
 		            KernelServices.confirmations().revokeActor(sp.getUUID());
 		            KernelServices.observations().clear(sp.getUUID());
@@ -96,23 +100,52 @@ public class PlayerEventHandler implements IReloadable {
 		            SefGuiServer.logout(sp.getUUID());
 		            SefGuiServer.untrackPlayer(sp);
 		            SefSessionManager.instance().logout(sp.getUUID());
+			            KernelServices.disguises().onLogout(sp.getUUID());
+	            KernelServices.fancyTags().transfers().logout(sp.getUUID());
+		            com.enviouse.sef.disguise.DisguiseProxyService.logout(sp.server, sp.getUUID());
+		            com.enviouse.sef.disguise.DisguiseRuntime.logout(sp.getUUID());
+	            KernelServices.disguiseProxyIds().releaseObserver(sp.getUUID());
+		            KernelServices.disguiseProxyIds().releaseSubject(sp.getUUID());
 		            TeleportLifecycleEvents.handleLogout(sp);
 		        }
     }
 
 	@SubscribeEvent
 	public void onPlayerLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) {
-		    if(e.getEntity() instanceof ServerPlayer sp) {
-		            boolean firstJoin = KernelServices.profiles().find(sp.getUUID()).isEmpty();
+			if(e.getEntity() instanceof ServerPlayer sp) {
+					com.enviouse.sef.control.MinecraftServerControlRuntime.login(sp);
+			            var graveRecovery = KernelServices.graves().reconcilePlayer(sp);
+		            if (!graveRecovery.successful()) {
+		                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+		                        "A grave claim recovery requires staff review. "
+		                                + graveRecovery.detail()));
+		                ServerEssentialsForge.LOGGER.error(
+		                        "Grave claim recovery failed for player {}. {}",
+		                        sp.getUUID(),
+			                        graveRecovery.detail());
+			            }
+			            var escrowRecovery = KernelServices.escrow().reconcilePlayer(sp);
+			            if (!escrowRecovery.successful()) {
+			                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(
+			                        "An escrow recovery requires staff review. "
+			                                + escrowRecovery.detail()));
+			                ServerEssentialsForge.LOGGER.error(
+			                        "Escrow recovery failed for player {}. {}",
+			                        sp.getUUID(),
+			                        escrowRecovery.detail());
+			            }
+			            boolean firstJoin = KernelServices.profiles().find(sp.getUUID()).isEmpty();
 		            KernelServices.profiles().rememberDeferred(
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
 		            SefGuiServer.trackPlayer(sp);
+		            com.enviouse.sef.disguise.DisguiseRuntime.cacheProfile(sp);
 		            SefSessionManager.instance().bind(sp).ifPresent(session -> {
 		                SefGuiServer.sendTagManifest(sp);
 		            });
 		            SefGuiRuntime.login(sp);
 		            SefGuiRuntime.refreshIdentityProjections(sp.server);
+		            SefGuiServer.sendDisguiseSnapshot(sp.server);
 		            TeleportLifecycleEvents.handleLogin(sp, firstJoin);
 		            if (ConfigHandler.config.enableSocialEssentials.get()
 		                    && ConfigHandler.config.enableMail.get()) {
@@ -152,6 +185,9 @@ public class PlayerEventHandler implements IReloadable {
         int interval = Math.max(1, ConfigHandler.config.tabUpdateIntervalTicks.get());
         if (e.getServer().getTickCount() % 20 == 0) {
             ReminderService.deliverScheduled(e.getServer().getPlayerList().getPlayers());
+        }
+        if (e.getServer().getTickCount() % 1200 == 0) {
+            KernelServices.graves().cleanupExpiredContainers(e.getServer(), 512);
         }
         if(e.getServer().getTickCount() % interval == 0) {
             TAB_ANIM.tick(e.getServer());

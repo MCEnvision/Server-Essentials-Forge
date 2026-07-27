@@ -33,7 +33,8 @@ public final class UniversalGuiCatalog {
             Map.entry("sef:panels", new CategoryTemplate("category_panels", "Administrative panels", "minecraft:structure_block")),
             Map.entry("sef:aliases", new CategoryTemplate("category_aliases", "Aliases and bundles", "minecraft:repeater")),
             Map.entry("sef:tags", new CategoryTemplate("category_tags", "Fancy tags", "minecraft:name_tag")),
-            Map.entry("sef:identity", new CategoryTemplate("category_identity", "Identity and disguise", "minecraft:player_head")));
+            Map.entry("sef:identity", new CategoryTemplate("category_identity", "Identity and disguise", "minecraft:player_head")),
+            Map.entry("sef:control", new CategoryTemplate("category_control", "Server control", "minecraft:structure_block")));
 
     private final Map<String, Category> categories;
     private final Map<String, ActionRoute> byAction;
@@ -87,7 +88,9 @@ public final class UniversalGuiCatalog {
                             || definition.auditClass() != com.enviouse.sef.audit.AuditService.AuditClass.METADATA_ONLY,
                     definition.hudDescriptorId(),
                     definition.hudNotApplicableReason(),
-                    definition.featureId());
+                    definition.featureId(),
+                    coverage(definition).mode(),
+                    coverage(definition).reason());
             if (byAction.putIfAbsent(route.actionId(), route) != null) {
                 throw new IllegalStateException("Duplicate universal GUI action " + route.actionId());
             }
@@ -135,6 +138,10 @@ public final class UniversalGuiCatalog {
             if (route.hudDescriptorId().isBlank() == route.hudNotApplicableReason().isBlank()) {
                 problems.add(definition.id() + " has incomplete HUD coverage");
             }
+            if (route.workflowMode() == WorkflowMode.TYPED_COMMAND
+                    == !route.workflowReason().isBlank()) {
+                problems.add(definition.id() + " has incomplete workflow coverage");
+            }
         }
         return List.copyOf(problems);
     }
@@ -168,7 +175,9 @@ public final class UniversalGuiCatalog {
             boolean destructive,
             String hudDescriptorId,
             String hudNotApplicableReason,
-            String featureId
+            String featureId,
+            WorkflowMode workflowMode,
+            String workflowReason
     ) {
         public ActionRoute {
             actionId = normalize(actionId);
@@ -179,13 +188,64 @@ public final class UniversalGuiCatalog {
             hudDescriptorId = optional(hudDescriptorId);
             hudNotApplicableReason = optionalBounded(hudNotApplicableReason, 256);
             featureId = normalize(featureId);
+            Objects.requireNonNull(workflowMode, "workflowMode");
+            workflowReason = optionalBounded(workflowReason, 256);
             if (permissionIds.isEmpty()) {
                 throw new IllegalArgumentException("GUI action permission set is empty");
+            }
+            if (workflowMode == WorkflowMode.TYPED_COMMAND == !workflowReason.isBlank()) {
+                throw new IllegalArgumentException("GUI workflow coverage is incomplete");
             }
         }
     }
 
+    public enum WorkflowMode {
+        TYPED_COMMAND,
+        CONTROL_EDITOR,
+        PANEL_EDITOR,
+        FANCY_TAG_STUDIO,
+        DEDICATED_PANEL,
+        WORLD_INTERACTION
+    }
+
     private record CategoryTemplate(String panelId, String title, String iconId) {
+    }
+
+    private static WorkflowCoverage coverage(CommandDefinition definition) {
+        String actionId = definition.id();
+        if (actionId.startsWith("sef:control.") && actionId.endsWith(".manage")) {
+            return new WorkflowCoverage(
+                    WorkflowMode.CONTROL_EDITOR,
+                    "the typed server control editor owns create, configure, preview, state, and execute");
+        }
+        if (actionId.startsWith("sef:tags.")) {
+            return new WorkflowCoverage(
+                    WorkflowMode.FANCY_TAG_STUDIO,
+                    "the fancy tag studio owns tag definitions, assignments, leases, previews, and publication");
+        }
+        if (actionId.equals("sef:gui.dashboard.open")
+                || actionId.startsWith("sef:gui.preference")
+                || actionId.startsWith("sef:gui.reminder")
+                || actionId.startsWith("sef:guis.")
+                || actionId.equals("sef:teleport.player_warp.manage")
+                || actionId.equals("sef:workstation.super_enchant.mutate")) {
+            return new WorkflowCoverage(
+                    WorkflowMode.DEDICATED_PANEL,
+                    actionId.equals("sef:teleport.player_warp.manage")
+                            ? "the warps panel owns player warp inspection and management"
+                            : actionId.equals("sef:workstation.super_enchant.mutate")
+                            ? "the server authoritative super enchanting menu owns this mutation"
+                            : "the dashboard and preferences screens own this client workflow");
+        }
+        if (actionId.startsWith("sef:economy.sign.")) {
+            return new WorkflowCoverage(
+                    WorkflowMode.WORLD_INTERACTION,
+                    "the inspected in world sign is required context and owns this interaction");
+        }
+        return new WorkflowCoverage(WorkflowMode.TYPED_COMMAND, "");
+    }
+
+    private record WorkflowCoverage(WorkflowMode mode, String reason) {
     }
 
     private static String normalize(String value) {

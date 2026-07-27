@@ -112,6 +112,12 @@ public final class ShortcutRegistry {
         return Map.copyOf(active);
     }
 
+    public synchronized List<Shortcut> entries() {
+        return shortcuts.values().stream()
+                .sorted(Comparator.comparing(Shortcut::root))
+                .toList();
+    }
+
     public synchronized int size() {
         return shortcuts.size();
     }

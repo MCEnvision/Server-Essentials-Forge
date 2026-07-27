@@ -4,7 +4,7 @@ SEFPORTED is a server essentials mod for Minecraft 1.21.1 on NeoForge. It provid
 
 The project is the NeoForge 1.21.1 port and active development base for SEF 2. The current mod uses one universal JAR. With enhanced GUIs disabled it remains server only. With enhanced GUIs enabled, compatible clients may install the same JAR for optional screens and private HUD state. Vanilla clients and clients without SEF can still connect because the enhanced protocol is optional and the mod metadata uses `displayTest = "IGNORE_SERVER_VERSION"`.
 
-The Phase 9 enhanced GUI pilot is implemented. It covers the dashboard, homes, warps, teleport requests, help, staff overview, a vanish safe player picker, identity projection, private HUD primitives, and a static Fancy Tags transport prototype. Universal GUI coverage remains Phase 10 work.
+The enhanced client protocol, universal catalog, administrative control surfaces, Fancy Tags editor, disguise projection, modular configuration editor, and every planned SEF 2 phase are implemented on the current phase branch. Command fallback remains authoritative for clients that do not negotiate the enhanced protocol.
 
 ## Current status
 
@@ -17,9 +17,9 @@ Current project metadata:
 5. Mod id `sef`.
 6. Artifact version `1.0-SNAPSHOT`.
 
-This branch is under active development. Treat builds as test builds until a release is approved.
+This branch is feature complete against `sef2.md`. Treat its builds as release candidates until the phase branch is explicitly approved and advanced to `main`.
 
-SEF 2 Phases 1 through 9 have implementation coverage in this branch. Phase 8 adds the native and adapter backed economy, command costs, worth and selling, administrative account controls, import once migration, and server authoritative economy signs. Phase 9 adds the optional client handshake, server authoritative GUI sessions, the pilot screen set, private HUD deltas, projected nicknames, reminder preferences, and the static Fancy Tags prototype. The automated unit, GameTest, build, artifact, dedicated server, and Phase 9 client gates are recorded in their verification matrices. Public release acceptance still requires the complete mixed-client, real optional integration, deliberate failure, and profiler cases in the phase matrices. Universal GUI and later parity phases remain planned.
+Phases 0 through 14 and the final product acceptance matrix are complete. The exact evidence is recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
 
 ## Current features
 
@@ -64,11 +64,17 @@ The current implementation includes:
 37. Versioned kits with safe inventory snapshots, cooldowns, one time policy, per kit dynamic permissions, atomic capacity checks, optional bounded overflow dropping, administrative validation, metadata export, usage reset, and load time rejection of orphan or over limit use history. The repository rejects stale, deleted, cooling down, or already claimed definitions at commit time.
 38. Hardened self and other-player inventory tools including `/clearinventory`, `/enderchest`, `/disposal`, `/more`, `/condense`, `/hat`, `/itemname`, `/itemlore`, `/itemdb`, `/book`, and `/recipe`. Live inventory and ender-chest menus close or downgrade when permission, feature, or policy revisions change. InvSee preserves preexisting Brigadier routes cooperatively instead of deleting another mod’s command node.
 39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
-40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces configurable minimum and maximum nonzero levels from 1 through 255 and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
+40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces a configurable bounded safety ceiling, with level `1000` covered by GameTests, and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
 41. Integer minor-unit economy storage with idempotent ledger mutations, crash-recoverable cost reservations, cached balance ranking, exact payment confirmation, account freezes, component-safe worth and sales, external provider ownership, import-once backup and reports, configurable fixed and scaled command costs, and all twelve strict vanilla economy sign types. Sign creation, use, ownership bypass, and management are separately permissioned and audited.
 42. Optional enhanced client capability negotiation with versioned sessions, typed bounded payloads, replay protection, permission invalidation, command fallback, configurable reminders, a vanilla styled pilot dashboard, player and staff panels, private HUD deltas, viewer-specific nickname projection, and a content-addressed static Fancy Tags prototype.
+43. Hardened `/sudo`, `/run`, and `/silent` execution. Ordinary sudo preserves the target’s real permissions. Disabled by default delegated sudo can admit one exact reviewed command through an immutable, expiring, single use grant without changing operator state, permission provider data, groups, persistent player data, or the target command tree. Target-context suggestions, confirmation, revision binding, audit lifecycle, cleanup, root and profile permissions, and wildcard diagnostics are enforced.
+44. Complete Fancy Tags registry, assignment, secure import and archive validation, content-addressed storage, publication recovery, bounded transfer, client cache, local projects, editor, glyph bridge, world rendering, cleanup, and command fallback.
+45. Persistent disguise definitions and assignments with player and entity projection, proxy identity, traits, abilities, target policy, expiry, client presentation, command workflows, and safe fallback when an adapter or enhanced client is absent.
+46. Seventy server-control systems spanning operations, maintenance, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and unified display ownership. Every system has typed schema, policy, permission, persistence, command fallback, GUI workflow, and HUD or explicit no-HUD ownership.
+47. Offline inventory inspection with versioned backup and conflict protection, unrestricted administrative enchanting with distinct unsafe capabilities, permission-derived canonical cooldowns, and item escrow for parcels, lost and found, trades, auctions, watches, blocks, claims, settlement, and recovery.
+48. A 62-module configuration platform with a small bootstrap file, typed validation, transactional publication, migration backups, optimistic revisions, rollback, debounced watching, in-game workflows, command-only editing, secret filtering, and generated reference drift tests.
 
-The full SEF 2 command and platform roadmap is documented in [sef2.md](sef2.md). Planned features must not be treated as available until they appear in this README and in [DOCUMENTATION.md](DOCUMENTATION.md).
+The full SEF 2 command and platform blueprint is documented in [sef2.md](sef2.md). The phase-by-phase implementation record is [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
 
 ## Security defaults
 
@@ -121,7 +127,8 @@ The mod must start without optional integrations.
 2. Place the built SEF JAR in the server `mods` directory.
 3. Start the server once to create configuration files.
 4. Stop the server and review `config/sef/common.toml` and the world server configuration before opening the server to players.
-5. Install and configure LuckPerms when group based permission control is required.
+5. Review the generated `config/sef/modules/*.toml` files. These typed module files cannot grant permissions or execute commands.
+6. Install and configure LuckPerms when group based permission control is required.
 
 Clients do not need the SEF JAR for command access. Compatible clients may install the same JAR for negotiated vanilla-style screens and HUDs. Vanilla and non-SEF clients remain supported through command fallback.
 
@@ -129,7 +136,7 @@ Clients do not need the SEF JAR for command access. Compatible clients may insta
 
 Primary configuration:
 
-1. `config/sef/common.toml` contains module toggles, messages, nickname limits, chat options, cooldowns, retained sudo policy for future migration, privacy settings, storage behavior, and performance limits.
+1. `config/sef/common.toml` is the retained bootstrap file. Ordinary settings live in typed module files after migration.
 2. `<world>/serverconfig/sef-vanish-server.toml` contains detailed vanish behavior.
 3. `<world>/serverconfig/sef/*.json` contains feature data such as announcements, filters, mutes, warnings, banned items, alternate account data, and bulletins.
 4. `config/sef/motd.json` contains the dedicated server MOTD configuration.
@@ -151,14 +158,38 @@ Primary configuration:
 20. `<world>/serverconfig/sef/command-profiles.json` contains reviewed actor, targeted-actor, and server command profiles.
 21. `<world>/serverconfig/sef/fake-identities.json` contains fake identity profiles, scenes, schedules, and bounded history.
 22. `<world>/serverconfig/sef/sudo-policy.json` contains UUID-addressed consent and administrative lock state.
+23. `config/sef/modules/*.toml` contains the generated modular configuration documents. `sudo.toml` owns the delegated execution toggle, compatibility syntax, consent rule, self-delegation rule, temporary level ceiling, grant lifetime, confirmation, notification, indirection policy, and root policy.
+24. `<world>/serverconfig/sef/fancy-tags.json` and its fixed object roots contain Fancy Tags metadata, content, journals, recovery state, and retained revisions.
+25. `<world>/serverconfig/sef/disguises.json` contains versioned disguise definitions and UUID assignments.
+26. `<world>/serverconfig/sef/inventory-recovery.json` and player-data recovery copies contain bounded recovery metadata for graves and offline inventory operations.
+27. `<world>/serverconfig/sef/server-control.json` contains typed state for the 70 advanced server-control systems.
+28. `<world>/serverconfig/sef/community-state.json` contains indexed community, workflow, watch, poll, event, knowledge, and display state.
+29. `<world>/serverconfig/sef/approvals.json`, `access-leases.json`, and `admin-lock.json` keep approval and temporary authority separate from ordinary control records.
+30. `<world>/serverconfig/sef/escrow.json` contains UUID-owned parcel, lost-and-found, trade, auction, claim, settlement, and recovery records.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
 The `commandKernel` section sets hard limits for aliases, bundle steps, nested bundle depth, targets, expanded target steps, per player location history, and the minimum cooldown duration persisted across restarts. See [DOCUMENTATION.md](DOCUMENTATION.md) for exact defaults and quota metadata.
 
+Generated references:
+
+1. [Configuration reference](docs/CONFIGURATION_REFERENCE.md)
+2. [Command reference](docs/COMMAND_REFERENCE.md)
+3. [Permission reference](docs/PERMISSION_REFERENCE.md)
+4. [Installation guide](docs/INSTALLATION.md)
+5. [Migration guide](docs/MIGRATION_GUIDE.md)
+6. [Compatibility matrix](docs/COMPATIBILITY_MATRIX.md)
+7. [Performance report](docs/PERFORMANCE_REPORT.md)
+8. [Security review](docs/SECURITY_REVIEW.md)
+9. [Release notes](docs/RELEASE_NOTES.md)
+
+Run `./gradlew generateProjectReferences` after changing a module schema, command catalog entry, shortcut, GUI descriptor, or permission definition. Unit tests fail when tracked references drift from their runtime registries.
+
 NeoForge owns TOML loading and external reload notifications. `/sef reload` reapplies values already loaded by NeoForge. It does not force an arbitrary disk read.
 
 Module toggles prevent their command registration or behavior when disabled. Existing server configuration values are retained across upgrades, so review old values after new secure defaults are introduced.
+
+`/sef config migrate dryrun` reports every legacy `common.toml` field that has a typed module destination and every field that must remain. `/sef config migrate apply <expected_revision>` issues an exact source-hash confirmation before staging and validating all module candidates. Publication retains `common.toml`, writes fixed-path recovery backups, restores module files on failure, and records mapped fields in `config/sef/modules/migration.toml`.
 
 ## Development
 
@@ -168,6 +199,7 @@ Linux and macOS:
 
 ```bash
 ./gradlew test
+./gradlew generateProjectReferences
 ./gradlew build
 ./gradlew runServer
 ./gradlew runClient
@@ -177,6 +209,7 @@ Windows:
 
 ```powershell
 gradlew.bat test
+gradlew.bat generateProjectReferences
 gradlew.bat build
 gradlew.bat runServer
 gradlew.bat runClient
@@ -194,15 +227,18 @@ The `runServer` task forwards terminal input to the dedicated server. Wait for t
 2. `src/main/resources` contains mixin, language, and access transformer resources.
 3. `src/main/templates` contains expanded NeoForge mod metadata.
 4. `src/test/java` contains pure policy tests and NeoForge bootstrapped JUnit tests for Minecraft command, menu, permission, and lifecycle behavior.
-5. `sef2.md` is the source of truth for unfinished SEF 2 work.
+5. `sef2.md` is the exhaustive SEF 2 product and architecture blueprint.
 6. `DOCUMENTATION.md` contains maintainer and operator details.
-7. `docs/PHASE_1_MANUAL_TESTS.md` contains the real client release approval matrix for Phase 1 behavior.
-8. `docs/PHASE_2_3_MANUAL_TESTS.md` contains the operator, permission, restart, and recovery approval matrix for Phases 2 and 3.
-9. `docs/PHASE_4_TESTS.md` contains the Phase 4 teleport verification record and remaining authenticated multiplayer matrix.
-10. `docs/PHASE_5_TESTS.md` contains the Phase 5 social, privacy, connection-message, reminder, and identity verification matrix.
-11. `docs/PHASE_6_TESTS.md` contains the Phase 6 moderation, privacy, command-observation, and logging matrix.
-12. `docs/PHASE_7_TESTS.md` contains the Phase 7 inventory, kits, workstation, shortcut, and player-utility matrix.
-13. `docs/PHASE_11_TESTS.md` contains the Phase 11 alias, bundle, command-profile, fake-identity, sudo, run, and silent matrix.
+7. `docs/PHASE_1_MANUAL_TESTS.md` contains the Phase 1 client verification history.
+8. `docs/PHASE_2_3_MANUAL_TESTS.md` contains the Phase 2 and Phase 3 operator, permission, restart, and recovery verification history.
+9. `docs/PHASE_4_TESTS.md` contains the Phase 4 teleport verification history.
+10. `docs/PHASE_5_TESTS.md` contains the Phase 5 social, privacy, connection-message, reminder, and identity verification history.
+11. `docs/PHASE_6_TESTS.md` contains the Phase 6 moderation, privacy, command-observation, and logging verification history.
+12. `docs/PHASE_7_TESTS.md` contains the Phase 7 inventory, kits, workstation, shortcut, and player-utility verification history.
+13. `docs/PHASE_11_TESTS.md` contains the completed Phase 11 alias, bundle, command-profile, fake-identity, sudo, run, and silent matrix.
+14. `docs/SEF2_ACCEPTANCE.md` is the exact phase-by-phase completion ledger for `sef2.md`.
+15. `docs/CONFIGURATION_REFERENCE.md`, `docs/COMMAND_REFERENCE.md`, and `docs/PERMISSION_REFERENCE.md` are registry-generated operator references guarded by drift tests.
+16. `docs/INSTALLATION.md`, `docs/MIGRATION_GUIDE.md`, `docs/COMPATIBILITY_MATRIX.md`, `docs/PERFORMANCE_REPORT.md`, `docs/SECURITY_REVIEW.md`, and `docs/RELEASE_NOTES.md` contain release hardening evidence and operator procedures.
 
 ## Support
 

@@ -9,11 +9,14 @@ import java.util.Map;
 import java.util.Objects;
 
 public final class CapabilityManifest {
+    private static final int MAXIMUM_CAPABILITIES = 32_768;
+    private static final int MAXIMUM_IDENTIFIER_LENGTH = 128;
     private final Map<String, Capability> capabilities = new LinkedHashMap<>();
 
     public synchronized void register(Capability capability) {
         Objects.requireNonNull(capability, "capability");
-        if (!capabilities.containsKey(capability.id()) && capabilities.size() >= 8192) {
+        if (!capabilities.containsKey(capability.id())
+                && capabilities.size() >= MAXIMUM_CAPABILITIES) {
             throw new IllegalStateException("Capability manifest limit reached");
         }
         if (capabilities.putIfAbsent(capability.id(), capability) != null) {
@@ -86,7 +89,7 @@ public final class CapabilityManifest {
 
     private static String normalize(String value) {
         String normalized = Objects.requireNonNull(value, "value").trim().toLowerCase(Locale.ROOT);
-        if (normalized.isBlank() || normalized.length() > 128) {
+        if (normalized.isBlank() || normalized.length() > MAXIMUM_IDENTIFIER_LENGTH) {
             throw new IllegalArgumentException("Capability identifier is outside bounds");
         }
         return normalized;

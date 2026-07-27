@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -237,7 +239,9 @@ public final class SecurityAuditService {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final int QUEUE_CAPACITY = 4096;
+    private static final int RECENT_CAPACITY = 4096;
     private static final ArrayBlockingQueue<AuditEvent> QUEUE = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+    private static final ArrayDeque<AuditEvent> RECENT = new ArrayDeque<>(RECENT_CAPACITY);
     private static final AtomicLong DROPPED = new AtomicLong();
     private static final AtomicLong FAILURES = new AtomicLong();
     private static final DateTimeFormatter ROTATION_TIMESTAMP =
@@ -262,6 +266,9 @@ public final class SecurityAuditService {
             return;
         }
         QUEUE.clear();
+        synchronized (RECENT) {
+            RECENT.clear();
+        }
         sessionId = UUID.randomUUID();
         DROPPED.set(0L);
         FAILURES.set(0L);
@@ -291,6 +298,12 @@ public final class SecurityAuditService {
             return false;
         }
         if (QUEUE.offer(event)) {
+            synchronized (RECENT) {
+                while (RECENT.size() >= RECENT_CAPACITY) {
+                    RECENT.removeFirst();
+                }
+                RECENT.addLast(event);
+            }
             return true;
         }
         long dropped = DROPPED.incrementAndGet();
@@ -304,6 +317,25 @@ public final class SecurityAuditService {
 
     public static UUID currentSessionId() {
         return sessionId;
+    }
+
+    public static List<AuditEvent> recent(
+            Predicate<AuditEvent> filter,
+            int maximumRecords
+    ) {
+        Objects.requireNonNull(filter, "filter");
+        int limit = Math.clamp(maximumRecords, 1, 128);
+        List<AuditEvent> result = new ArrayList<>(limit);
+        synchronized (RECENT) {
+            var iterator = RECENT.descendingIterator();
+            while (iterator.hasNext() && result.size() < limit) {
+                AuditEvent event = iterator.next();
+                if (filter.test(event)) {
+                    result.add(event);
+                }
+            }
+        }
+        return List.copyOf(result);
     }
 
     public static Health health() {

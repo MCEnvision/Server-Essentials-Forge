@@ -15,6 +15,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundLevelParticlesPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
@@ -39,6 +40,7 @@ import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
 import com.enviouse.sef.vanish.misc.TraceHandler;
 import com.enviouse.sef.social.ConnectionMessageService;
+import com.enviouse.sef.disguise.DisguiseProxyService;
 
 // 1.20.2+ packet-listener split: send(...) moved from ServerGamePacketListenerImpl to its superclass
 // ServerCommonPacketListenerImpl. The vanish per-receiver packet filtering therefore injects here; the
@@ -61,6 +63,12 @@ public class ServerCommonPacketListenerImplMixin {
 		if (!VanishLifecyclePolicy.canFilterPackets(VanishConfig.SERVER_SPEC.isLoaded())) return;
 		ServerPlayer receivingPlayer = conn.player;
 		Level level = receivingPlayer.level();
+
+		if (packet instanceof ClientboundAddEntityPacket addPacket
+				&& DisguiseProxyService.shouldSuppressRealSpawn(receivingPlayer, addPacket.getId())) {
+			callbackInfo.cancel();
+			return;
+		}
 
 		if (packet instanceof ClientboundPlayerInfoUpdatePacket infoPacket) {
 			List<ClientboundPlayerInfoUpdatePacket.Entry> filteredPacketEntries =

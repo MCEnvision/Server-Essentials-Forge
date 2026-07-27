@@ -1,0 +1,90 @@
+# Controls sudo behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "sudo"
+documentation_version = 3
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 100000 Apply class live.
+maximum_records = 1000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 30
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 90
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "fail_closed"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "admin_action"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "sensitive"
+
+[delegation]
+# Enables separately authorized one execution delegated sudo grants. `true` or `false` Apply class live.
+enabled = false
+# Allows the compatibility boolean delegated mode syntax. `true` or `false` Apply class live.
+compatibility_boolean_syntax = true
+# Requires target consent specifically for delegated sudo. `true` or `false` Apply class live.
+require_target_consent = false
+# Allows separately permitted delegated execution against the issuer. `true` or `false` Apply class live.
+allow_self_delegation = false
+# Bounds temporary vanilla command requirements for one dispatch. 0 through 2 Apply class live.
+maximum_temporary_vanilla_permission_level = 2
+# Bounds an admitted grant lifetime before dispatch. 1 through 60 Apply class live.
+grant_lifetime_seconds = 15
+# Requires exact single use confirmation before grant publication. `true` or `false` Apply class live.
+confirmation_required = true
+# Notifies the effective target after delegated execution. `true` or `false` Apply class live.
+notify_target = true
+# Allows unknown provider checks that cannot prove scoped authority. `true` or `false` Apply class live.
+allow_unknown_external_permission_checks = false
+# Allows only statically admitted command redirects. `true` or `false` Apply class live.
+allow_redirects = false
+# Allows only bounded and previewed command forks. `true` or `false` Apply class live.
+allow_forks = false
+# Allows profiles that retain execution for asynchronous work. `true` or `false` Apply class live.
+allow_async = false
+# Lists roots eligible for a published delegation profile. 0 through 4096 characters Apply class live.
+allowed_roots = "effect"
+# Adds delegated roots denied beyond the code hard deny set. 0 through 4096 characters Apply class live.
+denied_roots = "op,deop,stop,reload,sudo,run,silent,execute,function,schedule"
+
+[runtime]
+# /sudo command `true` or `false` Apply class restart_required.
+enable_sudo = false
+# Comma separated command roots allowed through sudo. An empty value denies every command. 0 through 8192 characters Apply class live.
+sudo_allowed_commands = "msg,tell,w,r,me"
+# Comma separated command roots denied even when allowedCommands contains them or a wildcard. 0 through 8192 characters Apply class live.
+sudo_denied_commands = "sudo,execute,op,deop,stop,reload,ban,ban-ip,pardon,pardon-ip,whitelist,luckperms,lp,sef"
+# Message shown to the admin. Placeholders: $player, $command, $admin 0 through 8192 characters Apply class live.
+sudo_executed_msg = "&aForced $player to execute: &7/$command"
+# Maximum command length accepted by sudo. 1 through 8192 Apply class live.
+sudo_maximum_command_length = 512
+# Message shown to the target player. Placeholders: $admin, $command 0 through 8192 characters Apply class live.
+sudo_notify_msg = "&c$admin forced you to run: &7/$command"
+# Notify the target when an administrator uses sudo. `true` or `false` Apply class live.
+sudo_notify_target = true

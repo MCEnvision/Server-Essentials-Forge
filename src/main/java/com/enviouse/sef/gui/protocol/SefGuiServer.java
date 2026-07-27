@@ -1,10 +1,23 @@
 package com.enviouse.sef.gui.protocol;
 
+import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.control.ServerControlCatalog;
+import com.enviouse.sef.control.ServerControlCommands;
+import com.enviouse.sef.control.ServerControlExecutionService;
+import com.enviouse.sef.control.ServerControlRepository;
+import com.enviouse.sef.control.ServerControlSchemaRegistry;
+import com.enviouse.sef.disguise.DisguiseService;
+import com.enviouse.sef.disguise.DisguiseAbilityExecutor;
+import com.enviouse.sef.fancytags.FancyTagService;
+import com.enviouse.sef.fancytags.FancyTagTransferService;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.kernel.policy.ConfirmationService;
 import com.enviouse.sef.gui.AdminPanelService;
 import com.enviouse.sef.gui.UniversalGuiCatalog;
 import com.enviouse.sef.permissions.PermissionService;
@@ -14,23 +27,25 @@ import com.enviouse.sef.teleport.TeleportSettings;
 import com.enviouse.sef.teleport.WarpRecord;
 import com.enviouse.sef.vanish.VanishUtil;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.neoforge.network.PacketDistributor;
 
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 
 public final class SefGuiServer {
@@ -45,15 +60,16 @@ public final class SefGuiServer {
     private static final int PAGE_SIZE = 12;
     private static final AtomicLong PANEL_REVISIONS = new AtomicLong();
     private static final AtomicLong TARGET_REVISIONS = new AtomicLong();
+    private static final AtomicLong TAG_PROJECTION_REVISIONS = new AtomicLong();
+    private static final AtomicLong DISGUISE_PROJECTION_REVISIONS = new AtomicLong();
     private static final Map<UUID, OpenPanel> PANELS = new LinkedHashMap<>();
     private static final Map<UUID, Long> PLAYER_REVISIONS = new LinkedHashMap<>();
-    private static final byte[] PROTOTYPE_TAG = Base64.getDecoder().decode(
-            "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAQAAAC1+jfqAAAAHUlEQVR42mNkYGD4z0ABYBw1"
-                    + "YNSAUQNGDRg1gAIAIwkCAUEW5RQAAAAASUVORK5CYII=");
-    private static final String PROTOTYPE_HASH = sha256(PROTOTYPE_TAG);
-    private static final UUID PROTOTYPE_TAG_ID =
-            UUID.nameUUIDFromBytes("sef:fancy_tags:prototype".getBytes(StandardCharsets.UTF_8));
-
+    private static final Map<UUID, AuthorizedTagProjection> TAG_PROJECTIONS = new LinkedHashMap<>();
+    private static final Map<UUID, Map<String, TagDownload>> TAG_DOWNLOADS = new LinkedHashMap<>();
+    private static final Map<UUID, Map<UUID, SefPayloads.DisguiseProjection>> DISGUISE_PROJECTIONS =
+            new LinkedHashMap<>();
+    private static final Map<UUID, PendingControlConfirmation> CONTROL_CONFIRMATIONS =
+            new LinkedHashMap<>();
     private SefGuiServer() {
     }
 
@@ -120,11 +136,68 @@ public final class SefGuiServer {
             openConfirmation(player, panel.panelId(), allowed);
             return;
         }
+        if (allowed.kind() == ActionKind.CONTROL_CREATE) {
+            createControlRecord(player, allowed.value());
+            return;
+        }
+        if (allowed.kind() == ActionKind.WORKFLOW) {
+            GuiWorkflowService.open(player, allowed.value(), panel.panelId());
+            return;
+        }
+        if (allowed.kind() == ActionKind.FANCY_TAG_STUDIO) {
+            SefSessionManager.instance().session(player)
+                    .filter(session -> session.supports(SefProtocol.Feature.FANCY_TAGS_STATIC))
+                    .ifPresent(session -> PacketDistributor.sendToPlayer(
+                            player,
+                            new SefPayloads.OpenFancyTagsStudio(session.sessionId(), allowed.value())));
+            return;
+        }
         if (allowed.kind() == ActionKind.COMMAND) {
             player.server.getCommands().performPrefixedCommand(
                     player.createCommandSourceStack(),
                     allowed.value());
             openProgress(player, panel.panelId(), "The server processed the selected action.");
+        }
+    }
+
+    public static void handleControlMutation(
+            ServerPlayer player,
+            SefPayloads.ControlMutationRequest request
+    ) {
+        if (SefSessionManager.instance().acceptRequest(
+                player,
+                request.sessionId(),
+                request.sequence(),
+                SefProtocol.Feature.CONTROL_EDITOR) != SefSessionManager.RequestDecision.ACCEPTED) {
+            return;
+        }
+        OpenPanel panel;
+        synchronized (PANELS) {
+            panel = PANELS.get(player.getUUID());
+        }
+        if (panel == null
+                || !panel.sessionId().equals(request.sessionId())
+                || !panel.panelId().equals(request.panelId())
+                || panel.revision() != request.panelRevision()
+                || panel.expiresAt().isBefore(Instant.now())
+                || !panel.panelId().equals("control_edit:" + request.recordId())) {
+            return;
+        }
+        ServerControlRepository.ControlRecord record =
+                KernelServices.serverControls().find(request.recordId()).orElse(null);
+        if (record == null
+                || record.revision() != request.expectedRecordRevision()
+                || !canManageControlRecord(player, record)) {
+            openControlEditor(player, request.recordId(), "The record changed or access was revoked.");
+            return;
+        }
+        String operation = request.operation().strip().toLowerCase(Locale.ROOT);
+        switch (operation) {
+            case "save" -> saveControlRecord(player, record, request);
+            case "preview" -> previewControlRecord(player, record);
+            case "transition" -> transitionControlRecord(player, record, request.argument());
+            case "execute" -> executeControlRecord(player, record);
+            default -> openControlEditor(player, record.id(), "The requested editor operation is unavailable.");
         }
     }
 
@@ -143,18 +216,113 @@ public final class SefGuiServer {
                 SefSessionManager.instance().session(player).orElse(null);
         if (session == null
                 || !session.supports(SefProtocol.Feature.FANCY_TAGS_STATIC)
-                || !ConfigHandler.config.fancyTagsPrototypeEnabled.get()
-                || PROTOTYPE_TAG.length > ConfigHandler.config.fancyTagsPrototypeMaximumBytes.get()
-                || !player.connection.hasChannel(SefPayloads.TagManifest.TYPE)) {
+                || !ConfigHandler.config.enableFancyTags.get()
+                || !ConfigHandler.config.fancyTagsEnhancedRendering.get()) {
             return;
         }
-        PacketDistributor.sendToPlayer(player, new SefPayloads.TagManifest(
-                session.sessionId(),
-                1L,
-                PROTOTYPE_TAG_ID,
-                PROTOTYPE_HASH,
-                PROTOTYPE_TAG.length,
-                "SEF"));
+        AuthorizedTagProjection projection = authorizedTags(player);
+        long projectionRevision = TAG_PROJECTION_REVISIONS.incrementAndGet();
+        AuthorizedTagProjection previous = TAG_PROJECTIONS.put(player.getUUID(), projection);
+        if (session.supports(SefProtocol.Feature.FANCY_TAGS_REGISTRY)
+                && player.connection.hasChannel(SefPayloads.TagRegistrySnapshot.TYPE)
+                && player.connection.hasChannel(SefPayloads.TagAssignmentSnapshot.TYPE)) {
+            if (previous != null
+                    && player.connection.hasChannel(SefPayloads.TagRegistryDelta.TYPE)
+                    && player.connection.hasChannel(SefPayloads.TagAssignmentDelta.TYPE)) {
+                sendTagDeltas(player, session.sessionId(), projectionRevision, previous, projection);
+            } else {
+                PacketDistributor.sendToPlayer(player, new SefPayloads.TagRegistrySnapshot(
+                        session.sessionId(),
+                        projectionRevision,
+                        true,
+                        projection.entries()));
+                PacketDistributor.sendToPlayer(player, new SefPayloads.TagAssignmentSnapshot(
+                        session.sessionId(),
+                        projectionRevision,
+                        true,
+                        projection.assignments()));
+            }
+        }
+        if (!projection.entries().isEmpty()
+                && player.connection.hasChannel(SefPayloads.TagManifest.TYPE)) {
+            SefPayloads.TagManifestEntry first = projection.entries().getFirst();
+            PacketDistributor.sendToPlayer(player, new SefPayloads.TagManifest(
+                    session.sessionId(),
+                    projectionRevision,
+                    first.tagId(),
+                    first.hash(),
+                    first.byteLength(),
+                    first.alternateText()));
+        }
+    }
+
+    private static void sendTagDeltas(
+            ServerPlayer player,
+            UUID sessionId,
+            long revision,
+            AuthorizedTagProjection previous,
+            AuthorizedTagProjection current
+    ) {
+        Map<UUID, SefPayloads.TagManifestEntry> previousTags = previous.entries().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        SefPayloads.TagManifestEntry::tagId,
+                        entry -> entry,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
+        Map<UUID, SefPayloads.TagManifestEntry> currentTags = current.entries().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        SefPayloads.TagManifestEntry::tagId,
+                        entry -> entry,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new));
+        List<UUID> removedTags = previousTags.keySet().stream()
+                .filter(id -> !currentTags.containsKey(id))
+                .toList();
+        List<SefPayloads.TagManifestEntry> updatedTags = currentTags.values().stream()
+                .filter(entry -> !entry.equals(previousTags.get(entry.tagId())))
+                .toList();
+
+        Map<String, SefPayloads.TagAssignmentProjection> previousAssignments =
+                assignmentProjectionMap(previous.assignments());
+        Map<String, SefPayloads.TagAssignmentProjection> currentAssignments =
+                assignmentProjectionMap(current.assignments());
+        List<SefPayloads.TagAssignmentKey> removedAssignments =
+                previousAssignments.values().stream()
+                        .filter(assignment -> !currentAssignments.containsKey(
+                                assignmentProjectionKey(assignment)))
+                        .map(assignment -> new SefPayloads.TagAssignmentKey(
+                                assignment.subjectId(),
+                                assignment.tagId(),
+                                assignment.slot()))
+                        .toList();
+        List<SefPayloads.TagAssignmentProjection> updatedAssignments =
+                currentAssignments.values().stream()
+                        .filter(assignment -> !assignment.equals(
+                                previousAssignments.get(assignmentProjectionKey(assignment))))
+                        .toList();
+        PacketDistributor.sendToPlayer(player, new SefPayloads.TagRegistryDelta(
+                sessionId,
+                revision,
+                removedTags,
+                updatedTags));
+        PacketDistributor.sendToPlayer(player, new SefPayloads.TagAssignmentDelta(
+                sessionId,
+                revision,
+                removedAssignments,
+                updatedAssignments));
+    }
+
+    private static Map<String, SefPayloads.TagAssignmentProjection> assignmentProjectionMap(
+            List<SefPayloads.TagAssignmentProjection> assignments
+    ) {
+        Map<String, SefPayloads.TagAssignmentProjection> result = new LinkedHashMap<>();
+        assignments.forEach(assignment ->
+                result.put(assignmentProjectionKey(assignment), assignment));
+        return result;
+    }
+
+    private static String assignmentProjectionKey(SefPayloads.TagAssignmentProjection assignment) {
+        return assignment.subjectId() + ":" + assignment.tagId() + ":" + assignment.slot();
     }
 
     public static void handleTagContent(
@@ -167,25 +335,806 @@ public final class SefGuiServer {
                 request.sequence(),
                 SefProtocol.Feature.FANCY_TAGS_STATIC)
                 != SefSessionManager.RequestDecision.ACCEPTED
-                || !ConfigHandler.config.fancyTagsPrototypeEnabled.get()
-                || !PROTOTYPE_HASH.equals(request.hash())
-                || PROTOTYPE_TAG.length > ConfigHandler.config.fancyTagsPrototypeMaximumBytes.get()
+                || !ConfigHandler.config.enableFancyTags.get()
+                || !ConfigHandler.config.fancyTagsEnhancedRendering.get()
                 || !player.connection.hasChannel(SefPayloads.TagContent.TYPE)) {
             return;
         }
-        PacketDistributor.sendToPlayer(player, new SefPayloads.TagContent(
+        AuthorizedTagProjection projection = authorizedTags(player);
+        if (projection.entries().stream().noneMatch(entry -> entry.hash().equals(request.hash()))) {
+            return;
+        }
+        try {
+            byte[] content = KernelServices.fancyTags().readArtwork(request.hash());
+            if (content.length <= ConfigHandler.config.fancyTagsMaximumEncodedBytes.get()) {
+                PacketDistributor.sendToPlayer(player, new SefPayloads.TagContent(
+                        request.sessionId(),
+                        request.hash(),
+                        content));
+            }
+        } catch (java.io.IOException ignored) {
+            KernelServices.fancyTags().integrity();
+        }
+    }
+
+    public static void handleTagContentChunk(
+            ServerPlayer player,
+            SefPayloads.TagContentChunkRequest request
+    ) {
+        if (SefSessionManager.instance().acceptRequest(
+                player,
                 request.sessionId(),
-                PROTOTYPE_HASH,
-                PROTOTYPE_TAG));
+                request.sequence(),
+                SefProtocol.Feature.FANCY_TAGS_STATIC)
+                != SefSessionManager.RequestDecision.ACCEPTED
+                || !ConfigHandler.config.enableFancyTags.get()
+                || !ConfigHandler.config.fancyTagsEnhancedRendering.get()
+                || !player.connection.hasChannel(SefPayloads.TagContentChunk.TYPE)) {
+            return;
+        }
+        AuthorizedTagProjection projection = authorizedTags(player);
+        if (projection.entries().stream().noneMatch(entry -> entry.hash().equals(request.hash()))) {
+            return;
+        }
+        Instant now = Instant.now();
+        Map<String, TagDownload> playerDownloads =
+                TAG_DOWNLOADS.computeIfAbsent(player.getUUID(), ignored -> new LinkedHashMap<>());
+        playerDownloads.values().removeIf(download -> !download.expiresAt().isAfter(now));
+        TagDownload download = playerDownloads.get(request.hash());
+        if (request.offset() == 0) {
+            if (download == null) {
+                if (playerDownloads.size() >= 2) {
+                    return;
+                }
+                try {
+                    byte[] content = KernelServices.fancyTags().readArtwork(request.hash());
+                    if (content.length > ConfigHandler.config.fancyTagsMaximumEncodedBytes.get()
+                            || content.length > SefProtocol.MAXIMUM_TAG_BYTES) {
+                        return;
+                    }
+                    download = new TagDownload(
+                            request.sessionId(),
+                            content,
+                            now.plus(Duration.ofSeconds(30)));
+                    playerDownloads.put(request.hash(), download);
+                } catch (java.io.IOException ignored) {
+                    KernelServices.fancyTags().integrity();
+                    return;
+                }
+            }
+        } else if (download == null) {
+            return;
+        }
+        if (!download.sessionId().equals(request.sessionId())
+                || request.offset() >= download.content().length) {
+            playerDownloads.remove(request.hash());
+            return;
+        }
+        int end = Math.min(
+                download.content().length,
+                request.offset() + SefProtocol.MAXIMUM_TAG_DOWNLOAD_CHUNK_BYTES);
+        byte[] chunk = java.util.Arrays.copyOfRange(download.content(), request.offset(), end);
+        PacketDistributor.sendToPlayer(player, new SefPayloads.TagContentChunk(
+                request.sessionId(),
+                request.hash(),
+                download.content().length,
+                request.offset(),
+                chunk));
+        if (end == download.content().length) {
+            playerDownloads.remove(request.hash());
+            if (playerDownloads.isEmpty()) {
+                TAG_DOWNLOADS.remove(player.getUUID());
+            }
+        } else {
+            playerDownloads.put(request.hash(), new TagDownload(
+                    download.sessionId(),
+                    download.content(),
+                    now.plus(Duration.ofSeconds(30))));
+        }
+    }
+
+    public static void handleTagManagerQuery(
+            ServerPlayer player,
+            SefPayloads.TagManagerQuery request
+    ) {
+        if (!ConfigHandler.config.enableFancyTags.get()
+                || !ConfigHandler.config.fancyTagsEnhancedRendering.get()
+                || !has(player, "tags.manage.open")
+                || !player.connection.hasChannel(SefPayloads.TagManagerSnapshot.TYPE)
+                || SefSessionManager.instance().acceptRequest(
+                player,
+                request.sessionId(),
+                request.sequence(),
+                SefProtocol.Feature.FANCY_TAGS_MANAGER)
+                != SefSessionManager.RequestDecision.ACCEPTED) {
+            return;
+        }
+        List<SefPayloads.TagManagerEntry> candidates =
+                tagManagerEntries(player, request.section());
+        String query = request.query().strip().toLowerCase(Locale.ROOT);
+        if (!query.isEmpty()) {
+            candidates = candidates.stream()
+                    .filter(entry -> entry.resourceKey().toLowerCase(Locale.ROOT).contains(query)
+                            || entry.title().toLowerCase(Locale.ROOT).contains(query)
+                            || entry.subtitle().toLowerCase(Locale.ROOT).contains(query)
+                            || entry.status().toLowerCase(Locale.ROOT).contains(query))
+                    .toList();
+        }
+        int pageSize = 50;
+        int pages = Math.max(1, (candidates.size() + pageSize - 1) / pageSize);
+        int page = Math.clamp(request.page(), 1, pages);
+        int start = Math.min(candidates.size(), (page - 1) * pageSize);
+        int end = Math.min(candidates.size(), start + pageSize);
+        PacketDistributor.sendToPlayer(player, new SefPayloads.TagManagerSnapshot(
+                request.sessionId(),
+                request.sequence(),
+                KernelServices.fancyTags().registryRevision(),
+                request.section(),
+                page,
+                pages,
+                candidates.subList(start, end)));
+    }
+
+    private static List<SefPayloads.TagManagerEntry> tagManagerEntries(
+            ServerPlayer player,
+            String section
+    ) {
+        FancyTagService service = KernelServices.fancyTags();
+        List<SefPayloads.TagManagerEntry> result = new ArrayList<>();
+        switch (section) {
+            case "gallery", "detail" -> {
+                if (!has(player, "commands.tags.list")) {
+                    return List.of();
+                }
+                service.tags().stream()
+                        .filter(tag -> tag.status() == FancyTagService.TagStatus.PUBLISHED)
+                        .map(SefGuiServer::tagManagerEntry)
+                        .forEach(result::add);
+            }
+            case "manager" -> {
+                if (!has(player, "commands.tags.list")) {
+                    return List.of();
+                }
+                service.tags().stream()
+                        .filter(tag -> switch (tag.status()) {
+                            case DRAFT -> has(player, "tags.view.draft");
+                            case HIDDEN -> has(player, "tags.view.hidden");
+                            case ARCHIVED, PENDING_DELETE -> has(player, "tags.view.archived");
+                            default -> true;
+                        })
+                        .map(SefGuiServer::tagManagerEntry)
+                        .forEach(result::add);
+            }
+            case "assign" -> {
+                if (!has(player, "tags.view.assignments")) {
+                    return List.of();
+                }
+                for (FancyTagService.AssignmentRecord assignment : service.assignments()) {
+                    FancyTagService.TagRecord tag =
+                            service.find(assignment.tagId().toString()).orElse(null);
+                    if (tag == null) {
+                        continue;
+                    }
+                    result.add(new SefPayloads.TagManagerEntry(
+                            "assignment",
+                            assignment.id(),
+                            assignment.tagId(),
+                            tag.resourceKey(),
+                            tag.displayName(),
+                            assignment.targetType().name().toLowerCase(Locale.ROOT)
+                                    + ", " + assignment.targetId()
+                                    + ", " + assignment.slot().name().toLowerCase(Locale.ROOT)
+                                    + ", priority " + assignment.priority(),
+                            assignment.enabled() ? "active" : "disabled",
+                            assignment.revision()));
+                }
+            }
+            case "history" -> {
+                if (!has(player, "commands.tags.revision.list")) {
+                    return List.of();
+                }
+                for (FancyTagService.TagRecord tag : service.tags()) {
+                    for (FancyTagService.ArtworkRevision revision : tag.revisions()) {
+                        result.add(new SefPayloads.TagManagerEntry(
+                                "revision",
+                                UUID.nameUUIDFromBytes((tag.id() + ":" + revision.revision())
+                                        .getBytes(StandardCharsets.UTF_8)),
+                                tag.id(),
+                                tag.resourceKey(),
+                                tag.displayName(),
+                                revision.width() + " by " + revision.height()
+                                        + ", " + revision.encodedBytes() + " bytes",
+                                revision.revision() == tag.currentRevision() ? "current" : "retained",
+                                revision.revision()));
+                    }
+                }
+            }
+            case "import" -> {
+                if (!has(player, "commands.tags.import.inspect")) {
+                    return List.of();
+                }
+                for (var candidate : service.importCandidates()) {
+                    result.add(new SefPayloads.TagManagerEntry(
+                            "import",
+                            UUID.nameUUIDFromBytes(candidate.candidateId().getBytes(StandardCharsets.UTF_8)),
+                            null,
+                            candidate.candidateId(),
+                            candidate.fileName(),
+                            candidate.encodedBytes() + " bytes",
+                            "candidate",
+                            Math.max(1L, candidate.modifiedAt().toEpochMilli())));
+                }
+            }
+            case "transfer" -> {
+                if (!has(player, "commands.tags.transfer.status")) {
+                    return List.of();
+                }
+                for (var upload : service.transfers().active(Instant.now())) {
+                    result.add(new SefPayloads.TagManagerEntry(
+                            "transfer",
+                            upload.uploadId(),
+                            upload.tagId(),
+                            upload.uploadId().toString(),
+                            "upload " + upload.uploadId(),
+                            upload.receivedBytes() + " of " + upload.totalBytes() + " bytes",
+                            "active",
+                            Math.max(1L, upload.nextChunkIndex() + 1L)));
+                }
+            }
+            case "integrity", "cache" -> {
+                if (!has(player, section.equals("cache")
+                        ? "commands.tags.cache.status"
+                        : "commands.tags.integrity.check")) {
+                    return List.of();
+                }
+                var report = service.integrity();
+                result.add(new SefPayloads.TagManagerEntry(
+                        section,
+                        UUID.nameUUIDFromBytes(("sef:tags:" + section).getBytes(StandardCharsets.UTF_8)),
+                        null,
+                        section,
+                        section.equals("cache") ? "Server object cache" : "Artwork integrity",
+                        "missing " + report.missing().size()
+                                + ", corrupt " + report.corrupt().size()
+                                + ", orphaned " + report.orphaned().size()
+                                + ", bytes " + report.storedBytes(),
+                        report.missing().isEmpty() && report.corrupt().isEmpty() ? "healthy" : "attention",
+                        service.registryRevision()));
+            }
+            case "audit" -> {
+                if (!has(player, "commands.tags.audit") || !has(player, "tags.view.audit")) {
+                    return List.of();
+                }
+                for (SecurityAuditService.AuditEvent event : SecurityAuditService.recent(
+                        value -> value.origin().equals("fancy_tags")
+                                || value.actionId().startsWith("sef:tags."),
+                        100)) {
+                    result.add(new SefPayloads.TagManagerEntry(
+                            "audit",
+                            UUID.fromString(event.eventId()),
+                            auditTarget(event),
+                            event.actionId(),
+                            event.actionId(),
+                            event.actorUsername() + ", " + event.result()
+                                    + ", " + event.reasonCode(),
+                            event.result(),
+                            Math.max(1L, Instant.parse(event.timestamp()).toEpochMilli())));
+                }
+            }
+            case "settings" -> {
+                boolean categories = has(player, "commands.tags.category.list");
+                boolean palettes = has(player, "commands.tags.palette.list");
+                boolean templates = has(player, "commands.tags.template.list");
+                if (!categories && !palettes && !templates) {
+                    return List.of();
+                }
+                if (categories) {
+                    for (FancyTagService.CategoryRecord category : service.categories()) {
+                        result.add(new SefPayloads.TagManagerEntry(
+                                "category",
+                                category.id(),
+                                null,
+                                category.resourceKey(),
+                                category.displayName(),
+                                category.description(),
+                                "category",
+                                category.revision()));
+                    }
+                }
+                if (palettes) {
+                    for (FancyTagService.PaletteRecord palette : service.palettes()) {
+                        result.add(new SefPayloads.TagManagerEntry(
+                                "palette",
+                                palette.id(),
+                                null,
+                                palette.resourceKey(),
+                                palette.displayName(),
+                                palette.colors().size() + " colors",
+                                "palette",
+                                palette.revision()));
+                    }
+                }
+                if (templates) {
+                    for (FancyTagService.TemplateRecord template : service.templates()) {
+                        result.add(new SefPayloads.TagManagerEntry(
+                                "template",
+                                template.id(),
+                                null,
+                                template.resourceKey(),
+                                template.displayName(),
+                                template.width() + " by " + template.height(),
+                                "template",
+                                template.revision()));
+                    }
+                }
+            }
+            default -> {
+                return List.of();
+            }
+        }
+        result.sort(Comparator.comparing(SefPayloads.TagManagerEntry::resourceKey)
+                .thenComparing(entry -> entry.id().toString()));
+        return List.copyOf(result);
+    }
+
+    private static UUID auditTarget(SecurityAuditService.AuditEvent event) {
+        if (event.targetUuids().isEmpty()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(event.targetUuids().getFirst());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    private static SefPayloads.TagManagerEntry tagManagerEntry(FancyTagService.TagRecord tag) {
+        return new SefPayloads.TagManagerEntry(
+                "tag",
+                tag.id(),
+                tag.id(),
+                tag.resourceKey(),
+                tag.displayName(),
+                tag.description(),
+                tag.status().name().toLowerCase(Locale.ROOT),
+                tag.recordRevision());
+    }
+
+    public static void handleTagUploadBegin(ServerPlayer player, SefPayloads.TagUploadBegin request) {
+        if (!acceptTagManagerRequest(player, request.sessionId(), request.sequence())
+                || !has(player, "commands.tags.import.client")
+                || !has(player, "commands.tags.edit")) {
+            return;
+        }
+        FancyTagService service = KernelServices.fancyTags();
+        FancyTagService.TagRecord tag = service.find(request.tagId().toString()).orElse(null);
+        FancyTagService.EditLease lease = service.leases().stream()
+                .filter(value -> value.leaseId().equals(request.leaseId()))
+                .findFirst()
+                .orElse(null);
+        ActionResult<FancyTagTransferService.UploadView> result;
+        if (tag == null
+                || tag.recordRevision() != request.expectedTagRevision()
+                || lease == null
+                || !lease.tagId().equals(tag.id())
+                || !lease.holder().equals(player.getUUID())
+                || lease.expectedTagRevision() != request.expectedTagRevision()) {
+            result = ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "tag or edit lease is stale");
+        } else {
+            result = service.transfers().begin(
+                    player.getUUID(),
+                    tag.id(),
+                    request.leaseId(),
+                    request.expectedTagRevision(),
+                    request.totalBytes(),
+                    request.expectedHash(),
+                    Instant.now());
+        }
+        sendTagOperationResult(
+                player,
+                request.sequence(),
+                result,
+                result.successful() ? result.value().uploadId() : null,
+                0,
+                request.totalBytes());
+    }
+
+    public static void handleTagUploadChunk(ServerPlayer player, SefPayloads.TagUploadChunk request) {
+        if (!acceptTagManagerRequest(player, request.sessionId(), request.sequence())
+                || !has(player, "commands.tags.import.client")
+                || !has(player, "commands.tags.edit")) {
+            return;
+        }
+        ActionResult<FancyTagTransferService.UploadView> result =
+                KernelServices.fancyTags().transfers().acceptChunk(
+                        player.getUUID(),
+                        request.uploadId(),
+                        request.chunkIndex(),
+                        request.content(),
+                        Instant.now());
+        sendTagOperationResult(
+                player,
+                request.sequence(),
+                result,
+                request.uploadId(),
+                result.successful() ? result.value().receivedBytes() : 0,
+                result.successful() ? result.value().totalBytes() : 0);
+    }
+
+    public static void handleTagUploadFinish(ServerPlayer player, SefPayloads.TagUploadFinish request) {
+        if (!acceptTagManagerRequest(player, request.sessionId(), request.sequence())
+                || !has(player, "commands.tags.import.client")
+                || !has(player, "commands.tags.edit")) {
+            return;
+        }
+        FancyTagService service = KernelServices.fancyTags();
+        ActionResult<FancyTagTransferService.CompletedUpload> completed =
+                service.transfers().finish(player.getUUID(), request.uploadId(), Instant.now());
+        ActionResult<?> result = completed.successful()
+                ? service.completeUpload(completed.value(), player.getUUID())
+                : completed;
+        if (result.successful()) {
+            refreshFancyTags(player.server);
+        }
+        sendTagOperationResult(
+                player,
+                request.sequence(),
+                result,
+                request.uploadId(),
+                completed.successful() ? completed.value().bytes().length : 0,
+                completed.successful() ? completed.value().bytes().length : 0);
+    }
+
+    public static void handleTagUploadCancel(ServerPlayer player, SefPayloads.TagUploadCancel request) {
+        if (!acceptTagManagerRequest(player, request.sessionId(), request.sequence())
+                || !has(player, "commands.tags.import.client")) {
+            return;
+        }
+        ActionResult<Void> result = KernelServices.fancyTags().transfers()
+                .cancel(player.getUUID(), request.uploadId(), false);
+        sendTagOperationResult(player, request.sequence(), result, request.uploadId(), 0, 0);
+    }
+
+    public static void handleTagMutation(ServerPlayer player, SefPayloads.TagMutationRequest request) {
+        if (!acceptTagManagerRequest(player, request.sessionId(), request.sequence())) {
+            return;
+        }
+        FancyTagService service = KernelServices.fancyTags();
+        ActionResult<?> result;
+        UUID operationId = null;
+        FancyTagService.TagRecord tag = service.find(request.tagReference()).orElse(null);
+        switch (request.operation()) {
+            case "lease_acquire" -> {
+                if (!has(player, "commands.tags.lease.acquire") || tag == null) {
+                    result = deniedOrMissing(tag);
+                } else {
+                    ActionResult<FancyTagService.EditLease> lease = service.acquireLease(
+                            request.tagReference(),
+                            player.getUUID(),
+                            request.expectedTagRevision(),
+                            false);
+                    result = lease;
+                    operationId = lease.successful() ? lease.value().leaseId() : null;
+                }
+            }
+            case "lease_renew" -> {
+                if (!has(player, "commands.tags.lease.renew")) {
+                    result = ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "permission denied");
+                } else {
+                    result = parseUuid(request.argument())
+                            .<ActionResult<?>>map(value -> service.renewLease(value, player.getUUID()))
+                            .orElseGet(() -> ActionResult.failure(
+                                    ActionResult.ReasonCode.INVALID_INPUT,
+                                    "invalid tag edit lease id"));
+                }
+            }
+            case "lease_release" -> {
+                if (!has(player, "commands.tags.lease.renew")) {
+                    result = ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "permission denied");
+                } else {
+                    result = parseUuid(request.argument())
+                            .<ActionResult<?>>map(value -> service.releaseLease(value, player.getUUID(), false))
+                            .orElseGet(() -> ActionResult.failure(
+                                    ActionResult.ReasonCode.INVALID_INPUT,
+                                    "invalid tag edit lease id"));
+                }
+            }
+            case "publish", "hide", "archive", "restore" -> {
+                if (!has(player, "commands.tags." + request.operation()) || tag == null) {
+                    result = deniedOrMissing(tag);
+                } else {
+                    FancyTagService.TagStatus status = switch (request.operation()) {
+                        case "publish" -> FancyTagService.TagStatus.PUBLISHED;
+                        case "hide" -> FancyTagService.TagStatus.HIDDEN;
+                        case "archive" -> FancyTagService.TagStatus.ARCHIVED;
+                        default -> FancyTagService.TagStatus.DRAFT;
+                    };
+                    result = service.changeStatus(
+                            request.tagReference(),
+                            status,
+                            player.getUUID(),
+                            request.expectedTagRevision());
+                }
+            }
+            case "revision_restore" -> {
+                if (!has(player, "commands.tags.revision.restore") || tag == null) {
+                    result = deniedOrMissing(tag);
+                } else {
+                    try {
+                        long revision = Long.parseLong(request.argument());
+                        result = service.restoreRevision(
+                                request.tagReference(),
+                                revision,
+                                player.getUUID(),
+                                request.expectedTagRevision());
+                    } catch (NumberFormatException exception) {
+                        result = ActionResult.failure(
+                                ActionResult.ReasonCode.INVALID_INPUT,
+                                "invalid artwork revision");
+                    }
+                }
+            }
+            default -> result = ActionResult.failure(
+                    ActionResult.ReasonCode.INVALID_INPUT,
+                    "unknown tag manager operation");
+        }
+        if (result.successful()) {
+            refreshFancyTags(player.server);
+        }
+        sendTagOperationResult(player, request.sequence(), result, operationId, 0, 0);
+    }
+
+    private static boolean acceptTagManagerRequest(
+            ServerPlayer player,
+            UUID sessionId,
+            long sequence
+    ) {
+        return ConfigHandler.config.enableFancyTags.get()
+                && ConfigHandler.config.fancyTagsEnhancedRendering.get()
+                && has(player, "tags.manage.open")
+                && player.connection.hasChannel(SefPayloads.TagOperationResult.TYPE)
+                && SefSessionManager.instance().acceptRequest(
+                player,
+                sessionId,
+                sequence,
+                SefProtocol.Feature.FANCY_TAGS_MANAGER)
+                == SefSessionManager.RequestDecision.ACCEPTED;
+    }
+
+    private static ActionResult<?> deniedOrMissing(FancyTagService.TagRecord tag) {
+        return tag == null
+                ? ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "tag not found")
+                : ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "permission denied");
+    }
+
+    private static java.util.Optional<UUID> parseUuid(String value) {
+        try {
+            return java.util.Optional.of(UUID.fromString(value));
+        } catch (IllegalArgumentException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private static void sendTagOperationResult(
+            ServerPlayer player,
+            long requestSequence,
+            ActionResult<?> result,
+            UUID operationId,
+            int completedBytes,
+            int totalBytes
+    ) {
+        SefSessionManager.SessionView session = SefSessionManager.instance().session(player).orElse(null);
+        if (session == null || !player.connection.hasChannel(SefPayloads.TagOperationResult.TYPE)) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new SefPayloads.TagOperationResult(
+                session.sessionId(),
+                requestSequence,
+                result.successful(),
+                result.reason().name().toLowerCase(Locale.ROOT),
+                result.detail(),
+                operationId,
+                KernelServices.fancyTags().registryRevision(),
+                Math.max(0, completedBytes),
+                Math.max(Math.max(0, completedBytes), totalBytes)));
+    }
+
+    public static void invalidateTag(String hash) {
+        MinecraftServer server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null || hash == null || !hash.matches("[0-9a-f]{64}")) {
+            return;
+        }
+        long revision = KernelServices.fancyTags().registryRevision();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            SefSessionManager.SessionView session =
+                    SefSessionManager.instance().session(player).orElse(null);
+            if (session != null
+                    && session.supports(SefProtocol.Feature.FANCY_TAGS_REGISTRY)
+                    && player.connection.hasChannel(SefPayloads.TagCacheInvalidation.TYPE)) {
+                PacketDistributor.sendToPlayer(player, new SefPayloads.TagCacheInvalidation(
+                        session.sessionId(),
+                        revision,
+                        List.of(hash)));
+                sendTagManifest(player);
+            }
+        }
+    }
+
+    public static void refreshFancyTags(MinecraftServer server) {
+        if (server == null) {
+            return;
+        }
+        server.getPlayerList().getPlayers().forEach(SefGuiServer::sendTagManifest);
+    }
+
+    public static void sendDisguiseSnapshot(MinecraftServer server) {
+        if (server == null || !ConfigHandler.config.enableDisguises.get()) {
+            return;
+        }
+        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
+            SefSessionManager.SessionView session =
+                    SefSessionManager.instance().session(viewer).orElse(null);
+            if (session == null
+                    || !session.supports(SefProtocol.Feature.DISGUISE_PROJECTION)
+                    || !viewer.connection.hasChannel(SefPayloads.DisguiseSnapshot.TYPE)) {
+                continue;
+            }
+            List<SefPayloads.DisguiseProjection> projections = new ArrayList<>();
+            for (ServerPlayer subject : server.getPlayerList().getPlayers()) {
+                DisguiseService.Projection projection = KernelServices.disguises().projection(
+                        viewer.getUUID(),
+                        subject.getUUID(),
+                        subject != viewer && VanishUtil.isVanished(subject, viewer),
+                        true,
+                        PermissionService.has(
+                                viewer,
+                                PermissionsHandler.phasePermission("commands.disguise.inspect"))).orElse(null);
+                if (projection == null
+                        || projections.size() >= SefProtocol.MAXIMUM_DISGUISE_PROJECTIONS) {
+                    continue;
+                }
+                DisguiseService.DisguiseRecord record = projection.record();
+                DisguiseService.ProfileSnapshot profile = record.profileId() == null
+                        ? null
+                        : KernelServices.disguises().profile(record.profileId()).orElse(null);
+                projections.add(new SefPayloads.DisguiseProjection(
+                        record.subjectId(),
+                        record.revision(),
+                        record.kind().name().toLowerCase(Locale.ROOT),
+                        record.reference(),
+                        record.profileId(),
+                        profile == null ? "" : profile.profileName(),
+                        profile == null ? "" : profile.texturesValue(),
+                        profile == null ? "" : profile.texturesSignature(),
+                        record.labelMode().name().toLowerCase(Locale.ROOT),
+                        record.equipmentPolicy().name().toLowerCase(Locale.ROOT),
+                        record.traitsEnabled(),
+                        record.abilitiesEnabled()));
+            }
+            Map<UUID, SefPayloads.DisguiseProjection> current = new LinkedHashMap<>();
+            projections.forEach(projection -> current.put(projection.subjectId(), projection));
+            Map<UUID, SefPayloads.DisguiseProjection> previous =
+                    DISGUISE_PROJECTIONS.put(viewer.getUUID(), Map.copyOf(current));
+            long revision = DISGUISE_PROJECTION_REVISIONS.incrementAndGet();
+            if (previous != null && viewer.connection.hasChannel(SefPayloads.DisguiseDelta.TYPE)) {
+                List<UUID> removed = previous.keySet().stream()
+                        .filter(id -> !current.containsKey(id))
+                        .toList();
+                List<SefPayloads.DisguiseProjection> updated = current.values().stream()
+                        .filter(projection -> !projection.equals(previous.get(projection.subjectId())))
+                        .toList();
+                PacketDistributor.sendToPlayer(viewer, new SefPayloads.DisguiseDelta(
+                        session.sessionId(),
+                        revision,
+                        removed,
+                        updated));
+            } else {
+                PacketDistributor.sendToPlayer(viewer, new SefPayloads.DisguiseSnapshot(
+                        session.sessionId(),
+                        revision,
+                        true,
+                        projections));
+            }
+        }
+    }
+
+    public static void handleDisguiseAbility(
+            ServerPlayer player,
+            SefPayloads.DisguiseAbilityRequest request
+    ) {
+        if (SefSessionManager.instance().acceptRequest(
+                player,
+                request.sessionId(),
+                request.sequence(),
+                SefProtocol.Feature.DISGUISE_ABILITY_INPUT)
+                != SefSessionManager.RequestDecision.ACCEPTED) {
+            return;
+        }
+        final DisguiseService.AbilitySlot slot;
+        try {
+            slot = DisguiseService.AbilitySlot.valueOf(request.slot().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return;
+        }
+        ActionResult<Void> result = DisguiseAbilityExecutor.activate(player, slot);
+        if (!result.successful()) {
+            player.sendSystemMessage(Component.literal(result.detail()));
+        }
+    }
+
+    private static AuthorizedTagProjection authorizedTags(ServerPlayer viewer) {
+        FancyTagService service = KernelServices.fancyTags();
+        var receivePermission = PermissionsHandler.phasePermission("tags.render.receive");
+        if (!service.settings().enabled()
+                || receivePermission == null
+                || !PermissionService.has(viewer, receivePermission)) {
+            return new AuthorizedTagProjection(service.registryRevision(), List.of(), List.of());
+        }
+        Map<UUID, SefPayloads.TagManifestEntry> entries = new LinkedHashMap<>();
+        List<SefPayloads.TagAssignmentProjection> assignments = new ArrayList<>();
+        for (ServerPlayer subject : viewer.server.getPlayerList().getPlayers()) {
+            Set<String> groups = com.enviouse.sef.fancytags.FancyTagGroupResolver
+                    .groups(subject.getUUID());
+            String team = subject.getTeam() == null ? "" : subject.getTeam().getName();
+            FancyTagService.ViewerContext context = new FancyTagService.ViewerContext(
+                    viewer.getUUID(),
+                    subject.getUUID(),
+                    groups,
+                    team,
+                    subject != viewer && VanishUtil.isVanished(subject, viewer));
+            Map<UUID, FancyTagService.ResolvedTag> resolved = new LinkedHashMap<>();
+            for (FancyTagService.RenderContext renderContext : FancyTagService.RenderContext.values()) {
+                for (FancyTagService.ResolvedTag tag : service.resolve(
+                        context,
+                        renderContext,
+                        permission -> {
+                            var node = KernelServices.permissionNode(permission);
+                            return node != null && PermissionService.has(viewer, node);
+                        })) {
+                    resolved.putIfAbsent(tag.assignmentId(), tag);
+                }
+            }
+            for (FancyTagService.ResolvedTag tag : resolved.values()) {
+                if (entries.size() >= SefProtocol.MAXIMUM_TAG_MANIFEST_ENTRIES
+                        || assignments.size() >= SefProtocol.MAXIMUM_TAG_ASSIGNMENTS) {
+                    break;
+                }
+                FancyTagService.ArtworkRevision artwork = tag.artwork();
+                entries.putIfAbsent(tag.tagId(), new SefPayloads.TagManifestEntry(
+                        tag.tagId(),
+                        tag.tagRevision(),
+                        tag.resourceKey(),
+                        tag.displayName(),
+                        tag.alternativeText(),
+                        artwork.contentHash(),
+                        artwork.encodedBytes(),
+                        artwork.width(),
+                        artwork.height()));
+                assignments.add(new SefPayloads.TagAssignmentProjection(
+                        subject.getUUID(),
+                        tag.tagId(),
+                        tag.slot().name().toLowerCase(Locale.ROOT),
+                        tag.priority(),
+                        Math.max(tag.tagRevision(), service.registryRevision())));
+            }
+        }
+        return new AuthorizedTagProjection(
+                service.registryRevision(),
+                List.copyOf(entries.values()),
+                List.copyOf(assignments));
     }
 
     public static void logout(UUID playerId) {
         synchronized (PANELS) {
             PANELS.remove(playerId);
         }
+        CONTROL_CONFIRMATIONS.remove(playerId);
         synchronized (PLAYER_REVISIONS) {
             PLAYER_REVISIONS.remove(playerId);
         }
+        TAG_PROJECTIONS.remove(playerId);
+        TAG_DOWNLOADS.remove(playerId);
+        DISGUISE_PROJECTIONS.remove(playerId);
     }
 
     public static void trackPlayer(ServerPlayer player) {
@@ -199,6 +1148,7 @@ public final class SefGuiServer {
         synchronized (PLAYER_REVISIONS) {
             PLAYER_REVISIONS.remove(player.getUUID());
         }
+        GuiWorkflowService.invalidate(player, "The player session ended.");
         refreshPlayerPickers(player.server);
     }
 
@@ -209,6 +1159,11 @@ public final class SefGuiServer {
         synchronized (PLAYER_REVISIONS) {
             PLAYER_REVISIONS.clear();
         }
+        TAG_PROJECTIONS.clear();
+        TAG_DOWNLOADS.clear();
+        DISGUISE_PROJECTIONS.clear();
+        CONTROL_CONFIRMATIONS.clear();
+        GuiWorkflowService.clear();
     }
 
     public static int openPanelCount() {
@@ -218,12 +1173,419 @@ public final class SefGuiServer {
         }
     }
 
+    private static void createControlRecord(ServerPlayer player, String featureId) {
+        ServerControlCatalog.FeatureDefinition feature;
+        try {
+            feature = ServerControlCatalog.require(featureId);
+        } catch (IllegalArgumentException exception) {
+            player.sendSystemMessage(Component.literal("That server control feature is unavailable."));
+            return;
+        }
+        String actionId = "sef:control." + feature.id() + ".create";
+        AtomicReference<ActionResult<ServerControlRepository.ControlRecord>> created = new AtomicReference<>();
+        int result = KernelCommandExecutor.execute(
+                player.createCommandSourceStack(),
+                actionId,
+                Map.of("feature", feature.id(), "route", "gui"),
+                () -> {
+                    ActionResult<ServerControlRepository.ControlRecord> outcome =
+                            KernelServices.serverControls().create(
+                                    feature.id(),
+                                    player.getUUID(),
+                                    null,
+                                    feature.title() + " record",
+                                    "",
+                                    null,
+                                    Map.of("route", "gui"));
+                    created.set(outcome);
+                    if (!outcome.successful()) {
+                        player.sendSystemMessage(Component.literal(outcome.detail()));
+                        return 0;
+                    }
+                    return 1;
+                });
+        if (result > 0 && created.get() != null && created.get().successful()) {
+            openControlEditor(player, created.get().value().id(), "Record created. Complete the required fields.");
+        }
+    }
+
+    private static void saveControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record,
+            SefPayloads.ControlMutationRequest request
+    ) {
+        Map<String, String> values = new LinkedHashMap<>();
+        for (SefPayloads.ControlFieldValue field : request.fields()) {
+            if (values.putIfAbsent(field.id(), field.value()) != null) {
+                openControlEditor(player, record.id(), "Duplicate fields were rejected.");
+                return;
+            }
+        }
+        AtomicReference<ActionResult<ServerControlRepository.ControlRecord>> saved = new AtomicReference<>();
+        int result = KernelCommandExecutor.execute(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".manage",
+                Map.of(
+                        "feature", record.featureId(),
+                        "record", record.id().toString(),
+                        "operation", "configure_all",
+                        "revision", Long.toString(record.revision()),
+                        "fields", String.join(",", values.keySet())),
+                () -> {
+                    ActionResult<ServerControlRepository.ControlRecord> outcome =
+                            KernelServices.serverControls().configureAll(
+                                    record.id(),
+                                    player.getUUID(),
+                                    request.title(),
+                                    request.details(),
+                                    values,
+                                    record.revision());
+                    saved.set(outcome);
+                    if (!outcome.successful()) {
+                        player.sendSystemMessage(Component.literal(outcome.detail()));
+                        return 0;
+                    }
+                    return 1;
+                });
+        CONTROL_CONFIRMATIONS.remove(player.getUUID());
+        ServerControlRepository.ControlRecord current =
+                KernelServices.serverControls().find(record.id()).orElse(record);
+        String status = result > 0 && saved.get() != null && saved.get().successful()
+                ? "Changes saved atomically at revision " + current.revision() + "."
+                : saved.get() == null
+                ? "The save was not completed."
+                : saved.get().detail();
+        openControlEditor(player, record.id(), status);
+    }
+
+    private static void previewControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        ServerControlExecutionService.Preview preview =
+                KernelServices.serverControlExecutions().preview(record.id(), record.revision());
+        List<String> status = new ArrayList<>(preview.effects());
+        if (!preview.missingFields().isEmpty()) {
+            status.add("missing " + String.join(", ", preview.missingFields()));
+        }
+        status.add(preview.detail());
+        openControlEditor(player, record.id(), String.join(". ", status));
+    }
+
+    private static void transitionControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record,
+            String requestedState
+    ) {
+        ServerControlCatalog.FeatureDefinition feature = ServerControlCatalog.require(record.featureId());
+        ServerControlRepository.RecordState state;
+        try {
+            state = ServerControlRepository.RecordState.valueOf(
+                    requestedState.strip().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            openControlEditor(player, record.id(), "The selected state is unavailable.");
+            return;
+        }
+        if (!feature.states().contains(state)) {
+            openControlEditor(player, record.id(), "The selected state is unavailable.");
+            return;
+        }
+        AtomicReference<ActionResult<ServerControlRepository.ControlRecord>> transitioned =
+                new AtomicReference<>();
+        int result = KernelCommandExecutor.execute(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".manage",
+                Map.of(
+                        "feature", record.featureId(),
+                        "record", record.id().toString(),
+                        "operation", "transition",
+                        "state", state.name().toLowerCase(Locale.ROOT),
+                        "revision", Long.toString(record.revision())),
+                () -> {
+                    ActionResult<ServerControlRepository.ControlRecord> outcome =
+                            KernelServices.serverControls().transition(
+                                    record.id(),
+                                    player.getUUID(),
+                                    state,
+                                    record.revision(),
+                                    "gui transition");
+                    transitioned.set(outcome);
+                    if (!outcome.successful()) {
+                        player.sendSystemMessage(Component.literal(outcome.detail()));
+                        return 0;
+                    }
+                    return 1;
+                });
+        CONTROL_CONFIRMATIONS.remove(player.getUUID());
+        String status = result > 0 && transitioned.get() != null && transitioned.get().successful()
+                ? "Record transitioned to " + state.name().toLowerCase(Locale.ROOT) + "."
+                : transitioned.get() == null
+                ? "The transition was not completed."
+                : transitioned.get().detail();
+        openControlEditor(player, record.id(), status);
+    }
+
+    private static void executeControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        ServerControlExecutionService.Preview preview =
+                KernelServices.serverControlExecutions().preview(record.id(), record.revision());
+        if (!preview.ready()) {
+            openControlEditor(player, record.id(), preview.detail()
+                    + (preview.missingFields().isEmpty()
+                    ? ""
+                    : ". missing " + String.join(", ", preview.missingFields())));
+            return;
+        }
+        boolean confirmed = !preview.confirmationRequired();
+        if (preview.confirmationRequired()) {
+            PendingControlConfirmation pending = currentControlConfirmation(player, record);
+            ConfirmationService.Request confirmation = controlConfirmation(player, record);
+            if (pending == null) {
+                ActionResult<ConfirmationService.IssuedToken> issued =
+                        KernelServices.confirmations().issue(confirmation, Duration.ofSeconds(60));
+                if (!issued.successful()) {
+                    openControlEditor(player, record.id(), "A confirmation challenge could not be issued.");
+                    return;
+                }
+                CONTROL_CONFIRMATIONS.put(
+                        player.getUUID(),
+                        new PendingControlConfirmation(
+                                record.id(),
+                                record.revision(),
+                                issued.value().token(),
+                                Instant.now().plusSeconds(60)));
+                openControlEditor(
+                        player,
+                        record.id(),
+                        "Confirmation required. Review the preview, then press confirm within 60 seconds.");
+                return;
+            }
+            ActionResult<ConfirmationService.Request> consumed =
+                    KernelServices.confirmations().consume(pending.token(), confirmation);
+            CONTROL_CONFIRMATIONS.remove(player.getUUID());
+            if (!consumed.successful()) {
+                openControlEditor(player, record.id(), "The confirmation expired or became stale.");
+                return;
+            }
+            confirmed = true;
+        }
+        boolean finalConfirmed = confirmed;
+        AtomicReference<ActionResult<ServerControlExecutionService.Execution>> executed =
+                new AtomicReference<>();
+        int result = KernelCommandExecutor.execute(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".manage",
+                Map.of(
+                        "feature", record.featureId(),
+                        "record", record.id().toString(),
+                        "operation", "execute",
+                        "revision", Long.toString(record.revision())),
+                () -> {
+                    ActionResult<ServerControlExecutionService.Execution> outcome =
+                            KernelServices.serverControlExecutions().execute(
+                                    record.id(),
+                                    player.getUUID(),
+                                    record.revision(),
+                                    finalConfirmed,
+                                    new ServerControlExecutionService.ExecutionContext() {
+                                        @Override
+                                        public Object server() {
+                                            return player.server;
+                                        }
+
+                                        @Override
+                                        public Object source() {
+                                            return player.createCommandSourceStack();
+                                        }
+                                    });
+                    executed.set(outcome);
+                    if (!outcome.successful()) {
+                        player.sendSystemMessage(Component.literal(outcome.detail()));
+                        return 0;
+                    }
+                    return 1;
+                });
+        String status = result > 0 && executed.get() != null && executed.get().successful()
+                ? executed.get().value().detail()
+                : executed.get() == null
+                ? "The execution was not completed."
+                : executed.get().detail();
+        openControlEditor(player, record.id(), status);
+    }
+
+    private static ConfirmationService.Request controlConfirmation(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        return new ConfirmationService.Request(
+                player.getUUID(),
+                "sef:control." + record.featureId() + ".manage",
+                Map.of(
+                        "record", record.id().toString(),
+                        "revision", Long.toString(record.revision()),
+                        "operation", "execute"),
+                record.subjectId() == null ? List.of() : List.of(record.subjectId()),
+                "",
+                0L,
+                0L,
+                0L,
+                KernelServices.commandPolicies().revision());
+    }
+
+    private static PendingControlConfirmation currentControlConfirmation(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        PendingControlConfirmation pending = CONTROL_CONFIRMATIONS.get(player.getUUID());
+        if (pending == null
+                || pending.expiresAt().isBefore(Instant.now())
+                || !pending.recordId().equals(record.id())
+                || pending.recordRevision() != record.revision()) {
+            CONTROL_CONFIRMATIONS.remove(player.getUUID());
+            return null;
+        }
+        return pending;
+    }
+
+    private static void openControlEditor(ServerPlayer player, UUID recordId, String requestedStatus) {
+        SefSessionManager.SessionView session =
+                SefSessionManager.instance().session(player).orElse(null);
+        ServerControlRepository.ControlRecord record =
+                KernelServices.serverControls().find(recordId).orElse(null);
+        if (session == null
+                || !session.supports(SefProtocol.Feature.CONTROL_EDITOR)
+                || record == null
+                || !canViewControlRecord(player, record)
+                || !player.connection.hasChannel(SefPayloads.ControlEditorSnapshot.TYPE)) {
+            player.sendSystemMessage(Component.literal("You cannot open that server control editor."));
+            return;
+        }
+        ServerControlCatalog.FeatureDefinition feature =
+                ServerControlCatalog.require(record.featureId());
+        ServerControlSchemaRegistry.FeatureSchema schema =
+                ServerControlSchemaRegistry.require(record.featureId());
+        boolean manage = canManageControlRecord(player, record);
+        boolean sensitiveVisible = !feature.sensitive()
+                || has(player, "commands.control." + record.featureId() + ".sensitive");
+        List<SefPayloads.ControlField> fields = schema.fields().stream()
+                .map(field -> new SefPayloads.ControlField(
+                        field.id(),
+                        field.type().name().toLowerCase(Locale.ROOT),
+                        field.required(),
+                        field.minimum(),
+                        field.maximum(),
+                        sensitiveVisible
+                                ? record.metadata().getOrDefault("field." + field.id(), "")
+                                : "",
+                        field.enumValues().stream().sorted().toList()))
+                .toList();
+        List<String> states = manage
+                ? feature.states().stream()
+                .map(state -> state.name().toLowerCase(Locale.ROOT))
+                .sorted()
+                .toList()
+                : List.of();
+        List<String> operations = new ArrayList<>();
+        if (manage && schema.operations().contains(ServerControlSchemaRegistry.Operation.CONFIGURE)) {
+            operations.add("configure");
+        }
+        if (manage && schema.operations().contains(ServerControlSchemaRegistry.Operation.PREVIEW)) {
+            operations.add("preview");
+        }
+        if (manage && schema.operations().contains(ServerControlSchemaRegistry.Operation.EXECUTE)) {
+            operations.add("execute");
+        }
+        long panelRevision = nextPanelRevision();
+        String panelId = "control_edit:" + record.id();
+        OpenPanel state = new OpenPanel(
+                session.sessionId(),
+                panelRevision,
+                panelId,
+                1,
+                "",
+                Instant.now().plusSeconds(ConfigHandler.config.guiPanelSessionSeconds.get()),
+                Map.of());
+        synchronized (PANELS) {
+            PANELS.put(player.getUUID(), state);
+        }
+        PendingControlConfirmation pending = currentControlConfirmation(player, record);
+        String status = requestedStatus == null || requestedStatus.isBlank()
+                ? "Workflow " + schema.workflowId()
+                + ". revision " + record.revision()
+                + ". screen " + schema.screen().name().toLowerCase(Locale.ROOT) + "."
+                : requestedStatus;
+        PacketDistributor.sendToPlayer(player, new SefPayloads.ControlEditorSnapshot(
+                session.sessionId(),
+                panelRevision,
+                panelId,
+                record.id(),
+                record.revision(),
+                record.featureId(),
+                record.title(),
+                sensitiveVisible ? record.details() : "Sensitive details are hidden.",
+                record.state().name().toLowerCase(Locale.ROOT),
+                schema.screen().name().toLowerCase(Locale.ROOT),
+                bounded(status, 1024),
+                fields,
+                states,
+                operations,
+                schema.confirmationRequired(),
+                pending != null));
+    }
+
+    private static boolean canViewControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        boolean manage = KernelCommandExecutor.canUse(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".manage");
+        boolean view = KernelCommandExecutor.canUse(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".view");
+        return manage
+                || view && (record.ownerId().equals(player.getUUID())
+                || player.getUUID().equals(record.subjectId()));
+    }
+
+    private static boolean canManageControlRecord(
+            ServerPlayer player,
+            ServerControlRepository.ControlRecord record
+    ) {
+        ServerControlCatalog.FeatureDefinition feature =
+                ServerControlCatalog.require(record.featureId());
+        if (!KernelCommandExecutor.canUse(
+                player.createCommandSourceStack(),
+                "sef:control." + record.featureId() + ".manage")
+                || feature.sensitive()
+                && !has(player, "commands.control." + record.featureId() + ".sensitive")) {
+            return false;
+        }
+        return ServerControlCommands.mayTargetRecord(
+                player.createCommandSourceStack(),
+                record,
+                feature);
+    }
+
     private static void open(ServerPlayer player, String requestedPanel, int requestedPage, String query) {
         String panelId = normalizePanel(requestedPanel);
         SefSessionManager.SessionView session =
                 SefSessionManager.instance().session(player).orElse(null);
         if (session == null || !allowedPanel(player, panelId, session)) {
             player.sendSystemMessage(Component.literal("You cannot open that SEF panel."));
+            return;
+        }
+        if (panelId.startsWith("control_edit:")) {
+            try {
+                openControlEditor(
+                        player,
+                        UUID.fromString(panelId.substring("control_edit:".length())),
+                        "");
+            } catch (IllegalArgumentException exception) {
+                player.sendSystemMessage(Component.literal("That server control record is unavailable."));
+            }
             return;
         }
         SnapshotData data = build(player, panelId, query);
@@ -284,7 +1646,9 @@ public final class SefGuiServer {
             case HELP -> help(player);
             case STAFF -> staff(player);
             case PLAYERS -> players(player);
-            default -> panelId.startsWith("admin_panel:")
+            default -> panelId.startsWith("control:")
+                    ? controlPanel(player, panelId.substring("control:".length()))
+                    : panelId.startsWith("admin_panel:")
                     ? adminPanel(player, panelId.substring("admin_panel:".length()))
                     : catalogPanel(player, panelId);
         };
@@ -326,32 +1690,65 @@ public final class SefGuiServer {
         if (category == null) {
             return new SnapshotData("Server essentials", "Unknown panel.", List.of());
         }
+        if (panelId.equals("category_control")) {
+            return controlCatalogPanel(player, category);
+        }
         List<EntryAction> entries = new ArrayList<>();
         for (UniversalGuiCatalog.ActionRoute route : KernelServices.universalGuiCatalog().actions(panelId)) {
             boolean allowed = KernelCommandExecutor.canUse(player.createCommandSourceStack(), route.actionId());
-            if (!allowed) {
+            String guiMode = KernelServices.moduleConfigs().effectiveGuiMode(
+                    KernelServices.moduleConfigs().moduleForFeature(route.featureId()),
+                    route.actionId());
+            if (!allowed || guiMode.equals("off")) {
                 continue;
             }
             String hud = route.hudDescriptorId().isBlank()
                     ? route.hudNotApplicableReason()
                     : "Active state HUD, " + route.hudDescriptorId();
+            boolean workflowEnabled = !guiMode.equals("command_only")
+                    && route.workflowMode() != UniversalGuiCatalog.WorkflowMode.WORLD_INTERACTION;
+            ActionKind actionKind = switch (route.workflowMode()) {
+                case TYPED_COMMAND, PANEL_EDITOR -> ActionKind.WORKFLOW;
+                case FANCY_TAG_STUDIO -> ActionKind.FANCY_TAG_STUDIO;
+                case DEDICATED_PANEL -> ActionKind.OPEN_PANEL;
+                case CONTROL_EDITOR, WORLD_INTERACTION -> null;
+            };
+            String actionValue = switch (route.workflowMode()) {
+                case TYPED_COMMAND, PANEL_EDITOR -> route.actionId();
+                case FANCY_TAG_STUDIO -> fancyTagStudioSection(route.actionId());
+                case DEDICATED_PANEL -> "dashboard";
+                case CONTROL_EDITOR, WORLD_INTERACTION -> "";
+            };
+            String workflowDetail = route.workflowMode() == UniversalGuiCatalog.WorkflowMode.TYPED_COMMAND
+                    ? "typed server workflow"
+                    : route.workflowReason();
             SefPayloads.PanelEntry panelEntry = entry(
                     "catalog:" + route.actionId(),
                     KernelServices.configurationRevision(),
-                    "command",
+                    "workflow",
                     "/" + route.commandRoute(),
-                    route.featureId() + ". " + hud,
+                    route.featureId() + ". " + workflowDetail + ". " + hud,
                     category.iconId(),
-                    true,
+                    workflowEnabled && actionKind != null,
                     route.destructive());
-            entries.add(new EntryAction(panelEntry, new AllowedAction(
-                    route.destructive() ? ActionKind.CONFIRM : ActionKind.COMMAND,
-                    "command",
-                    KernelServices.configurationRevision(),
-                    route.commandRoute(),
-                    current -> KernelCommandExecutor.canUse(
-                            current.createCommandSourceStack(),
-                            route.actionId()))));
+            entries.add(new EntryAction(
+                    panelEntry,
+                    !workflowEnabled || actionKind == null
+                            ? null
+                            : new AllowedAction(
+                            actionKind,
+                            "workflow",
+                            KernelServices.configurationRevision(),
+                            actionValue,
+                            current -> KernelCommandExecutor.canUse(
+                                    current.createCommandSourceStack(),
+                                    route.actionId())
+                                    && !KernelServices.moduleConfigs().effectiveGuiMode(
+                                    KernelServices.moduleConfigs().moduleForFeature(route.featureId()),
+                                    route.actionId()).equals("off")
+                                    && !KernelServices.moduleConfigs().effectiveGuiMode(
+                                    KernelServices.moduleConfigs().moduleForFeature(route.featureId()),
+                                    route.actionId()).equals("command_only"))));
         }
         if (panelId.equals("category_panels")) {
             for (AdminPanelService.PanelDefinition panel : KernelServices.adminPanels().panels()) {
@@ -383,6 +1780,181 @@ public final class SefGuiServer {
                 ? "No permitted actions are currently available. Use /" + category.fallback().route() + "."
                 : "Every action preserves its canonical permission, policy, and command fallback.";
         return new SnapshotData(category.title(), status, entries);
+    }
+
+    private static String fancyTagStudioSection(String actionId) {
+        String action = actionId.startsWith("sef:tags.")
+                ? actionId.substring("sef:tags.".length())
+                : actionId;
+        if (action.startsWith("assign")) {
+            return "assignments";
+        }
+        if (action.startsWith("revision") || action.startsWith("restore")) {
+            return "revisions";
+        }
+        if (action.startsWith("import")) {
+            return "import";
+        }
+        if (action.startsWith("export") || action.startsWith("transfer")) {
+            return "transfer";
+        }
+        if (action.startsWith("cache") || action.startsWith("gc")) {
+            return "cache";
+        }
+        if (action.startsWith("integrity")) {
+            return "integrity";
+        }
+        if (action.startsWith("audit")) {
+            return "audit";
+        }
+        if (action.startsWith("settings")) {
+            return "settings";
+        }
+        return action.equals("view") ? "detail" : "manager";
+    }
+
+    private static SnapshotData controlCatalogPanel(
+            ServerPlayer player,
+            UniversalGuiCatalog.Category category
+    ) {
+        List<EntryAction> entries = new ArrayList<>();
+        for (ServerControlCatalog.FeatureDefinition feature : ServerControlCatalog.FEATURES) {
+            boolean visible = KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".view")
+                    || KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".create")
+                    || KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".manage");
+            if (!visible) {
+                continue;
+            }
+            String targetPanel = "control:" + feature.id();
+            long records = KernelServices.serverControls().records(feature.id()).stream()
+                    .filter(record -> canViewControlRecord(player, record))
+                    .count();
+            SefPayloads.PanelEntry panelEntry = entry(
+                    "control:" + feature.id(),
+                    KernelServices.serverControls().diagnostic().revision(),
+                    "open",
+                    feature.title(),
+                    feature.category() + ", " + records + " visible records",
+                    controlIcon(feature.category()),
+                    true,
+                    feature.dangerous());
+            entries.add(new EntryAction(panelEntry, new AllowedAction(
+                    ActionKind.OPEN_PANEL,
+                    "open",
+                    panelEntry.revision(),
+                    targetPanel,
+                    current -> KernelCommandExecutor.canUse(
+                            current.createCommandSourceStack(),
+                            "sef:control." + feature.id() + ".view")
+                            || KernelCommandExecutor.canUse(
+                            current.createCommandSourceStack(),
+                            "sef:control." + feature.id() + ".create")
+                            || KernelCommandExecutor.canUse(
+                            current.createCommandSourceStack(),
+                            "sef:control." + feature.id() + ".manage"))));
+        }
+        return new SnapshotData(
+                SefPayloads.PanelView.DASHBOARD,
+                category.title(),
+                "Each feature opens its typed, server authoritative workflow.",
+                entries);
+    }
+
+    private static SnapshotData controlPanel(ServerPlayer player, String featureId) {
+        ServerControlCatalog.FeatureDefinition feature;
+        try {
+            feature = ServerControlCatalog.require(featureId);
+        } catch (IllegalArgumentException exception) {
+            return new SnapshotData("Server control", "Unknown feature.", List.of());
+        }
+        List<EntryAction> entries = new ArrayList<>();
+        boolean create = KernelCommandExecutor.canUse(
+                player.createCommandSourceStack(),
+                "sef:control." + feature.id() + ".create");
+        if (create) {
+            SefPayloads.PanelEntry createEntry = entry(
+                    "control:create:" + feature.id(),
+                    KernelServices.serverControls().diagnostic().revision(),
+                    "create",
+                    "Create " + feature.title().toLowerCase(Locale.ROOT),
+                    "Create a draft, then complete its typed fields",
+                    "minecraft:writable_book",
+                    true,
+                    feature.dangerous());
+            entries.add(new EntryAction(createEntry, new AllowedAction(
+                    ActionKind.CONTROL_CREATE,
+                    "create",
+                    createEntry.revision(),
+                    feature.id(),
+                    current -> KernelCommandExecutor.canUse(
+                            current.createCommandSourceStack(),
+                            "sef:control." + feature.id() + ".create"))));
+        }
+        for (ServerControlRepository.ControlRecord record :
+                KernelServices.serverControls().records(feature.id())) {
+            if (!canViewControlRecord(player, record)) {
+                continue;
+            }
+            String targetPanel = "control_edit:" + record.id();
+            SefPayloads.PanelEntry recordEntry = entry(
+                    "control:record:" + record.id(),
+                    record.revision(),
+                    "open",
+                    record.title(),
+                    record.state().name().toLowerCase(Locale.ROOT)
+                            + ", revision " + record.revision(),
+                    controlIcon(feature.category()),
+                    true,
+                    feature.dangerous());
+            entries.add(new EntryAction(recordEntry, new AllowedAction(
+                    ActionKind.OPEN_PANEL,
+                    "open",
+                    record.revision(),
+                    targetPanel,
+                    current -> KernelServices.serverControls().find(record.id())
+                            .filter(active -> active.revision() == record.revision())
+                            .filter(active -> canViewControlRecord(current, active))
+                            .isPresent())));
+        }
+        ServerControlSchemaRegistry.FeatureSchema schema =
+                ServerControlSchemaRegistry.require(feature.id());
+        return new SnapshotData(
+                switch (schema.screen()) {
+                    case DASHBOARD -> SefPayloads.PanelView.DASHBOARD;
+                    case PREVIEW -> SefPayloads.PanelView.DETAIL;
+                    case PROGRESS -> SefPayloads.PanelView.PROGRESS;
+                    default -> SefPayloads.PanelView.LIST;
+                },
+                feature.title(),
+                "Workflow " + schema.workflowId() + ". "
+                        + schema.fields().size() + " typed fields. "
+                        + schema.hud().name().toLowerCase(Locale.ROOT) + " hud policy.",
+                entries);
+    }
+
+    private static String controlIcon(String category) {
+        return switch (category) {
+            case "operations" -> "minecraft:comparator";
+            case "community" -> "minecraft:writable_book";
+            case "onboarding" -> "minecraft:knowledge_book";
+            case "recovery" -> "minecraft:recovery_compass";
+            case "governance" -> "minecraft:clock";
+            case "staff" -> "minecraft:player_head";
+            case "access" -> "minecraft:iron_door";
+            case "world" -> "minecraft:grass_block";
+            case "diagnostics" -> "minecraft:spyglass";
+            case "privacy" -> "minecraft:ender_chest";
+            case "market" -> "minecraft:emerald";
+            case "knowledge" -> "minecraft:book";
+            case "display" -> "minecraft:name_tag";
+            default -> "minecraft:paper";
+        };
     }
 
     private static SnapshotData adminPanel(ServerPlayer player, String panelId) {
@@ -943,6 +2515,10 @@ public final class SefGuiServer {
     }
 
     private static long targetRevision(UUID playerId) {
+        return targetSessionRevision(playerId);
+    }
+
+    public static long targetSessionRevision(UUID playerId) {
         synchronized (PLAYER_REVISIONS) {
             return PLAYER_REVISIONS.getOrDefault(playerId, 0L);
         }
@@ -1049,7 +2625,11 @@ public final class SefGuiServer {
             case STAFF -> PermissionService.has(player, PermissionsHandler.kernelPanel);
             case PLAYERS -> PermissionService.has(player, PermissionsHandler.kernelPanel)
                     && PermissionService.has(player, PermissionsHandler.vanishOthersCommand);
-            default -> panelId.startsWith("admin_panel:")
+            default -> panelId.startsWith("control_edit:")
+                    ? controlRecordAllowed(player, panelId)
+                    : panelId.startsWith("control:")
+                    ? controlFeatureAllowed(player, panelId.substring("control:".length()))
+                    : panelId.startsWith("admin_panel:")
                     ? PermissionService.has(player, PermissionsHandler.kernelPanel)
                     && KernelServices.adminPanels()
                     .panel(panelId.substring("admin_panel:".length()))
@@ -1059,7 +2639,10 @@ public final class SefGuiServer {
                     .map(category -> KernelServices.universalGuiCatalog().actions(panelId).stream()
                             .anyMatch(action -> KernelCommandExecutor.canUse(
                                     player.createCommandSourceStack(),
-                                    action.actionId()))
+                                    action.actionId())
+                                    && !KernelServices.moduleConfigs().effectiveGuiMode(
+                                    KernelServices.moduleConfigs().moduleForFeature(action.featureId()),
+                                    action.actionId()).equals("off"))
                             || shellPanel(panelId)
                             && PermissionService.has(player, PermissionsHandler.kernelPanel)
                             || panelId.equals("category_panels")
@@ -1077,6 +2660,35 @@ public final class SefGuiServer {
                 || panelId.equals("category_identity");
     }
 
+    private static boolean controlRecordAllowed(ServerPlayer player, String panelId) {
+        try {
+            UUID id = UUID.fromString(panelId.substring("control_edit:".length()));
+            return KernelServices.serverControls().find(id)
+                    .filter(record -> canViewControlRecord(player, record))
+                    .isPresent();
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private static boolean controlFeatureAllowed(ServerPlayer player, String featureId) {
+        try {
+            ServerControlCatalog.FeatureDefinition feature =
+                    ServerControlCatalog.require(featureId);
+            return KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".view")
+                    || KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".create")
+                    || KernelCommandExecutor.canUse(
+                    player.createCommandSourceStack(),
+                    "sef:control." + feature.id() + ".manage");
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
     private static SefProtocol.Feature feature(String panelId) {
         if (panelId == null) {
             return null;
@@ -1088,7 +2700,10 @@ public final class SefGuiServer {
             case TELEPORT_REQUESTS -> SefProtocol.Feature.TELEPORT_REQUESTS;
             case HELP -> SefProtocol.Feature.HELP_DIAGNOSTICS;
             case STAFF, PLAYERS -> SefProtocol.Feature.STAFF_OVERVIEW;
-            default -> panelId.startsWith("category_") || panelId.startsWith("admin_panel:")
+            default -> panelId.startsWith("control:")
+                    || panelId.startsWith("control_edit:")
+                    ? SefProtocol.Feature.CONTROL_EDITOR
+                    : panelId.startsWith("category_") || panelId.startsWith("admin_panel:")
                     ? SefProtocol.Feature.UNIVERSAL_GUI
                     : null;
         };
@@ -1168,14 +2783,6 @@ public final class SefGuiServer {
         return TARGET_REVISIONS.updateAndGet(current -> current == Long.MAX_VALUE ? 1L : current + 1L);
     }
 
-    private static String sha256(byte[] bytes) {
-        try {
-            return java.util.HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new ExceptionInInitializerError(exception);
-        }
-    }
-
     private record SnapshotData(
             SefPayloads.PanelView view,
             String title,
@@ -1192,6 +2799,25 @@ public final class SefGuiServer {
     }
 
     private record EntryAction(SefPayloads.PanelEntry entry, AllowedAction action) {
+    }
+
+    private record AuthorizedTagProjection(
+            long revision,
+            List<SefPayloads.TagManifestEntry> entries,
+            List<SefPayloads.TagAssignmentProjection> assignments
+    ) {
+        private AuthorizedTagProjection {
+            entries = List.copyOf(entries);
+            assignments = List.copyOf(assignments);
+        }
+    }
+
+    private record TagDownload(UUID sessionId, byte[] content, Instant expiresAt) {
+        private TagDownload {
+            Objects.requireNonNull(sessionId, "sessionId");
+            content = Objects.requireNonNull(content, "content");
+            Objects.requireNonNull(expiresAt, "expiresAt");
+        }
     }
 
     private record AllowedAction(
@@ -1214,11 +2840,22 @@ public final class SefGuiServer {
     ) {
     }
 
+    private record PendingControlConfirmation(
+            UUID recordId,
+            long recordRevision,
+            String token,
+            Instant expiresAt
+    ) {
+    }
+
     private enum ActionKind {
         OPEN_PANEL,
         SELECT_PLAYER,
         DETAIL,
         CONFIRM,
+        CONTROL_CREATE,
+        WORKFLOW,
+        FANCY_TAG_STUDIO,
         COMMAND
     }
 }

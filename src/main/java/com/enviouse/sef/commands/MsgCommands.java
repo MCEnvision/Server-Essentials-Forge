@@ -8,6 +8,7 @@ import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.control.CommunityCommands;
 import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.message.MessageService;
 import com.enviouse.sef.moderation.ModerationRepository;
@@ -263,7 +264,11 @@ public class MsgCommands {
         }
         if (!KernelServices.social().preferences(target.getUUID()).messagesEnabled()
                 || sender != null && (VanishUtil.isVanished(target, sender)
-                || KernelServices.social().ignores(target.getUUID(), sender.getUUID()))) {
+                || KernelServices.social().ignores(target.getUUID(), sender.getUUID())
+                || CommunityCommands.interactionBlocked(
+                        target.getUUID(),
+                        sender.getUUID(),
+                        "messages"))) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
             return 0;
         }

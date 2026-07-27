@@ -38,6 +38,25 @@ public final class IdentityService {
         }
 
         MinecraftServer server = serverSupplier.get();
+        UUID exactId = uuid(input);
+        if (exactId != null) {
+            ServerPlayer online = server == null ? null : server.getPlayerList().getPlayer(exactId);
+            if (online != null) {
+                if (!includeHidden && viewer != null && VanishUtil.isVanished(online, viewer)) {
+                    return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "identity not found");
+                }
+                return ActionResult.success(fromOnline(
+                        online,
+                        online.getGameProfile().getName(),
+                        nickname(online)));
+            }
+            return profiles.find(exactId)
+                    .<ActionResult<Identity>>map(profile ->
+                            ActionResult.success(fromProfile(profile)))
+                    .orElseGet(() -> ActionResult.failure(
+                            ActionResult.ReasonCode.NOT_FOUND,
+                            "identity not found"));
+        }
         List<Identity> matches = new ArrayList<>();
         java.util.Set<UUID> hiddenOnlinePlayers = new java.util.HashSet<>();
         if (server != null) {
@@ -77,6 +96,14 @@ public final class IdentityService {
             return ActionResult.failure(ActionResult.ReasonCode.AMBIGUOUS, "identity is ambiguous");
         }
         return ActionResult.success(distinct.getFirst());
+    }
+
+    private static UUID uuid(String input) {
+        try {
+            return UUID.fromString(Objects.requireNonNullElse(input, "").trim());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 
     public List<String> suggestions(ServerPlayer viewer, boolean onlineOnly) {

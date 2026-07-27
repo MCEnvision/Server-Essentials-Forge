@@ -8,6 +8,7 @@
     "ServerCommonPacketListenerImplMixin",
     "ServerGamePacketListenerImplMixin",
     "ServerPlayerMixin",
+    "accessor.ServerboundInteractPacketAccessor",
     "chat.CombatTrackerMixin",
     "chat.CommandSourceStackMixin",
     "chat.EntityArgumentMixin",
@@ -24,6 +25,9 @@
     "world.ServerLevelMixin",
     "world.SleepStatusMixin",
     "world.WardenMixin",
+    "workstations.EnchantCommandMixin",
+    "workstations.ItemEnchantmentsMixin",
+    "workstations.ItemEnchantmentsMutableMixin",
     "interaction.ChunkMapMixin",
     "interaction.FallOnBlockMixin",
     "interaction.InsideBlockMixin",
@@ -35,6 +39,9 @@
     "interaction.VanishEntitySelectorMixins$BeehiveBlockMixin"
   ],
   "client": [
+    "client.FontSetMixin",
+    "client.EntityRendererMixin",
+    "client.PlayerTabOverlayMixin"
   ],
   "injectors": {
     "defaultRequire": 1

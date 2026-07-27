@@ -8,6 +8,7 @@ import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.control.CommunityCommands;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.permissions.QuotaPermissionResolver;
 import com.mojang.brigadier.CommandDispatcher;
@@ -99,7 +100,8 @@ public final class MailCommands {
             fail(source, "You cannot mail yourself.");
             return 0;
         }
-        if (KernelServices.social().ignores(recipient, sender.getUUID())) {
+        if (KernelServices.social().ignores(recipient, sender.getUUID())
+                || CommunityCommands.interactionBlocked(recipient, sender.getUUID(), "mail")) {
             fail(source, "That player is unavailable.");
             return 0;
         }

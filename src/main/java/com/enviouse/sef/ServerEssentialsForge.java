@@ -95,6 +95,12 @@ public class ServerEssentialsForge {
 
         loader.registerConfig(modContainer, "COMMON", ConfigHandler.spec, "sef/common.toml");
         loader.registerConfig(modContainer, "SERVER", VanishConfig.SERVER_SPEC, "sef-vanish-server.toml");
+        var preloadPublication = KernelServices.preloadModuleConfiguration(
+                FMLPaths.CONFIGDIR.get().resolve("sef"));
+        if (!preloadPublication.successful()) {
+            LOGGER.error("[SEF] Modular configuration preload failed. {}", preloadPublication.detail());
+        }
+        KernelServices.prepareManifest();
 
         // Instance registrations on the GAME bus (see field comment above).
         NeoForge.EVENT_BUS.register(this);              // server lifecycle (onServerStarted/Tick/Stopping)
@@ -119,6 +125,12 @@ public class ServerEssentialsForge {
                 .resolve("serverconfig")
                 .resolve("sef");
         KernelServices.initialize();
+        var modulePublication = KernelServices.startModuleConfiguration(
+                FMLPaths.CONFIGDIR.get().resolve("sef"),
+                ev.getServer()::execute);
+        if (!modulePublication.successful()) {
+            LOGGER.error("[SEF] Modular configuration could not start. {}", modulePublication.detail());
+        }
         KernelServices.startStorage(sefDataDirectory);
         KernelServices.profiles().load(
                 ev.getServer().getWorldPath(LevelResource.PLAYER_DATA_DIR).toFile());
@@ -174,6 +186,7 @@ public class ServerEssentialsForge {
     // ServerTickEvent.Post == the old TickEvent.ServerTickEvent END phase.
     @SubscribeEvent
     public void onServerTick(ServerTickEvent.Post ev) {
+        com.enviouse.sef.control.MinecraftServerControlRuntime.tick(ev.getServer());
         if (ConfigHandler.config.enableAnnouncements.get())
             CommandRegistrationHandler.getAnnouncementManager().tick(ev.getServer());
         if (ConfigHandler.config.enableBannedItems.get())
@@ -213,6 +226,8 @@ public class ServerEssentialsForge {
         CommandRegistrationHandler.getAltTracker().shutdown();
         com.enviouse.sef.countdown.CountdownManager.clear();
         com.enviouse.sef.player.PlayerStateService.clearAll();
+        com.enviouse.sef.control.MinecraftServerControlRuntime.clear();
+        com.enviouse.sef.invsee.OfflineInvSeeService.shutdown();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
         SefGuiServer.clear();

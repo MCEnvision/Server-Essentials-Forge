@@ -9,5 +9,9 @@
   "gui.sef.search": "Search",
   "gui.sef.search.narration": "Search SEF panel",
   "key.categories.sef": "Server Essentials",
-  "key.sef.open_dashboard": "Open SEF Dashboard"
+  "key.sef.open_dashboard": "Open SEF Dashboard",
+  "key.sef.disguise_primary": "Disguise Primary Ability",
+  "key.sef.disguise_secondary": "Disguise Secondary Ability",
+  "key.sef.disguise_utility": "Disguise Utility Ability",
+  "key.sef.open_fancy_tags_studio": "Open Fancy Tags Studio"
 }
