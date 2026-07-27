@@ -153,7 +153,7 @@ Automated tests protect:
 
 ## Completion record
 
-Automated and headless verification completed on 2026-07-26 against the Phase 8 source checkpoint:
+Automated and headless verification completed on 2026-07-26 against source checkpoint `5b63bd728b81a19e6309953565608c732d258dd9`:
 
 1. `./gradlew test` passed all 234 tests.
 2. `./gradlew runGameTestServer` passed all 11 required GameTests.
