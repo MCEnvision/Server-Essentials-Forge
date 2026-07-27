@@ -37,6 +37,7 @@ import com.enviouse.sef.gui.AdminPanelService;
 import com.enviouse.sef.gui.UniversalGuiCatalog;
 import com.enviouse.sef.gui.protocol.SefNetwork;
 import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.OfflineActionRepository;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.identity.PlayerProfileRepository;
 import com.enviouse.sef.freeze.FreezeManager;
@@ -162,6 +163,7 @@ public final class KernelServices {
     private static EscrowRepository escrowRepository;
     private static EscrowService escrow;
     private static ModuleConfigService moduleConfigs;
+    private static OfflineActionRepository offlineActions;
     private static Path preloadedAutomationRoot;
 
     private KernelServices() {
@@ -334,6 +336,7 @@ public final class KernelServices {
         teleportRequests = new TeleportRequestService();
         teleportSettings = TeleportSettings.fromConfig();
         guiPreferences = new GuiPreferenceRepository();
+        offlineActions = new OfflineActionRepository();
         storage.register(locationHistory);
         storage.register(cooldownRepository);
         storage.register(teleports);
@@ -344,6 +347,7 @@ public final class KernelServices {
         storage.register(economyRepository);
         storage.register(economySigns);
         storage.register(guiPreferences);
+        storage.register(offlineActions);
         storage.register(adminPanels);
         storage.register(bundles);
         storage.register(aliases);
@@ -534,6 +538,7 @@ public final class KernelServices {
                         && ConfigHandler.config.enableGamemodeShortcuts.get()),
                 Map.entry("sef.item.self", moduleEnabled("items")
                         && ConfigHandler.config.enableItemShortcut.get()),
+                Map.entry("sef.item.give", moduleEnabled("items")),
                 Map.entry("sef.workstation.additional", moduleEnabled("workstations")
                         && ConfigHandler.config.enableAdditionalWorkstations.get()),
                 Map.entry("sef.economy", moduleEnabled("economy") && economy.settings().enabled()),
@@ -543,10 +548,8 @@ public final class KernelServices {
                 Map.entry("sef.fake", moduleEnabled("fake_actions")),
                 Map.entry("sef.sudo", moduleEnabled("sudo") && ConfigHandler.config.enableSudo.get()),
                 Map.entry("sef.run", moduleEnabled("run_and_silent")),
-                Map.entry("sef.fancy_tags", moduleEnabled("fancy_tags")
-                        && ConfigHandler.config.enableFancyTags.get()),
-                Map.entry("sef.disguise", moduleEnabled("disguise")
-                        && ConfigHandler.config.enableDisguises.get()),
+                Map.entry("sef.fancy_tags", moduleEnabled("fancy_tags")),
+                Map.entry("sef.disguise", moduleEnabled("disguise")),
                 Map.entry("sef.enchant.admin", moduleEnabled("super_enchanting")
                         && ConfigHandler.config.enableAdministrativeEnchanting.get()),
                 Map.entry("sef.control", moduleEnabled("server_control")),
@@ -928,6 +931,11 @@ public final class KernelServices {
         return guiPreferences;
     }
 
+    public static OfflineActionRepository offlineActions() {
+        ensureInitialized();
+        return offlineActions;
+    }
+
     public static UniversalGuiCatalog universalGuiCatalog() {
         ensureInitialized();
         return universalGuiCatalog;
@@ -1285,7 +1293,7 @@ public final class KernelServices {
         register("sef:gui.reminder.dismiss", "sef client reminder dismiss", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
                 CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER),
                 "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:gui", "reminder preference is persisted");
-        for (String preference : List.of("mode", "pause", "hud", "motion", "page_size")) {
+        for (String preference : List.of("mode", "pause", "hud", "blur", "motion", "page_size")) {
             registerDomainCommand(
                     "sef:gui.preference." + preference,
                     "sef client preference " + preference,
@@ -1820,6 +1828,16 @@ public final class KernelServices {
                 Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.SELF,
                 "sef.item.self", AuditService.AuditClass.ADMIN_ACTION,
                 "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:item.give.others", "give", Set.of("give"),
+                "sef.commands.item.give.others", CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.item.give", AuditService.AuditClass.ADMIN_ACTION,
+                "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand("sef:inventory.view", "invsee", Set.of("invsee"),
+                "sef.commands.invsee.view", CommandDefinition.AccessClass.ADMINISTRATOR,
+                Set.of(CommandDefinition.SourceType.PLAYER), CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.inventory", AuditService.AuditClass.METADATA_ONLY,
+                "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF);
         for (String action : List.of(
                 "claim", "list", "show", "create", "delete", "reset", "edit", "validate", "export")) {
             String permission = switch (action) {
@@ -2339,7 +2357,13 @@ public final class KernelServices {
             };
             registerDomainCommand(
                     "sef:disguise." + action,
-                    "disguise " + action.replace('.', ' '),
+                    switch (action) {
+                        case "set.mob" -> "disguise mob";
+                        case "set.player" -> "disguise player";
+                        case "set.preset" -> "disguise preset";
+                        case "preset.manage" -> "disguise presets";
+                        default -> "disguise " + action.replace('.', ' ');
+                    },
                     action.equals("set.mob") ? Set.of("disguise") : Set.of(),
                     permission,
                     action.equals("status") || action.equals("list")

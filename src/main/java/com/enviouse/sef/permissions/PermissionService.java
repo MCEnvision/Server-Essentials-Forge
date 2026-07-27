@@ -87,16 +87,18 @@ public final class PermissionService {
         }
         try {
             boolean granted = PermissionAPI.getPermission(player, node);
+            boolean directProviderGrant = !granted
+                    && DynamicPermissionService.has(player, node.getNodeName());
             String provider = provider();
             return new Decision(
-                    granted,
+                    granted || directProviderGrant,
                     node.getNodeName(),
-                    provider,
+                    directProviderGrant ? "luckperms:direct" : provider,
                     defaultUse(provider),
                     Evaluation.NOT_EVALUATED,
                     Evaluation.NOT_EVALUATED,
                     SubjectKind.ONLINE_PLAYER,
-                    granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
+                    granted || directProviderGrant ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
         } catch (RuntimeException exception) {
             ServerEssentialsForge.LOGGER.trace("Permission service unavailable for online player", exception);
             return unavailable(node, SubjectKind.ONLINE_PLAYER);
@@ -139,16 +141,20 @@ public final class PermissionService {
         }
         try {
             boolean granted = PermissionAPI.getOfflinePermission(playerId, node);
+            boolean directProviderGrant = !granted
+                    && DynamicPermissionService.has(playerId, node.getNodeName());
             String provider = provider();
             return new Decision(
-                    granted,
+                    granted || directProviderGrant,
                     node.getNodeName(),
-                    provider,
+                    directProviderGrant ? "luckperms:direct" : provider,
                     defaultUse(provider),
                     Evaluation.NOT_EVALUATED,
                     Evaluation.NOT_EVALUATED,
                     SubjectKind.OFFLINE_PLAYER,
-                    granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
+                    granted || directProviderGrant
+                            ? DenialReason.NONE
+                            : DenialReason.PERMISSION_DENIED);
         } catch (RuntimeException exception) {
             ServerEssentialsForge.LOGGER.trace("Permission service unavailable for offline player", exception);
             return unavailable(node, SubjectKind.OFFLINE_PLAYER);

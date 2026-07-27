@@ -148,6 +148,16 @@ public final class KernelCommands {
                                                 context.getSource(),
                                                 "sef:gui.preference.hud",
                                                 StringArgumentType.getString(context, "value")))))
+                        .then(Commands.literal("blur")
+                                .then(Commands.argument("value", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            builder.suggest("on").suggest("off");
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(context -> updatePreference(
+                                                context.getSource(),
+                                                "sef:gui.preference.blur",
+                                                StringArgumentType.getString(context, "value")))))
                         .then(Commands.literal("motion")
                                 .then(Commands.argument("value", StringArgumentType.word())
                                         .suggests((context, builder) -> {
@@ -371,6 +381,7 @@ public final class KernelCommands {
                     "&7Preference: &f" + preference.presentationMode().name().toLowerCase(java.util.Locale.ROOT)
                             + " &8| &7pause: &f" + preference.pauseButtonVisible()
                             + " &8| &7hud: &f" + preference.hudEnabled()
+                            + " &8| &7blur: &f" + preference.backgroundBlur()
                             + " &8| &7reduced motion: &f" + preference.reducedMotion()
                             + " &8| &7page size: &f" + preference.preferredPageSize()), false);
         }
@@ -418,12 +429,14 @@ public final class KernelCommands {
                         Boolean pause = null;
                         Boolean hud = null;
                         Boolean reducedMotion = null;
+                        Boolean backgroundBlur = null;
                         switch (actionId) {
                             case "sef:gui.preference.mode" ->
                                     mode = com.enviouse.sef.gui.GuiPreferenceRepository.PresentationMode.valueOf(
                                             value.toUpperCase(java.util.Locale.ROOT));
                             case "sef:gui.preference.pause" -> pause = toggle(value);
                             case "sef:gui.preference.hud" -> hud = toggle(value);
+                            case "sef:gui.preference.blur" -> backgroundBlur = toggle(value);
                             case "sef:gui.preference.motion" -> reducedMotion = switch (value) {
                                 case "full" -> false;
                                 case "reduced" -> true;
@@ -431,13 +444,19 @@ public final class KernelCommands {
                             };
                             default -> throw new IllegalArgumentException("unknown preference action");
                         }
-                        KernelServices.guiPreferences().updatePresentation(
-                                player.getUUID(),
-                                mode,
-                                pause,
-                                hud,
-                                reducedMotion,
-                                null);
+                        if (backgroundBlur == null) {
+                            KernelServices.guiPreferences().updatePresentation(
+                                    player.getUUID(),
+                                    mode,
+                                    pause,
+                                    hud,
+                                    reducedMotion,
+                                    null);
+                        } else {
+                            KernelServices.guiPreferences().updateBackgroundBlur(
+                                    player.getUUID(),
+                                    backgroundBlur);
+                        }
                         SefSessionManager.instance().refresh(player);
                         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                                 "&aYour GUI preference was updated."), false);

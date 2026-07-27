@@ -2,7 +2,7 @@
 
 This file is generated from the permission manifest and sealed command registry. Change permission definitions and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Permission entries: 11614. Defaults are fail closed unless a row explicitly states `true`.
+Permission entries: 11659. Defaults are fail closed unless a row explicitly states `true`.
 
 | Permission | Default | Name | Description | Catalog commands |
 | --- | --- | --- | --- | --- |
@@ -957,8 +957,8 @@ Permission entries: 11614. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.invsee.curios` | `false` | View Curios inventories | Allows viewing another player's Curios inventory | none |
 | `sef.commands.invsee.modify` | `false` | Modify inventories | Allows modifying another player's inventory | none |
 | `sef.commands.invsee.offline` | `false` | View offline inventories | Allows opening supported offline inventory data | none |
-| `sef.commands.invsee.view` | `false` | View inventories | Allows read only viewing of another player's inventory | none |
-| `sef.commands.item.give.others` | `false` | Give other players items | Allows bounded item grants to eligible players | none |
+| `sef.commands.invsee.view` | `false` | View inventories | Allows read only viewing of another player's inventory | `sef:inventory.view` |
+| `sef.commands.item.give.others` | `false` | Give other players items | Allows bounded item grants to eligible players | `sef:item.give.others` |
 | `sef.commands.item.give.self` | `false` | Give self items | Allows the bounded self only item shortcut | `sef:item.give.self` |
 | `sef.commands.itemdb` | `true` | Identify items | Allows safe held item identification | `sef:inventory.itemdb` |
 | `sef.commands.itemlore` | `false` | Edit item lore | Allows bounded held item lore edits | `sef:inventory.itemlore` |
@@ -1078,7 +1078,7 @@ Permission entries: 11614. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.run` | `false` | Run server commands | Allows reviewed direct server source command execution | `sef:run.server` |
 | `sef.commands.run.root.any` | `false` | Run any approved root | Allows any root that passes the configured run policy | none |
 | `sef.commands.sef.allowed` | `true` | SEF command | Enables/Disables the "/sef" command | `sef:core.colors`, `sef:core.commands`, `sef:core.conflicts`, `sef:core.doctor`, `sef:core.info`, `sef:core.reload`, `sef:core.test`, `sef:filter.add`, `sef:filter.list`, `sef:filter.remove`, `sef:gui.client.status`, `sef:gui.dashboard.open`, `sef:gui.reminder.dismiss`, `sef:motd.reload`, `sef:motd.set`, `sef:motd.show`, `sef:storage.export`, `sef:storage.status` |
-| `sef.commands.sef.client.preferences` | `true` | Manage personal GUI preferences | Allows changing personal optional GUI, pause button, HUD, motion, and page size preferences | `sef:gui.preference.hud`, `sef:gui.preference.mode`, `sef:gui.preference.motion`, `sef:gui.preference.page_size`, `sef:gui.preference.pause` |
+| `sef.commands.sef.client.preferences` | `true` | Manage personal GUI preferences | Allows changing personal optional GUI, pause button, HUD, motion, and page size preferences | `sef:gui.preference.blur`, `sef:gui.preference.hud`, `sef:gui.preference.mode`, `sef:gui.preference.motion`, `sef:gui.preference.page_size`, `sef:gui.preference.pause` |
 | `sef.commands.sef.colors` | `true` | SEF colors sub-command | Enables/Disables the "/sef colors" sub-command | `sef:core.colors` |
 | `sef.commands.sef.commands` | `true` | Command catalog | Allows viewing the permission filtered SEF command catalog | `sef:core.commands` |
 | `sef.commands.sef.conflicts` | `false` | Command conflicts | Allows viewing command root ownership and collision diagnostics | `sef:core.conflicts` |
@@ -7363,6 +7363,21 @@ Permission entries: 11614. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.gui.preference.60` | `false` | Cooldown gui.preference 60 | Sets the cooldown for sef:gui.preference to 60 seconds | none |
 | `sef.cooldown.gui.preference.600` | `false` | Cooldown gui.preference 600 | Sets the cooldown for sef:gui.preference to 600 seconds | none |
 | `sef.cooldown.gui.preference.86400` | `false` | Cooldown gui.preference 86400 | Sets the cooldown for sef:gui.preference to 86400 seconds | none |
+| `sef.cooldown.gui.preference.blur.0` | `false` | Cooldown gui.preference.blur 0 | Sets the cooldown for sef:gui.preference.blur to 0 seconds | none |
+| `sef.cooldown.gui.preference.blur.1` | `false` | Cooldown gui.preference.blur 1 | Sets the cooldown for sef:gui.preference.blur to 1 seconds | none |
+| `sef.cooldown.gui.preference.blur.10` | `false` | Cooldown gui.preference.blur 10 | Sets the cooldown for sef:gui.preference.blur to 10 seconds | none |
+| `sef.cooldown.gui.preference.blur.120` | `false` | Cooldown gui.preference.blur 120 | Sets the cooldown for sef:gui.preference.blur to 120 seconds | none |
+| `sef.cooldown.gui.preference.blur.15` | `false` | Cooldown gui.preference.blur 15 | Sets the cooldown for sef:gui.preference.blur to 15 seconds | none |
+| `sef.cooldown.gui.preference.blur.1800` | `false` | Cooldown gui.preference.blur 1800 | Sets the cooldown for sef:gui.preference.blur to 1800 seconds | none |
+| `sef.cooldown.gui.preference.blur.21600` | `false` | Cooldown gui.preference.blur 21600 | Sets the cooldown for sef:gui.preference.blur to 21600 seconds | none |
+| `sef.cooldown.gui.preference.blur.3` | `false` | Cooldown gui.preference.blur 3 | Sets the cooldown for sef:gui.preference.blur to 3 seconds | none |
+| `sef.cooldown.gui.preference.blur.30` | `false` | Cooldown gui.preference.blur 30 | Sets the cooldown for sef:gui.preference.blur to 30 seconds | none |
+| `sef.cooldown.gui.preference.blur.300` | `false` | Cooldown gui.preference.blur 300 | Sets the cooldown for sef:gui.preference.blur to 300 seconds | none |
+| `sef.cooldown.gui.preference.blur.3600` | `false` | Cooldown gui.preference.blur 3600 | Sets the cooldown for sef:gui.preference.blur to 3600 seconds | none |
+| `sef.cooldown.gui.preference.blur.5` | `false` | Cooldown gui.preference.blur 5 | Sets the cooldown for sef:gui.preference.blur to 5 seconds | none |
+| `sef.cooldown.gui.preference.blur.60` | `false` | Cooldown gui.preference.blur 60 | Sets the cooldown for sef:gui.preference.blur to 60 seconds | none |
+| `sef.cooldown.gui.preference.blur.600` | `false` | Cooldown gui.preference.blur 600 | Sets the cooldown for sef:gui.preference.blur to 600 seconds | none |
+| `sef.cooldown.gui.preference.blur.86400` | `false` | Cooldown gui.preference.blur 86400 | Sets the cooldown for sef:gui.preference.blur to 86400 seconds | none |
 | `sef.cooldown.gui.preference.hud.0` | `false` | Cooldown gui.preference.hud 0 | Sets the cooldown for sef:gui.preference.hud to 0 seconds | none |
 | `sef.cooldown.gui.preference.hud.1` | `false` | Cooldown gui.preference.hud 1 | Sets the cooldown for sef:gui.preference.hud to 1 seconds | none |
 | `sef.cooldown.gui.preference.hud.10` | `false` | Cooldown gui.preference.hud 10 | Sets the cooldown for sef:gui.preference.hud to 10 seconds | none |
@@ -7798,6 +7813,36 @@ Permission entries: 11614. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.inventory.recipe.60` | `false` | Cooldown inventory.recipe 60 | Sets the cooldown for sef:inventory.recipe to 60 seconds | none |
 | `sef.cooldown.inventory.recipe.600` | `false` | Cooldown inventory.recipe 600 | Sets the cooldown for sef:inventory.recipe to 600 seconds | none |
 | `sef.cooldown.inventory.recipe.86400` | `false` | Cooldown inventory.recipe 86400 | Sets the cooldown for sef:inventory.recipe to 86400 seconds | none |
+| `sef.cooldown.inventory.view.0` | `false` | Cooldown inventory.view 0 | Sets the cooldown for sef:inventory.view to 0 seconds | none |
+| `sef.cooldown.inventory.view.1` | `false` | Cooldown inventory.view 1 | Sets the cooldown for sef:inventory.view to 1 seconds | none |
+| `sef.cooldown.inventory.view.10` | `false` | Cooldown inventory.view 10 | Sets the cooldown for sef:inventory.view to 10 seconds | none |
+| `sef.cooldown.inventory.view.120` | `false` | Cooldown inventory.view 120 | Sets the cooldown for sef:inventory.view to 120 seconds | none |
+| `sef.cooldown.inventory.view.15` | `false` | Cooldown inventory.view 15 | Sets the cooldown for sef:inventory.view to 15 seconds | none |
+| `sef.cooldown.inventory.view.1800` | `false` | Cooldown inventory.view 1800 | Sets the cooldown for sef:inventory.view to 1800 seconds | none |
+| `sef.cooldown.inventory.view.21600` | `false` | Cooldown inventory.view 21600 | Sets the cooldown for sef:inventory.view to 21600 seconds | none |
+| `sef.cooldown.inventory.view.3` | `false` | Cooldown inventory.view 3 | Sets the cooldown for sef:inventory.view to 3 seconds | none |
+| `sef.cooldown.inventory.view.30` | `false` | Cooldown inventory.view 30 | Sets the cooldown for sef:inventory.view to 30 seconds | none |
+| `sef.cooldown.inventory.view.300` | `false` | Cooldown inventory.view 300 | Sets the cooldown for sef:inventory.view to 300 seconds | none |
+| `sef.cooldown.inventory.view.3600` | `false` | Cooldown inventory.view 3600 | Sets the cooldown for sef:inventory.view to 3600 seconds | none |
+| `sef.cooldown.inventory.view.5` | `false` | Cooldown inventory.view 5 | Sets the cooldown for sef:inventory.view to 5 seconds | none |
+| `sef.cooldown.inventory.view.60` | `false` | Cooldown inventory.view 60 | Sets the cooldown for sef:inventory.view to 60 seconds | none |
+| `sef.cooldown.inventory.view.600` | `false` | Cooldown inventory.view 600 | Sets the cooldown for sef:inventory.view to 600 seconds | none |
+| `sef.cooldown.inventory.view.86400` | `false` | Cooldown inventory.view 86400 | Sets the cooldown for sef:inventory.view to 86400 seconds | none |
+| `sef.cooldown.item.give.others.0` | `false` | Cooldown item.give.others 0 | Sets the cooldown for sef:item.give.others to 0 seconds | none |
+| `sef.cooldown.item.give.others.1` | `false` | Cooldown item.give.others 1 | Sets the cooldown for sef:item.give.others to 1 seconds | none |
+| `sef.cooldown.item.give.others.10` | `false` | Cooldown item.give.others 10 | Sets the cooldown for sef:item.give.others to 10 seconds | none |
+| `sef.cooldown.item.give.others.120` | `false` | Cooldown item.give.others 120 | Sets the cooldown for sef:item.give.others to 120 seconds | none |
+| `sef.cooldown.item.give.others.15` | `false` | Cooldown item.give.others 15 | Sets the cooldown for sef:item.give.others to 15 seconds | none |
+| `sef.cooldown.item.give.others.1800` | `false` | Cooldown item.give.others 1800 | Sets the cooldown for sef:item.give.others to 1800 seconds | none |
+| `sef.cooldown.item.give.others.21600` | `false` | Cooldown item.give.others 21600 | Sets the cooldown for sef:item.give.others to 21600 seconds | none |
+| `sef.cooldown.item.give.others.3` | `false` | Cooldown item.give.others 3 | Sets the cooldown for sef:item.give.others to 3 seconds | none |
+| `sef.cooldown.item.give.others.30` | `false` | Cooldown item.give.others 30 | Sets the cooldown for sef:item.give.others to 30 seconds | none |
+| `sef.cooldown.item.give.others.300` | `false` | Cooldown item.give.others 300 | Sets the cooldown for sef:item.give.others to 300 seconds | none |
+| `sef.cooldown.item.give.others.3600` | `false` | Cooldown item.give.others 3600 | Sets the cooldown for sef:item.give.others to 3600 seconds | none |
+| `sef.cooldown.item.give.others.5` | `false` | Cooldown item.give.others 5 | Sets the cooldown for sef:item.give.others to 5 seconds | none |
+| `sef.cooldown.item.give.others.60` | `false` | Cooldown item.give.others 60 | Sets the cooldown for sef:item.give.others to 60 seconds | none |
+| `sef.cooldown.item.give.others.600` | `false` | Cooldown item.give.others 600 | Sets the cooldown for sef:item.give.others to 600 seconds | none |
+| `sef.cooldown.item.give.others.86400` | `false` | Cooldown item.give.others 86400 | Sets the cooldown for sef:item.give.others to 86400 seconds | none |
 | `sef.cooldown.item.give.self.0` | `false` | Cooldown item.give.self 0 | Sets the cooldown for sef:item.give.self to 0 seconds | none |
 | `sef.cooldown.item.give.self.1` | `false` | Cooldown item.give.self 1 | Sets the cooldown for sef:item.give.self to 1 seconds | none |
 | `sef.cooldown.item.give.self.10` | `false` | Cooldown item.give.self 10 | Sets the cooldown for sef:item.give.self to 10 seconds | none |

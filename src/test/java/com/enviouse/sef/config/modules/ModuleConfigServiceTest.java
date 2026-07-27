@@ -319,6 +319,26 @@ class ModuleConfigServiceTest {
     }
 
     @Test
+    void runtimePublicationUsesAuthoritativeFancyTagAndDisguiseModuleState() {
+        service = new ModuleConfigService(new ModuleConfigRegistry());
+        assertTrue(service.start(temporaryDirectory.resolve("sef"), Runnable::run).successful());
+        boolean originalFancyTags = ConfigHandler.config.enableFancyTags.get();
+        boolean originalDisguises = ConfigHandler.config.enableDisguises.get();
+        try {
+            ConfigHandler.config.enableFancyTags.set(false);
+            ConfigHandler.config.enableDisguises.set(false);
+
+            ConfigHandler.publish(service);
+
+            assertTrue(ConfigHandler.config.enableFancyTags.get());
+            assertTrue(ConfigHandler.config.enableDisguises.get());
+        } finally {
+            ConfigHandler.config.enableFancyTags.set(originalFancyTags);
+            ConfigHandler.config.enableDisguises.set(originalDisguises);
+        }
+    }
+
+    @Test
     void legacyMigrationRejectsSourceChangesAfterPreview() throws Exception {
         Path root = temporaryDirectory.resolve("sef");
         Files.createDirectories(root);

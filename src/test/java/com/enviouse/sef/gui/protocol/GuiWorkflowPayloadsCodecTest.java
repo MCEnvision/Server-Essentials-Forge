@@ -86,7 +86,10 @@ class GuiWorkflowPayloadsCodecTest {
                         1L,
                         REQUEST,
                         "player",
-                        List.of("EnVy")));
+                        List.of(new GuiWorkflowPayloads.WorkflowSuggestion(
+                                "EnVy",
+                                "EnVy",
+                                true))));
         assertRoundTrip(
                 GuiWorkflowPayloads.GuiWorkflowPreview.CODEC,
                 new GuiWorkflowPayloads.GuiWorkflowPreview(
@@ -178,7 +181,10 @@ class GuiWorkflowPayloadsCodecTest {
                         "player",
                         java.util.Collections.nCopies(
                                 GuiWorkflowPayloads.MAXIMUM_SUGGESTIONS + 1,
-                                "value")));
+                                new GuiWorkflowPayloads.WorkflowSuggestion(
+                                        "value",
+                                        "value",
+                                        false))));
     }
 
     private static <T> void assertRoundTrip(StreamCodec<FriendlyByteBuf, T> codec, T value) {

@@ -6,6 +6,7 @@ import com.enviouse.sef.gui.UniversalGuiCatalog;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.ParseResults;
 import com.mojang.brigadier.StringReader;
@@ -32,6 +33,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class GuiWorkflowService {
     private static final Duration SESSION_LIFETIME = Duration.ofMinutes(10);
     private static final int MAXIMUM_SESSIONS = 100_000;
+    private static final java.util.Set<String> OFFLINE_QUEUE_ACTIONS =
+            java.util.Set.of("sef:item.give.others");
     private static final AtomicLong REVISIONS = new AtomicLong();
     private static final Map<UUID, WorkflowSession> SESSIONS = new LinkedHashMap<>();
 
@@ -48,6 +51,40 @@ public final class GuiWorkflowService {
             return;
         }
         openAuthorized(player, transport, actionId, returnPanel);
+    }
+
+    public static boolean openBare(CommandSourceStack source, String actionId) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(actionId, "actionId");
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            return false;
+        }
+        SefSessionManager.SessionView transport =
+                SefSessionManager.instance().session(player).orElse(null);
+        if (transport == null || !transport.supports(SefProtocol.Feature.GUI_WORKFLOW)) {
+            return false;
+        }
+        UniversalGuiCatalog.ActionRoute route =
+                KernelServices.universalGuiCatalog().action(actionId).orElse(null);
+        CommandDefinition definition = KernelServices.catalog().find(actionId).orElse(null);
+        if (route == null
+                || definition == null
+                || route.workflowMode() != UniversalGuiCatalog.WorkflowMode.TYPED_COMMAND
+                || !KernelCommandExecutor.canUse(source, actionId)) {
+            return false;
+        }
+        String moduleId = KernelServices.moduleConfigs().moduleForFeature(route.featureId());
+        String guiMode = KernelServices.moduleConfigs().effectiveGuiMode(moduleId, actionId);
+        if (guiMode.equals("off")
+                || guiMode.equals("command_only")
+                || !Boolean.parseBoolean(KernelServices.moduleConfigs().value(
+                        moduleId,
+                        "gui.bare_command_opens"))) {
+            return false;
+        }
+        openAuthorized(player, transport, actionId, "dashboard");
+        return true;
     }
 
     public static void handleOpen(ServerPlayer player, GuiWorkflowPayloads.GuiWorkflowOpen request) {
@@ -114,6 +151,16 @@ public final class GuiWorkflowService {
                     .filter(choice -> choice.startsWith(request.value().toLowerCase(Locale.ROOT)))
                     .toList();
             sendSuggestions(player, workflow, request.requestId(), field.id(), filtered);
+            return;
+        }
+        if (field.type() == GuiWorkflowCompiler.FieldType.PLAYER
+                || field.type() == GuiWorkflowCompiler.FieldType.PLAYERS) {
+            sendSuggestionEntries(
+                    player,
+                    workflow,
+                    request.requestId(),
+                    field.id(),
+                    playerSuggestions(player, request.value()));
             return;
         }
 
@@ -317,15 +364,34 @@ public final class GuiWorkflowService {
             GuiWorkflowCompiler.Variant variant = workflow.definition.requireVariant(variantId);
             Map<String, String> values = validatedValues(variant, submitted);
             String command = render(variant, values);
-            validateCommand(player, workflow, command);
+            DeferredTarget deferred = deferredTarget(
+                    player,
+                    workflow.definition,
+                    variant,
+                    values);
+            String validationCommand = command;
+            if (deferred != null) {
+                Map<String, String> validationValues = new LinkedHashMap<>(values);
+                validationValues.put(
+                        deferred.fieldId(),
+                        player.getGameProfile().getName());
+                validationCommand = render(variant, validationValues);
+            }
+            validateCommand(player, workflow, validationCommand);
             workflow.selectedVariant = variant.id();
             workflow.values.put(variant.id(), new LinkedHashMap<>(values));
             workflow.previewCommand = command;
             workflow.previewDisplay = redact(variant, values);
+            workflow.deferredTargetId = deferred == null ? null : deferred.targetId();
+            workflow.deferredTargetFieldId = deferred == null ? "" : deferred.fieldId();
             workflow.confirmationToken = workflow.definition.requiresConfirmation()
                     ? UUID.randomUUID()
                     : null;
-            workflow.status = workflow.definition.requiresConfirmation()
+            workflow.status = deferred != null
+                    ? workflow.definition.requiresConfirmation()
+                    ? "Target is offline. Confirm to queue this typed action."
+                    : "Target is offline. Run to queue this typed action."
+                    : workflow.definition.requiresConfirmation()
                     ? "Preview validated. A second confirmation is required."
                     : "Preview validated. The action is ready.";
             workflow.bump();
@@ -341,6 +407,23 @@ public final class GuiWorkflowService {
             workflow.fail("Permission, module state, or route availability changed.");
             publish(player, workflow);
             return;
+        }
+        if (workflow.deferredTargetId != null
+                && player.server.getPlayerList().getPlayer(workflow.deferredTargetId) == null) {
+            queueOffline(player, workflow);
+            return;
+        }
+        if (workflow.deferredTargetId != null) {
+            ServerPlayer target =
+                    player.server.getPlayerList().getPlayer(workflow.deferredTargetId);
+            GuiWorkflowCompiler.Variant variant =
+                    workflow.definition.requireVariant(workflow.selectedVariant);
+            Map<String, String> currentValues =
+                    new LinkedHashMap<>(workflow.values(workflow.selectedVariant));
+            currentValues.put(
+                    workflow.deferredTargetFieldId,
+                    target.getGameProfile().getName());
+            workflow.previewCommand = render(variant, currentValues);
         }
         try {
             validateCommand(player, workflow, workflow.previewCommand);
@@ -401,6 +484,46 @@ public final class GuiWorkflowService {
         }
     }
 
+    private static void queueOffline(ServerPlayer player, WorkflowSession workflow) {
+        try {
+            OfflineActionRepository.QueuedAction queued = KernelServices.offlineActions().enqueue(
+                    player.getUUID(),
+                    workflow.deferredTargetId,
+                    workflow.definition.actionId(),
+                    workflow.selectedVariant,
+                    workflow.deferredTargetFieldId,
+                    workflow.values(workflow.selectedVariant),
+                    Instant.now(),
+                    Duration.ofDays(7L));
+            workflow.confirmationToken = null;
+            workflow.bump();
+            String status = "Queued action " + queued.id()
+                    + ". It will recheck access when the player is online.";
+            PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowProgress(
+                    workflow.transportSessionId,
+                    workflow.id,
+                    workflow.revision,
+                    100,
+                    status));
+            PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowResult(
+                    workflow.transportSessionId,
+                    workflow.id,
+                    workflow.revision,
+                    true,
+                    true,
+                    status,
+                    workflow.returnPanel));
+            synchronized (SESSIONS) {
+                if (SESSIONS.get(player.getUUID()) == workflow) {
+                    SESSIONS.remove(player.getUUID());
+                }
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            workflow.fail("The offline action could not be queued, " + safeMessage(exception));
+            publish(player, workflow);
+        }
+    }
+
     private static void validateCommand(
             ServerPlayer player,
             WorkflowSession workflow,
@@ -449,7 +572,7 @@ public final class GuiWorkflowService {
         return values;
     }
 
-    private static void validateField(GuiWorkflowCompiler.Field field, String value) {
+    static void validateField(GuiWorkflowCompiler.Field field, String value) {
         Objects.requireNonNull(value, "value");
         if (value.isBlank() || value.length() > field.maximumLength()
                 || value.codePoints().anyMatch(Character::isISOControl)) {
@@ -492,7 +615,7 @@ public final class GuiWorkflowService {
         }
     }
 
-    private static String render(
+    static String render(
             GuiWorkflowCompiler.Variant variant,
             Map<String, String> values
     ) {
@@ -515,6 +638,47 @@ public final class GuiWorkflowService {
             });
         }
         return command.toString();
+    }
+
+    private static DeferredTarget deferredTarget(
+            ServerPlayer player,
+            GuiWorkflowCompiler.WorkflowDefinition workflow,
+            GuiWorkflowCompiler.Variant variant,
+            Map<String, String> values
+    ) {
+        if (!supportsOfflineQueue(workflow.actionId())) {
+            return null;
+        }
+        CommandDefinition definition =
+                KernelServices.catalog().find(workflow.actionId()).orElse(null);
+        if (definition == null) {
+            return null;
+        }
+        if (definition.targetBehavior() == CommandDefinition.TargetBehavior.NONE
+                || definition.targetBehavior() == CommandDefinition.TargetBehavior.SELF
+                || definition.targetBehavior() == CommandDefinition.TargetBehavior.SERVER) {
+            return null;
+        }
+        List<GuiWorkflowCompiler.Field> playerFields = variant.fields().stream()
+                .filter(field -> field.type() == GuiWorkflowCompiler.FieldType.PLAYER
+                        || field.type() == GuiWorkflowCompiler.FieldType.PLAYERS)
+                .toList();
+        if (playerFields.size() != 1) {
+            return null;
+        }
+        GuiWorkflowCompiler.Field field = playerFields.getFirst();
+        UUID targetId = KernelServices.profiles()
+                .resolve(values.get(field.id()), true)
+                .orElse(null);
+        if (targetId == null
+                || player.server.getPlayerList().getPlayer(targetId) != null) {
+            return null;
+        }
+        return new DeferredTarget(targetId, field.id());
+    }
+
+    static boolean supportsOfflineQueue(String actionId) {
+        return OFFLINE_QUEUE_ACTIONS.contains(actionId);
     }
 
     private static String redact(
@@ -628,8 +792,78 @@ public final class GuiWorkflowService {
                 fieldId,
                 suggestions.stream()
                         .sorted()
+                        .map(value -> new GuiWorkflowPayloads.WorkflowSuggestion(
+                                value,
+                                value,
+                                true))
                         .limit(GuiWorkflowPayloads.MAXIMUM_SUGGESTIONS)
                         .toList()));
+    }
+
+    private static void sendSuggestionEntries(
+            ServerPlayer player,
+            WorkflowSession workflow,
+            UUID requestId,
+            String fieldId,
+            List<GuiWorkflowPayloads.WorkflowSuggestion> suggestions
+    ) {
+        PacketDistributor.sendToPlayer(player, new GuiWorkflowPayloads.GuiWorkflowSuggestions(
+                workflow.transportSessionId,
+                workflow.id,
+                workflow.revision,
+                requestId,
+                fieldId,
+                suggestions.stream()
+                        .sorted(Comparator
+                                .comparing(GuiWorkflowPayloads.WorkflowSuggestion::online)
+                                .reversed()
+                                .thenComparing(
+                                        suggestion -> suggestion.label().toLowerCase(Locale.ROOT)))
+                        .limit(GuiWorkflowPayloads.MAXIMUM_SUGGESTIONS)
+                        .toList()));
+    }
+
+    private static List<GuiWorkflowPayloads.WorkflowSuggestion> playerSuggestions(
+            ServerPlayer viewer,
+            String query
+    ) {
+        String normalized = Objects.requireNonNullElse(query, "").trim().toLowerCase(Locale.ROOT);
+        Map<UUID, GuiWorkflowPayloads.WorkflowSuggestion> choices = new LinkedHashMap<>();
+        KernelServices.profiles().snapshot().forEach(profile -> {
+            String username = Objects.requireNonNullElse(profile.authenticatedUsername(), "");
+            String nickname = Objects.requireNonNullElse(profile.nickname(), "");
+            if (!username.isBlank()
+                    && (normalized.isBlank()
+                    || username.toLowerCase(Locale.ROOT).contains(normalized)
+                    || nickname.toLowerCase(Locale.ROOT).contains(normalized))) {
+                String label = nickname.isBlank() ? username : username + ", " + nickname;
+                choices.put(profile.playerId(), new GuiWorkflowPayloads.WorkflowSuggestion(
+                        username,
+                        label,
+                        false));
+            }
+        });
+        viewer.server.getPlayerList().getPlayers().forEach(target -> {
+            if (VanishUtil.isVanished(target, viewer)) {
+                choices.remove(target.getUUID());
+                return;
+            }
+            String username = target.getGameProfile().getName();
+            String nickname = KernelServices.profiles()
+                    .find(target.getUUID())
+                    .map(profile -> Objects.requireNonNullElse(profile.nickname(), ""))
+                    .orElse("");
+            if (normalized.isBlank()
+                    || username.toLowerCase(Locale.ROOT).contains(normalized)
+                    || nickname.toLowerCase(Locale.ROOT).contains(normalized)) {
+                String label = nickname.isBlank() ? username : username + ", " + nickname;
+                choices.put(target.getUUID(), new GuiWorkflowPayloads.WorkflowSuggestion(
+                        username,
+                        label,
+                        true));
+            }
+        });
+        return List.copyOf(choices.values());
     }
 
     private static WorkflowSession current(
@@ -768,6 +1002,8 @@ public final class GuiWorkflowService {
         private String previewCommand = "";
         private String previewDisplay = "";
         private UUID confirmationToken;
+        private UUID deferredTargetId;
+        private String deferredTargetFieldId = "";
 
         private WorkflowSession(
                 UUID id,
@@ -805,6 +1041,8 @@ public final class GuiWorkflowService {
             previewCommand = "";
             previewDisplay = "";
             confirmationToken = null;
+            deferredTargetId = null;
+            deferredTargetFieldId = "";
             status = replacementStatus;
             bump();
         }
@@ -821,5 +1059,8 @@ public final class GuiWorkflowService {
             bump();
             return revision;
         }
+    }
+
+    private record DeferredTarget(UUID targetId, String fieldId) {
     }
 }

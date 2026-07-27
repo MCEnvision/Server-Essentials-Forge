@@ -49,7 +49,7 @@ Construction performs these operations:
 5. Registers stateful event handler instances on `NeoForge.EVENT_BUS`.
 6. Registers vanish commands and vanish permission nodes.
 
-Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens 26 managed repository domains under `<server>/serverconfig/sef`, including location history, cooldowns, teleports, social state, moderation, kits, economy, aliases, bundles, profiles, GUI preferences, Fancy Tags, disguise, recovery, server controls, community state, approvals, access leases, administrative locks, and escrow. It loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It creates the optional file-log worker and `logs/sef` tree only when file logging is enabled. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
+Command registration initializes and seals the kernel catalog, captures existing command roots, and registers canonical and convenience routes. Server startup opens 27 managed repository domains under `<server>/serverconfig/sef`, including location history, cooldowns, teleports, social state, moderation, kits, economy, aliases, bundles, profiles, GUI preferences, Fancy Tags, disguise, recovery, server controls, community state, approvals, access leases, administrative locks, escrow, and deferred offline actions. It loads the integrated player profile repository from the world player data directory, starts security audit and export workers, and writes the permission manifest. It creates the optional file-log worker and `logs/sef` tree only when file logging is enabled. It then loads enabled managers for announcements, filters, chat replies, operator bulletins, banned items, MOTD, alternate account data, warnings, and mutes. Optional integration detection also occurs during server startup.
 
 Server ticks update announcements, banned item scans, persistent moderation expiry, jail enforcement, long-lived player-state authorization, countdown state, teleport expiry, teleport warmups, tab presentation, reminders, server-control schedules, maintenance, guardrails, cleanup, world policy, admission state, and escrow expiry when their modules are enabled. Reminder definitions are snapshotted once per scheduler pass rather than once per player. Moderation release teleports are validated through the shared safe-teleport service. Mute and banned item changes create in memory JSON snapshots and submit them to coalescing daemon writers, so their tick paths do not perform filesystem access. Managed repository snapshots are captured on the server thread and written asynchronously. Vanish permission reconciliation occurs once per second on each online player through `VanishEventListener`.
 
@@ -516,10 +516,10 @@ When the vanish module is disabled, runtime and persisted vanish state are activ
 
 1. `sef.commands.invsee.modify` permits inventory mutation.
 2. `sef.commands.invsee.curios` permits loading and displaying Curios slots.
-3. `sef.commands.invsee.offline` reserves offline target access. Offline inventory loading is not implemented yet.
+3. `sef.commands.invsee.offline` permits the versioned offline player-data adapter after the same hierarchy, exemption, recovery, and mutation checks.
 4. `sef.commands.enderchest.others` reserves access to another player’s ender chest. That route is not implemented yet.
 
-The menu checks view and Curios permissions while open. It closes when view access is lost or when a Curios page is no longer authorized. Mutation permission is checked on every click, including collect to cursor behavior, and the menu downgrades to read only immediately after revocation. Audit entries identify issuer, target, page, slot, and click type without serializing item NBT.
+The live menu checks view and Curios permissions while open. It closes when view access is lost or when a Curios page is no longer authorized. Mutation permission is checked on every click, including collect to cursor behavior, and the menu downgrades to read only immediately after revocation. Enhanced clients render the target inventory, armor, offhand, and optional Curios pages above the viewer’s three inventory rows and hotbar. Fallback clients use the same authoritative `ChestMenu`; the enhanced layout does not introduce a second inventory protocol. Audit entries identify issuer, target, page, slot, and click type without serializing item NBT.
 
 `invSeeDisableFtbInvsee` controls cooperative collision behavior. When false, SEF leaves an existing `/invsee` root untouched. When true, SEF adds its `player` route beneath the existing root while preserving every existing child. It does not use reflection or remove another owner’s command.
 
@@ -660,7 +660,18 @@ Current stores include:
 19. `<world>/serverconfig/sef/moderation.json`.
 20. `<world>/serverconfig/sef/kits.json`.
 21. Vanilla `banned-players.json` and `banned-ips.json` for authoritative player and address bans.
-22. Optional `<server>/logs/sef` command, connection-event, archive, export, text-mirror, and session-state files.
+22. `<world>/serverconfig/sef/economy.json` and `economy-signs.json`.
+23. `<world>/serverconfig/sef/aliases.json`, `bundles.json`, and `command-profiles.json`.
+24. `<world>/serverconfig/sef/fake-identities.json` and `sudo-policy.json`.
+25. `<world>/serverconfig/sef/gui-preferences.json`.
+26. `<world>/serverconfig/sef/fancy-tags.json` and its fixed object, inbox, revision, and recovery roots.
+27. `<world>/serverconfig/sef/disguises.json`.
+28. `<world>/serverconfig/sef/inventory-recovery.json` and offline player-data recovery copies.
+29. `<world>/serverconfig/sef/server-control.json` and `community-state.json`.
+30. `<world>/serverconfig/sef/approvals.json`, `access-leases.json`, and `admin-lock.json`.
+31. `<world>/serverconfig/sef/escrow.json`.
+32. `<world>/serverconfig/sef/offline-actions.json`.
+33. Optional `<server>/logs/sef` command, connection-event, archive, export, text-mirror, and session-state files.
 
 Managed JSON documents use an envelope with `domain`, `schemaVersion`, and `data`. Unknown fixed record fields survive a load and save cycle. Dynamic maps preserve unknown fields on retained records without restoring records that were intentionally removed.
 
@@ -763,7 +774,7 @@ When enabled:
 7. The server repeats session, feature, permission, policy, target visibility, target revision, and control revision checks before mutation.
 8. Logout, server stop, permission loss, feature loss, and server switch clear client and server session state.
 
-Protocol feature bits currently cover the dashboard, homes, warps, teleport requests, help and diagnostics, staff overview, HUD, pause button, static Fancy Tags prototype, and projected identity. A major mismatch produces command fallback. Unknown minor features are removed by mask intersection.
+Protocol feature bits currently cover the dashboard, homes, warps, teleport requests, help and diagnostics, staff overview, HUD, pause button, static Fancy Tags, projected identity, typed workflows, player picking, control editing, Fancy Tags management, inventory viewing, and the background-blur preference. A major mismatch produces command fallback. Unknown minor features are removed by mask intersection.
 
 The Phase 9 payload limits include:
 
@@ -779,9 +790,17 @@ The client receives only presentation records. It never receives a permission gr
 
 ### 14.2 GUI pilot
 
-`SefGuiServer` owns pilot panel composition and every open panel session. The dashboard links only to panels allowed by the current session and domain permission. Homes, warps, teleport requests, help records, staff diagnostics, and player targets are paginated on the server. Player targets are filtered per viewer through vanish rules before they are placed in a snapshot.
+`SefGuiServer` owns panel composition and every open panel session. The dashboard links only to panels allowed by the current session and domain permission. Homes, warps, teleport requests, help records, staff diagnostics, and player targets are paginated on the server. The homes browser provides permission-filtered add, visit, location update, rename, delete, and back controls. Each home detail control binds its record revision and rechecks the canonical action before execution.
 
-`SefPanelScreen` is client only. It provides the Phase 9 dashboard, list, detail, form, picker, confirmation, and progress views with vanilla widgets, item icons, keyboard focus, narration summaries, search, refresh, paging, and resize initialization. The pause screen button is added only while the current session has the pause capability. The configurable keybind is unbound by default.
+The player picker reads the UUID-authoritative profile repository, overlays current online state, searches authenticated usernames and allowed nicknames, and supports an online-only filter. One response contains at most `1000` visible profiles. Vanish filtering occurs before projection. A client selection supplies a display value only; submit resolves the profile again and repeats visibility, permission, route, and target validation.
+
+Bare `/msg`, `/give`, `/enchant`, `/invsee`, and `/disguise` open their typed workflow only for a compatible authorized player when effective GUI policy permits it. Complete command forms continue directly. The low-priority `/give` hook preserves the vanilla argument children and non-player permission-level behavior while replacing only the bare player execution and player authorization with the SEF catalog action.
+
+The reviewed other-player give workflow may defer one known offline UUID. `OfflineActionRepository` stores only the action id, compiled variant, bounded typed values, issuer UUID, target UUID, timestamps, and state. `OfflineActionService` waits until both authenticated players are online, then fetches the action again, recompiles its current workflow, checks module and action availability, rechecks the issuer’s permission and current target, validates every field, substitutes the target’s current authenticated name, and executes the canonical route. Records expire after seven days. Private messages and unrelated actions are not accepted by this queue.
+
+`SefPanelScreen` is client only. It provides the dashboard, list, detail, form, picker, confirmation, and progress views with vanilla widgets, item icons, keyboard focus, narration summaries, search, refresh, paging, and resize initialization. `SefWorkflowScreen`, `SefPlayerPickerScreen`, `SefControlEditorScreen`, `FancyTagStudioScreen`, and `SefInvSeeScreen` remain client-only implementations. The pause screen button is added only while the current session has the pause capability. The configurable keybind is unbound by default.
+
+GUI background blur defaults to disabled. `/sef client preference blur on|off` changes a UUID-addressed persistent presentation preference and refreshes the enhanced session. Old records without the field migrate to disabled. The value affects presentation only and is cleared from negotiated features when the client cannot support it.
 
 HUD updates are server composed and delta based. Current tiles cover vanish, social spy, command spy, AFK, flight, god mode, and teleport warmup state. Losing authorization or the negotiated HUD feature clears retained client tiles.
 
@@ -1097,6 +1116,10 @@ The complete Phase 11 evidence is in [docs/PHASE_11_TESTS.md](docs/PHASE_11_TEST
 
 `ServerControlRepository` stores bounded control records. `CommunityStateRepository` owns social and governance state that needs dedicated indexes and ownership rules. Approval, access lease, and administrative lock domains use separate repositories so authorization state is never inferred from a generic record. Runtime mutation rechecks feature, source, permission, hierarchy, exemption, target, revision, confirmation, rate, and recovery state.
 
+The `admission` policy owns `maximum_players`, `reserved_slots`, `joins_per_minute`, and its denial message. The `queue` policy supports `deny_retry`, `native_wait`, `restricted_lobby`, and `proxy_adapter`. Native wait is implemented during NeoForge player negotiation. It holds a bounded login future, not joined player state, and applies `maximum_entries`, `maximum_wait_seconds`, duplicate-login replacement, disconnected-client cleanup, FIFO release, and short release reservations. Queue state is visible through the queue control diagnostics.
+
+`sef.commands.control.admission.exempt` bypasses the SEF admission limit and rate policy. `sef.commands.control.queue.exempt` bypasses the SEF queue gate. These permissions do not override the hard `max-players` limit owned by Minecraft. Configure the SEF admission maximum below `server.properties` `max-players` when administrative headroom is required. A true network-wide Velocity queue still requires a trusted proxy adapter; unavailable `proxy_adapter` mode fails explicitly.
+
 ### 20.4 Escrow and recovery
 
 `EscrowService` owns parcels, lost and found, direct trades, auctions, watches, claims, settlement, returns, expiry, and freeze behavior. Records bind UUID owners, exact item state, value, source type, source reference, revision, and lifecycle. Typed lost-and-found sources are deduplicated. Recipient block state is checked through the authoritative community repository and server-control policy. Auction watches are persisted in community state. A failed persistence or unsupported schema keeps escrow mutations unavailable.
@@ -1106,6 +1129,8 @@ Offline inventory editing uses `OfflinePlayerInventoryAdapter` and `OfflineInvSe
 ### 20.5 Administrative enchanting and cooldowns
 
 `AdministrativeEnchantCommands` owns `/enchant` and `/sef enchant`. Ordinary application, unsafe levels, arbitrary items, incompatible combinations, other-player targets, bulk targets, remove, and clear have distinct permissions. The mutation rechecks the selected stack identity, count, inventory revision, registry entry, numeric range, policy revision, and target eligibility. `/superenchantingtable` remains canonical. `/set` is only a collision-aware shortcut.
+
+The primary unsafe capability nodes are `sef.commands.enchant.unsafe_level`, `sef.commands.enchant.any_item`, `sef.commands.enchant.incompatible`, `sef.commands.enchant.remove`, and `sef.commands.enchant.clear`. Rejection feedback names the exact missing node. LuckPerms wildcard assignments such as `sef.*` are checked through the provider’s current cached permission data before the internal default is used.
 
 `PermissionCooldownResolver` resolves durations by canonical action id. Exact assignments, inherited grants, explicit denial, provider priority, numeric suffix validation, finite registered fallback, bypass, outage, and hard ceilings are deterministic. An admitted execution snapshots its duration. Qualifying leases persist by player UUID and action id, so reconnect, restart, alias, shortcut, GUI, panel, bundle, sudo, or provider refresh cannot reset them.
 
@@ -1147,7 +1172,23 @@ This is expected when the player no longer owns a permission compatible with the
 
 Configuration edit appears ignored:
 
-Wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded values and does not force a raw disk read.
+For `common.toml`, wait for NeoForge to emit its reload event or restart the server. `/sef reload` reapplies already loaded NeoForge values and does not force an arbitrary raw disk read. For `config/sef/modules/*.toml`, run `/sef config validate <module>`, `/sef config reload <module>`, and `/sef config inspect <module>`. A malformed candidate keeps the previous known-good snapshot.
+
+Fancy Tags or disguise says disabled while its module file says enabled:
+
+1. Run `/sef config inspect fancy_tags` or `/sef config inspect disguise`.
+2. Confirm `[module].enabled = true`, dependencies are healthy, and the latest publication succeeded.
+3. Run `/sef config reload <module>` and inspect the returned revision.
+4. Run `/sef tags doctor`, `/disguise status`, and `/sef doctor`.
+5. Confirm the client session refreshed after publication. Retained legacy bootstrap booleans mirror the published module snapshot and are not a second authority.
+
+Admission queue does not admit an exempt administrator:
+
+1. Confirm `sef.commands.control.admission.exempt` or `sef.commands.control.queue.exempt`.
+2. Keep `server.properties` `max-players` above the SEF `maximum_players` value when administrative headroom is required.
+3. Confirm the active queue mode is `native_wait`.
+4. Inspect `/queue` and `/sef control queue list`.
+5. If the vanilla hard player cap is already full, configure Minecraft’s own player-limit bypass separately. SEF does not override that hard cap.
 
 ## 22. Security and privacy
 

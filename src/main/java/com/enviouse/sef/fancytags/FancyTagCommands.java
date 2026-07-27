@@ -43,9 +43,6 @@ public final class FancyTagCommands {
     }
 
     public static void registerDirect(CommandDispatcher<CommandSourceStack> dispatcher) {
-        if (!ConfigHandler.config.enableFancyTags.get()) {
-            return;
-        }
         dispatcher.register(root("fancytags"));
     }
 

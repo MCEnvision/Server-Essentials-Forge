@@ -24,7 +24,8 @@ public final class SefWorkflowScreen extends Screen {
     private final Screen parent;
     private final GuiWorkflowPayloads.GuiWorkflowSnapshot snapshot;
     private final Map<String, Map<String, String>> drafts = new LinkedHashMap<>();
-    private final Map<String, List<String>> suggestions = new LinkedHashMap<>();
+    private final Map<String, List<GuiWorkflowPayloads.WorkflowSuggestion>> suggestions =
+            new LinkedHashMap<>();
     private final List<FieldWidget> visibleFields = new ArrayList<>();
     private int selectedVariant;
     private int fieldPage;
@@ -191,7 +192,7 @@ public final class SefWorkflowScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+        SefScreenBackground.render(this, graphics, mouseX, mouseY, partialTick);
         int left = (width - PANEL_WIDTH) / 2;
         int top = (height - PANEL_HEIGHT) / 2;
         SefVanillaTheme.panel(
@@ -256,7 +257,9 @@ public final class SefWorkflowScreen extends Screen {
         liveStatus = response.suggestions().isEmpty()
                 ? "The server found no matching suggestions."
                 : "The server returned " + response.suggestions().size() + " suggestions. Select pick.";
-        rebuildWidgets();
+        if (minecraft != null && minecraft.screen == this) {
+            rebuildWidgets();
+        }
     }
 
     public void acceptProgress(GuiWorkflowPayloads.GuiWorkflowProgress update) {
@@ -318,7 +321,7 @@ public final class SefWorkflowScreen extends Screen {
             EditBox input
     ) {
         capture();
-        List<String> available = suggestions.get(field.id());
+        List<GuiWorkflowPayloads.WorkflowSuggestion> available = suggestions.get(field.id());
         if (available == null || available.isEmpty()) {
             SefClientTransport.requestWorkflowSuggestions(
                     snapshot,
@@ -329,11 +332,42 @@ public final class SefWorkflowScreen extends Screen {
             liveStatus = "Requesting server suggestions for " + field.label() + ".";
             return;
         }
-        int current = available.indexOf(input.getValue());
-        String replacement = available.get(Math.floorMod(current + 1, available.size()));
+        if (field.type().equals("player") || field.type().equals("players")) {
+            if (minecraft != null) {
+                minecraft.setScreen(new SefPlayerPickerScreen(
+                        this,
+                        field.id(),
+                        available,
+                        replacement -> {
+                            input.setValue(replacement);
+                            values().put(field.id(), replacement);
+                            liveStatus =
+                                    "Selected a player. Preview again before execution.";
+                        }));
+            }
+            return;
+        }
+        int current = -1;
+        for (int index = 0; index < available.size(); index++) {
+            if (available.get(index).value().equals(input.getValue())) {
+                current = index;
+                break;
+            }
+        }
+        String replacement =
+                available.get(Math.floorMod(current + 1, available.size())).value();
         input.setValue(replacement);
         values().put(field.id(), replacement);
         liveStatus = "Selected a server suggestion. Preview again before execution.";
+    }
+
+    void requestPlayerSuggestions(String fieldId, String value) {
+        SefClientTransport.requestWorkflowSuggestions(
+                snapshot,
+                selectedVariant().id(),
+                fieldId,
+                value,
+                UUID.randomUUID());
     }
 
     private void capture() {

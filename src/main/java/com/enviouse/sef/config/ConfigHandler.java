@@ -33,6 +33,8 @@ public class ConfigHandler {
 
     public static void publish(ModuleConfigService service) {
         RuntimeConfigBindings.publish(runtimeBindings, service);
+        config.enableFancyTags.apply(Boolean.toString(service.enabled("fancy_tags")));
+        config.enableDisguises.apply(Boolean.toString(service.enabled("disguise")));
     }
 
 	public static class ConfigBuilder {
@@ -621,7 +623,7 @@ public class ConfigHandler {
 			builder.comment("Fancy Tags authoritative registry and content store",
 					"  Published artwork is canonicalized and stored under the SEF owned root.",
 					"  Server inbox imports never accept arbitrary paths.").push("fancyTags");
-			enableFancyTags = builder.comment("  Enable Fancy Tags metadata, commands, assignments, and command fallback").define("enabled", false);
+			enableFancyTags = builder.comment("  Legacy Fancy Tags enablement mirror. The fancy_tags module.enabled setting is authoritative.").define("enabled", true);
 			fancyTagsEnhancedRendering = builder.comment("  Allow negotiated enhanced clients to receive authorized static artwork").define("enhancedRendering", true);
 			fancyTagsServerInboxEnabled = builder.comment("  Allow the fixed owned import inbox workflow").define("serverInboxEnabled", false);
 			fancyTagsAllowLocalOverlaysConnected = builder.comment("  Allow clearly local only enhanced client tag overlays while connected").define("allowLocalOverlaysConnected", false);
@@ -643,7 +645,7 @@ public class ConfigHandler {
 			builder.comment("Server authoritative player disguises",
 					"  Disguises never replace authenticated identity, permissions, or persistence ownership.",
 					"  Gameplay traits and abilities are disabled independently.").push("disguise");
-			enableDisguises = builder.comment("  Enable disguise commands and state").define("enabled", false);
+			enableDisguises = builder.comment("  Legacy disguise enablement mirror. The disguise module.enabled setting is authoritative.").define("enabled", true);
 			disguiseTraitsEnabled = builder.comment("  Enable allowlisted server authoritative disguise traits").define("traitsEnabled", false);
 			disguiseAbilitiesEnabled = builder.comment("  Enable allowlisted server authoritative disguise abilities").define("abilitiesEnabled", false);
 			disguiseSoundsEnabled = builder.comment("  Enable viewer filtered disguise sound profiles").define("soundsEnabled", true);

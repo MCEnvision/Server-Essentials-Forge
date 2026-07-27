@@ -84,10 +84,10 @@ disabled_teleport_actions = ""
 enable_banned_block_scanning = false
 # Allow stored command announcements to execute. Disabled by default because commands run with server authority. `true` or `false` Apply class restart_required.
 enable_command_announcements = false
-# Enable disguise commands and state `true` or `false` Apply class restart_required.
-enable_disguises = false
-# Enable Fancy Tags metadata, commands, assignments, and command fallback `true` or `false` Apply class restart_required.
-enable_fancy_tags = false
+# Legacy disguise enablement mirror. The disguise module.enabled setting is authoritative. `true` or `false` Apply class restart_required.
+enable_disguises = true
+# Legacy Fancy Tags enablement mirror. The fancy_tags module.enabled setting is authoritative. `true` or `false` Apply class restart_required.
+enable_fancy_tags = true
 # Enables or disables prefixes&suffixes in the tab list `true` or `false` Apply class restart_required.
 enable_metadata_in_tab_list = true
 # Enables or disables nicknames in the tab list `true` or `false` Apply class restart_required.

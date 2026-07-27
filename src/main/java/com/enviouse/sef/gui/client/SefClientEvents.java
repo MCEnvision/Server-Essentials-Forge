@@ -14,6 +14,9 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.PauseScreen;
+import net.minecraft.client.gui.screens.inventory.ContainerScreen;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -85,7 +88,8 @@ public final class SefClientEvents {
         });
         if ((minecraft.screen instanceof SefPanelScreen
                 || minecraft.screen instanceof SefControlEditorScreen
-                || minecraft.screen instanceof SefWorkflowScreen)
+                || minecraft.screen instanceof SefWorkflowScreen
+                || minecraft.screen instanceof SefPlayerPickerScreen)
                 && !ClientProtocolState.negotiated(SefProtocol.Feature.DASHBOARD)) {
             minecraft.screen.onClose();
         }
@@ -114,6 +118,8 @@ public final class SefClientEvents {
         ClientProtocolState.takeWorkflowSuggestions().ifPresent(suggestions -> {
             if (minecraft.screen instanceof SefWorkflowScreen workflow) {
                 workflow.acceptSuggestions(suggestions);
+            } else if (minecraft.screen instanceof SefPlayerPickerScreen picker) {
+                picker.acceptSuggestions(suggestions);
             }
         });
         ClientProtocolState.takeWorkflowProgress().ifPresent(progress -> {
@@ -129,6 +135,8 @@ public final class SefClientEvents {
         ClientProtocolState.takeWorkflowInvalidation().ifPresent(invalidation -> {
             if (minecraft.screen instanceof SefWorkflowScreen workflow) {
                 workflow.acceptInvalidation(invalidation);
+            } else if (minecraft.screen instanceof SefPlayerPickerScreen picker) {
+                picker.acceptInvalidation(invalidation);
             } else if (minecraft.player != null) {
                 minecraft.player.displayClientMessage(
                         Component.literal(invalidation.reason()),
@@ -138,6 +146,31 @@ public final class SefClientEvents {
         if (minecraft.player != null) {
             FancyTagClientCache.tick(minecraft);
             FancyTagGlyphBridge.refresh();
+        }
+    }
+
+    @SubscribeEvent
+    public static void openingScreen(ScreenEvent.Opening event) {
+        if (!(event.getNewScreen() instanceof ContainerScreen container)
+                || !(container.getMenu() instanceof ChestMenu menu)
+                || !(container.getTitle().getContents() instanceof TranslatableContents title)
+                || !title.getKey().equals("gui.sef.invsee.title")
+                || !ClientProtocolState.negotiated(SefProtocol.Feature.INVENTORY_VIEW)) {
+            return;
+        }
+        Object[] arguments = title.getArgs();
+        String targetName = arguments.length > 0 ? String.valueOf(arguments[0]) : "Player";
+        int page = arguments.length > 1 && arguments[1] instanceof Number number
+                ? number.intValue()
+                : 0;
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player != null) {
+            event.setNewScreen(new SefInvSeeScreen(
+                    menu,
+                    minecraft.player.getInventory(),
+                    container.getTitle(),
+                    targetName,
+                    page));
         }
     }
 

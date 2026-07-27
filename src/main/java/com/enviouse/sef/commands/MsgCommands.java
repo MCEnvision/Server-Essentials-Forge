@@ -10,6 +10,7 @@ import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.control.CommunityCommands;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.gui.protocol.GuiWorkflowService;
 import com.enviouse.sef.message.MessageService;
 import com.enviouse.sef.moderation.ModerationRepository;
 import com.enviouse.sef.utils.SEFUtilities;
@@ -67,6 +68,14 @@ public class MsgCommands {
 
         dispatcher.register(Commands.literal("msg")
             .requires(MsgCommands::canUse)
+            .executes(ctx -> {
+                if (GuiWorkflowService.openBare(ctx.getSource(), "sef:social.message")) {
+                    return 1;
+                }
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                        "&cUsage: /msg <player> <message>"));
+                return 0;
+            })
             .then(IdentityArguments.online("target")
                 .then(Commands.argument("message", StringArgumentType.greedyString())
                     .executes(ctx -> {

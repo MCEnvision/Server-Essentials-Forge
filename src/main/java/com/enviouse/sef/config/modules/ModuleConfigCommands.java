@@ -719,7 +719,8 @@ public final class ModuleConfigCommands {
         var preference = KernelServices.guiPreferences().preference(player.getUUID());
         info(source, "GUI preference " + preference.presentationMode().name().toLowerCase(Locale.ROOT)
                 + ", HUD " + preference.hudEnabled()
-                + ", pause button " + preference.pauseButtonVisible());
+                + ", pause button " + preference.pauseButtonVisible()
+                + ", blur " + preference.backgroundBlur());
         return 1;
     }
 

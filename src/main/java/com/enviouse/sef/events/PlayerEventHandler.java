@@ -18,6 +18,7 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent.LoadFromFile;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.NameFormat;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.SaveToFile;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent.TabListNameFormat;
+import net.neoforged.neoforge.event.entity.player.PlayerNegotiationEvent;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -111,6 +112,11 @@ public class PlayerEventHandler implements IReloadable {
     }
 
 	@SubscribeEvent
+	public void onPlayerNegotiation(PlayerNegotiationEvent event) {
+		com.enviouse.sef.control.MinecraftServerControlRuntime.negotiate(event);
+	}
+
+	@SubscribeEvent
 	public void onPlayerLogin(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent e) {
 			if(e.getEntity() instanceof ServerPlayer sp) {
 					com.enviouse.sef.control.MinecraftServerControlRuntime.login(sp);
@@ -139,6 +145,7 @@ public class PlayerEventHandler implements IReloadable {
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
 		            SefGuiServer.trackPlayer(sp);
+		            com.enviouse.sef.gui.protocol.OfflineActionService.executeReady(sp.server);
 		            com.enviouse.sef.disguise.DisguiseRuntime.cacheProfile(sp);
 		            SefSessionManager.instance().bind(sp).ifPresent(session -> {
 		                SefGuiServer.sendTagManifest(sp);
@@ -185,6 +192,7 @@ public class PlayerEventHandler implements IReloadable {
         int interval = Math.max(1, ConfigHandler.config.tabUpdateIntervalTicks.get());
         if (e.getServer().getTickCount() % 20 == 0) {
             ReminderService.deliverScheduled(e.getServer().getPlayerList().getPlayers());
+            com.enviouse.sef.gui.protocol.OfflineActionService.executeReady(e.getServer());
         }
         if (e.getServer().getTickCount() % 1200 == 0) {
             KernelServices.graves().cleanupExpiredContainers(e.getServer(), 512);

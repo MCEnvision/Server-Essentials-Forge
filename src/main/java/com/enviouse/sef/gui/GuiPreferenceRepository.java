@@ -111,6 +111,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 current.hudEnabled(),
                 current.reducedMotion(),
                 current.preferredPageSize(),
+                current.backgroundBlur(),
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -129,6 +130,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 current.hudEnabled(),
                 current.reducedMotion(),
                 current.preferredPageSize(),
+                current.backgroundBlur(),
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -154,6 +156,26 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 hudEnabled == null ? current.hudEnabled() : hudEnabled,
                 reducedMotion == null ? current.reducedMotion() : reducedMotion,
                 preferredPageSize == null ? current.preferredPageSize() : preferredPageSize,
+                current.backgroundBlur(),
+                current.revision() + 1L);
+        put(replacement);
+        return replacement;
+    }
+
+    public synchronized Preference updateBackgroundBlur(UUID playerId, boolean enabled) {
+        writable();
+        Preference current = preference(playerId);
+        Preference replacement = new Preference(
+                playerId,
+                current.lastReminderRevision(),
+                current.dismissedReminderRevision(),
+                current.lastReminderAtEpochMillis(),
+                current.presentationMode(),
+                current.pauseButtonVisible(),
+                current.hudEnabled(),
+                current.reducedMotion(),
+                current.preferredPageSize(),
+                enabled,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -230,6 +252,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 || preference.dismissedReminderRevision() < 0
                 || preference.lastReminderAtEpochMillis() < 0L
                 || preference.presentationMode() == null
+                || preference.backgroundBlur() == null
                 || preference.preferredPageSize() < 4
                 || preference.preferredPageSize() > 100
                 || preference.revision() < 1L) {
@@ -253,6 +276,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                         || preference.hudEnabled(),
                 preference.reducedMotion(),
                 preference.preferredPageSize() == 0 ? 12 : preference.preferredPageSize(),
+                preference.backgroundBlur() != null && preference.backgroundBlur(),
                 Math.max(1L, preference.revision()));
     }
 
@@ -272,6 +296,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
             boolean hudEnabled,
             boolean reducedMotion,
             int preferredPageSize,
+            Boolean backgroundBlur,
             long revision
     ) {
         public static Preference defaults(UUID playerId) {
@@ -285,6 +310,7 @@ public final class GuiPreferenceRepository implements StorageRepository {
                     true,
                     false,
                     12,
+                    false,
                     1L);
         }
     }

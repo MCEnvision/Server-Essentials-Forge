@@ -19,7 +19,7 @@ Current project metadata:
 
 This branch is feature complete against `sef2.md`. Treat its builds as release candidates until the phase branch is explicitly approved and advanced to `main`.
 
-Phases 0 through 14 and the final product acceptance matrix are complete. The exact evidence is recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
+Phases 0 through 14 are implemented. Automated evidence is recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md).
 
 ## Current features
 
@@ -30,7 +30,7 @@ The current implementation includes:
 3. Integrated nickname and whois commands, configurable duplicate display names with authenticated username hover, and optional FTB Essentials nickname integration.
 4. Scheduled text and command announcements, title announcements, per player announcement toggles, and countdowns.
 5. Persistent mute and warning systems, freezing, inventory lock, building restrictions, alternate account checks, clear chat, and banned item controls. Mute countdown and banned item saves use coalesced background file writers with bounded shutdown flushing.
-6. Inventory inspection with optional Curios support.
+6. Live and offline inventory inspection with optional Curios support. Enhanced clients receive a target inventory above their own inventory, while fallback clients use the same server-authoritative container path.
 7. Vanish levels, per observer visibility levels, trace support, sound suppression, tab hiding, and optional Discord bridge compatibility.
 8. MOTD management and configurable word filters.
 9. Virtual `/craft`, `/anvil`, `/enchantingtable`, `/superenchantingtable`, and `/repair` commands with aliases, permissions, and cooldowns.
@@ -66,12 +66,12 @@ The current implementation includes:
 39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
 40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces a configurable bounded safety ceiling, with level `1000` covered by GameTests, and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
 41. Integer minor-unit economy storage with idempotent ledger mutations, crash-recoverable cost reservations, cached balance ranking, exact payment confirmation, account freezes, component-safe worth and sales, external provider ownership, import-once backup and reports, configurable fixed and scaled command costs, and all twelve strict vanilla economy sign types. Sign creation, use, ownership bypass, and management are separately permissioned and audited.
-42. Optional enhanced client capability negotiation with versioned sessions, typed bounded payloads, replay protection, permission invalidation, command fallback, configurable reminders, a vanilla styled pilot dashboard, player and staff panels, private HUD deltas, viewer-specific nickname projection, and a content-addressed static Fancy Tags prototype.
+42. Optional enhanced client capability negotiation with versioned sessions, typed bounded payloads, replay protection, permission invalidation, command fallback, configurable reminders, vanilla styled dashboards and workflows, searchable known-player pickers with an online-only filter, persistent blur preferences, private HUD deltas, viewer-specific nickname projection, and a content-addressed static Fancy Tags prototype.
 43. Hardened `/sudo`, `/run`, and `/silent` execution. Ordinary sudo preserves the target’s real permissions. Disabled by default delegated sudo can admit one exact reviewed command through an immutable, expiring, single use grant without changing operator state, permission provider data, groups, persistent player data, or the target command tree. Target-context suggestions, confirmation, revision binding, audit lifecycle, cleanup, root and profile permissions, and wildcard diagnostics are enforced.
 44. Complete Fancy Tags registry, assignment, secure import and archive validation, content-addressed storage, publication recovery, bounded transfer, client cache, local projects, editor, glyph bridge, world rendering, cleanup, and command fallback.
 45. Persistent disguise definitions and assignments with player and entity projection, proxy identity, traits, abilities, target policy, expiry, client presentation, command workflows, and safe fallback when an adapter or enhanced client is absent.
-46. Seventy server-control systems spanning operations, maintenance, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and unified display ownership. Every system has typed schema, policy, permission, persistence, command fallback, GUI workflow, and HUD or explicit no-HUD ownership.
-47. Offline inventory inspection with versioned backup and conflict protection, unrestricted administrative enchanting with distinct unsafe capabilities, permission-derived canonical cooldowns, and item escrow for parcels, lost and found, trades, auctions, watches, blocks, claims, settlement, and recovery.
+46. Seventy server-control systems spanning operations, maintenance, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and unified display ownership. Admission includes a bounded native login wait mode with FIFO release, timeout, duplicate cleanup, and separate admission and queue exemption permissions. Every system has typed schema, policy, permission, persistence, command fallback, GUI workflow, and HUD or explicit no-HUD ownership.
+47. Offline inventory inspection with versioned backup and conflict protection, a persistent UUID-bound offline give queue that revalidates the issuer and target at login, unrestricted administrative enchanting with distinct unsafe capabilities, permission-derived canonical cooldowns, and item escrow for parcels, lost and found, trades, auctions, watches, blocks, claims, settlement, and recovery.
 48. A 62-module configuration platform with a small bootstrap file, typed validation, transactional publication, migration backups, optimistic revisions, rollback, debounced watching, in-game workflows, command-only editing, secret filtering, and generated reference drift tests.
 
 The full SEF 2 command and platform blueprint is documented in [sef2.md](sef2.md). The phase-by-phase implementation record is [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
@@ -88,7 +88,7 @@ Every exposed command path is expected to use a permission node. The current sec
 6. Persisted vanish state is removed or lowered when the player no longer has its required vanish permission.
 7. Console and RCON sources require permission level `4` for permission service bypass. Command blocks do not receive a general bypass.
 8. Moderation, MOTD, banned item administration, inventory tools, bulletins, and announcements use SEF permission nodes instead of generic operator level.
-9. `/invsee` separates view, modify, Curios, offline, and other player ender chest capabilities. Mutation permission is checked again on every click.
+9. `/invsee` separates view, modify, Curios, offline, and other player ender chest capabilities. Enhanced and fallback screens use the same authoritative menu. Mutation permission is checked again on every click.
 10. Vanish administration applies exemption and hierarchy checks, then rechecks active state after provider refreshes, configuration reloads, dimension changes, respawns, reconnects, and once per second.
 11. Convenience roots cannot weaken their canonical action. Workstation aliases share the same action identifier and therefore share permissions and cooldowns.
 12. Alias and bundle definitions are compiled against the catalog before publication. Alias root ownership includes catalog, shortcut, and preexisting Brigadier roots, and the selected conflict mode is enforced. Unknown actions, collisions, recursion, raw command steps, policy weakening, and unbounded expansion are rejected.
@@ -166,6 +166,7 @@ Primary configuration:
 28. `<world>/serverconfig/sef/community-state.json` contains indexed community, workflow, watch, poll, event, knowledge, and display state.
 29. `<world>/serverconfig/sef/approvals.json`, `access-leases.json`, and `admin-lock.json` keep approval and temporary authority separate from ordinary control records.
 30. `<world>/serverconfig/sef/escrow.json` contains UUID-owned parcel, lost-and-found, trade, auction, claim, settlement, and recovery records.
+31. `<world>/serverconfig/sef/offline-actions.json` contains bounded UUID-bound enhanced workflow actions awaiting an online target. The current reviewed persistent action is other-player item give.
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
@@ -187,7 +188,7 @@ Run `./gradlew generateProjectReferences` after changing a module schema, comman
 
 NeoForge owns TOML loading and external reload notifications. `/sef reload` reapplies values already loaded by NeoForge. It does not force an arbitrary disk read.
 
-Module toggles prevent their command registration or behavior when disabled. Existing server configuration values are retained across upgrades, so review old values after new secure defaults are introduced.
+Published module toggles gate command behavior and enhanced presentation. Commands that must survive live enable and disable transitions keep stable registration and fail closed while their module is disabled. Existing server configuration values are retained across upgrades, so review old values after new secure defaults are introduced.
 
 `/sef config migrate dryrun` reports every legacy `common.toml` field that has a typed module destination and every field that must remain. `/sef config migrate apply <expected_revision>` issues an exact source-hash confirmation before staging and validating all module candidates. Publication retains `common.toml`, writes fixed-path recovery backups, restores module files on failure, and records mapped fields in `config/sef/modules/migration.toml`.
 

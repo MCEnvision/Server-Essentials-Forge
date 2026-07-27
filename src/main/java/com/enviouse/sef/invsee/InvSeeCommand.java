@@ -6,6 +6,9 @@ import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
+import com.enviouse.sef.gui.protocol.SefProtocol;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
+import com.enviouse.sef.gui.protocol.GuiWorkflowService;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -26,7 +29,6 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 public class InvSeeCommand {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        if (!ConfigHandler.config.enableInvSee.get()) return;
         if (dispatcher.getRoot().getChild("invsee") != null
                 && !ConfigHandler.config.invSeeDisableFtbInvsee.get()) {
             return;
@@ -34,6 +36,14 @@ public class InvSeeCommand {
 
         dispatcher.register(Commands.literal("invsee")
             .requires(InvSeeCommand::canView)
+            .executes(ctx -> {
+                if (GuiWorkflowService.openBare(ctx.getSource(), "sef:inventory.view")) {
+                    return 1;
+                }
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                        "&cUsage: /invsee <player>"));
+                return 0;
+            })
             .then(IdentityArguments.known("player")
                 .executes(ctx -> {
                     ServerPlayer viewer;
@@ -86,7 +96,15 @@ public class InvSeeCommand {
         if (page > 0) {
             titleStr += " &7(Curios)";
         }
-        Component title = TextFormatter.stringToFormattedText(titleStr);
+        boolean enhancedInventory = SefSessionManager.instance().session(viewer)
+                .map(session -> session.supports(SefProtocol.Feature.INVENTORY_VIEW))
+                .orElse(false);
+        Component title = enhancedInventory
+                ? Component.translatable(
+                        "gui.sef.invsee.title",
+                        target.getGameProfile().getName(),
+                        page)
+                : TextFormatter.stringToFormattedText(titleStr);
 
         viewer.openMenu(new MenuProvider() {
             @Override

@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GuiPreferenceRepositoryTest {
@@ -21,6 +22,7 @@ class GuiPreferenceRepositoryTest {
         UUID playerId = UUID.randomUUID();
         GuiPreferenceRepository repository = new GuiPreferenceRepository();
         repository.load(directory);
+        assertFalse(repository.preference(playerId).backgroundBlur());
         repository.recordReminder(playerId, 2, Instant.parse("2026-01-01T00:00:00Z"));
         repository.dismissReminder(playerId, 2);
         repository.updatePresentation(
@@ -30,6 +32,7 @@ class GuiPreferenceRepositoryTest {
                 false,
                 true,
                 24);
+        repository.updateBackgroundBlur(playerId, true);
         repository.flush();
 
         GuiPreferenceRepository reloaded = new GuiPreferenceRepository();
@@ -43,6 +46,7 @@ class GuiPreferenceRepositoryTest {
         assertEquals(false, preference.hudEnabled());
         assertTrue(preference.reducedMotion());
         assertEquals(24, preference.preferredPageSize());
+        assertTrue(preference.backgroundBlur());
     }
 
     @Test

@@ -6,7 +6,7 @@ import java.util.Set;
 public final class SefProtocol {
     public static final String CHANNEL_VERSION = "1";
     public static final int MAJOR = 1;
-    public static final int MINOR = 1;
+    public static final int MINOR = 2;
     public static final int MAXIMUM_PANEL_ENTRIES = 100;
     public static final int MAXIMUM_HUD_TILES = 16;
     public static final int MAXIMUM_IDENTITY_PROJECTIONS = 256;
@@ -45,7 +45,9 @@ public final class SefProtocol {
         DISGUISE_ABILITY_INPUT(15),
         FANCY_TAGS_LOCAL_OVERLAY(16),
         CONTROL_EDITOR(17),
-        GUI_WORKFLOW(18);
+        GUI_WORKFLOW(18),
+        INVENTORY_VIEW(19),
+        BACKGROUND_BLUR(20);
 
         private final int bit;
 

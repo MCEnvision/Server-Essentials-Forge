@@ -46,7 +46,7 @@ Completed validation and state work:
 - Unknown fixed fields survive rewrites. Dynamic record maps preserve extensions on retained records without restoring deleted records.
 - Legacy nickname fixtures migrate into `sef.playerdata.json`. The integrated provider records UUID, last known username, nickname, and update time without taking ownership when FTB Essentials is selected.
 - Alternate account collection is opt in. It defaults to salted server-local address hashing, retention is enforced, local addresses are ignored, group and profile counts are capped, display is redacted by default, and raw view, purge, and export use separate denied-by-default permissions.
-- `/invsee` has separate view, modify, offline, Curios, and other-player ender chest permissions. Open menus revalidate permissions, close or downgrade after revocation, prevent collect-to-cursor bypasses, and audit mutation metadata without item NBT. Offline inventory uses a versioned player-data adapter, recovery copy, revision check, and fail-closed conflict handling.
+- `/invsee` has separate view, modify, offline, Curios, and other-player ender chest permissions. Open menus revalidate permissions, close or downgrade after revocation, prevent collect-to-cursor bypasses, and audit mutation metadata without item NBT. Enhanced clients render the target inventory, equipment, offhand, and Curios pages above the viewer inventory through the same server-authoritative menu used by fallback clients. Offline inventory uses a versioned player-data adapter, recovery copy, revision check, and fail-closed conflict handling.
 - InvSee captures the configuration revision and closes stale menus. Collision handling is cooperative and preserves another mod’s Brigadier node instead of reflectively deleting it.
 - Phase 6 redaction hides moderation reasons, nested wrapper commands, `/data` arguments, password roots, all private chat aliases, unknown roots, and address moderation arguments before observation. Newlines, controls, and Unicode format characters cannot disguise the root. File logger writer failures create an incomplete session marker, and an existing marker remains degraded until acknowledged.
 - Command-spy administration of another observer applies its distinct permission, hierarchy, exemptions, and vanish visibility. Pardon operations apply the same ban exemption boundary as ban operations.
@@ -66,7 +66,7 @@ Current verification evidence:
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack.
 - Enhanced and no-SEF clients join the same GUI-enabled server. Provider refresh, metadata, ownership, inventory adapter, cooldown persistence, filesystem failure, crash recovery, packet bounds, session invalidation, and performance behavior have deterministic or runtime verification.
 
-The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-six managed repositories use bounded persistence and recovery contracts. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, Fancy Tags, disguise, alias publication, bundle execution, administrative panels, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
+The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, searchable known-player picking, deferred offline give execution, Fancy Tags, disguise, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
 
 ## Source-of-truth order
 
@@ -16930,7 +16930,8 @@ Status: complete. All Phase 13A through Phase 13O systems are registered with ty
 
 - Chat automod rules, validation, review queue, safe enforcement modes, and proposed discipline links.
 - Emergency chat state, slow mode, read-only, staff-only, lockdown, scheduling, and restoration.
-- Native admission-rate and reserved-capacity control.
+- Native admission-rate, ordinary-capacity, reserved-slot, and permission-exempt control.
+- Bounded native negotiation waiting with FIFO release, entry and wait ceilings, disconnect and replacement cleanup, and truthful hard `max-players` limitations.
 - Restricted-lobby or deny-and-retry queue proof and explicit capability language.
 - Trusted proxy queue adapter contract and replay protection.
 - Access applications, invitation codes, whitelist provider ownership, guest-lobby restrictions, grants, expiry, and periodic review.
@@ -17224,6 +17225,7 @@ gui_preferred
 - `gui_preferred` opens the enhanced workflow for a bare command while retaining explicit argument routes.
 - A module cannot force enhanced behavior when the global mode is `off`.
 - High-risk actions may require a dedicated action-level opt-in even when their module is GUI-enabled.
+- The published module snapshot is authoritative for ordinary feature enablement. Retained legacy bootstrap booleans mirror a successful publication and cannot independently disable Fancy Tags, disguise, or another migrated module.
 
 Conceptual `config/sef/modules/gui.toml`:
 
@@ -17312,6 +17314,8 @@ Personal presentation preference:
 /sef gui auto
 /sef gui reset
 /sef gui status
+/sef client preference blur on
+/sef client preference blur off
 ```
 
 Rules:
@@ -17320,6 +17324,7 @@ Rules:
 - `/sef gui on` changes only the executing player’s preference. It cannot override a server or module denial.
 - Console and RCON may control server GUI policy but cannot open a client screen.
 - Player preference is UUID-owned, bounded, versioned, and does not store permission results.
+- Background blur is a presentation-only UUID preference, defaults to off, and missing legacy values migrate to off.
 - An administrator cannot silently force a client-only screen onto a player whose client did not negotiate it.
 - `/sef guis explain` reports the global setting, module setting, action setting, client capability, permission decision, preference, winning mode, fallback route, and current revision without revealing sensitive fields.
 
@@ -17593,15 +17598,15 @@ Bare `/invsee` opens a vanilla player-selection screen. `/invsee <player>` conti
 
 Player selection:
 
-- Uses UUID-bound active-player rows by default.
+- Uses UUID-bound known-player rows with current online state and an online-only filter.
 - Shows head, approved display identity, real username only where the viewer may see it, world summary where permitted, online state, and inspect eligibility.
 - Filters vanished, exempt, protected, higher-hierarchy, hidden, and unauthorized targets before sending rows or counts.
-- Supports known offline targets only through a separately enabled offline-inventory provider and separate permission. Absence of that provider does not prevent online inspection.
+- Supports known offline targets only through the versioned offline-inventory provider and separate permission. Provider failure does not prevent online inspection.
 - Uses bounded search, paging, recent authorized targets, and live viewer-specific join, leave, identity, vanish, hierarchy, and permission deltas.
 
 Inventory view:
 
-- Uses vanilla inventory, chest, armor, offhand, cursor, and ender-chest visual patterns.
+- Uses vanilla inventory, chest, armor, offhand, cursor, and ender-chest visual patterns. The target inventory is above the viewer inventory in the enhanced layout.
 - Renders every registered vanilla or modded `ItemStack` through the normal Minecraft item renderer and tooltip pipeline.
 - Binds the screen to target UUID, inventory identity, inventory revision, menu revision, policy revision, and viewer session.
 - Read-only and editable modes are separate permissions.
@@ -17853,10 +17858,10 @@ Manual acceptance examples:
 - With global GUI mode off, both commands remain command-based and no GUI packet is sent.
 - With home GUI mode `command_only`, bare `/home` produces command help or established command behavior instead of a screen.
 - Bare `/i` opens the self-only item browser. No GUI field can select another player.
-- Bare `/give` opens the authorized target and item workflow. A target change invalidates preview and confirmation.
+- Bare `/give` opens the authorized target and item workflow. A target change invalidates preview and confirmation. Selecting one known offline UUID queues only this reviewed give action for bounded persistent revalidation when issuer and target are online.
 - Bare `/enchant` opens the normal enchanting workflow. Bare `/set` opens the advanced workflow only when its collision, feature, and permission policies allow it.
 - Bare `/msg` opens the active-player messaging screen. `/msg Notch hello` sends directly through the canonical private-message action.
-- Bare `/invsee` opens the permission-filtered active-player browser. `/invsee Notch` opens the authorized target directly.
+- Bare `/invsee` opens the permission-filtered known-player browser with search and an online-only filter. `/invsee Notch` opens the authorized target directly.
 - Bare `/disguise` opens the supported entity and profile gallery. `/disguise blaze` applies the supported Blaze disguise directly.
 - A permitted modded item, enchantment, entity, or dimension appears through the same native-looking screen patterns as vanilla content, subject to registry compatibility and adapter policy.
 - A vanilla client can perform every equivalent action with commands.
@@ -17987,7 +17992,7 @@ The responsiveness target is one validated publication within one second after t
 
 ## Phase 14. Release hardening
 
-Status: complete on the current phase branch. Documentation, generated references, migration, compatibility, security, performance, build, server, enhanced-client, fallback-client, artifact, secret-filename, and diff gates pass. Advancing `main` remains an explicit owner approval action.
+Status: implemented on the current phase branch. Automated gates and generated references must pass before publication. Interactive enhanced-client, fallback-client, multiplayer, visual, upgrade, and rollback acceptance remains recorded through `test.md`. Advancing `main` remains an explicit owner approval action.
 
 ### Deliverables
 

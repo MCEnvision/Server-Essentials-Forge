@@ -20,6 +20,7 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.ConfirmationService;
 import com.enviouse.sef.gui.AdminPanelService;
 import com.enviouse.sef.gui.UniversalGuiCatalog;
+import com.enviouse.sef.identity.PlayerProfileRepository;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.teleport.HomeRecord;
 import com.enviouse.sef.teleport.TeleportRequestService;
@@ -56,6 +57,7 @@ public final class SefGuiServer {
     public static final String HELP = "help";
     public static final String STAFF = "staff";
     public static final String PLAYERS = "players";
+    public static final String PLAYERS_ONLINE = "players_online";
 
     private static final int PAGE_SIZE = 12;
     private static final AtomicLong PANEL_REVISIONS = new AtomicLong();
@@ -125,7 +127,7 @@ public final class SefGuiServer {
             return;
         }
         if (allowed.kind() == ActionKind.SELECT_PLAYER) {
-            openPlayerDetail(player, UUID.fromString(allowed.value()));
+            openPlayerDetail(player, panel.panelId(), UUID.fromString(allowed.value()));
             return;
         }
         if (allowed.kind() == ActionKind.DETAIL) {
@@ -1645,8 +1647,11 @@ public final class SefGuiServer {
             case TELEPORT_REQUESTS -> teleportRequests(player);
             case HELP -> help(player);
             case STAFF -> staff(player);
-            case PLAYERS -> players(player);
-            default -> panelId.startsWith("control:")
+            case PLAYERS -> players(player, false);
+            case PLAYERS_ONLINE -> players(player, true);
+            default -> panelId.startsWith("home:")
+                    ? homeDetail(player, panelId.substring("home:".length()))
+                    : panelId.startsWith("control:")
                     ? controlPanel(player, panelId.substring("control:".length()))
                     : panelId.startsWith("admin_panel:")
                     ? adminPanel(player, panelId.substring("admin_panel:".length()))
@@ -2011,35 +2016,172 @@ public final class SefGuiServer {
         if (!KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.list")) {
             return denied("Homes");
         }
+        List<EntryAction> entries = new ArrayList<>();
+        if (KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.set")) {
+            entries.add(new EntryAction(
+                    entry(
+                            "home:add",
+                            1L,
+                            "add",
+                            "Add home",
+                            "Save your current location as a new home.",
+                            "minecraft:lime_bed",
+                            true,
+                            false),
+                    new AllowedAction(
+                            ActionKind.WORKFLOW,
+                            "add",
+                            1L,
+                            "sef:teleport.home.set",
+                            current -> KernelCommandExecutor.canUse(
+                                    current.createCommandSourceStack(),
+                                    "sef:teleport.home.set"))));
+        }
         boolean canVisit =
                 KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.use");
-        List<EntryAction> entries = KernelServices.teleports().homes(player.getUUID()).stream()
-                .map(home -> {
-                    SefPayloads.PanelEntry entry = entry(
-                            "home:" + home.id(),
-                            home.revision(),
-                            "visit",
-                            home.displayName(),
-                            location(home.location().dimensionId(), home.description()),
-                            home.icon().isBlank() ? "minecraft:red_bed" : home.icon(),
-                            canVisit,
-                            false);
-                    return new EntryAction(entry, canVisit ? new AllowedAction(
-                            ActionKind.COMMAND,
-                            "visit",
-                            home.revision(),
-                            "home " + home.normalizedName(),
+        List<HomeRecord> homes = KernelServices.teleports().homes(player.getUUID());
+        homes.forEach(home -> {
+            SefPayloads.PanelEntry panelEntry = entry(
+                    "home:" + home.id(),
+                    home.revision(),
+                    "open",
+                    home.displayName(),
+                    location(home.location().dimensionId(), home.description()),
+                    home.icon().isBlank() ? "minecraft:red_bed" : home.icon(),
+                    true,
+                    false);
+            entries.add(new EntryAction(panelEntry, new AllowedAction(
+                    ActionKind.OPEN_PANEL,
+                    "open",
+                    home.revision(),
+                    "home:" + home.id(),
                             currentPlayer -> KernelServices.teleports().homeById(home.id())
                                     .filter(HomeRecord::active)
                                     .map(current -> current.ownerId().equals(currentPlayer.getUUID())
                                             && current.revision() == home.revision()
-                                            && KernelCommandExecutor.canUse(
+                                            && (KernelCommandExecutor.canUse(
                                             currentPlayer.createCommandSourceStack(),
-                                            "sef:teleport.home.use"))
-                                    .orElse(false)) : null);
-                })
-                .toList();
-        return new SnapshotData("Homes", entries.size() + " homes", entries);
+                                            "sef:teleport.home.use")
+                                            || KernelCommandExecutor.canUse(
+                                            currentPlayer.createCommandSourceStack(),
+                                            "sef:teleport.home.delete")
+                                            || KernelCommandExecutor.canUse(
+                                            currentPlayer.createCommandSourceStack(),
+                                            "sef:teleport.home.rename")))
+                            .orElse(false))));
+        });
+        return new SnapshotData("Homes", homes.size() + " homes", entries);
+    }
+
+    private static SnapshotData homeDetail(ServerPlayer player, String homeId) {
+        HomeRecord foundHome;
+        try {
+            foundHome = KernelServices.teleports().homeById(UUID.fromString(homeId)).orElse(null);
+        } catch (IllegalArgumentException exception) {
+            foundHome = null;
+        }
+        if (foundHome == null
+                || !foundHome.active()
+                || !foundHome.ownerId().equals(player.getUUID())) {
+            return denied("Home");
+        }
+        HomeRecord home = foundHome;
+        List<EntryAction> entries = new ArrayList<>();
+        if (KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.use")) {
+            entries.add(new EntryAction(
+                    entry(
+                            "home:visit:" + home.id(),
+                            home.revision(),
+                            "visit",
+                            "Visit",
+                            location(home.location().dimensionId(), home.description()),
+                            "minecraft:ender_pearl",
+                            true,
+                            false),
+                    homeCommand(home, "visit", "home " + home.normalizedName(), "sef:teleport.home.use")));
+        }
+        if (KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.set")) {
+            entries.add(new EntryAction(
+                    entry(
+                            "home:update:" + home.id(),
+                            home.revision(),
+                            "update",
+                            "Update location",
+                            "Replace this home with your current position.",
+                            "minecraft:compass",
+                            true,
+                            true),
+                    new AllowedAction(
+                            ActionKind.CONFIRM,
+                            "update",
+                            home.revision(),
+                            "sethome " + home.normalizedName() + " confirm",
+                            current -> homeStillValid(current, home, "sef:teleport.home.set"))));
+        }
+        if (KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.rename")) {
+            entries.add(new EntryAction(
+                    entry(
+                            "home:rename:" + home.id(),
+                            home.revision(),
+                            "rename",
+                            "Rename",
+                            "Open the typed rename workflow.",
+                            "minecraft:name_tag",
+                            true,
+                            false),
+                    new AllowedAction(
+                            ActionKind.WORKFLOW,
+                            "rename",
+                            home.revision(),
+                            "sef:teleport.home.rename",
+                            current -> homeStillValid(current, home, "sef:teleport.home.rename"))));
+        }
+        if (KernelCommandExecutor.canUse(player.createCommandSourceStack(), "sef:teleport.home.delete")) {
+            entries.add(new EntryAction(
+                    entry(
+                            "home:delete:" + home.id(),
+                            home.revision(),
+                            "delete",
+                            "Delete",
+                            "Delete this home after confirmation.",
+                            "minecraft:barrier",
+                            true,
+                            true),
+                    new AllowedAction(
+                            ActionKind.CONFIRM,
+                            "delete",
+                            home.revision(),
+                            "delhome " + home.normalizedName() + " confirm",
+                            current -> homeStillValid(current, home, "sef:teleport.home.delete"))));
+        }
+        entries.add(panelBackEntry("home:back:" + home.id(), HOMES, "Back to homes"));
+        return new SnapshotData(
+                home.displayName(),
+                location(home.location().dimensionId(), home.description()),
+                entries);
+    }
+
+    private static AllowedAction homeCommand(
+            HomeRecord home,
+            String controlId,
+            String command,
+            String actionId
+    ) {
+        return new AllowedAction(
+                ActionKind.COMMAND,
+                controlId,
+                home.revision(),
+                command,
+                current -> homeStillValid(current, home, actionId));
+    }
+
+    private static boolean homeStillValid(ServerPlayer player, HomeRecord expected, String actionId) {
+        return KernelServices.teleports().homeById(expected.id())
+                .filter(HomeRecord::active)
+                .map(current -> current.ownerId().equals(player.getUUID())
+                        && current.revision() == expected.revision()
+                        && KernelCommandExecutor.canUse(player.createCommandSourceStack(), actionId))
+                .orElse(false);
     }
 
     private static SnapshotData warps(ServerPlayer player) {
@@ -2308,56 +2450,156 @@ public final class SefGuiServer {
         return new SnapshotData("Staff overview", "Read only server status", entries);
     }
 
-    private static SnapshotData players(ServerPlayer viewer) {
+    private static SnapshotData players(ServerPlayer viewer, boolean onlineOnly) {
         if (!PermissionService.has(viewer, PermissionsHandler.kernelPanel)
                 || !PermissionService.has(viewer, PermissionsHandler.vanishOthersCommand)) {
             return denied("Player controls");
         }
-        List<EntryAction> entries = viewer.server.getPlayerList().getPlayers().stream()
-                .filter(target -> visibleTarget(viewer, target))
+        Map<UUID, PlayerChoice> choices = new LinkedHashMap<>();
+        if (!onlineOnly) {
+            for (PlayerProfileRepository.Profile profile : KernelServices.profiles().snapshot()) {
+                if (profile.playerId().equals(viewer.getUUID())) {
+                    continue;
+                }
+                String username = Objects.requireNonNullElse(
+                        profile.authenticatedUsername(),
+                        profile.playerId().toString());
+                choices.put(profile.playerId(), new PlayerChoice(
+                        profile.playerId(),
+                        username,
+                        profile.nickname(),
+                        false,
+                        false,
+                        profileRevision(profile)));
+            }
+        }
+        for (ServerPlayer target : viewer.server.getPlayerList().getPlayers()) {
+            if (!visibleTarget(viewer, target)) {
+                choices.remove(target.getUUID());
+                continue;
+            }
+            PlayerProfileRepository.Profile profile =
+                    KernelServices.profiles().find(target.getUUID()).orElse(null);
+            choices.put(target.getUUID(), new PlayerChoice(
+                    target.getUUID(),
+                    target.getGameProfile().getName(),
+                    profile == null ? null : profile.nickname(),
+                    true,
+                    VanishUtil.isVanished(target),
+                    targetRevision(target.getUUID())));
+        }
+
+        List<EntryAction> entries = new ArrayList<>();
+        String alternatePanel = onlineOnly ? PLAYERS : PLAYERS_ONLINE;
+        entries.add(new EntryAction(
+                entry(
+                        "player:filter:" + alternatePanel,
+                        1L,
+                        "open",
+                        onlineOnly ? "Show all known players" : "Show online players only",
+                        onlineOnly
+                                ? "Include players who have joined before."
+                                : "Hide offline player profiles.",
+                        onlineOnly ? "minecraft:clock" : "minecraft:ender_eye",
+                        true,
+                        false),
+                new AllowedAction(
+                        ActionKind.OPEN_PANEL,
+                        "open",
+                        1L,
+                        alternatePanel,
+                        current -> PermissionService.has(current, PermissionsHandler.kernelPanel)
+                                && PermissionService.has(
+                                current,
+                                PermissionsHandler.vanishOthersCommand))));
+        choices.values().stream()
                 .sorted(Comparator.comparing(
-                        target -> target.getGameProfile().getName().toLowerCase(Locale.ROOT)))
-                .map(target -> {
-                    long targetRevision = targetRevision(target.getUUID());
+                        choice -> choice.username().toLowerCase(Locale.ROOT)))
+                .map(choice -> {
+                    String status = choice.online()
+                            ? choice.vanished() ? "Vanished, online" : "Online"
+                            : "Offline";
+                    if (choice.nickname() != null && !choice.nickname().isBlank()) {
+                        status = status + ", nickname " + choice.nickname();
+                    }
                     SefPayloads.PanelEntry entry = entry(
-                            "player:" + target.getUUID(),
-                            targetRevision,
+                            "player:" + choice.playerId(),
+                            choice.revision(),
                             "select",
-                            target.getGameProfile().getName(),
-                            VanishUtil.isVanished(target) ? "Vanished" : "Online",
+                            choice.username(),
+                            status,
                             "minecraft:player_head",
                             true,
                             false);
                     return new EntryAction(entry, new AllowedAction(
                             ActionKind.SELECT_PLAYER,
                             "select",
-                            targetRevision,
-                            target.getUUID().toString(),
-                            current -> {
-                                ServerPlayer latest = current.server.getPlayerList().getPlayer(target.getUUID());
-                                return latest != null
-                                        && targetRevision(latest.getUUID()) == targetRevision
-                                        && visibleTarget(current, latest);
-                            }));
+                            choice.revision(),
+                            choice.playerId().toString(),
+                            current -> playerChoiceStillValid(current, choice)));
                 })
-                .toList();
+                .forEach(entries::add);
+        int onlineCount = (int) choices.values().stream().filter(PlayerChoice::online).count();
         return new SnapshotData(
                 SefPayloads.PanelView.PICKER,
                 "Player controls",
-                entries.size() + " visible targets",
+                choices.size() + " known players, " + onlineCount + " online",
                 entries);
     }
 
-    private static void openPlayerDetail(ServerPlayer viewer, UUID targetId) {
+    private static void openPlayerDetail(ServerPlayer viewer, String returnPanel, UUID targetId) {
+        String normalizedReturn = PLAYERS_ONLINE.equals(returnPanel) ? PLAYERS_ONLINE : PLAYERS;
         ServerPlayer target = viewer.server.getPlayerList().getPlayer(targetId);
-        long revision = targetRevision(targetId);
-        if (target == null || revision < 1L || !visibleTarget(viewer, target)) {
-            open(viewer, PLAYERS, 1, "");
+        PlayerProfileRepository.Profile profile =
+                KernelServices.profiles().find(targetId).orElse(null);
+        boolean online = target != null
+                && targetRevision(targetId) > 0L
+                && visibleTarget(viewer, target);
+        if (!online && profile == null) {
+            open(viewer, normalizedReturn, 1, "");
             return;
         }
-        String username = target.getGameProfile().getName();
+        long revision = online ? targetRevision(targetId) : profileRevision(profile);
+        String username = online
+                ? target.getGameProfile().getName()
+                : profile.authenticatedUsername();
         if (!username.matches("[A-Za-z0-9_]{1,16}")) {
-            open(viewer, PLAYERS, 1, "");
+            open(viewer, normalizedReturn, 1, "");
+            return;
+        }
+        String nickname = profile == null ? null : profile.nickname();
+        List<EntryAction> entries = new ArrayList<>();
+        String status = online
+                ? VanishUtil.isVanished(target)
+                ? "Vanish level " + VanishUtil.getVanishLevel(target)
+                : "Visible and online"
+                : "Offline";
+        if (nickname != null && !nickname.isBlank()) {
+            status = status + ", nickname " + nickname;
+        }
+        entries.add(information(
+                "player:status:" + targetId,
+                username,
+                status,
+                "minecraft:player_head"));
+        if (!online) {
+            entries.add(information(
+                    "player:offline:" + targetId,
+                    "Offline actions",
+                    "Queueable typed actions will appear here when supported.",
+                    "minecraft:clock"));
+            entries.add(panelBackEntry(
+                    "player:back:" + targetId,
+                    normalizedReturn,
+                    "Back to players"));
+            publishCustom(
+                    viewer,
+                    normalizedReturn,
+                    new SnapshotData(
+                            SefPayloads.PanelView.FORM,
+                            "Player details",
+                            "Target " + username + ", offline profile",
+                            entries));
             return;
         }
         Predicate<ServerPlayer> validTarget = current -> {
@@ -2367,34 +2609,29 @@ public final class SefGuiServer {
                     && visibleTarget(current, latest)
                     && PermissionService.has(current, PermissionsHandler.vanishOthersCommand);
         };
-        List<EntryAction> entries = List.of(
-                information(
-                        "player:status:" + targetId,
-                        username,
-                        VanishUtil.isVanished(target)
-                                ? "Vanish level " + VanishUtil.getVanishLevel(target)
-                                : "Visible",
-                        "minecraft:player_head"),
-                new EntryAction(
-                        entry(
-                                "player:toggle:" + targetId,
-                                revision,
-                                "confirm",
-                                VanishUtil.isVanished(target) ? "Make visible" : "Vanish",
-                                "This requires confirmation and rechecks hierarchy.",
-                                "minecraft:ender_eye",
-                                true,
-                                true),
-                        new AllowedAction(
-                                ActionKind.CONFIRM,
-                                "confirm",
-                                revision,
-                                "v toggle " + username,
-                                validTarget)),
-                panelBackEntry("player:back:" + targetId, PLAYERS, "Back to players"));
+        entries.add(new EntryAction(
+                entry(
+                        "player:toggle:" + targetId,
+                        revision,
+                        "confirm",
+                        VanishUtil.isVanished(target) ? "Make visible" : "Vanish",
+                        "This requires confirmation and rechecks hierarchy.",
+                        "minecraft:ender_eye",
+                        true,
+                        true),
+                new AllowedAction(
+                        ActionKind.CONFIRM,
+                        "confirm",
+                        revision,
+                        "v toggle " + username,
+                        validTarget)));
+        entries.add(panelBackEntry(
+                "player:back:" + targetId,
+                normalizedReturn,
+                "Back to players"));
         publishCustom(
                 viewer,
-                PLAYERS,
+                normalizedReturn,
                 new SnapshotData(
                         SefPayloads.PanelView.FORM,
                         "Player details",
@@ -2518,6 +2755,27 @@ public final class SefGuiServer {
         return targetSessionRevision(playerId);
     }
 
+    private static long profileRevision(PlayerProfileRepository.Profile profile) {
+        return Integer.toUnsignedLong(Objects.hash(
+                profile.playerId(),
+                profile.authenticatedUsername(),
+                profile.nickname(),
+                profile.updatedAt())) + 1L;
+    }
+
+    private static boolean playerChoiceStillValid(ServerPlayer viewer, PlayerChoice choice) {
+        ServerPlayer target = viewer.server.getPlayerList().getPlayer(choice.playerId());
+        if (target != null) {
+            return choice.online()
+                    && targetRevision(choice.playerId()) == choice.revision()
+                    && visibleTarget(viewer, target);
+        }
+        return !choice.online()
+                && KernelServices.profiles().find(choice.playerId())
+                .map(profile -> profileRevision(profile) == choice.revision())
+                .orElse(false);
+    }
+
     public static long targetSessionRevision(UUID playerId) {
         synchronized (PLAYER_REVISIONS) {
             return PLAYER_REVISIONS.getOrDefault(playerId, 0L);
@@ -2528,14 +2786,20 @@ public final class SefGuiServer {
         List<UUID> viewers;
         synchronized (PANELS) {
             viewers = PANELS.entrySet().stream()
-                    .filter(entry -> entry.getValue().panelId().equals(PLAYERS))
+                    .filter(entry -> entry.getValue().panelId().equals(PLAYERS)
+                            || entry.getValue().panelId().equals(PLAYERS_ONLINE))
                     .map(Map.Entry::getKey)
                     .toList();
         }
         for (UUID viewerId : viewers) {
             ServerPlayer viewer = server.getPlayerList().getPlayer(viewerId);
             if (viewer != null) {
-                open(viewer, PLAYERS, 1, "");
+                String panelId;
+                synchronized (PANELS) {
+                    OpenPanel panel = PANELS.get(viewerId);
+                    panelId = panel == null ? PLAYERS : panel.panelId();
+                }
+                open(viewer, panelId, 1, "");
             }
         }
     }
@@ -2623,9 +2887,13 @@ public final class SefGuiServer {
                             action));
             case HELP -> PermissionService.has(player, PermissionsHandler.sefCommandsCatalog);
             case STAFF -> PermissionService.has(player, PermissionsHandler.kernelPanel);
-            case PLAYERS -> PermissionService.has(player, PermissionsHandler.kernelPanel)
+            case PLAYERS, PLAYERS_ONLINE -> PermissionService.has(
+                    player,
+                    PermissionsHandler.kernelPanel)
                     && PermissionService.has(player, PermissionsHandler.vanishOthersCommand);
-            default -> panelId.startsWith("control_edit:")
+            default -> panelId.startsWith("home:")
+                    ? homePanelAllowed(player, panelId)
+                    : panelId.startsWith("control_edit:")
                     ? controlRecordAllowed(player, panelId)
                     : panelId.startsWith("control:")
                     ? controlFeatureAllowed(player, panelId.substring("control:".length()))
@@ -2658,6 +2926,18 @@ public final class SefGuiServer {
                 || panelId.equals("category_aliases")
                 || panelId.equals("category_tags")
                 || panelId.equals("category_identity");
+    }
+
+    private static boolean homePanelAllowed(ServerPlayer player, String panelId) {
+        try {
+            UUID id = UUID.fromString(panelId.substring("home:".length()));
+            return KernelServices.teleports().homeById(id)
+                    .filter(HomeRecord::active)
+                    .map(home -> home.ownerId().equals(player.getUUID()))
+                    .orElse(false);
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private static boolean controlRecordAllowed(ServerPlayer player, String panelId) {
@@ -2699,8 +2979,10 @@ public final class SefGuiServer {
             case WARPS -> SefProtocol.Feature.WARPS;
             case TELEPORT_REQUESTS -> SefProtocol.Feature.TELEPORT_REQUESTS;
             case HELP -> SefProtocol.Feature.HELP_DIAGNOSTICS;
-            case STAFF, PLAYERS -> SefProtocol.Feature.STAFF_OVERVIEW;
-            default -> panelId.startsWith("control:")
+            case STAFF, PLAYERS, PLAYERS_ONLINE -> SefProtocol.Feature.STAFF_OVERVIEW;
+            default -> panelId.startsWith("home:")
+                    ? SefProtocol.Feature.HOMES
+                    : panelId.startsWith("control:")
                     || panelId.startsWith("control_edit:")
                     ? SefProtocol.Feature.CONTROL_EDITOR
                     : panelId.startsWith("category_") || panelId.startsWith("admin_panel:")
@@ -2799,6 +3081,16 @@ public final class SefGuiServer {
     }
 
     private record EntryAction(SefPayloads.PanelEntry entry, AllowedAction action) {
+    }
+
+    private record PlayerChoice(
+            UUID playerId,
+            String username,
+            String nickname,
+            boolean online,
+            boolean vanished,
+            long revision
+    ) {
     }
 
     private record AuthorizedTagProjection(

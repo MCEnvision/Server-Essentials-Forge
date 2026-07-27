@@ -6,6 +6,7 @@ import net.neoforged.fml.ModList;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 public final class DynamicPermissionService {
     private DynamicPermissionService() {
@@ -20,6 +21,20 @@ public final class DynamicPermissionService {
         }
         try {
             return LuckPermsDynamicPermission.has(player, permission);
+        } catch (LinkageError | RuntimeException exception) {
+            return false;
+        }
+    }
+
+    public static boolean has(UUID playerId, String permission) {
+        if (playerId == null
+                || permission == null
+                || !permission.matches("[a-z0-9_.-]{1,128}")
+                || !ModList.get().isLoaded("luckperms")) {
+            return false;
+        }
+        try {
+            return LuckPermsDynamicPermission.has(playerId, permission);
         } catch (LinkageError | RuntimeException exception) {
             return false;
         }

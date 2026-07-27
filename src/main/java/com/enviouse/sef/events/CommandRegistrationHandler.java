@@ -26,6 +26,7 @@ import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
 import com.enviouse.sef.inventory.InventoryUtilityCommands;
 import com.enviouse.sef.invsee.InvSeeCommand;
+import com.enviouse.sef.gui.protocol.GuiWorkflowCommandHooks;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kits.KitCommands;
 import com.enviouse.sef.motd.MotdManager;
@@ -218,10 +219,8 @@ public class CommandRegistrationHandler {
         ReminderCommands.register(e.getDispatcher());
         CustomTextCommands.register(e.getDispatcher());
         IdentityCommands.register(e.getDispatcher());
-        // Register custom /invsee command if enabled
-        if(ConfigHandler.config.enableInvSee.get()) {
-            InvSeeCommand.register(e.getDispatcher());
-        }
+        InvSeeCommand.register(e.getDispatcher());
+        GuiWorkflowCommandHooks.register(e.getDispatcher());
         // Register messaging commands at LOW priority to override vanilla /msg, /tell, /w
         if(ConfigHandler.config.enableMessagingSystem.get()) {
             MsgCommands.register(e.getDispatcher());

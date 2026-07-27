@@ -9,7 +9,9 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.player.PlayerStateService;
 import com.enviouse.sef.vanish.VanishUtil;
+import com.mojang.authlib.GameProfile;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.common.ClientboundResourcePackPushPacket;
 import net.minecraft.resources.ResourceKey;
@@ -25,6 +27,7 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.GameRules;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.CommandEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerNegotiationEvent;
 
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -44,6 +47,7 @@ import java.util.Optional;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 
 public final class MinecraftServerControlRuntime {
@@ -59,6 +63,8 @@ public final class MinecraftServerControlRuntime {
     private static final Map<UUID, Set<Long>> RESTART_WARNINGS = new LinkedHashMap<>();
     private static final Map<UUID, Long> LAST_GUARDRAIL_WARNING = new LinkedHashMap<>();
     private static final Deque<Long> JOIN_WINDOW = new ArrayDeque<>();
+    private static final Deque<AdmissionQueueEntry> ADMISSION_QUEUE = new ArrayDeque<>();
+    private static final Map<UUID, Instant> RELEASED_ADMISSIONS = new LinkedHashMap<>();
     private static GuardrailSnapshot guardrailSnapshot;
     private static long cachedRevision = -1L;
     private static Map<String, List<ServerControlRepository.ControlRecord>> active = Map.of();
@@ -301,7 +307,76 @@ public final class MinecraftServerControlRuntime {
         return true;
     }
 
+    public static void negotiate(PlayerNegotiationEvent event) {
+        MinecraftServer server =
+                net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server == null) {
+            return;
+        }
+        ServerControlRepository.ControlRecord admission = latestEffective("admission").orElse(null);
+        int maximum = admission == null
+                ? server.getMaxPlayers()
+                : (int) number(admission, "maximum_players", server.getMaxPlayers());
+        int ordinaryMaximum = ordinaryAdmissionMaximum(admission, maximum);
+        if (maximum <= 0
+                || exempt(event.getProfile().getId(), "admission")
+                || exempt(event.getProfile().getId(), "queue")
+                || ordinaryPlayerCount(server) + releasedAdmissionCount() < ordinaryMaximum) {
+            return;
+        }
+
+        ServerControlRepository.ControlRecord queuePolicy = latestEffective("queue").orElse(null);
+        String denial = admission == null
+                ? "The server is currently full."
+                : field(
+                        admission,
+                        "denial_message",
+                        "The server is currently at its admission limit.");
+        if (queuePolicy == null
+                || !field(queuePolicy, "mode", "deny_retry").equals("native_wait")) {
+            event.getConnection().disconnect(Component.literal(denial));
+            return;
+        }
+
+        int maximumEntries = (int) number(queuePolicy, "maximum_entries", 100L);
+        int maximumWaitSeconds = (int) number(queuePolicy, "maximum_wait_seconds", 900L);
+        String status = field(
+                queuePolicy,
+                "status_message",
+                "The server is full. Your connection is waiting in the admission queue.");
+        CompletableFuture<Void> gate = new CompletableFuture<>();
+        AdmissionQueueEntry queued = new AdmissionQueueEntry(
+                event.getProfile(),
+                event.getConnection(),
+                gate,
+                Instant.now(),
+                Instant.now().plusSeconds(maximumWaitSeconds),
+                status);
+        synchronized (MinecraftServerControlRuntime.class) {
+            ADMISSION_QUEUE.removeIf(entry -> {
+                if (!entry.profile().getId().equals(event.getProfile().getId())) {
+                    return false;
+                }
+                entry.connection().disconnect(Component.literal(
+                        "A newer connection replaced this queued login."));
+                entry.gate().complete(null);
+                return true;
+            });
+            if (ADMISSION_QUEUE.size() >= maximumEntries) {
+                event.getConnection().disconnect(Component.literal(
+                        denial + " The admission queue is full."));
+                return;
+            }
+            ADMISSION_QUEUE.addLast(queued);
+        }
+        event.enqueueWork(gate);
+    }
+
     public static void login(ServerPlayer player) {
+        synchronized (MinecraftServerControlRuntime.class) {
+            RELEASED_ADMISSIONS.remove(player.getUUID());
+            ADMISSION_QUEUE.removeIf(entry -> entry.profile().getId().equals(player.getUUID()));
+        }
         LAST_CHAT.remove(player.getUUID());
         ServerControlRepository.ControlRecord maintenance = latestEffective("maintenance").orElse(null);
         if (maintenance != null
@@ -317,8 +392,7 @@ public final class MinecraftServerControlRuntime {
         if (admission != null) {
             boolean reserved = exempt(player, "admission");
             int maximum = (int) number(admission, "maximum_players", 0L);
-            int reservedSlots = (int) number(admission, "reserved_slots", 0L);
-            int effectiveMaximum = reserved ? Math.addExact(maximum, reservedSlots) : maximum;
+            int ordinaryMaximum = ordinaryAdmissionMaximum(admission, maximum);
             long now = Instant.now().getEpochSecond();
             int joinsPerMinute = (int) number(admission, "joins_per_minute", 100_000L);
             boolean joinRateExceeded;
@@ -331,9 +405,9 @@ public final class MinecraftServerControlRuntime {
                     JOIN_WINDOW.addLast(now);
                 }
             }
-            if (!reserved && joinRateExceeded
-                    || effectiveMaximum > 0
-                    && player.server.getPlayerList().getPlayerCount() > effectiveMaximum) {
+            if (!reserved && (joinRateExceeded
+                    || ordinaryMaximum > 0
+                    && ordinaryPlayerCount(player.server) > ordinaryMaximum)) {
                 player.connection.disconnect(Component.literal(field(
                         admission,
                         "denial_message",
@@ -364,6 +438,7 @@ public final class MinecraftServerControlRuntime {
         quarantineTick(server);
         restartTick(server);
         sleepVoteTick(server);
+        admissionQueueTick(server);
     }
 
     public static synchronized void clear() {
@@ -374,8 +449,102 @@ public final class MinecraftServerControlRuntime {
         QUARANTINE_ANCHORS.clear();
         RESTART_WARNINGS.clear();
         JOIN_WINDOW.clear();
+        ADMISSION_QUEUE.forEach(entry -> {
+            entry.connection().disconnect(Component.literal(
+                    "The admission queue was stopped by a server configuration change."));
+            entry.gate().complete(null);
+        });
+        ADMISSION_QUEUE.clear();
+        RELEASED_ADMISSIONS.clear();
         cachedRevision = -1L;
         active = Map.of();
+    }
+
+    public static synchronized int admissionQueueSize() {
+        return ADMISSION_QUEUE.size();
+    }
+
+    private static void admissionQueueTick(MinecraftServer server) {
+        ServerControlRepository.ControlRecord admission = latestEffective("admission").orElse(null);
+        ServerControlRepository.ControlRecord queuePolicy = latestEffective("queue").orElse(null);
+        int maximum = admission == null
+                ? server.getMaxPlayers()
+                : (int) number(admission, "maximum_players", server.getMaxPlayers());
+        int ordinaryMaximum = ordinaryAdmissionMaximum(admission, maximum);
+        boolean activeQueue = maximum > 0
+                && queuePolicy != null
+                && field(queuePolicy, "mode", "deny_retry").equals("native_wait");
+        Instant now = Instant.now();
+        synchronized (MinecraftServerControlRuntime.class) {
+            RELEASED_ADMISSIONS.entrySet().removeIf(entry ->
+                    server.getPlayerList().getPlayer(entry.getKey()) != null
+                            || !entry.getValue().isAfter(now));
+            ADMISSION_QUEUE.removeIf(entry -> {
+                if (!entry.connection().isConnected()) {
+                    entry.gate().complete(null);
+                    return true;
+                }
+                if (!activeQueue) {
+                    entry.connection().disconnect(Component.literal(
+                            "The admission queue is no longer active."));
+                    entry.gate().complete(null);
+                    return true;
+                }
+                if (!entry.expiresAt().isAfter(now)) {
+                    entry.connection().disconnect(Component.literal(
+                            "The admission queue wait expired. Please reconnect."));
+                    entry.gate().complete(null);
+                    return true;
+                }
+                return false;
+            });
+            int available = Math.max(
+                    0,
+                    ordinaryMaximum
+                            - ordinaryPlayerCount(server)
+                            - RELEASED_ADMISSIONS.size());
+            while (available > 0 && !ADMISSION_QUEUE.isEmpty()) {
+                AdmissionQueueEntry next = ADMISSION_QUEUE.removeFirst();
+                if (!next.connection().isConnected()) {
+                    next.gate().complete(null);
+                    continue;
+                }
+                RELEASED_ADMISSIONS.put(
+                        next.profile().getId(),
+                        now.plusSeconds(30L));
+                next.gate().complete(null);
+                available--;
+            }
+        }
+    }
+
+    private static synchronized int releasedAdmissionCount() {
+        return RELEASED_ADMISSIONS.size();
+    }
+
+    private static int ordinaryAdmissionMaximum(
+            ServerControlRepository.ControlRecord admission,
+            int maximum
+    ) {
+        if (maximum <= 0 || admission == null) {
+            return maximum;
+        }
+        return ordinaryAdmissionMaximum(
+                maximum,
+                (int) number(admission, "reserved_slots", 0L));
+    }
+
+    static int ordinaryAdmissionMaximum(int maximum, int reserved) {
+        if (maximum <= 0) {
+            return maximum;
+        }
+        return maximum - Math.min(maximum, Math.max(0, reserved));
+    }
+
+    private static int ordinaryPlayerCount(MinecraftServer server) {
+        return (int) server.getPlayerList().getPlayers().stream()
+                .filter(player -> !exempt(player, "admission") && !exempt(player, "queue"))
+                .count();
     }
 
     public static Optional<ServerControlRepository.ControlRecord> effectivePolicy(String featureId) {
@@ -1190,7 +1359,9 @@ public final class MinecraftServerControlRuntime {
                     ActionResult.ReasonCode.PROVIDER_ERROR,
                     "trusted proxy queue adapter is unavailable");
         }
-        return ActionResult.success("native queue policy activated in " + mode + " mode");
+        return ActionResult.success(
+                "queue policy activated in " + mode + " mode, waiting "
+                        + admissionQueueSize());
     }
 
     private static ActionResult<String> datapacks(
@@ -1440,6 +1611,11 @@ public final class MinecraftServerControlRuntime {
         return node != null && PermissionService.has(player, node);
     }
 
+    private static boolean exempt(UUID playerId, String featureId) {
+        var node = PermissionsHandler.phasePermission("commands.control." + featureId + ".exempt");
+        return node != null && PermissionService.has(playerId, node);
+    }
+
     private static boolean has(ServerPlayer player, String permission) {
         var node = PermissionsHandler.phasePermission(permission);
         return node != null && PermissionService.has(player, node);
@@ -1447,6 +1623,16 @@ public final class MinecraftServerControlRuntime {
 
     private static MinecraftServer server(ServerControlExecutionService.ExecutionContext context) {
         return context.server() instanceof MinecraftServer server ? server : null;
+    }
+
+    private record AdmissionQueueEntry(
+            GameProfile profile,
+            Connection connection,
+            CompletableFuture<Void> gate,
+            Instant queuedAt,
+            Instant expiresAt,
+            String status
+    ) {
     }
 
     public record ControlHudStatus(

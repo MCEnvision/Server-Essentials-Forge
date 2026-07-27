@@ -287,10 +287,18 @@ public final class ServerControlSchemaRegistry {
                     integer("joins_per_minute", true, 1, 100_000),
                     text("denial_message", true, 512));
             case "queue" -> integration(id, ScreenArchetype.QUEUE, HudPolicy.REQUIRED,
-                    enumeration("mode", true, "deny_retry", "restricted_lobby", "proxy_adapter"),
+                    enumeration(
+                            "mode",
+                            true,
+                            "deny_retry",
+                            "native_wait",
+                            "restricted_lobby",
+                            "proxy_adapter"),
                     text("provider", false, 64),
                     duration("retry_seconds", true, 1, 3600),
-                    integer("maximum_entries", true, 1, 100_000));
+                    integer("maximum_entries", true, 1, 100_000),
+                    duration("maximum_wait_seconds", false, 10, 86_400),
+                    text("status_message", false, 512));
             case "invites" -> transaction(id, ScreenArchetype.QUEUE, HudPolicy.NONE,
                     text("code", true, 128),
                     integer("uses", true, 1, 100_000),

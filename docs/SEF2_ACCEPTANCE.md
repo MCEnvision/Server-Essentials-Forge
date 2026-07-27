@@ -55,7 +55,7 @@ Verified on 2026-07-27 with Java `21.0.11`, Minecraft `1.21.1`, NeoForge `21.1.2
 - All 390 unit tests pass.
 - All 29 required GameTests pass.
 - `./gradlew build compileFallbackRuntimeJava generateProjectReferences generatePerformanceReport` passes.
-- The dedicated server reaches `Done`, reports 673 catalog entries, 11,614 capabilities, 288 shortcuts, 62 configuration modules, 26 repositories, no import or provider failures, a healthy security audit, and no kernel errors.
+- The dedicated server reaches `Done`, reports 676 catalog entries, 11,659 capabilities, 290 shortcuts, 62 configuration modules, 27 repositories, no import or provider failures, a healthy security audit, and no kernel errors.
 - The enhanced client negotiates and remains connected to a GUI-enabled server.
 - The fallback client contains no SEF classes, joins the same GUI-enabled server, receives the command fallback notice, and remains connected.
 - GUI-disabled and GUI-enabled dedicated-server runs stop normally and save every dimension.

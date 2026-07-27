@@ -12,7 +12,7 @@ import java.util.UUID;
 public final class GuiWorkflowPayloads {
     public static final int MAXIMUM_VARIANTS = 64;
     public static final int MAXIMUM_FIELDS = 24;
-    public static final int MAXIMUM_SUGGESTIONS = 64;
+    public static final int MAXIMUM_SUGGESTIONS = 1_000;
 
     private GuiWorkflowPayloads() {
     }
@@ -230,7 +230,7 @@ public final class GuiWorkflowPayloads {
             long revision,
             UUID requestId,
             String fieldId,
-            List<String> suggestions
+            List<WorkflowSuggestion> suggestions
     ) implements CustomPacketPayload {
         public static final Type<GuiWorkflowSuggestions> TYPE =
                 GuiWorkflowPayloads.type("play/gui_workflow_suggestions");
@@ -245,7 +245,7 @@ public final class GuiWorkflowPayloads {
                             buffer,
                             value.suggestions(),
                             MAXIMUM_SUGGESTIONS,
-                            (target, entry) -> PayloadCodecSupport.writeString(target, entry, 128));
+                            WorkflowSuggestion::encode);
                 },
                 buffer -> new GuiWorkflowSuggestions(
                         buffer.readUUID(),
@@ -256,7 +256,7 @@ public final class GuiWorkflowPayloads {
                         PayloadCodecSupport.readList(
                                 buffer,
                                 MAXIMUM_SUGGESTIONS,
-                                target -> PayloadCodecSupport.readString(target, 128))));
+                                WorkflowSuggestion::decode)));
 
         public GuiWorkflowSuggestions {
             Objects.requireNonNull(sessionId, "sessionId");
@@ -264,7 +264,6 @@ public final class GuiWorkflowPayloads {
             Objects.requireNonNull(requestId, "requestId");
             text(fieldId, 64);
             suggestions = boundedList(suggestions, MAXIMUM_SUGGESTIONS, "workflow suggestions");
-            suggestions.forEach(suggestion -> text(suggestion, 128));
             if (revision < 1L) {
                 throw new IllegalArgumentException("Workflow suggestion revision is invalid");
             }
@@ -273,6 +272,30 @@ public final class GuiWorkflowPayloads {
         @Override
         public Type<? extends CustomPacketPayload> type() {
             return TYPE;
+        }
+    }
+
+    public record WorkflowSuggestion(
+            String value,
+            String label,
+            boolean online
+    ) {
+        public WorkflowSuggestion {
+            text(value, 128);
+            text(label, 128);
+        }
+
+        private static void encode(FriendlyByteBuf buffer, WorkflowSuggestion value) {
+            PayloadCodecSupport.writeString(buffer, value.value(), 128);
+            PayloadCodecSupport.writeString(buffer, value.label(), 128);
+            buffer.writeBoolean(value.online());
+        }
+
+        private static WorkflowSuggestion decode(FriendlyByteBuf buffer) {
+            return new WorkflowSuggestion(
+                    PayloadCodecSupport.readString(buffer, 128),
+                    PayloadCodecSupport.readString(buffer, 128),
+                    buffer.readBoolean());
         }
     }
 

@@ -28,8 +28,8 @@ Use these files during testing:
 
 - `sef2.md` defines the required behavior and phase exit criteria.
 - `docs/SEF2_ACCEPTANCE.md` records the currently verified baseline.
-- `docs/COMMAND_REFERENCE.md` lists all 673 catalog actions, routes, source classes, permissions, confirmation rules, GUI descriptors, and cooldown keys.
-- `docs/PERMISSION_REFERENCE.md` lists all 11,614 capabilities.
+- `docs/COMMAND_REFERENCE.md` lists all 676 catalog actions, routes, source classes, permissions, confirmation rules, GUI descriptors, and cooldown keys.
+- `docs/PERMISSION_REFERENCE.md` lists all 11,659 capabilities.
 - `docs/CONFIGURATION_REFERENCE.md` documents all 62 module schemas and setting bounds.
 - `docs/COMPATIBILITY_MATRIX.md` records supported and tested integration combinations.
 - `docs/SECURITY_REVIEW.md` lists trust boundaries and release findings.
@@ -219,11 +219,11 @@ sef control status
 Current baseline:
 
 - Server reaches `Done`.
-- Catalog reports 673 entries.
-- Capability manifest reports 11,614 capabilities.
-- Shortcut registry reports 288 shortcuts.
+- Catalog reports 676 entries.
+- Capability manifest reports 11,659 capabilities.
+- Shortcut registry reports 290 shortcuts.
 - Configuration registry reports 62 modules.
-- Storage coordinator reports 26 repositories.
+- Storage coordinator reports 27 repositories.
 - Security audit is healthy.
 - Recovery mode is inactive on clean data.
 - No kernel error is reported.
@@ -654,6 +654,27 @@ Expected:
 - Stale or deleted records cannot complete a warmup.
 - Quota races create no extra home.
 
+#### Enhanced homes screen
+
+Use an enhanced client with the homes module enabled and grant only the permissions required by each row.
+
+1. Open `/sef`, choose `Homes`, and confirm an `Add home` row appears when `sef.commands.sethome` is allowed.
+2. Select `Add home`, enter a new unique name, preview it, and submit it. Confirm the home appears without reconnecting.
+3. Select that home. Confirm the detail screen contains `Visit`, `Update location`, `Rename`, `Delete`, and `Back to homes` only when their matching command permissions are present.
+4. Walk to a different block, select `Update location`, review the confirmation, and confirm. Teleport away and use `Visit`; arrival must use the new location.
+5. Select `Rename`, enter another valid unique name, preview, submit, and confirm the list and direct `/home <new_name>` route use the new name.
+6. Select `Delete`, cancel the first confirmation, then repeat and confirm. The canceled attempt must preserve the record; the confirmed attempt must remove it from the active list.
+7. Revoke set, rename, delete, and use permissions one at a time while the detail screen is open. Refresh and attempt the stale control.
+8. Create enough homes for multiple pages. Test search, previous, next, refresh, resize, GUI scale 1 through 4, keyboard focus, narration, and empty-state rendering.
+9. Change or delete a home by command while its detail screen remains open, then press an old control.
+
+Expected:
+
+- Every GUI action reaches the same canonical home command and audit action as its command equivalent.
+- Stale revisions and revoked permissions fail without changing a home.
+- The empty screen still offers `Add home` when creation is authorized.
+- No home name, location, or control belonging to another player is projected.
+
 ### Teleport requests
 
 Run and test:
@@ -975,6 +996,7 @@ Test:
 /enderchest
 /ec
 /invsee
+/invsee playerb
 /disposal
 /more
 /condense
@@ -997,11 +1019,24 @@ Actions:
 5. Verify `/i` is self-only and rejects appended player or selector arguments.
 6. Test console and command-block source refusal for player-only routes.
 7. Force close disposal during server stop and verify no duplication.
+8. With an enhanced client, run bare `/invsee`. Select `playerb` from the player picker instead of typing a name.
+9. Confirm the upper six-row area shows `playerb` inventory, armor, offhand, and navigation controls, while the lower three rows and hotbar show the viewer inventory.
+10. Install Curios on both sides, equip several slot types on `playerb`, grant `sef.commands.invsee.curios`, and use the arrow controls to visit every Curios page.
+11. Remove `sef.commands.invsee.curios` while a Curios page is open. The menu must close or return to an authorized page.
+12. Test view-only mode without `sef.commands.invsee.modify`. Attempt pickup, quick move, number-key swap, offhand swap, drag, double-click collect, drop, and creative manipulation.
+13. Grant modify permission and repeat valid moves between target slots and the viewer inventory. Confirm the target sees each live change once.
+14. Revoke modify permission while holding a target stack on the cursor. Attempt another click and close the screen. Confirm no duplication, deletion, or unauthorized commit.
+15. Disconnect the target, kill the target, change the target dimension, reload the inventory module, and change policy revision while the menu is open.
+16. Test an enhanced viewer, a command-only viewer, and a client without SEF. Enhanced clients receive the two-inventory screen; fallback clients retain the authoritative container command path.
+17. Test minimum practical window size, GUI scales 1 through 4 and Auto, JEI present and absent, resize, long target names, and all pages. The lower inventory and hotbar must stay inside the panel.
 
 Expected:
 
 - Failure preserves exact inventory slots and components.
 - Disposal destroys only items intentionally placed into its server-owned menu.
+- The target inventory is always above the viewer inventory and every displayed slot remains server authoritative.
+- Curios slots are absent without their permission and available only when the adapter is healthy.
+- A stale or unauthorized click changes neither inventory.
 
 ### Player utilities
 
@@ -1341,7 +1376,7 @@ Run:
 /sef commands
 ```
 
-Compare output with all 673 entries in `docs/COMMAND_REFERENCE.md`.
+Compare output with all 676 entries in `docs/COMMAND_REFERENCE.md`.
 
 For every player-facing action:
 
@@ -1399,6 +1434,73 @@ Expected:
 
 - Command and GUI produce the same domain result and audit action id.
 - The server owns suggestions, validation, preview, confirmation, and mutation.
+
+### Bare command and player picker regression
+
+Use two enhanced players, one known offline profile, one never-seen name, and one vanished player.
+
+Run each bare command:
+
+```text
+/msg
+/give
+/enchant
+/invsee
+/disguise
+```
+
+Then run complete forms:
+
+```text
+/msg playerb hello
+/give playerb minecraft:stone 3
+/enchant @s minecraft:sharpness 5
+/invsee playerb
+/disguise minecraft:blaze
+```
+
+Actions:
+
+1. Confirm each bare command opens its dedicated typed workflow only for an authorized compatible client.
+2. Confirm each complete form executes immediately and does not open a workflow.
+3. Set the effective GUI policy to `command_only`, then `off`, and repeat. Bare commands must show their established usage or command fallback rather than `This action has no valid typed workflow`.
+4. Repeat from console, RCON, command block, function, a client without SEF, and a client with an incompatible protocol minor. Player-only GUI roots must not alter non-player command behavior.
+5. In each player field, open the picker. Confirm it lists every known profile the viewer may see, marks online state, supports authenticated username and nickname search, and never reveals an unauthorized vanished profile.
+6. Toggle `Online only`. Confirm offline profiles disappear, current online state refreshes, paging remains stable, and the selected value is the authenticated command name.
+7. Revoke the action permission, target visibility, hierarchy access, or enhanced feature while the picker or workflow is open. Submit the stale selection.
+8. Enter a never-seen name. It must not be treated as an authenticated offline profile.
+
+Expected:
+
+- No bare route reports `This action has no valid typed workflow`.
+- A GUI preference never changes the behavior of a complete command.
+- Search and filter happen against bounded server-projected profiles, not a client-owned authority list.
+- Permission or visibility loss invalidates the workflow before execution.
+
+### Offline give queue
+
+This queue is intentionally limited to the reviewed enhanced `/give` workflow. Direct command text and unrelated workflows are not persisted.
+
+1. Ensure `playeroffline` has joined at least once, then disconnect that player.
+2. Run bare `/give`, select `playeroffline`, select `minecraft:diamond`, set amount `2`, preview, and run.
+3. Verify the result reports a queued action id and `<world>/serverconfig/sef/offline-actions.json` contains one bounded pending record.
+4. Restart the server before the target joins. Verify the record remains pending.
+5. Join as `playeroffline` while the issuer remains online. Verify exactly two diamonds are granted and the queue record reaches its terminal state.
+6. Queue another action, disconnect the issuer, then join the target. Verify execution waits until both authenticated players are online.
+7. Queue another action, revoke `sef.commands.item.give.others` from the issuer, and join the target. Verify the recheck refuses the grant.
+8. Queue another action, disable the items module or action route, and join the target. Verify no item is granted.
+9. Queue another action, change the target nickname and authenticated username projection, and join. Verify execution binds the stored UUID and substitutes the current authenticated command name.
+10. Attempt to queue `/msg`, `/invsee`, `/enchant`, `/disguise`, a selector, multiple targets, an unknown profile, excessive amount, invalid item, and a forged workflow payload.
+11. Advance a copied record beyond its seven-day expiry and restart.
+12. Corrupt, oversize, duplicate, or schema-upgrade a copied `offline-actions.json`.
+
+Expected:
+
+- A queued give re-runs workflow compilation, permission, feature, policy, field, target, registry, amount, and canonical command validation at execution time.
+- Permission or policy loss fails closed.
+- Only one successful grant occurs after reconnect or restart.
+- Unsupported actions never enter persistent storage.
+- Repository corruption enters the documented recovery state instead of executing untrusted data.
 
 ### Panel drafts and publication
 
@@ -1644,6 +1746,22 @@ Expected:
 
 Use a compatible enhanced client, a fallback client, and a second enhanced viewer.
 
+### Module authority and command availability
+
+1. Set `[module].enabled = true` in `config/sef/modules/fancy_tags.toml`.
+2. Run `/sef config reload fancy_tags`, `/sef config inspect fancy_tags`, `/sef tags status`, and `/sef tags doctor`.
+3. Confirm the inspected module is enabled and the tag commands do not answer `That feature is currently disabled`.
+4. Set the legacy Fancy Tags bootstrap value to the opposite state on a copied configuration, reload through the supported path, and confirm the published module state remains authoritative.
+5. Disable the module through its typed file, reload, and confirm commands fail closed with a clear module-state response.
+6. Re-enable it and confirm command visibility, dashboard entry, manager screens, and transfer feature return after session refresh.
+7. Repeat with `sef.*`, only the status permission, and no permission.
+
+Expected:
+
+- Registration does not disappear because of a stale legacy boolean.
+- Module publication synchronizes compatibility fields instead of allowing two conflicting authorities.
+- Disabled behavior is explicit and re-enabling does not require a different JAR.
+
 ### Record lifecycle
 
 Use:
@@ -1839,6 +1957,22 @@ Enable disguise only in staging. Test:
 /disguise ability utility
 /dability primary
 ```
+
+Before projection testing:
+
+1. Set `[module].enabled = true` in `config/sef/modules/disguise.toml`.
+2. Run `/sef config reload disguise`, `/sef config inspect disguise`, `/disguise`, and `/disguise status`.
+3. Grant `sef.*` through LuckPerms, refresh the user, and reconnect.
+4. Confirm the root and authorized subcommands appear in tab completion.
+5. Remove only `sef.commands.disguise.mob` and confirm the mob route disappears while independently authorized status and clear routes remain.
+6. Set the module false, reload, and confirm behavior reports the module state rather than an unknown command caused by skipped registration.
+7. Re-enable it and confirm a command-tree refresh restores the routes without replacing the JAR.
+
+Expected:
+
+- The module file is authoritative. A stale legacy bootstrap boolean cannot keep disguise disabled after a successful module publication.
+- `sef.*` is honored through the active LuckPerms provider.
+- Command registration remains stable across enabled and disabled states; execution still fails closed while disabled.
 
 ### State and authority
 
@@ -2070,6 +2204,67 @@ Expected:
 - Admission and invite tokens are bounded, expiring, and replay-resistant.
 - Queue limitations are described truthfully for the active platform.
 
+#### Native capacity queue and bypass
+
+Use at least three clients. Set `server.properties` `max-players` higher than the SEF admission limit so an exempt player can use the reserved headroom. SEF cannot override the vanilla hard player cap.
+
+Create and activate an admission policy:
+
+```text
+/sef control admission create "staging admission" phase13g
+/sef control admission configure <admission_id> <revision> maximum_players 2
+/sef control admission configure <admission_id> <revision> reserved_slots 0
+/sef control admission configure <admission_id> <revision> joins_per_minute 100
+/sef control admission configure <admission_id> <revision> denial_message The server is at its SEF admission limit.
+/sef control admission preview <admission_id> <revision>
+/sef control admission execute <admission_id> <revision>
+/sef control admission state <admission_id> active <revision> phase13g
+```
+
+Create and activate the native waiting policy:
+
+```text
+/sef control queue create "staging queue" phase13g
+/sef control queue configure <queue_id> <revision> mode native_wait
+/sef control queue configure <queue_id> <revision> retry_seconds 5
+/sef control queue configure <queue_id> <revision> maximum_entries 2
+/sef control queue configure <queue_id> <revision> maximum_wait_seconds 60
+/sef control queue configure <queue_id> <revision> status_message The server is full. Your login is waiting.
+/sef control queue preview <queue_id> <revision>
+/sef control queue execute <queue_id> <revision>
+/sef control queue state <queue_id> active <revision> phase13g
+/queue
+```
+
+Use the revision printed after every command. If the feature requires a confirmation token, run the exact confirmation command returned by the server before changing state.
+
+Actions:
+
+1. Join `playera` and `playerb`. Start `playerc`; its connection must remain in negotiation and `/queue` must report one waiting entry.
+2. Disconnect `playera`. Verify the first waiting connection is released, completes login once, and is removed from the queue.
+3. Queue two clients in order, free one slot, and confirm FIFO release.
+4. Attempt a third queued connection. It must be disconnected with the bounded queue-full response.
+5. Queue one profile twice. The newer login must replace the older one, and only one entry may remain.
+6. Close a queued client before release. Verify cleanup within the one-second queue tick and no reserved slot leak.
+7. Wait past `maximum_wait_seconds`. Verify disconnect with an expiry message and no later login.
+8. Restart or deactivate the queue policy while clients wait. Verify every gate is completed, every connection receives a truthful stop response, and no entry survives as a ghost reservation.
+9. Grant `sef.commands.control.admission.exempt` to `admina`. Fill the SEF limit with ordinary players, then join `admina`. The exempt player must bypass the SEF admission cap while still respecting the vanilla hard cap.
+10. Remove the admission exemption and grant `sef.commands.control.queue.exempt`; repeat the SEF-cap test.
+11. Change `reserved_slots` to `1`. With `maximum_players` still `2`, verify one ordinary player fills ordinary capacity, the next ordinary player queues, and an exempt administrator can use the reserved headroom.
+12. Set `reserved_slots` equal to and above `maximum_players`. Verify ordinary admission capacity becomes zero without arithmetic underflow, while exempt access remains bounded by the vanilla hard cap.
+13. Fill the actual vanilla `max-players` cap and attempt the exempt login. Record the vanilla full-server result. This is expected unless the server separately grants Minecraft’s own player-limit bypass.
+14. Set mode to `deny_retry`, then `restricted_lobby`, then `proxy_adapter`. Verify native wait is used only for `native_wait`; unavailable proxy mode reports provider failure and does not claim a working proxy queue.
+15. Set `maximum_players` to `0` on a disposable copy, test the documented unlimited behavior, then restore a bounded positive limit.
+16. Race a disconnect, two queued releases, an exemption refresh, and a policy revision in the same second.
+
+Expected:
+
+- The queue is bounded by entry count and wait time and holds only negotiation futures, never joined player state.
+- Release is FIFO and reservations prevent more than the configured number of simultaneous admissions.
+- `reserved_slots` is subtracted from ordinary capacity and never from exempt administrative headroom.
+- Disconnect, timeout, policy change, replacement login, successful login, and shutdown remove their entries.
+- Exemption nodes bypass only SEF admission or queue policy. They do not silently bypass Minecraft’s hard `max-players` cap.
+
 ### Phase 13H. Content and world policy
 
 | Feature id | Required scenario |
@@ -2206,21 +2401,35 @@ Test:
 
 Use tab completion for self shorthand, remove-one, and clear-all forms.
 
+LuckPerms checks:
+
+```text
+/lp user playera permission check sef.commands.enchant.unsafe_level
+/lp user playera permission check sef.commands.enchant.any_item
+/lp user playera permission check sef.commands.enchant.incompatible
+/lp user playera permission check sef.commands.enchant.remove
+/lp user playera permission check sef.commands.enchant.clear
+/lp user playera permission set sef.* true
+```
+
 Actions:
 
-1. Apply ordinary compatible enchantment.
-2. Apply unsafe level without and with `sef.commands.enchant.unsafe_level`.
-3. Apply to dirt without and with `sef.commands.enchant.any_item`.
-4. Add normally incompatible enchantments without and with `sef.commands.enchant.incompatible`.
-5. Test self, other, and bounded multi-target permissions.
-6. Test higher-rank, exempt, vanished, unknown, and disconnected targets.
-7. Test zero, negative, maximum ceiling, one above ceiling, integer overflow, and nonnumeric level.
-8. Preserve an existing higher level.
-9. Remove one enchantment with preview and confirmation.
-10. Clear all enchantments with its separate preview and confirmation.
-11. Change selected slot, stack identity, item count, registry entry, permission, feature, cost, cooldown, and menu revision immediately before mutation.
-12. Inspect level 1000 item on enhanced and fallback clients, in inventory, tooltip, drop, pickup, container, save, restart, and reconnect.
-13. Create a `/set` collision.
+1. Run bare `/enchant` on an enhanced client and confirm the typed enchantment workflow opens. Run the complete form and confirm it executes directly.
+2. Apply ordinary compatible enchantment.
+3. Apply unsafe level without and with `sef.commands.enchant.unsafe_level`.
+4. Apply to dirt without and with `sef.commands.enchant.any_item`.
+5. Add normally incompatible enchantments without and with `sef.commands.enchant.incompatible`.
+6. Test self, other, and bounded multi-target permissions.
+7. Test higher-rank, exempt, vanished, unknown, and disconnected targets.
+8. Test zero, negative, maximum ceiling, one above ceiling, integer overflow, and nonnumeric level.
+9. Preserve an existing higher level.
+10. Remove one enchantment without and with `sef.commands.enchant.remove`, including preview and confirmation.
+11. Clear all enchantments without and with `sef.commands.enchant.clear`, including its separate preview and confirmation.
+12. Change selected slot, stack identity, item count, registry entry, permission, feature, cost, cooldown, and menu revision immediately before mutation.
+13. Inspect level 1000 item on enhanced and fallback clients, in inventory, tooltip, drop, pickup, container, save, restart, and reconnect.
+14. Create a `/set` collision.
+15. Grant only `sef.*`, refresh LuckPerms, and repeat unsafe level, arbitrary item, incompatible, remove, and clear tests. Each exact check must resolve true without a generic operator fallback.
+16. Remove `sef.*`, grant only ordinary enchant permission, and verify every unsafe error names the exact missing node.
 
 Expected:
 
@@ -2461,6 +2670,9 @@ Use:
 /sef gui auto
 /sef gui reset
 /sef gui status
+/sef client status
+/sef client preference blur off
+/sef client preference blur on
 ```
 
 Actions:
@@ -2473,12 +2685,47 @@ Actions:
 6. Disable a module with its screen open.
 7. Revoke screen and control permissions separately.
 8. Test world change and disconnect.
+9. Start with no GUI preference record and open the dashboard, homes, player picker, typed workflow, control editor, and Fancy Tags studio. Confirm background blur defaults to off.
+10. Run `/sef client preference blur on`, reopen every screen, reconnect, and restart. Confirm blur is enabled and persisted.
+11. Run `/sef client preference blur off`, repeat the screen, reconnect, and restart checks. Confirm the world remains sharp behind SEF screens.
+12. Inspect `<world>/serverconfig/sef/gui-preferences.json`. Remove only `backgroundBlur` from a copied legacy record and restart the copy. Confirm migration defaults the missing value to false.
+13. Change the preference while a screen is already open. Close and reopen the screen and confirm the refreshed value applies.
 
 Expected:
 
 - Effective mode resolves from hard safety, global, module, action, client capability, permission, preference, and state in that order.
 - Turning GUI off closes and invalidates server-owned enhanced state without removing command access.
 - Administrators cannot force a screen onto a client that did not negotiate it.
+- Background blur is a player presentation preference, defaults to off, persists by UUID, and grants no authority.
+
+### Module enabled-state consistency
+
+Test `fancy_tags`, `disguise`, and five ordinary command modules:
+
+```text
+/sef config inspect fancy_tags
+/sef config inspect disguise
+/sef config validate fancy_tags
+/sef config validate disguise
+/sef tags doctor
+/disguise status
+/sef doctor
+```
+
+Actions:
+
+1. Set `[module].enabled = true`, reload the module, and record the published revision.
+2. Confirm direct commands, catalog actions, GUI rows, and `/sef doctor` agree that the module is enabled.
+3. Set any retained legacy bootstrap toggle to the opposite value in a disposable migrated copy. Publish the module and repeat the checks.
+4. Set `[module].enabled = false`, publish, and repeat.
+5. Make the TOML invalid. Confirm the previous known-good enabled state remains active and diagnostics name the parse failure.
+6. Change the file back, reload, and confirm command tree and active enhanced sessions refresh.
+
+Expected:
+
+- One published module snapshot is authoritative after dependency validation.
+- Compatibility booleans mirror the publication and cannot independently disable Fancy Tags or disguise.
+- An invalid candidate never partially changes feature gates, command visibility, or GUI projection.
 
 ## Phase 14. Release hardening
 
@@ -2600,10 +2847,10 @@ Do not approve the release until every item is `pass`:
 - [ ] Enhanced client negotiates and remains connected.
 - [ ] No-SEF fallback client remains connected and command complete.
 - [ ] Incompatible protocol falls back without a kick.
-- [ ] All 673 command actions completed the universal command matrix.
-- [ ] All 11,614 capabilities are generated and independently enforceable where applicable.
-- [ ] All 288 shortcuts preserve canonical policy.
-- [ ] All 26 repositories pass clean, migration, corruption, crash, and shutdown checks.
+- [ ] All 676 command actions completed the universal command matrix.
+- [ ] All 11,659 capabilities are generated and independently enforceable where applicable.
+- [ ] All 290 shortcuts preserve canonical policy.
+- [ ] All 27 repositories pass clean, migration, corruption, crash, and shutdown checks.
 - [ ] All 62 module schemas pass transactional validation and rollback.
 - [ ] All 75 server-control feature families pass the common workflow and their required scenario.
 - [ ] All Fancy Tags import, transfer, cache, render, editor, backup, and recovery tests pass.

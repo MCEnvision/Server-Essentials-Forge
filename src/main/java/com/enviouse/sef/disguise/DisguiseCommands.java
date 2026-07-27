@@ -7,6 +7,7 @@ import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
+import com.enviouse.sef.gui.protocol.GuiWorkflowService;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -29,9 +30,6 @@ public final class DisguiseCommands {
     }
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        if (!ConfigHandler.config.enableDisguises.get()) {
-            return;
-        }
         dispatcher.register(root());
         dispatcher.register(Commands.literal("undisguise")
                 .requires(source -> has(source, "commands.disguise.clear"))
@@ -43,8 +41,14 @@ public final class DisguiseCommands {
     private static LiteralArgumentBuilder<CommandSourceStack> root() {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal("disguise")
                 .requires(source -> has(source, "commands.disguise"))
-                .executes(context -> execute(context.getSource(), "status",
-                        () -> status(context.getSource(), player(context.getSource()))));
+                .executes(context -> GuiWorkflowService.openBare(
+                        context.getSource(),
+                        "sef:disguise.set.mob")
+                        ? 1
+                        : execute(
+                                context.getSource(),
+                                "status",
+                                () -> status(context.getSource(), player(context.getSource()))));
         root.then(Commands.argument("entity_type", StringArgumentType.word())
                 .requires(source -> has(source, "commands.disguise.mob"))
                 .suggests((context, builder) -> {

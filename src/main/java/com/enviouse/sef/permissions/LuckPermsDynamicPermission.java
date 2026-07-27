@@ -14,9 +14,13 @@ final class LuckPermsDynamicPermission {
     }
 
     static boolean has(ServerPlayer player, String permission) {
+        return has(player.getUUID(), permission);
+    }
+
+    static boolean has(UUID playerId, String permission) {
         User user = net.luckperms.api.LuckPermsProvider.get()
                 .getUserManager()
-                .getUser(player.getUUID());
+                .getUser(playerId);
         return user != null
                 && user.getCachedData()
                 .getPermissionData()

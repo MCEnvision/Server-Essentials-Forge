@@ -28,6 +28,18 @@ class DisguiseCommandDispatcherTest {
     }
 
     @Test
+    void rootIsRegisteredBeforeRuntimeConfigurationPublishes() {
+        ConfigHandler.config.enableDisguises.set(false);
+
+        CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+        assertNotNull(dispatcher.getRoot().getChild("disguise"));
+        assertNotNull(dispatcher.getRoot().getChild("disguise").getCommand());
+        assertNotNull(dispatcher.getRoot().getChild("undisguise"));
+        assertNotNull(dispatcher.getRoot().getChild("dability"));
+    }
+
+    @Test
     void rootPermissionDoesNotExposeSpecializedOrAdministrativeBranches() {
         ConfigHandler.config.enableDisguises.set(true);
         CommandSourceStack source = mock(CommandSourceStack.class);

@@ -2,6 +2,7 @@
   "container.sef.disposal": "Disposal",
   "gui.sef.close": "Close",
   "gui.sef.dashboard": "Dashboard",
+  "gui.sef.invsee.title": "%s inventory",
   "gui.sef.page": "%s / %s",
   "gui.sef.pause_button": "SEF",
   "gui.sef.pause_tooltip": "Open Server Essentials",

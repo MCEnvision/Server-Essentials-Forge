@@ -11,6 +11,7 @@ import org.mockito.Answers;
 import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
@@ -62,9 +63,21 @@ class AdminPanelCommandDispatcherTest {
             var sef = dispatcher.getRoot().getChild("sef");
 
             assertTrue(sef.getChild("client").getChild("preference").canUse(source));
+            assertNotNull(sef.getChild("client").getChild("preference").getChild("blur"));
             assertFalse(sef.getChild("panel").getChild("list").canUse(source));
             assertFalse(sef.getChild("panel").getChild("publish").canUse(source));
         }
+    }
+
+    @Test
+    void coreAndFancyTagRootsExistBeforeRuntimeConfigurationPublishes() {
+        CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+        var sef = dispatcher.getRoot().getChild("sef");
+
+        assertNotNull(sef);
+        assertNotNull(sef.getCommand());
+        assertNotNull(sef.getChild("tags"));
+        assertNotNull(sef.getChild("tags").getChild("doctor"));
     }
 
     private static CommandDispatcher<CommandSourceStack> dispatcher() {

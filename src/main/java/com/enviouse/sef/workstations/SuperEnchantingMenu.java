@@ -195,7 +195,7 @@ final class SuperEnchantingMenu extends ChestMenu {
                 && (!AdministrativeEnchantCommands.unsafeLevelsEnabled()
                 || !unsafePermission("commands.enchant.unsafe_level"))) {
             player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                    "&cUnsafe enchantment level permission is required."));
+                    "&cMissing permission: sef.commands.enchant.unsafe_level."));
             return;
         }
         if (newLevel > currentLevel && !canApply(target, enchantment)) {
@@ -208,7 +208,7 @@ final class SuperEnchantingMenu extends ChestMenu {
         }
         if (newLevel == 0 && !unsafePermission("commands.enchant.remove")) {
             player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                    "&cEnchantment removal permission is required."));
+                    "&cMissing permission: sef.commands.enchant.remove."));
             return;
         }
 

@@ -213,6 +213,9 @@ public final class SefSessionManager {
                 || !PermissionService.has(player, PermissionsHandler.kernelHud)) {
             result &= ~SefProtocol.Feature.HUD.flag();
         }
+        if (!preferences.backgroundBlur()) {
+            result &= ~SefProtocol.Feature.BACKGROUND_BLUR.flag();
+        }
         if (!PermissionService.has(player, PermissionsHandler.kernelPanel)) {
             result &= ~SefProtocol.Feature.STAFF_OVERVIEW.flag();
         }

@@ -231,7 +231,7 @@ public final class ModuleConfigService {
             case "sef.fancy_tags" -> "fancy_tags";
             case "sef.enchant.admin" -> "super_enchanting";
             case "sef.gui", "sef.gui.policy" -> "gui";
-            case "sef.item.self" -> "items";
+            case "sef.item.self", "sef.item.give" -> "items";
             case "sef.workstation.additional" -> "workstations";
             case "sef.run" -> "run_and_silent";
             case "sef.fake" -> "fake_actions";

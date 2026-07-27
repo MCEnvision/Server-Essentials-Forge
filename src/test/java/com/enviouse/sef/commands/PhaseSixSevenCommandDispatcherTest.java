@@ -172,6 +172,22 @@ class PhaseSixSevenCommandDispatcherTest {
         }
     }
 
+    @Test
+    void invseeRootIsRegisteredBeforeRuntimeConfigurationPublishes() {
+        boolean previous = ConfigHandler.config.enableInvSee.get();
+        ConfigHandler.config.enableInvSee.set(false);
+        try {
+            CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+            InvSeeCommand.register(dispatcher);
+
+            assertNotNull(dispatcher.getRoot().getChild("invsee"));
+            assertNotNull(dispatcher.getRoot().getChild("invsee").getCommand());
+            assertNotNull(dispatcher.getRoot().getChild("invsee").getChild("player"));
+        } finally {
+            ConfigHandler.config.enableInvSee.set(previous);
+        }
+    }
+
     private static CommandDispatcher<CommandSourceStack> dispatcher() {
         KernelServices.initialize();
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();

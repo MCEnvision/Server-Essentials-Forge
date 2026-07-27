@@ -40,4 +40,28 @@ class UniversalGuiCatalogTest {
                     }
                 });
     }
+
+    @Test
+    void dedicatedBareWorkflowsUseRealBrigadierRoutes() {
+        KernelServices.initialize();
+
+        assertEquals(
+                "give",
+                KernelServices.universalGuiCatalog()
+                        .action("sef:item.give.others")
+                        .orElseThrow()
+                        .commandRoute());
+        assertEquals(
+                "invsee",
+                KernelServices.universalGuiCatalog()
+                        .action("sef:inventory.view")
+                        .orElseThrow()
+                        .commandRoute());
+        assertEquals(
+                "disguise mob",
+                KernelServices.universalGuiCatalog()
+                        .action("sef:disguise.set.mob")
+                        .orElseThrow()
+                        .commandRoute());
+    }
 }

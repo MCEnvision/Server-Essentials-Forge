@@ -8,6 +8,7 @@ import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.gui.protocol.GuiWorkflowService;
 import com.enviouse.sef.kernel.policy.ConfirmationService;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
@@ -73,7 +74,15 @@ public final class AdministrativeEnchantCommands {
     ) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal(literal)
                 .requires(source -> ConfigHandler.config.enableAdministrativeEnchanting.get()
-                        && KernelCommandExecutor.canUse(source, "sef:enchant.apply"));
+                        && KernelCommandExecutor.canUse(source, "sef:enchant.apply"))
+                .executes(context -> {
+                    if (GuiWorkflowService.openBare(context.getSource(), "sef:enchant.apply")) {
+                        return 1;
+                    }
+                    return fail(
+                            context.getSource(),
+                            "Usage: /enchant <targets> <enchantment> [level]");
+                });
         root.then(applyTargets(buildContext));
         root.then(applySelf(buildContext));
         root.then(Commands.literal("self").then(applySelfEnchantment(buildContext)));
@@ -295,20 +304,20 @@ public final class AdministrativeEnchantCommands {
                         && (!unsafeLevelsEnabled() || !has(source, "commands.enchant.unsafe_level"))) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.PERMISSION_DENIED,
-                            "unsafe enchantment level permission is required");
+                            "missing permission: sef.commands.enchant.unsafe_level");
                 }
                 if (!item.supportsEnchantment(enchantment)
                         && (!arbitraryItemsEnabled() || !has(source, "commands.enchant.any_item"))) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.PERMISSION_DENIED,
-                            "arbitrary item enchantment permission is required");
+                            "missing permission: sef.commands.enchant.any_item");
                 }
                 if (hasConflict(item, enchantment)
                         && (!incompatibleEnchantmentsEnabled()
                         || !has(source, "commands.enchant.incompatible"))) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.PERMISSION_DENIED,
-                            "incompatible enchantment permission is required");
+                            "missing permission: sef.commands.enchant.incompatible");
                 }
             } else if (operation == Operation.REMOVE && currentLevel == 0) {
                 return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "the held item does not have that enchantment");

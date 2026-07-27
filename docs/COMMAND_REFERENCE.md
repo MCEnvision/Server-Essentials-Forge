@@ -2,7 +2,7 @@
 
 This file is generated from the sealed command, shortcut, and GUI descriptor registries. Change registry metadata and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
+Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ## Commands
 
@@ -7667,10 +7667,10 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 
 ### `sef:disguise.preset.manage`
 
-* Description: Executes the `/disguise preset manage` action through the shared policy pipeline.
-* Usage: `/disguise preset manage`.
-* Canonical route: `disguise preset manage`.
-* Example: `/disguise preset manage`.
+* Description: Executes the `/disguise presets` action through the shared policy pipeline.
+* Usage: `/disguise presets`.
+* Canonical route: `disguise presets`.
+* Example: `/disguise presets`.
 * Convenience roots: none.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
@@ -7713,10 +7713,10 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 
 ### `sef:disguise.set.mob`
 
-* Description: Executes the `/disguise set mob` action through the shared policy pipeline.
-* Usage: `/disguise set mob`.
-* Canonical route: `disguise set mob`.
-* Example: `/disguise set mob`.
+* Description: Executes the `/disguise mob` action through the shared policy pipeline.
+* Usage: `/disguise mob`.
+* Canonical route: `disguise mob`.
+* Example: `/disguise mob`.
 * Convenience roots: `disguise`.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
@@ -7736,10 +7736,10 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 
 ### `sef:disguise.set.player`
 
-* Description: Executes the `/disguise set player` action through the shared policy pipeline.
-* Usage: `/disguise set player`.
-* Canonical route: `disguise set player`.
-* Example: `/disguise set player`.
+* Description: Executes the `/disguise player` action through the shared policy pipeline.
+* Usage: `/disguise player`.
+* Canonical route: `disguise player`.
+* Example: `/disguise player`.
 * Convenience roots: none.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
@@ -7759,10 +7759,10 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 
 ### `sef:disguise.set.preset`
 
-* Description: Executes the `/disguise set preset` action through the shared policy pipeline.
-* Usage: `/disguise set preset`.
-* Canonical route: `disguise set preset`.
-* Example: `/disguise set preset`.
+* Description: Executes the `/disguise preset` action through the shared policy pipeline.
+* Usage: `/disguise preset`.
+* Canonical route: `disguise preset`.
+* Example: `/disguise preset`.
 * Convenience roots: none.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
@@ -9229,6 +9229,29 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
+### `sef:gui.preference.blur`
+
+* Description: Executes the `/sef client preference blur` action through the shared policy pipeline.
+* Usage: `/sef client preference blur`.
+* Canonical route: `sef client preference blur`.
+* Example: `/sef client preference blur`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.sef.client.preferences`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:gui.preference.blur`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:settings`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
 ### `sef:gui.preference.hud`
 
 * Description: Executes the `/sef client preference hud` action through the shared policy pipeline.
@@ -9887,6 +9910,52 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 * Sources: `console`, `player`, `rcon`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.recipe`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:inventory`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:inventory.view`
+
+* Description: Executes the `/invsee` action through the shared policy pipeline.
+* Usage: `/invsee`.
+* Canonical route: `invsee`.
+* Example: `/invsee`.
+* Convenience roots: `invsee`.
+* Category: `inventory`.
+* Feature gate: `sef.inventory`.
+* Permissions: `sef.commands.invsee.view`.
+* Access class: `administrator`.
+* Sources: `player`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:inventory.view`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:inventory`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:item.give.others`
+
+* Description: Executes the `/give` action through the shared policy pipeline.
+* Usage: `/give`.
+* Canonical route: `give`.
+* Example: `/give`.
+* Convenience roots: `give`.
+* Category: `item.give`.
+* Feature gate: `sef.item.give`.
+* Permissions: `sef.commands.item.give.others`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:item.give.others`.
 * Confirmation: not required.
 * Audit class: `admin_action`.
 * GUI descriptor: `sef:inventory`.
@@ -15579,6 +15648,7 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 | `friend` | `sef:control.friends.view` | `none` | none | `canonical_only` | 1 |
 | `friends` | `sef:control.friends.view` | `none` | none | `canonical_only` | 1 |
 | `getpos` | `sef:utility.getpos` | `none` | none | `prefer_sef` | 1 |
+| `give` | `sef:item.give.others` | `none` | none | `prefer_sef` | 1 |
 | `gm` | `sef:gamemode.set` | `none` | none | `prefer_sef` | 1 |
 | `gma` | `sef:gamemode.adventure` | `none` | none | `prefer_sef` | 1 |
 | `gmc` | `sef:gamemode.creative` | `none` | none | `prefer_sef` | 1 |
@@ -15607,6 +15677,7 @@ Catalog entries: 673. Shortcut entries: 288. GUI descriptors: 25.
 | `inventoryrestore` | `sef:control.inventory_recovery.manage` | `none` | none | `canonical_only` | 1 |
 | `invites` | `sef:control.invites.view` | `none` | none | `canonical_only` | 1 |
 | `invlock` | `sef:moderation.invlock` | `none` | none | `prefer_sef` | 1 |
+| `invsee` | `sef:inventory.view` | `none` | none | `prefer_sef` | 1 |
 | `itemdb` | `sef:inventory.itemdb` | `none` | none | `prefer_sef` | 1 |
 | `itemlore` | `sef:inventory.itemlore` | `none` | none | `prefer_sef` | 1 |
 | `itemname` | `sef:inventory.itemname` | `none` | none | `prefer_sef` | 1 |
