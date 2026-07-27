@@ -68,4 +68,35 @@ class CommandRedactionPolicyTest {
         assertEquals(CommandRedactionPolicy.RedactionClass.SECRET, data.redactionClass());
         assertFalse(data.display().contains("Inventory"));
     }
+
+    @Test
+    void controlCharactersCannotHidePrivateCommandRoots() {
+        for (String command : List.of(
+                "/msg\nNotch private text",
+                "/sef:helpop\rprivate report",
+                "/adminchat\u0000private staff text",
+                "/teammsg\u202Eprivate team text")) {
+            CommandRedactionPolicy.RedactedCommand redacted = CommandRedactionPolicy.redact(command);
+
+            assertEquals(CommandRedactionPolicy.RedactionClass.PRIVATE_CONTENT, redacted.redactionClass());
+            assertFalse(redacted.display().contains("Notch"));
+            assertFalse(redacted.display().contains("private text"));
+            assertFalse(redacted.display().contains("private report"));
+            assertFalse(redacted.display().contains("private staff text"));
+            assertFalse(redacted.display().contains("private team text"));
+        }
+    }
+
+    @Test
+    void everyPrivateChatAliasRedactsItsMessage() {
+        for (String root : List.of(
+                "helpop", "ac", "adminchat", "staffchat", "pchat", "teammsg", "tm")) {
+            CommandRedactionPolicy.RedactedCommand redacted =
+                    CommandRedactionPolicy.redact("/" + root + " private text");
+
+            assertEquals(root, redacted.root());
+            assertEquals(CommandRedactionPolicy.RedactionClass.PRIVATE_CONTENT, redacted.redactionClass());
+            assertEquals("/" + root + " <private>", redacted.display());
+        }
+    }
 }

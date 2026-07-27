@@ -296,15 +296,39 @@ Moderation applies these boundaries:
 2. Offline identities use UUID-authoritative profile resolution and exemption checks. An ambiguous nickname or unknown identity fails without mutation.
 3. Permanent and temporary player bans use the vanilla user-ban list as the enforcement authority. SEF does not maintain a second player-ban truth.
 4. IP bans use the vanilla IP-ban list. SEF stores only moderation controls, warnings, jail definitions, and jail sentences in `moderation.json`.
-5. `ConnectionAddressService` supports `direct`, `trusted_proxy`, `external`, and `disabled`. Shared proxy detection fails closed when configured. Player-entered literal addresses require both configuration opt-in and a distinct permission.
+5. `ConnectionAddressService` supports `direct`, `trusted_proxy`, `external`, and `disabled`. Trusted proxy and external integrations register a bounded `ConnectionAddressService.Adapter` with an id, provider mode, priority, and binary IPv4 or IPv6 result. The highest priority adapter for the selected mode is authoritative. Duplicate, malformed, direct mode, disabled mode, excessive priority, and excessive count registrations fail. Missing results, adapter exceptions, absent adapters, and shared proxy uncertainty fail closed. Player entered literal addresses require both configuration opt in and a distinct permission.
 6. Raw addresses never enter ordinary command feedback, kernel parameters, command spy, optional file logs, or broad audit. IP action records use a keyed fingerprint or redacted provider reference.
 7. Shared-address and mass-kick actions resolve a bounded target set, bind the actor and policy revision to a short-lived confirmation token, and recheck current targets before disconnecting them.
-8. Persistent mute, freeze, inventory lock, build lock, and jail state is enforced by events and reconciled on login and tick. Expired jail sentences return the player to the recorded release location through safe teleport validation.
-9. The earlier legacy warning, mute, freeze, inventory-lock, and build-lock managers stop owning behavior while expanded moderation is enabled. Their files remain untouched for compatibility and rollback.
+8. Persistent mute, freeze, inventory lock, build lock, and jail state is enforced by events and reconciled on login and tick. Jail enforcement also runs after respawn and dimension changes, and jailed players cannot interact with entities. Inventory lock blocks container clicks, recipe placement, creative slot updates, pick item, offhand swaps, item drops, pickup, and item use. Expired jail sentences return the player to the recorded release location through safe teleport validation.
+9. The earlier legacy warning, mute, freeze, inventory lock, and build lock managers stop owning behavior while expanded moderation is enabled. Their files remain untouched for compatibility and rollback. Disabling expanded moderation immediately removes repository derived runtime freeze mirrors while retaining the persistent control records for later re enablement.
+
+Address adapters are runtime integration points. An optional server mod registers one adapter during its common server lifecycle and unregisters the same id during shutdown or integration reload:
+
+```java
+ConnectionAddressService.registerAdapter(new ConnectionAddressService.Adapter() {
+    public String id() {
+        return "example:proxy";
+    }
+
+    public ConnectionAddressService.ProviderMode mode() {
+        return ConnectionAddressService.ProviderMode.TRUSTED_PROXY;
+    }
+
+    public int priority() {
+        return 100;
+    }
+
+    public Optional<ConnectionAddressService.ProvidedAddress> resolve(ServerPlayer player) {
+        return Optional.of(new ConnectionAddressService.ProvidedAddress(authoritativeAddressBytes(player)));
+    }
+});
+```
+
+`resolve` runs on the logical server path and must be bounded, nonblocking, and free of filesystem or network access. It returns exactly four IPv4 bytes or sixteen IPv6 bytes. SEF copies the bytes, normalizes the address internally, and does not expose raw address strings through adapter health or normal command output. Integrations must call `ConnectionAddressService.unregisterAdapter("example:proxy")` when their provider becomes unavailable.
 
 `CommandEventJournal` creates immutable redacted observations with correlation, source type, origin, actor, effective actor, canonical action, lifecycle stage, result, dimension, and optional bounded location. Each observer profile is UUID keyed and contains requested state, audience, selected players, actor relation, source scopes, root and action filters, typed source, player, result, world, and origin filters, and projection preferences. Selection, delivery, and every later event recheck root permission, scope permission, hierarchy, exemptions, vanished-player visibility, and metadata or sensitive-field permission.
 
-`CommandRedactionPolicy` runs before any observation consumer. Password and token roots become secret records. Private-message and moderation roots hide their bodies. Command wrappers such as `/execute`, `/run`, `/silent`, `/sudo`, `/function`, and `/schedule` hide the complete nested command. `/data` hides its arguments. Every IP moderation alias hides the full address and reason, and unknown roots retain only the root. Raw command text is not a field in a journal or file record.
+`CommandRedactionPolicy` runs before any observation consumer. Password and token roots become secret records. Private message, HelpOp, admin chat, staff chat, and team chat roots hide their bodies. Command wrappers such as `/execute`, `/run`, `/silent`, `/sudo`, `/function`, and `/schedule` hide the complete nested command. `/data` hides its arguments. Every IP moderation alias hides the full address and reason, and unknown roots retain only the root. Newlines, ISO controls, and Unicode format controls normalize to bounded whitespace before root classification, so they cannot join a sensitive root to its body or disguise it as an unknown root. Raw command text is not a field in a journal or file record.
 
 `FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths. A writer failure creates an incomplete-session marker. An existing marker keeps the sink degraded across enablement until an operator acknowledges repair.
 
@@ -312,8 +336,8 @@ Moderation applies these boundaries:
 
 Phase 7 inventory mutations are server authoritative and transactional where a partial change could lose or duplicate items.
 
-1. Kit definitions serialize complete `ItemStack` state through the registry-aware codec. Claims validate the definition, current registry, permission, optional per-kit permission, cooldown, one-time policy, and inventory capacity before mutation. Loading rejects invalid metadata, orphan use records, duplicate records, and per-player use history above the configured hard bound.
-2. With overflow dropping disabled, a kit claim is atomic and refuses insufficient capacity. With overflow dropping enabled, only the bounded remainder is created in the player world after inventory insertion.
+1. Kit definitions serialize complete `ItemStack` state through the registry aware codec. Claims validate the definition, current registry, permission, optional per kit permission, cooldown, one time policy, and inventory capacity before mutation. The repository repeats stale definition, deletion, cooldown, and one time checks while holding its monitor at usage commit. Loading rejects invalid metadata, orphan use records, duplicate records, and per player use history above the configured hard bound.
+2. With overflow dropping disabled, a kit claim is atomic and refuses insufficient capacity. With overflow dropping enabled, only the bounded remainder is created in the player world after inventory insertion. Inventory state is synchronized before the usage record commits. Any earlier failure restores the full inventory snapshot, discards overflow entities, and sends a full menu resynchronization. No rollback capable operation runs after the usage record commits.
 3. Live InvSee and ender-chest menus capture their authorization and configuration revision. Each click rechecks current permission, feature state, target policy, and revision. Revoked modification access downgrades InvSee to read only. Revoked view access or a changed live policy closes the menu. InvSee registers cooperatively under an existing Brigadier root and never reflectively deletes another mod’s node.
 4. `/disposal` uses a transient server menu whose contents are intentionally destroyed on close. It does not persist or write another inventory.
 5. Item name, lore, and book mutations apply configured length and line bounds. `/more` respects the item stack maximum. `/condense` uses current recipe results and commits only validated replacements.
@@ -543,7 +567,7 @@ The `moderation` section controls Phase 6 authority and observation bounds:
 | --- | --- | --- | --- |
 | `maximumReasonLength` | `512` | 1 to 2048 | Maximum persisted moderation reason |
 | `maximumMassTargets` | `100` | 1 to 1000 | Hard bound for one mass action |
-| `addressProvider` | `direct` | `direct`, `trusted_proxy`, `external`, or `disabled` | Authoritative connection-address source, restart required |
+| `addressProvider` | `direct` | `direct`, `trusted_proxy`, `external`, or `disabled` | Authoritative connection address source, validated live reload |
 | `allowLiteralPlayerAddresses` | `false` | Boolean | Enables separately permissioned player-entered addresses |
 | `allowLiteralConsoleAddresses` | `true` | Boolean | Enables literal console address input |
 | `sharedAddressHardCap` | `10` | 1 to 100 | Maximum sessions resolved from one address |
@@ -653,7 +677,7 @@ Storage guarantees:
 22. Kit definitions and usage history are bounded before load acceptance. Invalid serialized item stacks fail validation and cannot become a partial claim.
 23. Optional file logging is not a managed JSON repository. It creates no path while disabled, owns only fixed descendants of `logs/sef`, refuses symlinks, and uses an incomplete-session marker to diagnose an interrupted drain.
 
-The structured audit service writes bounded JSONL events through a 4096 entry queue. Each event persists schema version, event and session ids, timestamp, actor UUID and username, source type, action id, target UUIDs, normalized parameters, result, reason, duration, origin, job and step correlation ids, definition and policy revisions, provider context, redaction class and rules, observer UUID, previous hash, and audit class. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush. Legacy call sites are adapted into the same schema rather than a smaller JSON shape.
+The structured audit service writes bounded JSONL events through a 4096 entry queue. Each event persists schema version, event and session ids, timestamp, actor UUID and username, source type, action id, target UUIDs, normalized parameters, result, reason, duration, origin, job and step correlation ids, definition and policy revisions, provider context, redaction class and rules, observer UUID, previous hash, and audit class. It rotates at the configured maximum file size, prunes rotated files by retention, redacts command arguments from applicable sensitive events, and attempts a five second shutdown flush. A writer failure stops new acceptance, accounts for the failed batch and queued records, clears unwritable work, and exposes the failure through `/sef doctor`. A writer that exceeds the shutdown bound remains owned and prevents a replacement writer from starting until it exits. Legacy call sites are adapted into the same schema rather than a smaller JSON shape.
 
 Do not let two integrations own the same nickname state. The current provider selection chooses FTB Essentials when enabled and available, otherwise the integrated provider when automatic integration is enabled.
 
@@ -851,7 +875,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 65. Other-target `/getpos`, fixed gamemode shortcuts, and parsed `/gm` grammar without self-permission coupling.
 66. Kit load-time rejection of orphan, malformed, and over-limit use history.
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
-68. Seven required GameTests, including teleport safety, exact condensation totals, incomplete-recipe nonmutation, persistent build and freeze enforcement, and persistent inventory-lock enforcement.
+68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
 Rendering, client packet observation, authenticated multi-client behavior, optional integration behavior with real players, and profiler observation still require the [Phase 1 manual multiplayer matrix](docs/PHASE_1_MANUAL_TESTS.md). Phase 2 and Phase 3 permission mutation, player driven cooldown persistence, location history recovery, and dirty shutdown races remain in [the Phase 2 and 3 manual matrix](docs/PHASE_2_3_MANUAL_TESTS.md). Phase 4 teleport behavior remains in [the Phase 4 matrix](docs/PHASE_4_TESTS.md). Phase 5 social privacy, visibility, live permission revocation, connection packets, mail, reminders, and identity projection remain in [the Phase 5 matrix](docs/PHASE_5_TESTS.md). Phase 6 authenticated moderation, real proxy and provider integration, deliberate filesystem and shutdown failures, MaxLogger coexistence, and profiler behavior remain in [the Phase 6 matrix](docs/PHASE_6_TESTS.md). Phase 7 authenticated inventory transactions, live client menus, real Curios behavior, missing-registry fixtures, player-driven persistence, super-enchant client synchronization, dirty shutdown, and profiler behavior remain in [the Phase 7 matrix](docs/PHASE_7_TESTS.md). Run every applicable matrix before approving a public release.
 

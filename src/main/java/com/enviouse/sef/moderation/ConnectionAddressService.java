@@ -15,6 +15,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
@@ -24,12 +25,21 @@ import java.util.Objects;
 import java.util.Optional;
 
 public final class ConnectionAddressService {
+    private static final int MAXIMUM_ADAPTERS = 32;
+    private static final List<RegisteredAdapter> ADAPTERS = new ArrayList<>();
+
     private final byte[] fingerprintKey = new byte[32];
     private final ProviderMode mode;
+    private volatile String adapterFailure = "";
+    private volatile String failedAdapterId = "";
 
     public ConnectionAddressService() {
+        this(ProviderMode.parse(ConfigHandler.config.moderationAddressProvider.get()));
+    }
+
+    public ConnectionAddressService(ProviderMode mode) {
         new SecureRandom().nextBytes(fingerprintKey);
-        mode = ProviderMode.parse(ConfigHandler.config.moderationAddressProvider.get());
+        this.mode = Objects.requireNonNull(mode, "mode");
     }
 
     public ProviderMode mode() {
@@ -40,30 +50,66 @@ public final class ConnectionAddressService {
         if (mode == ProviderMode.DISABLED) {
             return new Health(mode, false, false, "address operations are disabled");
         }
-        if (mode != ProviderMode.DIRECT) {
+        RegisteredAdapter adapter = mode == ProviderMode.DIRECT ? null : activeAdapter(mode);
+        if (mode != ProviderMode.DIRECT && adapter == null) {
             return new Health(mode, false, false, "the selected address provider has no active adapter");
         }
+        if (adapter != null && !adapter.id().equals(failedAdapterId)) {
+            adapterFailure = "";
+            failedAdapterId = "";
+        }
+        if (!adapterFailure.isBlank()) {
+            return new Health(mode, false, false, adapterFailure);
+        }
         int maximumShared = server == null ? 0 : maximumSharedSessions(server);
+        if (!adapterFailure.isBlank()) {
+            return new Health(mode, false, false, adapterFailure);
+        }
         int cap = ConfigHandler.config.moderationSharedAddressHardCap.get();
         boolean sharedHazard = !sharedActionSafe(
                 0,
                 maximumShared,
                 cap,
                 ConfigHandler.config.moderationFailOnSharedProxy.get());
+        String providerDetail = mode == ProviderMode.DIRECT
+                ? "direct socket provider is healthy"
+                : "address adapter " + adapter.id() + " is healthy";
         return new Health(mode, !sharedHazard, sharedHazard,
-                sharedHazard ? "a shared address exceeds the configured hard cap" : "direct socket provider is healthy");
+                sharedHazard ? "a shared address exceeds the configured hard cap" : providerDetail);
     }
 
     public Optional<Address> forPlayer(ServerPlayer player) {
         Objects.requireNonNull(player, "player");
-        if (mode != ProviderMode.DIRECT) {
+        if (mode == ProviderMode.DISABLED) {
             return Optional.empty();
         }
-        SocketAddress remote = player.connection.getRemoteAddress();
-        if (!(remote instanceof InetSocketAddress socket) || socket.getAddress() == null) {
+        if (mode == ProviderMode.DIRECT) {
+            SocketAddress remote = player.connection.getRemoteAddress();
+            if (!(remote instanceof InetSocketAddress socket) || socket.getAddress() == null) {
+                return Optional.empty();
+            }
+            return Optional.of(address(socket.getAddress()));
+        }
+        RegisteredAdapter adapter = activeAdapter(mode);
+        if (adapter == null) {
             return Optional.empty();
         }
-        return Optional.of(address(socket.getAddress()));
+        try {
+            Optional<ProvidedAddress> supplied = adapter.adapter().resolve(player);
+            if (supplied == null || supplied.isEmpty()) {
+                failedAdapterId = adapter.id();
+                adapterFailure = "address adapter " + adapter.id() + " did not resolve an online session";
+                return Optional.empty();
+            }
+            Address resolved = address(InetAddress.getByAddress(supplied.orElseThrow().bytes()));
+            adapterFailure = "";
+            failedAdapterId = "";
+            return Optional.of(resolved);
+        } catch (RuntimeException | LinkageError | UnknownHostException exception) {
+            failedAdapterId = adapter.id();
+            adapterFailure = "address adapter " + adapter.id() + " failed";
+            return Optional.empty();
+        }
     }
 
     public Optional<Address> literal(String input) {
@@ -100,7 +146,7 @@ public final class ConnectionAddressService {
     public List<Session> sessions(MinecraftServer server, Address address) {
         Objects.requireNonNull(server, "server");
         Objects.requireNonNull(address, "address");
-        if (mode != ProviderMode.DIRECT) {
+        if (!providerActive()) {
             return List.of();
         }
         List<Session> matches = new ArrayList<>();
@@ -114,7 +160,7 @@ public final class ConnectionAddressService {
     }
 
     public boolean safeForSharedAction(MinecraftServer server, Address address) {
-        if (mode != ProviderMode.DIRECT) {
+        if (!providerActive()) {
             return false;
         }
         int count = sessions(server, address).size();
@@ -145,6 +191,62 @@ public final class ConnectionAddressService {
             }
         }
         return maximum;
+    }
+
+    private boolean providerActive() {
+        return mode == ProviderMode.DIRECT
+                || mode != ProviderMode.DISABLED && activeAdapter(mode) != null;
+    }
+
+    public static synchronized boolean registerAdapter(Adapter adapter) {
+        if (adapter == null || ADAPTERS.size() >= MAXIMUM_ADAPTERS) {
+            return false;
+        }
+        final String id;
+        final ProviderMode mode;
+        final int priority;
+        try {
+            id = normalizeAdapterId(adapter.id());
+            mode = Objects.requireNonNull(adapter.mode(), "mode");
+            priority = adapter.priority();
+        } catch (RuntimeException | LinkageError exception) {
+            return false;
+        }
+        if (id == null || mode == ProviderMode.DIRECT || mode == ProviderMode.DISABLED
+                || priority < -10_000 || priority > 10_000
+                || ADAPTERS.stream().anyMatch(existing -> existing.id().equals(id))) {
+            return false;
+        }
+        ADAPTERS.add(new RegisteredAdapter(id, mode, priority, adapter));
+        ADAPTERS.sort(Comparator.comparingInt(RegisteredAdapter::priority)
+                .reversed()
+                .thenComparing(RegisteredAdapter::id));
+        return true;
+    }
+
+    public static synchronized boolean unregisterAdapter(String id) {
+        String normalized = normalizeAdapterId(id);
+        return normalized != null && ADAPTERS.removeIf(adapter -> adapter.id().equals(normalized));
+    }
+
+    private static synchronized RegisteredAdapter activeAdapter(ProviderMode mode) {
+        return ADAPTERS.stream()
+                .filter(adapter -> adapter.mode() == mode)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static String normalizeAdapterId(String id) {
+        if (id == null) {
+            return null;
+        }
+        String normalized = id.strip().toLowerCase(Locale.ROOT);
+        if (normalized.isBlank() || normalized.length() > 128
+                || normalized.codePoints().anyMatch(Character::isISOControl)
+                || !normalized.matches("[a-z0-9_.:-]+")) {
+            return null;
+        }
+        return normalized;
     }
 
     private Address address(InetAddress value) {
@@ -201,7 +303,7 @@ public final class ConnectionAddressService {
         EXTERNAL,
         DISABLED;
 
-        static ProviderMode parse(String value) {
+        public static ProviderMode parse(String value) {
             return switch (value == null ? "" : value.strip().toLowerCase(Locale.ROOT)) {
                 case "direct", "direct_socket" -> DIRECT;
                 case "trusted_proxy", "trusted-proxy" -> TRUSTED_PROXY;
@@ -235,5 +337,32 @@ public final class ConnectionAddressService {
     }
 
     public record Health(ProviderMode mode, boolean available, boolean sharedAddressHazard, String detail) {
+    }
+
+    public interface Adapter {
+        String id();
+
+        ProviderMode mode();
+
+        int priority();
+
+        Optional<ProvidedAddress> resolve(ServerPlayer player);
+    }
+
+    public record ProvidedAddress(byte[] bytes) {
+        public ProvidedAddress {
+            bytes = Objects.requireNonNull(bytes, "bytes").clone();
+            if (bytes.length != 4 && bytes.length != 16) {
+                throw new IllegalArgumentException("Address length is invalid");
+            }
+        }
+
+        @Override
+        public byte[] bytes() {
+            return bytes.clone();
+        }
+    }
+
+    private record RegisteredAdapter(String id, ProviderMode mode, int priority, Adapter adapter) {
     }
 }

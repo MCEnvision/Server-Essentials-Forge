@@ -1,5 +1,6 @@
 package com.enviouse.sef.kernel;
 
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
@@ -107,6 +108,7 @@ public final class KernelCommands {
         var repositories = storage.diagnostics();
         var profiles = KernelServices.profiles().diagnostic();
         var quotaProviderProblems = KernelServices.quotas().providerDiagnostics();
+        var securityAudit = SecurityAuditService.health();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText("&6SEF doctor"), false);
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Catalog entries: &f" + KernelServices.catalog().size()
@@ -133,6 +135,12 @@ public final class KernelCommands {
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Quota provider failures: "
                         + (quotaProviderProblems.isEmpty() ? "&a0" : "&c" + quotaProviderProblems.size())), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Security audit: "
+                        + (securityAudit.running() && securityAudit.writerAlive()
+                        && securityAudit.failures() == 0L && securityAudit.dropped() == 0L
+                        ? "&ahealthy"
+                        : "&crequires attention")), false);
         for (var repository : repositories) {
             source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                     "&7" + repository.id() + " &8| &f" + repository.state().name().toLowerCase(java.util.Locale.ROOT)
@@ -151,6 +159,10 @@ public final class KernelCommands {
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.UNSUPPORTED
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.ERROR
+                && securityAudit.running()
+                && securityAudit.writerAlive()
+                && securityAudit.failures() == 0L
+                && securityAudit.dropped() == 0L
                 && !storage.recoveryMode();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 healthy ? "&aNo kernel errors detected." : "&eKernel requires operator attention."), false);

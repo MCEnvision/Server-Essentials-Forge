@@ -27,7 +27,7 @@ This is a plan, not a statement that every described feature is already implemen
 
 ## Implementation status update, 2026-07-26
 
-Phases 1 through 7 have automated implementation coverage in the current phase branch. They are not release complete. The Phase 6 and Phase 7 audit at implementation commit `89c57a226a33971638a9efbc5a85b0069864bc71` passes 191 unit tests, all 7 required GameTests, the full build, JAR integrity inspection, and a dedicated-server diagnostic and clean-stop cycle. Authenticated multiplayer, packet-visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, deliberate filesystem failures, real proxy and external address providers, super-enchant client synchronization, and profiler cases in the phase test documents remain mandatory approval gates.
+Phases 1 through 7 have automated implementation coverage in the current phase branch. They are not release complete. The latest Phase 6 and Phase 7 repair pass covers mandatory audit writer failure, optional logger failure recovery, control character redaction, persistent freeze disablement, inventory lock packet and drop paths, jail lifecycle enforcement, connection address adapter registration, and kit usage transaction boundaries. It passes the unit, GameTest, full build, JAR integrity, and dedicated server gates recorded in the phase verification documents. Authenticated multiplayer, packet visible behavior, live provider mutation, actual Curios inventory interaction, qualifying player cooldown persistence, dirty shutdown races, deliberate filesystem failures, real proxy and external address providers, super enchant client synchronization, and profiler cases in the phase test documents remain mandatory approval gates.
 
 Completed security and authorization work:
 
@@ -48,16 +48,19 @@ Completed validation and state work:
 - Alternate account collection is opt in. It defaults to salted server-local address hashing, retention is enforced, local addresses are ignored, group and profile counts are capped, display is redacted by default, and raw view, purge, and export use separate denied-by-default permissions.
 - `/invsee` has separate view, modify, offline, Curios, and other-player ender chest permissions. Open menus revalidate permissions, close or downgrade after revocation, prevent collect-to-cursor bypasses, and audit mutation metadata without item NBT. Offline inventory and other-player ender chest routes remain reserved but unimplemented.
 - InvSee captures the configuration revision and closes stale menus. Collision handling is cooperative and preserves another mod’s Brigadier node instead of reflectively deleting it.
-- Phase 6 redaction hides moderation reasons, nested wrapper commands, `/data` arguments, password roots, private messages, unknown roots, and address moderation arguments before observation. File logger writer failures create an incomplete-session marker, and an existing marker remains degraded until acknowledged.
+- Phase 6 redaction hides moderation reasons, nested wrapper commands, `/data` arguments, password roots, all private chat aliases, unknown roots, and address moderation arguments before observation. Newlines, controls, and Unicode format characters cannot disguise the root. File logger writer failures create an incomplete session marker, and an existing marker remains degraded until acknowledged.
 - Command-spy administration of another observer applies its distinct permission, hierarchy, exemptions, and vanish visibility. Pardon operations apply the same ban exemption boundary as ban operations.
-- Kit loading validates definition metadata, rejects orphan use records, and enforces the per-player use-record ceiling before publishing state.
+- Kit loading validates definition metadata, rejects orphan use records, and enforces the per player use record ceiling before publishing state. Usage commit rejects deleted, stale, cooling down, and already claimed definitions while holding the repository lock.
+- Inventory lock covers vanilla container click, recipe, pick item, creative slot, offhand swap, drop, pickup, and use paths. Repository derived freeze mirrors clear immediately when expanded moderation is disabled without deleting persistent controls. Jail enforcement follows login, respawn, and dimension changes.
+- Trusted proxy and external address integrations can register bounded prioritized adapters. Missing, invalid, throwing, or absent adapters fail closed without becoming startup dependencies.
+- Mandatory security audit writer failures stop acceptance, account for lost queued records, and appear in `/sef doctor`.
 - Parsed and shortcut gamemode routes separate self and other-player permissions. Super enchanting enforces configurable relational minimum and maximum bounds and closes stale menus before mutation.
 - Banned block background scanning defaults off, never forces unloaded chunks, uses an incremental cursor, and respects a configurable per-tick budget. Inventory scans, tab header updates, LuckPerms metadata, chat history, cooldown cleanup, audit writes, storage exports, and alternate account retention have bounded cadence, caches, queues, or collection limits. Mute and banned item tick paths serialize snapshots in memory, coalesce repeated saves, and perform filesystem writes on bounded daemon workers.
 
 Current automated and smoke verification evidence:
 
 - JUnit regression coverage includes real Brigadier authorization, permission manifest determinism and duplicate rejection, command root policy, strict durations, nickname normalization and authenticated username hover, legacy nickname fixtures, vanish visibility, permission reconciliation, hierarchy, workstation cooldown cleanup, shared execution ordering, storage atomicity, migration preparation failure, quarantine, unknown-field preservation, dynamic deletion semantics, announcement type and command policy separation, asynchronous profile and manager persistence, alternate account privacy, permission refresh authority invalidation, Phase 6 nested command and sensitive-argument redaction, command-spy filters, logger incomplete-session recovery, connection-address authority, moderation persistence, Phase 7 kit load bounds, menu revision revocation, cooperative InvSee collision behavior, least-privilege target grammar, catalog ownership, item amount bounds, and super-enchant level policy.
-- Seven required GameTests cover teleport safety, exact condensation totals, incomplete condensation nonmutation, persistent build-lock and freeze enforcement, and persistent inventory-lock enforcement.
+- Nine required GameTests cover teleport safety, exact condensation totals, incomplete condensation nonmutation, persistent build lock and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup.
 - The dedicated NeoForge server reaches ready state with no optional integrations and shuts down through normal `stop` with all dimensions saved.
 - `README.md` and `DOCUMENTATION.md` describe current behavior, recovery, privacy, permissions, integration boundaries, and remaining roadmap work.
 - Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack. These runs prove startup isolation only.
@@ -4794,7 +4797,7 @@ No permission reveals `hunter2`.
 Rules:
 
 - Unknown roots fail to root-only display by default.
-- Newlines and control characters are escaped.
+- Newlines, control characters, and Unicode format controls normalize to bounded whitespace before root classification.
 - Selectors remain bounded source text and are not expanded into hidden identities for display.
 - A redaction-rule reload invalidates open history pages and applies to all future projections.
 - Previously written files are not rewritten silently. Migration or purge is an explicit operation.

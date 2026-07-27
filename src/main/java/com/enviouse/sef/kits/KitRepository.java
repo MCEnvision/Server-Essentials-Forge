@@ -206,20 +206,32 @@ public final class KitRepository implements StorageRepository {
     }
 
     public synchronized Availability availability(UUID playerId, Kit kit, Instant now) {
-        KitUse use = uses.get(new UseKey(playerId, kit.id()));
+        Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(now, "now");
+        Kit current = currentKit(kit);
+        KitUse use = uses.get(new UseKey(playerId, current.id()));
         if (use == null) {
             return new Availability(true, null, false);
         }
-        if (kit.oneTime()) {
+        if (current.oneTime()) {
             return new Availability(false, null, true);
         }
-        Instant next = use.claimedAt().plusSeconds(kit.cooldownSeconds());
+        Instant next = use.claimedAt().plusSeconds(current.cooldownSeconds());
         return new Availability(!next.isAfter(now), next, false);
     }
 
     public synchronized void recordUse(UUID playerId, Kit kit, Instant now) {
         writable();
-        UseKey key = new UseKey(playerId, kit.id());
+        Objects.requireNonNull(playerId, "playerId");
+        Objects.requireNonNull(now, "now");
+        Kit current = currentKit(kit);
+        Availability availability = availability(playerId, current, now);
+        if (!availability.available()) {
+            throw new IllegalStateException(availability.alreadyClaimed()
+                    ? "One time kit was already claimed"
+                    : "Kit is still on cooldown");
+        }
+        UseKey key = new UseKey(playerId, current.id());
         long playerUses = uses.keySet().stream()
                 .filter(existing -> existing.playerId().equals(playerId))
                 .count();
@@ -232,11 +244,23 @@ public final class KitRepository implements StorageRepository {
         KitUse previous = uses.get(key);
         uses.put(key, new KitUse(
                 playerId,
-                kit.id(),
+                current.id(),
                 now,
                 previous == null ? 1 : Math.addExact(previous.claimCount(), 1),
                 previous == null ? 1 : previous.revision() + 1));
         revision++;
+    }
+
+    private Kit currentKit(Kit requested) {
+        Objects.requireNonNull(requested, "kit");
+        Kit current = kits.get(normalizeId(requested.id()));
+        if (current == null) {
+            throw new IllegalStateException("Kit no longer exists");
+        }
+        if (!current.equals(requested)) {
+            throw new IllegalStateException("Kit definition changed");
+        }
+        return current;
     }
 
     public synchronized boolean reset(UUID playerId, String kitId) {

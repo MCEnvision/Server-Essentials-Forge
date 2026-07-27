@@ -2,6 +2,7 @@ package com.enviouse.sef.gametest;
 
 import com.enviouse.sef.disablebuilding.DisableBuildingEventHandler;
 import com.enviouse.sef.freeze.FreezeEventHandler;
+import com.enviouse.sef.freeze.FreezeManager;
 import com.enviouse.sef.invlock.InvLockEventHandler;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.moderation.ModerationRepository;
@@ -10,7 +11,11 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 import net.neoforged.neoforge.gametest.GameTestHolder;
@@ -88,6 +93,65 @@ public final class ModerationGameTests {
             helper.assertTrue(event.isCanceled(), "inventory lock did not cancel item use");
         } finally {
             repository.removeControl(player.getUUID(), ModerationRepository.ControlType.INVENTORY_LOCK);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void persistentInventoryLockCancelsItemDrops(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ModerationRepository repository = KernelServices.moderation();
+        try {
+            repository.applyControl(
+                    player.getUUID(),
+                    ModerationRepository.ControlType.INVENTORY_LOCK,
+                    null,
+                    "game test",
+                    UUID.randomUUID());
+            ItemEntity dropped = new ItemEntity(
+                    helper.getLevel(),
+                    player.getX(),
+                    player.getY(),
+                    player.getZ(),
+                    new ItemStack(Items.STONE));
+            ItemTossEvent event = new ItemTossEvent(dropped, player);
+
+            InvLockEventHandler.onItemToss(event);
+
+            helper.assertTrue(event.isCanceled(), "inventory lock did not cancel item dropping");
+        } finally {
+            repository.removeControl(player.getUUID(), ModerationRepository.ControlType.INVENTORY_LOCK);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void repositoryFreezeMirrorCanBeClearedWithoutDeletingTheControl(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        ModerationRepository repository = KernelServices.moderation();
+        try {
+            repository.applyControl(
+                    player.getUUID(),
+                    ModerationRepository.ControlType.FREEZE,
+                    null,
+                    "game test",
+                    UUID.randomUUID());
+            FreezeManager.tick(helper.getLevel().getServer());
+            helper.assertTrue(
+                    FreezeManager.getFreezeData(player.getUUID()) != null,
+                    "repository freeze was not mirrored");
+
+            FreezeManager.clearRepositoryState();
+
+            helper.assertTrue(
+                    FreezeManager.getFreezeData(player.getUUID()) == null,
+                    "repository freeze mirror survived disable cleanup");
+            helper.assertTrue(
+                    repository.control(player.getUUID(), ModerationRepository.ControlType.FREEZE).isPresent(),
+                    "disable cleanup deleted persistent moderation state");
+        } finally {
+            FreezeManager.clearRepositoryState();
+            repository.removeControl(player.getUUID(), ModerationRepository.ControlType.FREEZE);
         }
         helper.succeed();
     }

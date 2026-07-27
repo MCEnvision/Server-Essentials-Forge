@@ -265,7 +265,7 @@ public final class KitCommands {
         if (!dropOverflow && !canFit(player, items)) {
             return fail(source, "Inventory does not have enough space for this kit.");
         }
-        return execute(source, "sef:kit.claim", Map.of(
+        int result = execute(source, "sef:kit.claim", Map.of(
                 "kit", kit.id(),
                 "stacks", Integer.toString(items.size())), List.of(player.getUUID()), () -> {
             List<ItemStack> before = snapshot(player.getInventory());
@@ -275,29 +275,34 @@ public final class KitCommands {
                     ItemStack grant = item.copy();
                     if (!player.getInventory().add(grant) || !grant.isEmpty()) {
                         if (!dropOverflow || grant.isEmpty()) {
-                            restore(player.getInventory(), before);
+                            rollback(player, before, dropped);
                             return fail(source, "Inventory changed before the kit could be committed.");
                         }
                         ItemEntity entity = player.drop(grant.copy(), false);
                         if (entity == null) {
-                            discard(dropped);
-                            restore(player.getInventory(), before);
+                            rollback(player, before, dropped);
                             return fail(source, "Kit overflow could not be placed safely.");
                         }
                         dropped.add(entity);
                     }
                 }
-                KernelServices.kits().recordUse(player.getUUID(), kit, Instant.now());
                 player.getInventory().setChanged();
                 player.containerMenu.broadcastChanges();
-                success(source, "Claimed kit " + kit.id() + ".");
+                KernelServices.kits().recordUse(player.getUUID(), kit, Instant.now());
                 return 1;
             } catch (RuntimeException exception) {
-                discard(dropped);
-                restore(player.getInventory(), before);
+                try {
+                    rollback(player, before, dropped);
+                } catch (RuntimeException rollbackFailure) {
+                    exception.addSuppressed(rollbackFailure);
+                }
                 throw exception;
             }
         }, permission("commands.kit"));
+        if (result > 0) {
+            success(source, "Claimed kit " + kit.id() + ".");
+        }
+        return result;
     }
 
     private static int delete(CommandSourceStack source, String id) {
@@ -516,6 +521,16 @@ public final class KitCommands {
 
     private static void discard(List<ItemEntity> dropped) {
         dropped.forEach(ItemEntity::discard);
+    }
+
+    private static void rollback(
+            ServerPlayer player,
+            List<ItemStack> snapshot,
+            List<ItemEntity> dropped
+    ) {
+        discard(dropped);
+        restore(player.getInventory(), snapshot);
+        player.containerMenu.sendAllDataToRemote();
     }
 
     @SafeVarargs

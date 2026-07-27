@@ -11,6 +11,7 @@ public final class CommandRedactionPolicy {
             "2fa", "otp", "pin", "token");
     private static final Set<String> PRIVATE_CONTENT_ROOTS = Set.of(
             "msg", "tell", "w", "whisper", "r", "reply", "mail", "pchat",
+            "helpop", "ac", "adminchat", "staffchat", "teammsg", "tm",
             "fakemessage", "fakerankmessage",
             "ban", "tempban", "kick", "kickall", "kickme", "mute", "tempmute",
             "warn", "jail", "freeze");
@@ -106,12 +107,29 @@ public final class CommandRedactionPolicy {
         if (value == null) {
             return "";
         }
-        String sanitized = value.replace("\r", "\\r").replace("\n", "\\n").codePoints()
-                .filter(codePoint -> !Character.isISOControl(codePoint))
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString()
-                .trim();
-        return sanitized.length() <= maximumLength ? sanitized : sanitized.substring(0, maximumLength);
+        StringBuilder sanitized = new StringBuilder(Math.min(value.length(), maximumLength));
+        boolean previousWhitespace = true;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            boolean whitespace = Character.isWhitespace(codePoint)
+                    || Character.isISOControl(codePoint)
+                    || Character.getType(codePoint) == Character.FORMAT;
+            if (whitespace) {
+                if (!previousWhitespace && sanitized.length() < maximumLength) {
+                    sanitized.append(' ');
+                }
+                previousWhitespace = true;
+                continue;
+            }
+            int width = Character.charCount(codePoint);
+            if (sanitized.length() + width > maximumLength) {
+                break;
+            }
+            sanitized.appendCodePoint(codePoint);
+            previousWhitespace = false;
+        }
+        return sanitized.toString().strip();
     }
 
     public record RedactedCommand(

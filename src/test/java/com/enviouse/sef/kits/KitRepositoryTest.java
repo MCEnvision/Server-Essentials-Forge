@@ -88,4 +88,46 @@ class KitRepositoryTest {
 
         assertEquals(StorageRepository.RepositoryState.RECOVERY, reader.load(temporaryDirectory).state());
     }
+
+    @Test
+    void oneTimeAndCooldownPoliciesAreEnforcedAtTheRepositoryBoundary() {
+        UUID actor = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        Instant now = Instant.parse("2026-01-01T00:00:00Z");
+        KitRepository repository = new KitRepository(4, 4);
+        repository.load(temporaryDirectory);
+        KitRepository.Kit oneTime =
+                repository.put("once", List.of("one"), Duration.ZERO, true, actor);
+        KitRepository.Kit cooldown =
+                repository.put("daily", List.of("two"), Duration.ofHours(1), false, actor);
+
+        repository.recordUse(player, oneTime, now);
+        repository.recordUse(player, cooldown, now);
+
+        assertThrows(IllegalStateException.class, () ->
+                repository.recordUse(player, oneTime, now.plusSeconds(1)));
+        assertThrows(IllegalStateException.class, () ->
+                repository.recordUse(player, cooldown, now.plusSeconds(3599)));
+        repository.recordUse(player, cooldown, now.plusSeconds(3600));
+    }
+
+    @Test
+    void staleAndDeletedKitDefinitionsCannotCreateUseRecords() {
+        UUID actor = UUID.randomUUID();
+        UUID player = UUID.randomUUID();
+        KitRepository repository = new KitRepository(4, 4);
+        repository.load(temporaryDirectory);
+        KitRepository.Kit stale =
+                repository.put("starter", List.of("one"), Duration.ZERO, false, actor);
+
+        repository.updatePolicy("starter", 60L, null, null, null);
+
+        assertThrows(IllegalStateException.class, () ->
+                repository.recordUse(player, stale, Instant.now()));
+        KitRepository.Kit current = repository.kit("starter").orElseThrow();
+        repository.delete("starter");
+        assertThrows(IllegalStateException.class, () ->
+                repository.recordUse(player, current, Instant.now()));
+        assertEquals(0, repository.validateAll().useRecords());
+    }
 }

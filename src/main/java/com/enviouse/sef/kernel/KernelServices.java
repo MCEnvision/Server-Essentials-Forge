@@ -8,6 +8,7 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.identity.PlayerProfileRepository;
+import com.enviouse.sef.freeze.FreezeManager;
 import com.enviouse.sef.kernel.command.AliasCompiler;
 import com.enviouse.sef.kernel.command.BundleCompiler;
 import com.enviouse.sef.kernel.command.CapabilityManifest;
@@ -286,6 +287,15 @@ public final class KernelServices {
                 .collect(java.util.stream.Collectors.toUnmodifiableMap(action -> action, ignored -> false));
         featureGates.publish(new FeatureGateService.Snapshot(revision, features, Map.of(), actionOverrides));
         teleportSettings = replacementTeleportSettings;
+        ConnectionAddressService.ProviderMode configuredAddressMode =
+                ConnectionAddressService.ProviderMode.parse(
+                        ConfigHandler.config.moderationAddressProvider.get());
+        if (connectionAddresses.mode() != configuredAddressMode) {
+            connectionAddresses = new ConnectionAddressService(configuredAddressMode);
+        }
+        if (!ConfigHandler.config.enableModerationEssentials.get()) {
+            FreezeManager.clearRepositoryState();
+        }
         if (!ConfigHandler.config.enableTeleportEssentials.get()) {
             com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(
                     WarmupService.CancelReason.FEATURE_DISABLE);

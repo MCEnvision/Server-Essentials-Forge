@@ -24,6 +24,12 @@ public class InvLockManager {
                 .isPresent();
     }
 
+    public static boolean isEnforced(UUID uuid) {
+        return (ConfigHandler.config.enableInvLock.get()
+                || ConfigHandler.config.enableModerationEssentials.get())
+                && isLocked(uuid);
+    }
+
     public static boolean toggle(UUID uuid) {
         if (lockedPlayers.contains(uuid)) {
             lockedPlayers.remove(uuid);

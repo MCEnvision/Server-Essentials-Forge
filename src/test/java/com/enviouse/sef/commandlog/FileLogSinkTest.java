@@ -89,8 +89,11 @@ class FileLogSinkTest {
         Path marker = temporaryDirectory.resolve("logs").resolve("sef")
                 .resolve("state").resolve("incomplete-session.json");
         await(() -> Files.isRegularFile(marker));
+        await(() -> !threadExists("sef-file-log"));
 
         assertEquals(FileLogSink.State.FAILED, sink.health().state());
+        assertFalse(sink.health().accepting());
+        assertFalse(sink.submit(record(UUID.randomUUID(), "say", "sef:test.say")));
         assertTrue(Files.isRegularFile(marker));
         sink.shutdown();
     }

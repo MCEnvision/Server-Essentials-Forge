@@ -9,6 +9,7 @@ import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.TriState;
+import net.neoforged.neoforge.event.entity.item.ItemTossEvent;
 import net.neoforged.neoforge.event.entity.player.ItemEntityPickupEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerContainerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
@@ -27,9 +28,8 @@ public class InvLockEventHandler {
     /** Block opening containers (PlayerContainerEvent.Open is not cancelable; close it instead). */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onContainerOpen(PlayerContainerEvent.Open event) {
-        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
-            if (InvLockManager.isLocked(player.getUUID())) {
+            if (InvLockManager.isEnforced(player.getUUID())) {
                 // Close the container immediately
                 player.closeContainer();
                 player.sendSystemMessage(TextFormatter.stringToFormattedText(
@@ -44,20 +44,26 @@ public class InvLockEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemPickup(ItemEntityPickupEvent.Pre event) {
-        if (!enabled()) return;
         if (event.getPlayer() instanceof ServerPlayer player) {
-            if (InvLockManager.isLocked(player.getUUID())) {
+            if (InvLockManager.isEnforced(player.getUUID())) {
                 event.setCanPickup(TriState.FALSE);
             }
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onItemToss(ItemTossEvent event) {
+        if (event.getPlayer() instanceof ServerPlayer player
+                && InvLockManager.isEnforced(player.getUUID())) {
+            event.setCanceled(true);
         }
     }
 
     /** Block right-click interactions to prevent item usage. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
-            if (InvLockManager.isLocked(player.getUUID())) {
+            if (InvLockManager.isEnforced(player.getUUID())) {
                 event.setCanceled(true);
             }
         }
@@ -66,15 +72,10 @@ public class InvLockEventHandler {
     /** Block right-click blocks to prevent container opening via interact. */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!enabled()) return;
         if (event.getEntity() instanceof ServerPlayer player) {
-            if (InvLockManager.isLocked(player.getUUID())) {
+            if (InvLockManager.isEnforced(player.getUUID())) {
                 event.setCanceled(true);
             }
         }
-    }
-    private static boolean enabled() {
-        return ConfigHandler.config.enableInvLock.get()
-                || ConfigHandler.config.enableModerationEssentials.get();
     }
 }

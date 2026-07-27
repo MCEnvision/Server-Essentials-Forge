@@ -9,8 +9,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.network.DisconnectionDetails;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import com.enviouse.sef.invlock.InvLockManager;
 import com.enviouse.sef.social.ConnectionMessageService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
@@ -47,9 +49,44 @@ public class ServerGamePacketListenerImplMixin {
 	}
 
 	// Track active entity during packet handling for sound/event suppression.
-	@Inject(method = "handlePlayerAction", at = @At("HEAD"))
-	public void vanishmod$beforeHandlePlayerAction(CallbackInfo ci) {
+	@Inject(method = "handlePlayerAction", at = @At("HEAD"), cancellable = true)
+	public void vanishmod$beforeHandlePlayerAction(ServerboundPlayerActionPacket packet, CallbackInfo ci) {
+		if (InvLockManager.isEnforced(player.getUUID())
+				&& switch (packet.getAction()) {
+					case DROP_ITEM, DROP_ALL_ITEMS, SWAP_ITEM_WITH_OFFHAND -> true;
+					default -> false;
+				}) {
+			sef$resynchronizeLockedInventory();
+			ci.cancel();
+			return;
+		}
 		VanishUtil.ACTIVE_ENTITY.set(player);
+	}
+
+	@Inject(
+			method = {
+					"handlePickItem",
+					"handleContainerSlotStateChanged",
+					"handleContainerClick",
+					"handlePlaceRecipe",
+					"handleContainerButtonClick",
+					"handleSetCreativeModeSlot"
+			},
+			at = @At("HEAD"),
+			cancellable = true)
+	private void sef$blockLockedInventoryMutation(CallbackInfo ci) {
+		if (!InvLockManager.isEnforced(player.getUUID())) {
+			return;
+		}
+		sef$resynchronizeLockedInventory();
+		ci.cancel();
+	}
+
+	private void sef$resynchronizeLockedInventory() {
+		player.containerMenu.sendAllDataToRemote();
+		if (player.containerMenu != player.inventoryMenu) {
+			player.closeContainer();
+		}
 	}
 
 	@Inject(method = {"handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract"}, at = @At("RETURN"))

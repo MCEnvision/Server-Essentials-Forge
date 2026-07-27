@@ -24,17 +24,26 @@ import java.util.Set;
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public final class ModerationEvents {
     private static final Set<String> JAIL_COMMAND_ALLOWLIST = Set.of(
-            "msg", "tell", "w", "whisper", "r", "reply", "helpop", "rules", "info", "jails");
+            "msg", "tell", "w", "whisper", "r", "reply",
+            "helpop", "ac", "adminchat", "staffchat", "pchat", "teammsg", "tm",
+            "rules", "info", "jails");
 
     private ModerationEvents() {
     }
 
     @SubscribeEvent
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
-        if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)) {
-            return;
-        }
-        player.getServer().execute(() -> enforceSentence(player, true));
+        scheduleEnforcement(event);
+    }
+
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        scheduleEnforcement(event);
+    }
+
+    @SubscribeEvent
+    public static void onDimensionChange(PlayerEvent.PlayerChangedDimensionEvent event) {
+        scheduleEnforcement(event);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -46,17 +55,7 @@ public final class ModerationEvents {
         if (player == null || KernelServices.moderation().sentence(player.getUUID()).isEmpty()) {
             return;
         }
-        String input = event.getParseResults().getReader().getString().strip();
-        if (input.startsWith("/")) {
-            input = input.substring(1);
-        }
-        int separator = input.indexOf(' ');
-        String root = (separator < 0 ? input : input.substring(0, separator)).toLowerCase(Locale.ROOT);
-        int namespace = root.indexOf(':');
-        if (namespace >= 0) {
-            root = root.substring(namespace + 1);
-        }
-        if (!JAIL_COMMAND_ALLOWLIST.contains(root)) {
+        if (!allowedWhileJailed(event.getParseResults().getReader().getString())) {
             event.setCanceled(true);
             player.sendSystemMessage(TextFormatter.stringToFormattedText(
                     "&cThat command is unavailable while jailed."));
@@ -93,6 +92,20 @@ public final class ModerationEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onItemInteract(PlayerInteractEvent.RightClickItem event) {
+        if (event.getEntity() instanceof ServerPlayer player && jailed(player)) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (event.getEntity() instanceof ServerPlayer player && jailed(player)) {
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
         if (event.getEntity() instanceof ServerPlayer player && jailed(player)) {
             event.setCanceled(true);
         }
@@ -158,6 +171,41 @@ public final class ModerationEvents {
 
     private static boolean jailed(ServerPlayer player) {
         return enabled() && KernelServices.moderation().sentence(player.getUUID()).isPresent();
+    }
+
+    static boolean allowedWhileJailed(String input) {
+        if (input == null) {
+            return false;
+        }
+        String candidate = input.strip();
+        while (candidate.startsWith("/")) {
+            candidate = candidate.substring(1).stripLeading();
+        }
+        int separator = 0;
+        while (separator < candidate.length()
+                && !Character.isWhitespace(candidate.charAt(separator))) {
+            separator++;
+        }
+        String root = candidate.substring(0, separator).toLowerCase(Locale.ROOT);
+        int namespace = root.indexOf(':');
+        if (namespace >= 0) {
+            root = root.substring(namespace + 1);
+        }
+        return JAIL_COMMAND_ALLOWLIST.contains(root);
+    }
+
+    private static void scheduleEnforcement(PlayerEvent event) {
+        if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)
+                || player.getServer() == null) {
+            return;
+        }
+        player.getServer().execute(() -> {
+            if (player.isAlive()
+                    && !player.hasDisconnected()
+                    && player.getServer().getPlayerList().getPlayer(player.getUUID()) == player) {
+                enforceSentence(player, true);
+            }
+        });
     }
 
     private static boolean enabled() {

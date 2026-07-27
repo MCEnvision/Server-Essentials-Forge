@@ -89,6 +89,7 @@ public class FreezeManager {
      */
     public static void freezePlayer(ServerPlayer target, String adminName, String reason, long durationTicks, MinecraftServer server) {
         long currentTick = server.getTickCount();
+        repositoryFrozenPlayers.remove(target.getUUID());
         FreezeData data = new FreezeData(
                 target.getUUID(), target.getGameProfile().getName(),
                 adminName, reason, currentTick, durationTicks,
@@ -200,6 +201,8 @@ public class FreezeManager {
                 frozenPlayers.remove(playerId);
                 return true;
             });
+        } else {
+            clearRepositoryState();
         }
 
         Iterator<Map.Entry<UUID, FreezeData>> it = frozenPlayers.entrySet().iterator();
@@ -255,6 +258,13 @@ public class FreezeManager {
     public static void clear() {
         frozenPlayers.clear();
         repositoryFrozenPlayers.clear();
+    }
+
+    public static void clearRepositoryState() {
+        repositoryFrozenPlayers.removeIf(playerId -> {
+            frozenPlayers.remove(playerId);
+            return true;
+        });
     }
 
     /**
