@@ -3,11 +3,11 @@ package com.enviouse.sef.clearchat;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -29,15 +29,19 @@ public class ClearChatCommand {
         dispatcher.register(Commands.literal("cc")
             .requires(src -> PermissionService.has(src, PermissionsHandler.clearChatCommand))
             .executes(ctx -> executeClearAll(ctx.getSource()))
-            .then(Commands.argument("player", EntityArgument.player())
-                .executes(ctx -> executeClearPlayer(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))));
+            .then(IdentityArguments.online("player")
+                .executes(ctx -> executeClearPlayer(
+                    ctx.getSource(),
+                    IdentityArguments.getOnline(ctx, "player")))));
 
         // /clearchat alias
         dispatcher.register(Commands.literal("clearchat")
             .requires(src -> PermissionService.has(src, PermissionsHandler.clearChatCommand))
             .executes(ctx -> executeClearAll(ctx.getSource()))
-            .then(Commands.argument("player", EntityArgument.player())
-                .executes(ctx -> executeClearPlayer(ctx.getSource(), EntityArgument.getPlayer(ctx, "player")))));
+            .then(IdentityArguments.online("player")
+                .executes(ctx -> executeClearPlayer(
+                    ctx.getSource(),
+                    IdentityArguments.getOnline(ctx, "player")))));
     }
 
     private static int executeClearAll(CommandSourceStack source) {

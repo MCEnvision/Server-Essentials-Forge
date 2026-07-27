@@ -218,6 +218,8 @@ Administrative defaults:
 
 Vanish level nodes remain `sef.vanish.1`, `sef.vanish.2`, and `sef.vanish.3`. Observer nodes remain `sef.vanishsee.1`, `sef.vanishsee.2`, and `sef.vanishsee.3`. Lower numeric levels are more powerful.
 
+The canonical `/sef logging` category is visible only when the source has at least one logging action permission. It has no implicit root action. Callers must select an explicitly permissioned subcommand such as `/sef logging status`.
+
 ### 6.3 `/sef` authorization
 
 `/sef` uses Brigadier literal children rather than a greedy string argument.
@@ -280,7 +282,7 @@ Command quota contexts include every currently granted finite tier node from the
 
 Phase 4 command mutations enter the canonical kernel action before changing repository state. This includes home set, delete, rename, and restore operations, server warp administration, player warp ownership and publication changes, favorites, reports, transfer changes, moderation changes, spawn changes, random teleport center changes, offline teleport queue changes, and teleport request preference changes. The kernel applies the registered feature, source, permission, cooldown, warmup, cost, target, and audit policy for the canonical action.
 
-All migrated single player arguments use the shared SEF identity argument. It accepts authenticated usernames and unambiguous quoted display nicknames, obtains suggestions from the active nickname provider, and removes a vanished online player from both online and known profile resolution when the viewer cannot see that player. Direct private messages, private chat selection, home administration, warp sharing, teleport requests, offline teleport targets, social selection, connection message management, and manual welcome delivery use this route.
+All migrated single player arguments use the shared SEF identity argument. It accepts authenticated usernames and unambiguous quoted display nicknames, obtains suggestions from the active nickname provider, and removes a vanished online player from both online and known profile resolution when the viewer cannot see that player. Direct private messages, private chat selection, home administration, warp sharing, teleport requests, offline teleport targets, social selection, connection message management, manual welcome delivery, inventory inspection, player inventory clearing, alternate account inspection, freezing, inventory locking, building control, muting, warnings, banned item actions, and every single target vanish action use this route.
 
 `/tpaccept` uses the teleport action lease as its single canonical execution. It does not wrap that action in a second lease with the same cooldown identity. `/tpaall` resolves at most 100 visible targets first, then runs the bounded fan out through one `sef:teleport.request.all` action. Empty `/tprequests` output is a successful read rather than a provider failure.
 

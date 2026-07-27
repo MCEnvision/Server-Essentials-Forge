@@ -32,6 +32,12 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class LoggingCommands {
+    private static final List<PermissionNode<Boolean>> LOGGING_ACTION_PERMISSIONS =
+            PermissionsHandler.phaseSixSevenNodes.entrySet().stream()
+                    .filter(entry -> entry.getKey().startsWith("sef.commands.logging."))
+                    .map(Map.Entry::getValue)
+                    .toList();
+
     private LoggingCommands() {
     }
 
@@ -47,8 +53,8 @@ public final class LoggingCommands {
 
     private static LiteralArgumentBuilder<CommandSourceStack> node(String literal, boolean alias) {
         LiteralArgumentBuilder<CommandSourceStack> root = Commands.literal(literal)
-                .requires(source -> !alias || has(source, "commands.loggerspy"))
-                .executes(context -> status(context.getSource()));
+                .requires(source -> (!alias || has(source, "commands.loggerspy"))
+                        && hasAnyLoggingAction(source));
         root.then(Commands.literal("status")
                 .requires(source -> has(source, "commands.logging.status"))
                 .executes(context -> status(context.getSource())));
@@ -902,6 +908,10 @@ public final class LoggingCommands {
     private static boolean has(CommandSourceStack source, String id) {
         PermissionNode<Boolean> node = permission(id);
         return node != null && PermissionService.has(source, node);
+    }
+
+    private static boolean hasAnyLoggingAction(CommandSourceStack source) {
+        return LOGGING_ACTION_PERMISSIONS.stream().anyMatch(node -> PermissionService.has(source, node));
     }
 
     private static PermissionNode<Boolean> permission(String id) {

@@ -2,19 +2,18 @@ package com.enviouse.sef.vanish;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.level.ServerPlayer;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.misc.TraceHandler;
 
@@ -55,26 +54,36 @@ public class VanishCommand {
 						.executes(ctx -> vanishSelfConsoleAware(ctx, IntegerArgumentType.getInteger(ctx, "level"))))
 				.then(Commands.literal("get")
 						.executes(VanishCommand::getVanishedStatusSelf)
-						.then(Commands.argument("player", EntityArgument.player())
+						.then(IdentityArguments.online("player")
 								.requires(source -> PermissionService.has(source, PermissionsHandler.vanishGetOthersCommand))
-								.executes(ctx -> getVanishedStatus(ctx, EntityArgument.getPlayer(ctx, "player")))))
+								.executes(ctx -> getVanishedStatus(
+										ctx,
+										IdentityArguments.getOnline(ctx, "player")))))
 				.then(Commands.literal("help").executes(VanishCommand::sendHelpText))
 				.then(Commands.literal("queue")
 						.requires(source -> PermissionService.has(source, PermissionsHandler.vanishQueueCommand))
 						.executes(VanishCommand::queueSelf)
-						.then(Commands.argument("player", StringArgumentType.word())
+						.then(IdentityArguments.online("player")
 								.requires(source -> PermissionService.has(source, PermissionsHandler.vanishOthersCommand))
-								.executes(ctx -> queue(ctx, StringArgumentType.getString(ctx, "player")))))
+								.executes(ctx -> queue(
+										ctx,
+										IdentityArguments.getOnline(ctx, "player")))))
 				.then(Commands.literal("toggle")
 						// /v toggle — vanish self at best level
 						.executes(ctx -> vanishSelfConsoleAware(ctx, 0))
-						.then(Commands.argument("player", EntityArgument.player())
+						.then(IdentityArguments.online("player")
 								.requires(source -> PermissionService.has(source, PermissionsHandler.vanishOthersCommand))
 								// /v toggle <player> — vanish target at best level
-								.executes(ctx -> vanish(ctx, EntityArgument.getPlayer(ctx, "player"), 0))
+								.executes(ctx -> vanish(
+										ctx,
+										IdentityArguments.getOnline(ctx, "player"),
+										0))
 								.then(Commands.argument("level", IntegerArgumentType.integer(1, 3))
 										// /v toggle <player> <level>
-										.executes(ctx -> vanish(ctx, EntityArgument.getPlayer(ctx, "player"), IntegerArgumentType.getInteger(ctx, "level"))))))
+										.executes(ctx -> vanish(
+												ctx,
+												IdentityArguments.getOnline(ctx, "player"),
+												IntegerArgumentType.getInteger(ctx, "level"))))))
 				.then(Commands.literal("trace")
 						.then(Commands.literal("enable").executes(ctx -> setTraceConsoleAware(ctx, true)))
 						.then(Commands.literal("disable").executes(ctx -> setTraceConsoleAware(ctx, false))));
@@ -104,14 +113,14 @@ public class VanishCommand {
 	}
 
 	private static int queueSelf(CommandContext<CommandSourceStack> ctx) {
-		String name;
+		ServerPlayer player;
 		try {
-			name = ctx.getSource().getPlayerOrException().getGameProfile().getName();
+			player = ctx.getSource().getPlayerOrException();
 		} catch (CommandSyntaxException e) {
 			return failConsoleOnly(ctx.getSource(), "/vanish queue (without player)");
 		}
 		try {
-			return queue(ctx, name);
+			return queue(ctx, player);
 		} catch (CommandSyntaxException e) {
 			return 0;
 		}
@@ -168,14 +177,8 @@ public class VanishCommand {
 		return 1;
 	}
 
-	private static int queue(CommandContext<CommandSourceStack> ctx, String playerName) throws CommandSyntaxException {
-		ServerPlayer player = ctx.getSource().getServer().getPlayerList().getPlayerByName(playerName);
-		if (player == null) {
-			ctx.getSource().sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append(
-					"Offline vanish queue changes are unavailable during stabilization."));
-			return 0;
-		}
-
+	private static int queue(CommandContext<CommandSourceStack> ctx, ServerPlayer player) throws CommandSyntaxException {
+		String playerName = player.getGameProfile().getName();
 		ServerPlayer executor = ctx.getSource().getEntity() instanceof ServerPlayer sourcePlayer
 				? sourcePlayer
 				: null;

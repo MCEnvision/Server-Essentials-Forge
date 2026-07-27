@@ -2,6 +2,7 @@ package com.enviouse.sef.banned;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
@@ -16,7 +17,6 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -204,9 +204,9 @@ public class BannedItemsCommands {
 
         // /banned bypass <player> <on|off>
         root.then(Commands.literal("bypass").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .then(Commands.literal("on").executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
                     if (!eligible(ctx.getSource(), p)) {
                         return unavailable(ctx.getSource());
                     }
@@ -217,7 +217,7 @@ public class BannedItemsCommands {
                     return 1;
                 }))
                 .then(Commands.literal("off").executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
                     if (!eligible(ctx.getSource(), p)) {
                         return unavailable(ctx.getSource());
                     }
@@ -230,9 +230,9 @@ public class BannedItemsCommands {
 
         // /banned scan <player>
         root.then(Commands.literal("scan").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
                     if (!eligible(ctx.getSource(), p)) {
                         return unavailable(ctx.getSource());
                     }

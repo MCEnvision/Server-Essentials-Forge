@@ -4,12 +4,12 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -33,11 +33,11 @@ public class MuteCommand {
         // /mute <player> <duration> <reason>
         dispatcher.register(Commands.literal("mute")
             .requires(src -> PermissionService.has(src, PermissionsHandler.muteCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .then(Commands.argument("duration", StringArgumentType.word())
                     .then(Commands.argument("reason", StringArgumentType.greedyString())
                         .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                             String duration = StringArgumentType.getString(ctx, "duration");
                             String reason = StringArgumentType.getString(ctx, "reason");
                             return executeMute(ctx.getSource(), target, duration, reason);
@@ -46,9 +46,9 @@ public class MuteCommand {
         // /unmute <player>
         dispatcher.register(Commands.literal("unmute")
             .requires(src -> PermissionService.has(src, PermissionsHandler.unmuteCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeUnmute(ctx.getSource(), target);
                 })));
 

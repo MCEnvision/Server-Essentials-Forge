@@ -3,12 +3,12 @@ package com.enviouse.sef.freeze;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -29,11 +29,11 @@ public class FreezeCommand {
         // /freeze <player> <duration> <reason>
         dispatcher.register(Commands.literal("freeze")
             .requires(src -> PermissionService.has(src, PermissionsHandler.freezeCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .then(Commands.argument("duration", StringArgumentType.word())
                     .then(Commands.argument("reason", StringArgumentType.greedyString())
                         .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                             String duration = StringArgumentType.getString(ctx, "duration");
                             String reason = StringArgumentType.getString(ctx, "reason");
                             return executeFreeze(ctx.getSource(), target, duration, reason);
@@ -42,9 +42,9 @@ public class FreezeCommand {
         // /unfreeze <player>
         dispatcher.register(Commands.literal("unfreeze")
             .requires(src -> PermissionService.has(src, PermissionsHandler.unfreezeCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeUnfreeze(ctx.getSource(), target);
                 })));
     }

@@ -5,6 +5,7 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageExportService;
@@ -12,7 +13,6 @@ import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
@@ -39,9 +39,9 @@ public class CheckAltsCommand {
             .then(Commands.literal("export")
                 .requires(src -> PermissionService.has(src, PermissionsHandler.checkAltsExport))
                 .executes(ctx -> export(ctx.getSource())))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeCheckAlts(ctx.getSource(), target);
                 })));
     }

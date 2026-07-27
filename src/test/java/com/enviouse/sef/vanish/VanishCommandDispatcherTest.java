@@ -2,6 +2,8 @@ package com.enviouse.sef.vanish;
 
 import com.enviouse.sef.config.PermissionsHandler;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.tree.ArgumentCommandNode;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
@@ -11,6 +13,8 @@ import org.mockito.Answers;
 import org.mockito.MockedStatic;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -89,6 +93,23 @@ class VanishCommandDispatcherTest {
                     .getChild("queue")
                     .getChild("player")
                     .canUse(source));
+        }
+    }
+
+    @Test
+    void playerTargetsUseNicknameAwareStringArguments() {
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        VanishCommand.register(dispatcher);
+
+        for (String child : new String[]{"get", "queue", "toggle"}) {
+            ArgumentCommandNode<CommandSourceStack, ?> target = assertInstanceOf(
+                    ArgumentCommandNode.class,
+                    dispatcher.getRoot()
+                            .getChild("v")
+                            .getChild(child)
+                            .getChild("player"));
+            assertInstanceOf(StringArgumentType.class, target.getType());
+            assertNotNull(target.getCustomSuggestions());
         }
     }
 
