@@ -74,8 +74,9 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 throw new IllegalStateException("GUI preference collection is invalid");
             }
             for (Preference preference : snapshot.preferences()) {
-                validate(preference);
-                if (preferences.putIfAbsent(preference.playerId(), preference) != null) {
+                Preference migrated = migrate(preference);
+                validate(migrated);
+                if (preferences.putIfAbsent(migrated.playerId(), migrated) != null) {
                     throw new IllegalStateException("Duplicate GUI preference player");
                 }
             }
@@ -105,6 +106,11 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 Math.max(current.lastReminderRevision(), reminderRevision),
                 current.dismissedReminderRevision(),
                 Objects.requireNonNull(now, "now").toEpochMilli(),
+                current.presentationMode(),
+                current.pauseButtonVisible(),
+                current.hudEnabled(),
+                current.reducedMotion(),
+                current.preferredPageSize(),
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -118,6 +124,36 @@ public final class GuiPreferenceRepository implements StorageRepository {
                 Math.max(current.lastReminderRevision(), reminderRevision),
                 Math.max(current.dismissedReminderRevision(), reminderRevision),
                 current.lastReminderAtEpochMillis(),
+                current.presentationMode(),
+                current.pauseButtonVisible(),
+                current.hudEnabled(),
+                current.reducedMotion(),
+                current.preferredPageSize(),
+                current.revision() + 1L);
+        put(replacement);
+        return replacement;
+    }
+
+    public synchronized Preference updatePresentation(
+            UUID playerId,
+            PresentationMode presentationMode,
+            Boolean pauseButtonVisible,
+            Boolean hudEnabled,
+            Boolean reducedMotion,
+            Integer preferredPageSize
+    ) {
+        writable();
+        Preference current = preference(playerId);
+        Preference replacement = new Preference(
+                playerId,
+                current.lastReminderRevision(),
+                current.dismissedReminderRevision(),
+                current.lastReminderAtEpochMillis(),
+                presentationMode == null ? current.presentationMode() : presentationMode,
+                pauseButtonVisible == null ? current.pauseButtonVisible() : pauseButtonVisible,
+                hudEnabled == null ? current.hudEnabled() : hudEnabled,
+                reducedMotion == null ? current.reducedMotion() : reducedMotion,
+                preferredPageSize == null ? current.preferredPageSize() : preferredPageSize,
                 current.revision() + 1L);
         put(replacement);
         return replacement;
@@ -193,9 +229,31 @@ public final class GuiPreferenceRepository implements StorageRepository {
         if (preference.lastReminderRevision() < 0
                 || preference.dismissedReminderRevision() < 0
                 || preference.lastReminderAtEpochMillis() < 0L
+                || preference.presentationMode() == null
+                || preference.preferredPageSize() < 4
+                || preference.preferredPageSize() > 100
                 || preference.revision() < 1L) {
             throw new IllegalArgumentException("GUI preference is invalid");
         }
+    }
+
+    private static Preference migrate(Preference preference) {
+        if (preference == null) {
+            throw new IllegalArgumentException("GUI preference is missing");
+        }
+        return new Preference(
+                preference.playerId(),
+                preference.lastReminderRevision(),
+                preference.dismissedReminderRevision(),
+                preference.lastReminderAtEpochMillis(),
+                preference.presentationMode() == null ? PresentationMode.AUTO : preference.presentationMode(),
+                preference.revision() < 1L || preference.preferredPageSize() == 0
+                        || preference.pauseButtonVisible(),
+                preference.revision() < 1L || preference.preferredPageSize() == 0
+                        || preference.hudEnabled(),
+                preference.reducedMotion(),
+                preference.preferredPageSize() == 0 ? 12 : preference.preferredPageSize(),
+                Math.max(1L, preference.revision()));
     }
 
     private record Snapshot(List<Preference> preferences) {
@@ -209,10 +267,31 @@ public final class GuiPreferenceRepository implements StorageRepository {
             int lastReminderRevision,
             int dismissedReminderRevision,
             long lastReminderAtEpochMillis,
+            PresentationMode presentationMode,
+            boolean pauseButtonVisible,
+            boolean hudEnabled,
+            boolean reducedMotion,
+            int preferredPageSize,
             long revision
     ) {
         public static Preference defaults(UUID playerId) {
-            return new Preference(Objects.requireNonNull(playerId, "playerId"), 0, 0, 0L, 1L);
+            return new Preference(
+                    Objects.requireNonNull(playerId, "playerId"),
+                    0,
+                    0,
+                    0L,
+                    PresentationMode.AUTO,
+                    true,
+                    true,
+                    false,
+                    12,
+                    1L);
         }
+    }
+
+    public enum PresentationMode {
+        AUTO,
+        GUI,
+        COMMAND
     }
 }

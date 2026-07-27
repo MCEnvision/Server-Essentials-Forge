@@ -23,6 +23,13 @@ class GuiPreferenceRepositoryTest {
         repository.load(directory);
         repository.recordReminder(playerId, 2, Instant.parse("2026-01-01T00:00:00Z"));
         repository.dismissReminder(playerId, 2);
+        repository.updatePresentation(
+                playerId,
+                GuiPreferenceRepository.PresentationMode.COMMAND,
+                false,
+                false,
+                true,
+                24);
         repository.flush();
 
         GuiPreferenceRepository reloaded = new GuiPreferenceRepository();
@@ -31,6 +38,11 @@ class GuiPreferenceRepositoryTest {
         assertEquals(2, preference.lastReminderRevision());
         assertEquals(2, preference.dismissedReminderRevision());
         assertTrue(preference.lastReminderAtEpochMillis() > 0L);
+        assertEquals(GuiPreferenceRepository.PresentationMode.COMMAND, preference.presentationMode());
+        assertEquals(false, preference.pauseButtonVisible());
+        assertEquals(false, preference.hudEnabled());
+        assertTrue(preference.reducedMotion());
+        assertEquals(24, preference.preferredPageSize());
     }
 
     @Test

@@ -201,11 +201,23 @@ public final class SefSessionManager {
 
     private static long effectiveFeatures(ServerPlayer player, long negotiatedFeatures) {
         long result = negotiatedFeatures;
-        if (!PermissionService.has(player, PermissionsHandler.kernelHud)) {
+        var preferences = com.enviouse.sef.kernel.KernelServices.guiPreferences().preference(player.getUUID());
+        if (preferences.presentationMode()
+                == com.enviouse.sef.gui.GuiPreferenceRepository.PresentationMode.COMMAND) {
+            return 0L;
+        }
+        if (!preferences.pauseButtonVisible()) {
+            result &= ~SefProtocol.Feature.PAUSE_BUTTON.flag();
+        }
+        if (!preferences.hudEnabled()
+                || !PermissionService.has(player, PermissionsHandler.kernelHud)) {
             result &= ~SefProtocol.Feature.HUD.flag();
         }
         if (!PermissionService.has(player, PermissionsHandler.kernelPanel)) {
             result &= ~SefProtocol.Feature.STAFF_OVERVIEW.flag();
+        }
+        if (!PermissionService.has(player, PermissionsHandler.kernelEditor)) {
+            result &= ~SefProtocol.Feature.PANEL_EDITOR.flag();
         }
         return result;
     }

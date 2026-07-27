@@ -219,7 +219,9 @@ public final class ClientProtocolState {
             case "teleport_requests" -> SefProtocol.Feature.TELEPORT_REQUESTS;
             case "help" -> SefProtocol.Feature.HELP_DIAGNOSTICS;
             case "staff", "players" -> SefProtocol.Feature.STAFF_OVERVIEW;
-            default -> null;
+            default -> panelId.startsWith("category_") || panelId.startsWith("admin_panel:")
+                    ? SefProtocol.Feature.UNIVERSAL_GUI
+                    : null;
         };
     }
 }

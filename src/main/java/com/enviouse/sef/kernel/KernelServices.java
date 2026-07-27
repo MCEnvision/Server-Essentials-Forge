@@ -12,7 +12,10 @@ import com.enviouse.sef.economy.EconomyRepository;
 import com.enviouse.sef.economy.EconomyService;
 import com.enviouse.sef.economy.EconomySignRepository;
 import com.enviouse.sef.gui.GuiPreferenceRepository;
+import com.enviouse.sef.gui.AdminPanelService;
+import com.enviouse.sef.gui.UniversalGuiCatalog;
 import com.enviouse.sef.gui.protocol.SefNetwork;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.identity.PlayerProfileRepository;
 import com.enviouse.sef.freeze.FreezeManager;
@@ -95,6 +98,8 @@ public final class KernelServices {
     private static TeleportRequestService teleportRequests;
     private static TeleportSettings teleportSettings;
     private static GuiPreferenceRepository guiPreferences;
+    private static UniversalGuiCatalog universalGuiCatalog;
+    private static AdminPanelService adminPanels;
     private static SocialRepository social;
     private static ObservationService observations;
     private static CommandSpyRepository commandSpies;
@@ -129,16 +134,6 @@ public final class KernelServices {
         }
 
         descriptors = new PanelContracts.Registry();
-        descriptors.registerCommandOnly("sef:core");
-        descriptors.registerCommandOnly("sef:workstations");
-        descriptors.registerCommandOnly("sef:teleports");
-        descriptors.registerCommandOnly("sef:social");
-        descriptors.registerCommandOnly("sef:observation");
-        descriptors.registerCommandOnly("sef:moderation");
-        descriptors.registerCommandOnly("sef:inventory");
-        descriptors.registerCommandOnly("sef:kits");
-        descriptors.registerCommandOnly("sef:utilities");
-        descriptors.registerCommandOnly("sef:economy");
         registerGuiDescriptors();
 
         catalog = new CommandCatalog(capabilities, descriptors);
@@ -149,7 +144,20 @@ public final class KernelServices {
         registerModerationCommands();
         registerPhaseSevenCommands();
         registerEconomyCommands();
+        registerPanelCommands();
         catalog.seal();
+        universalGuiCatalog = UniversalGuiCatalog.build(catalog, descriptors);
+        if (!universalGuiCatalog.validate(catalog).isEmpty()) {
+            throw new IllegalStateException(
+                    "Universal GUI catalog validation failed. " + universalGuiCatalog.validate(catalog));
+        }
+        adminPanels = new AdminPanelService(catalog, capabilities);
+        adminPanels.addPublicationListener(event -> {
+            var server = ServerLifecycleHooks.getCurrentServer();
+            if (server != null) {
+                server.execute(() -> SefGuiServer.refreshAdminPanel(server, event.panelId()));
+            }
+        });
 
         shortcuts = new ShortcutRegistry(catalog, capabilities);
         registerShortcuts();
@@ -241,6 +249,7 @@ public final class KernelServices {
         storage.register(economyRepository);
         storage.register(economySigns);
         storage.register(guiPreferences);
+        storage.register(adminPanels);
 
         initialized = true;
         reloadConfiguration();
@@ -460,6 +469,11 @@ public final class KernelServices {
         return catalog;
     }
 
+    public static PanelContracts.Registry descriptors() {
+        ensureInitialized();
+        return descriptors;
+    }
+
     public static ShortcutRegistry shortcuts() {
         ensureInitialized();
         return shortcuts;
@@ -617,6 +631,16 @@ public final class KernelServices {
         return guiPreferences;
     }
 
+    public static UniversalGuiCatalog universalGuiCatalog() {
+        ensureInitialized();
+        return universalGuiCatalog;
+    }
+
+    public static AdminPanelService adminPanels() {
+        ensureInitialized();
+        return adminPanels;
+    }
+
     public static SocialRepository social() {
         ensureInitialized();
         return social;
@@ -658,6 +682,23 @@ public final class KernelServices {
     }
 
     private static void registerGuiDescriptors() {
+        registerCategoryDescriptor("sef:core", "sef.gui.category.core", "sef commands");
+        registerCategoryDescriptor("sef:workstations", "sef.gui.category.workstations", "sef commands");
+        registerCategoryDescriptor("sef:teleports", "sef.gui.category.teleports", "homes");
+        registerCategoryDescriptor("sef:social", "sef.gui.category.social", "msg");
+        registerCategoryDescriptor("sef:observation", "sef.gui.category.observation", "sef commandspy status");
+        registerCategoryDescriptor("sef:moderation", "sef.gui.category.moderation", "warns");
+        registerCategoryDescriptor("sef:protection", "sef.gui.category.protection", "sef commands");
+        registerCategoryDescriptor("sef:inventory", "sef.gui.category.inventory", "itemdb");
+        registerCategoryDescriptor("sef:kits", "sef.gui.category.kits", "kits");
+        registerCategoryDescriptor("sef:utilities", "sef.gui.category.utilities", "getpos");
+        registerCategoryDescriptor("sef:economy", "sef.gui.category.economy", "balance");
+        registerCategoryDescriptor("sef:settings", "sef.gui.category.settings", "sef doctor");
+        registerCategoryDescriptor("sef:integrations", "sef.gui.category.integrations", "sef doctor");
+        registerCategoryDescriptor("sef:panels", "sef.gui.category.panels", "sef panel list");
+        registerCategoryDescriptor("sef:aliases", "sef.gui.category.aliases", "sef commands");
+        registerCategoryDescriptor("sef:tags", "sef.gui.category.tags", "sef commands");
+        registerCategoryDescriptor("sef:identity", "sef.gui.category.identity", "nick");
         descriptors.register(new PanelContracts.PanelDescriptor(
                 "sef:gui",
                 "sef.gui.dashboard",
@@ -778,6 +819,16 @@ public final class KernelServices {
                 new PanelContracts.CommandFallback("list", "sef.gui.players.usage")));
     }
 
+    private static void registerCategoryDescriptor(String id, String titleKey, String fallback) {
+        descriptors.register(new PanelContracts.PanelDescriptor(
+                id,
+                titleKey,
+                6,
+                "sef.kernel.gui.use",
+                List.of(),
+                new PanelContracts.CommandFallback(fallback, titleKey + ".usage")));
+    }
+
     private static PanelContracts.ControlDescriptor panelControl(
             String id,
             int slot,
@@ -828,6 +879,20 @@ public final class KernelServices {
         register("sef:gui.reminder.dismiss", "sef client reminder dismiss", Set.of(), "sef.commands.sef.allowed", "sef.commands.sef.info",
                 CommandDefinition.AccessClass.PLAYER, Set.of(CommandDefinition.SourceType.PLAYER),
                 "sef.core", AuditService.AuditClass.METADATA_ONLY, "sef:gui", "reminder preference is persisted");
+        for (String preference : List.of("mode", "pause", "hud", "motion", "page_size")) {
+            registerDomainCommand(
+                    "sef:gui.preference." + preference,
+                    "sef client preference " + preference,
+                    Set.of(),
+                    "sef.commands.sef.client.preferences",
+                    CommandDefinition.AccessClass.PLAYER,
+                    Set.of(CommandDefinition.SourceType.PLAYER),
+                    CommandDefinition.TargetBehavior.SELF,
+                    "sef.core",
+                    AuditService.AuditClass.METADATA_ONLY,
+                    "sef:settings",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
         register("sef:filter.add", "sef filter add", Set.of(), "sef.commands.sef.allowed", "sef.filter.manage",
                 CommandDefinition.AccessClass.ADMINISTRATOR, STANDARD_COMMAND_SOURCES,
                 "sef.filter", AuditService.AuditClass.CONFIG_DEFINITION, "sef:core", "filter changes are immediate");
@@ -1500,6 +1565,95 @@ public final class KernelServices {
                 CommandDefinition.ConflictPolicy.PREFER_SEF);
     }
 
+    private static void registerPanelCommands() {
+        registerDomainCommand(
+                "sef:panel.list",
+                "sef panel list",
+                Set.of(),
+                "sef.commands.panel.list",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:panel.inspect",
+                "sef panel inspect",
+                Set.of(),
+                "sef.commands.panel.inspect",
+                CommandDefinition.AccessClass.STAFF,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:panel.preview",
+                "sef panel preview",
+                Set.of(),
+                "sef.commands.panel.preview",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.WORKFLOW_EXECUTION,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:panel.run",
+                "sef panel run",
+                Set.of(),
+                "sef.commands.panel.run",
+                CommandDefinition.AccessClass.ADMINISTRATOR,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.WORKFLOW_EXECUTION,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        for (String action : List.of("create", "control_add", "control_remove", "delete")) {
+            registerDomainCommand(
+                    "sef:panel.draft." + action,
+                    "sef panel draft " + action,
+                    Set.of(),
+                    "sef.commands.panel.draft",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.NONE,
+                    "sef.core",
+                    AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:panels",
+                    CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        }
+        registerDomainCommand(
+                "sef:panel.publish",
+                "sef panel publish",
+                Set.of(),
+                "sef.commands.panel.publish",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.CONFIG_DEFINITION,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+        registerDomainCommand(
+                "sef:panel.rollback",
+                "sef panel rollback",
+                Set.of(),
+                "sef.commands.panel.rollback",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.CONFIG_DEFINITION,
+                "sef:panels",
+                CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
+    }
+
     private static void registerDomainCommand(
             String id,
             String route,
@@ -1513,6 +1667,7 @@ public final class KernelServices {
             String descriptor,
             CommandDefinition.ConflictPolicy conflictPolicy
     ) {
+        String hudDescriptor = hudDescriptor(id);
         catalog.register(new CommandDefinition(
                 id,
                 route,
@@ -1529,8 +1684,8 @@ public final class KernelServices {
                 false,
                 auditClass,
                 descriptor,
-                "",
-                "state is shown through immediate command feedback",
+                hudDescriptor,
+                hudDescriptor.isBlank() ? "state is shown through immediate command feedback" : "",
                 "",
                 "domain collections and projections have finite hard bounds",
                 conflictPolicy,
@@ -1546,6 +1701,7 @@ public final class KernelServices {
             CommandDefinition.AccessClass access,
             CommandDefinition.TargetBehavior targetBehavior
     ) {
+        String hudDescriptor = hudDescriptor(id);
         catalog.register(new CommandDefinition(
                 id,
                 route,
@@ -1564,13 +1720,24 @@ public final class KernelServices {
                         ? AuditService.AuditClass.SENSITIVE_ACCESS
                         : AuditService.AuditClass.METADATA_ONLY,
                 "sef:social",
-                "",
-                "social state is shown through immediate command feedback",
+                hudDescriptor,
+                hudDescriptor.isBlank() ? "social state is shown through immediate command feedback" : "",
                 "",
                 "social collections are bounded by repository and quota policy",
                 CommandDefinition.ConflictPolicy.PREFER_SEF,
                 true,
                 true));
+    }
+
+    private static String hudDescriptor(String actionId) {
+        return switch (actionId) {
+            case "sef:social.spy" -> "social_spy";
+            case "sef:commandspy.toggle", "sef:commandspy.audience" -> "command_spy";
+            case "sef:utility.afk" -> "afk";
+            case "sef:utility.fly" -> "fly";
+            case "sef:utility.god" -> "god";
+            default -> "";
+        };
     }
 
     private static String socialFeature(String actionId) {

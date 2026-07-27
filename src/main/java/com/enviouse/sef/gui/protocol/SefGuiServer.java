@@ -5,6 +5,8 @@ import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.gui.AdminPanelService;
+import com.enviouse.sef.gui.UniversalGuiCatalog;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.teleport.HomeRecord;
 import com.enviouse.sef.teleport.TeleportRequestService;
@@ -115,14 +117,14 @@ public final class SefGuiServer {
             return;
         }
         if (allowed.kind() == ActionKind.CONFIRM) {
-            openConfirmation(player, allowed);
+            openConfirmation(player, panel.panelId(), allowed);
             return;
         }
         if (allowed.kind() == ActionKind.COMMAND) {
             player.server.getCommands().performPrefixedCommand(
                     player.createCommandSourceStack(),
                     allowed.value());
-            openProgress(player, "The server processed the selected player action.");
+            openProgress(player, panel.panelId(), "The server processed the selected action.");
         }
     }
 
@@ -228,7 +230,10 @@ public final class SefGuiServer {
         int maximumEntries = Math.min(
                 SefProtocol.MAXIMUM_PANEL_ENTRIES,
                 ConfigHandler.config.guiMaximumPanelEntries.get());
-        int pageSize = Math.max(1, Math.min(PAGE_SIZE, maximumEntries));
+        int preferredPageSize = KernelServices.guiPreferences()
+                .preference(player.getUUID())
+                .preferredPageSize();
+        int pageSize = Math.max(1, Math.min(Math.min(PAGE_SIZE, preferredPageSize), maximumEntries));
         List<EntryAction> filtered = data.entries().stream()
                 .filter(entry -> matches(entry.entry().title(), entry.entry().subtitle(), query))
                 .toList();
@@ -279,7 +284,9 @@ public final class SefGuiServer {
             case HELP -> help(player);
             case STAFF -> staff(player);
             case PLAYERS -> players(player);
-            default -> new SnapshotData("SEF", "Unknown panel", List.of());
+            default -> panelId.startsWith("admin_panel:")
+                    ? adminPanel(player, panelId.substring("admin_panel:".length()))
+                    : catalogPanel(player, panelId);
         };
     }
 
@@ -297,10 +304,134 @@ public final class SefGuiServer {
         addPanelLink(entries, HELP, "Help and diagnostics", "Permission filtered commands", "minecraft:book", player);
         addPanelLink(entries, STAFF, "Staff overview", "Server and policy status", "minecraft:command_block", player);
         addPanelLink(entries, PLAYERS, "Player controls", "Vanish safe target picker", "minecraft:player_head", player);
+        for (UniversalGuiCatalog.Category category : KernelServices.universalGuiCatalog().categories()) {
+            addPanelLink(
+                    entries,
+                    category.panelId(),
+                    category.title(),
+                    "Permission filtered commands and controls",
+                    category.iconId(),
+                    player);
+        }
         return new SnapshotData(
                 SefPayloads.PanelView.DASHBOARD,
                 "Server Essentials",
                 "Every action is checked again by the server.",
+                entries);
+    }
+
+    private static SnapshotData catalogPanel(ServerPlayer player, String panelId) {
+        UniversalGuiCatalog.Category category =
+                KernelServices.universalGuiCatalog().category(panelId).orElse(null);
+        if (category == null) {
+            return new SnapshotData("Server essentials", "Unknown panel.", List.of());
+        }
+        List<EntryAction> entries = new ArrayList<>();
+        for (UniversalGuiCatalog.ActionRoute route : KernelServices.universalGuiCatalog().actions(panelId)) {
+            boolean allowed = KernelCommandExecutor.canUse(player.createCommandSourceStack(), route.actionId());
+            if (!allowed) {
+                continue;
+            }
+            String hud = route.hudDescriptorId().isBlank()
+                    ? route.hudNotApplicableReason()
+                    : "Active state HUD, " + route.hudDescriptorId();
+            SefPayloads.PanelEntry panelEntry = entry(
+                    "catalog:" + route.actionId(),
+                    KernelServices.configurationRevision(),
+                    "command",
+                    "/" + route.commandRoute(),
+                    route.featureId() + ". " + hud,
+                    category.iconId(),
+                    true,
+                    route.destructive());
+            entries.add(new EntryAction(panelEntry, new AllowedAction(
+                    route.destructive() ? ActionKind.CONFIRM : ActionKind.COMMAND,
+                    "command",
+                    KernelServices.configurationRevision(),
+                    route.commandRoute(),
+                    current -> KernelCommandExecutor.canUse(
+                            current.createCommandSourceStack(),
+                            route.actionId()))));
+        }
+        if (panelId.equals("category_panels")) {
+            for (AdminPanelService.PanelDefinition panel : KernelServices.adminPanels().panels()) {
+                if (!has(player, panel.permissionId())) {
+                    continue;
+                }
+                String targetPanel = "admin_panel:" + panel.id();
+                SefPayloads.PanelEntry panelEntry = entry(
+                        "admin_panel:" + panel.id(),
+                        panel.revision(),
+                        "open",
+                        panel.title(),
+                        panel.state().name().toLowerCase(Locale.ROOT) + ", revision " + panel.revision(),
+                        "minecraft:structure_block",
+                        true,
+                        false);
+                entries.add(new EntryAction(panelEntry, new AllowedAction(
+                        ActionKind.OPEN_PANEL,
+                        "open",
+                        panel.revision(),
+                        targetPanel,
+                        current -> KernelServices.adminPanels().panel(panel.id())
+                                .filter(active -> active.revision() == panel.revision())
+                                .filter(active -> has(current, active.permissionId()))
+                                .isPresent())));
+            }
+        }
+        String status = entries.isEmpty()
+                ? "No permitted actions are currently available. Use /" + category.fallback().route() + "."
+                : "Every action preserves its canonical permission, policy, and command fallback.";
+        return new SnapshotData(category.title(), status, entries);
+    }
+
+    private static SnapshotData adminPanel(ServerPlayer player, String panelId) {
+        AdminPanelService.PanelDefinition panel = KernelServices.adminPanels().panel(panelId).orElse(null);
+        if (panel == null || !has(player, panel.permissionId())) {
+            return denied("Administrative panel");
+        }
+        List<EntryAction> entries = new ArrayList<>();
+        for (AdminPanelService.Control control : panel.controls()) {
+            AdminPanelService.Execution execution =
+                    KernelServices.adminPanels().execution(panel.id(), control.id()).orElse(null);
+            if (execution == null
+                    || !contextAuthorized(player, execution.control())
+                    || !KernelCommandExecutor.canUse(player.createCommandSourceStack(), execution.action().id())) {
+                continue;
+            }
+            StringBuilder command = new StringBuilder(execution.action().canonicalRoute());
+            execution.control().fixedArguments().entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .forEach(argument -> command.append(' ').append(argument.getValue()));
+            String commandRoute = command.toString();
+            SefPayloads.PanelEntry panelEntry = entry(
+                    "admin_control:" + panel.id() + ":" + control.id(),
+                    panel.revision(),
+                    control.id(),
+                    "/" + execution.action().canonicalRoute(),
+                    control.executionContext().name().toLowerCase(Locale.ROOT)
+                            + ", " + control.audienceKind().name().toLowerCase(Locale.ROOT)
+                            + ", maximum " + control.maximumTargets(),
+                    "minecraft:command_block",
+                    true,
+                    control.destructive());
+            entries.add(new EntryAction(panelEntry, new AllowedAction(
+                    control.destructive() ? ActionKind.CONFIRM : ActionKind.COMMAND,
+                    control.id(),
+                    panel.revision(),
+                    commandRoute,
+                    current -> KernelServices.adminPanels().execution(panel.id(), control.id())
+                            .filter(active -> active.panel().revision() == panel.revision())
+                            .filter(active -> has(current, active.panel().permissionId()))
+                            .filter(active -> contextAuthorized(current, active.control()))
+                            .filter(active -> KernelCommandExecutor.canUse(
+                                    current.createCommandSourceStack(),
+                                    active.action().id()))
+                            .isPresent())));
+        }
+        return new SnapshotData(
+                panel.title(),
+                "Revision " + panel.revision() + ". Typed controls are revalidated by the server.",
                 entries);
     }
 
@@ -699,9 +830,13 @@ public final class SefGuiServer {
                         entries));
     }
 
-    private static void openConfirmation(ServerPlayer viewer, AllowedAction pending) {
+    private static void openConfirmation(
+            ServerPlayer viewer,
+            String returnPanel,
+            AllowedAction pending
+    ) {
         if (!pending.stillValid().test(viewer)) {
-            open(viewer, PLAYERS, 1, "");
+            open(viewer, returnPanel, 1, "");
             return;
         }
         List<EntryAction> entries = List.of(
@@ -721,29 +856,29 @@ public final class SefGuiServer {
                                 pending.entryRevision(),
                                 pending.value(),
                                 pending.stillValid())),
-                panelBackEntry("player:confirm:cancel", PLAYERS, "Cancel"));
+                panelBackEntry("confirm:cancel:" + returnPanel, returnPanel, "Cancel"));
         publishCustom(
                 viewer,
-                PLAYERS,
+                returnPanel,
                 new SnapshotData(
                         SefPayloads.PanelView.CONFIRMATION,
                         "Confirm action",
-                        "This action changes another player's private vanish state.",
+                        "This action is destructive. Permission and current state are checked again.",
                         entries));
     }
 
-    private static void openProgress(ServerPlayer viewer, String status) {
+    private static void openProgress(ServerPlayer viewer, String returnPanel, String status) {
         publishCustom(
                 viewer,
-                PLAYERS,
+                returnPanel,
                 new SnapshotData(
                         SefPayloads.PanelView.PROGRESS,
                         "Action progress",
                         status,
                         List.of(panelBackEntry(
-                                "player:progress:back",
-                                PLAYERS,
-                                "Return to players"))));
+                                "progress:back:" + returnPanel,
+                                returnPanel,
+                                "Return"))));
     }
 
     private static EntryAction panelBackEntry(String key, String panelId, String title) {
@@ -829,6 +964,26 @@ public final class SefGuiServer {
         }
     }
 
+    public static void refreshAdminPanel(
+            net.minecraft.server.MinecraftServer server,
+            String panelDefinitionId
+    ) {
+        String panelId = "admin_panel:" + panelDefinitionId;
+        List<UUID> viewers;
+        synchronized (PANELS) {
+            viewers = PANELS.entrySet().stream()
+                    .filter(entry -> entry.getValue().panelId().equals(panelId))
+                    .map(Map.Entry::getKey)
+                    .toList();
+        }
+        for (UUID viewerId : viewers) {
+            ServerPlayer viewer = server.getPlayerList().getPlayer(viewerId);
+            if (viewer != null) {
+                open(viewer, panelId, 1, "");
+            }
+        }
+    }
+
     private static EntryAction information(String id, String title, String subtitle, String icon) {
         return new EntryAction(entry(id, 1L, "status", title, subtitle, icon, false, false), null);
     }
@@ -894,8 +1049,32 @@ public final class SefGuiServer {
             case STAFF -> PermissionService.has(player, PermissionsHandler.kernelPanel);
             case PLAYERS -> PermissionService.has(player, PermissionsHandler.kernelPanel)
                     && PermissionService.has(player, PermissionsHandler.vanishOthersCommand);
-            default -> false;
+            default -> panelId.startsWith("admin_panel:")
+                    ? PermissionService.has(player, PermissionsHandler.kernelPanel)
+                    && KernelServices.adminPanels()
+                    .panel(panelId.substring("admin_panel:".length()))
+                    .filter(panel -> has(player, panel.permissionId()))
+                    .isPresent()
+                    : KernelServices.universalGuiCatalog().category(panelId)
+                    .map(category -> KernelServices.universalGuiCatalog().actions(panelId).stream()
+                            .anyMatch(action -> KernelCommandExecutor.canUse(
+                                    player.createCommandSourceStack(),
+                                    action.actionId()))
+                            || shellPanel(panelId)
+                            && PermissionService.has(player, PermissionsHandler.kernelPanel)
+                            || panelId.equals("category_panels")
+                            && KernelServices.adminPanels().panels().stream()
+                            .anyMatch(panel -> has(player, panel.permissionId())))
+                    .orElse(false);
         };
+    }
+
+    private static boolean shellPanel(String panelId) {
+        return panelId.equals("category_protection")
+                || panelId.equals("category_integrations")
+                || panelId.equals("category_aliases")
+                || panelId.equals("category_tags")
+                || panelId.equals("category_identity");
     }
 
     private static SefProtocol.Feature feature(String panelId) {
@@ -909,7 +1088,9 @@ public final class SefGuiServer {
             case TELEPORT_REQUESTS -> SefProtocol.Feature.TELEPORT_REQUESTS;
             case HELP -> SefProtocol.Feature.HELP_DIAGNOSTICS;
             case STAFF, PLAYERS -> SefProtocol.Feature.STAFF_OVERVIEW;
-            default -> null;
+            default -> panelId.startsWith("category_") || panelId.startsWith("admin_panel:")
+                    ? SefProtocol.Feature.UNIVERSAL_GUI
+                    : null;
         };
     }
 
@@ -968,6 +1149,15 @@ public final class SefGuiServer {
                 .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                 .toString();
         return value.length() <= maximum ? value : value.substring(0, maximum);
+    }
+
+    private static boolean has(ServerPlayer player, String permissionId) {
+        var node = KernelServices.permissionNode(permissionId);
+        return node != null && PermissionService.has(player, node);
+    }
+
+    private static boolean contextAuthorized(ServerPlayer player, AdminPanelService.Control control) {
+        return control.contextPermissionId().isBlank() || has(player, control.contextPermissionId());
     }
 
     private static long nextPanelRevision() {

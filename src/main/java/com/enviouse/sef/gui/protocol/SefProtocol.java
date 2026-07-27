@@ -31,7 +31,9 @@ public final class SefProtocol {
         HUD(6),
         PAUSE_BUTTON(7),
         FANCY_TAGS_STATIC(8),
-        IDENTITY_PROJECTION(9);
+        IDENTITY_PROJECTION(9),
+        UNIVERSAL_GUI(10),
+        PANEL_EDITOR(11);
 
         private final int bit;
 

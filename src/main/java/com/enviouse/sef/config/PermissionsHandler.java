@@ -484,6 +484,28 @@ public class PermissionsHandler {
 			ezyPermission("kernel.bundle.use", false, "Kernel bundle capability", "Allows using published bundles in addition to every underlying action permission");
 	public static PermissionNode<Boolean> kernelProfile =
 			ezyPermission("kernel.profile.use", false, "Kernel execution profile capability", "Allows using explicitly approved execution profiles");
+	public static PermissionNode<Boolean> panelList =
+			ezyPermission("commands.panel.list", false, "List administrative panels", "Allows listing permission filtered built in and published administrative panels");
+	public static PermissionNode<Boolean> panelInspect =
+			ezyPermission("commands.panel.inspect", false, "Inspect administrative panels", "Allows viewing typed panel controls and command fallbacks");
+	public static PermissionNode<Boolean> panelPreview =
+			ezyPermission("commands.panel.preview", false, "Preview administrative panels", "Allows dry run preview of a panel definition and its impact");
+	public static PermissionNode<Boolean> panelRun =
+			ezyPermission("commands.panel.run", false, "Run administrative panel controls", "Allows invoking a typed panel control while preserving the canonical action permission");
+	public static PermissionNode<Boolean> panelDraft =
+			ezyPermission("commands.panel.draft", false, "Edit administrative panel drafts", "Allows creating and changing unpublished administrative panel drafts");
+	public static PermissionNode<Boolean> panelPublish =
+			ezyPermission("commands.panel.publish", false, "Publish administrative panels", "Allows publishing a validated panel draft");
+	public static PermissionNode<Boolean> panelRollback =
+			ezyPermission("commands.panel.rollback", false, "Rollback administrative panels", "Allows restoring an immutable panel history revision");
+	public static PermissionNode<Boolean> panelRunServerProfile =
+			ezyPermission("kernel.panel.context.server", false, "Use server panel profiles", "Allows selecting a reviewed server execution profile for an eligible panel control");
+	public static PermissionNode<Boolean> panelRunNativeBulk =
+			ezyPermission("kernel.panel.context.bulk", false, "Use native panel bulk execution", "Allows bounded native bulk execution for an eligible panel control");
+	public static PermissionNode<Boolean> panelRunAsParticipants =
+			ezyPermission("kernel.panel.context.participants", false, "Use participant panel execution", "Allows independently authorized participant execution for an eligible panel control");
+	public static PermissionNode<Boolean> guiPreferences =
+			ezyPermission("commands.sef.client.preferences", true, "Manage personal GUI preferences", "Allows changing personal optional GUI, pause button, HUD, motion, and page size preferences");
 	public static PermissionNode<Boolean> kernelBypass =
 			ezyPermission("kernel.bypass.use", false, "Kernel bypass capability", "Allows specifically declared policy bypasses without bypassing canonical action permission");
 	public static PermissionNode<Boolean> kernelSensitiveData =

@@ -16465,6 +16465,21 @@ Verified artifact SHA-256: `62b3d14fccc1486a4867a50d4dedd82ec88f7ff2f5c5095cfc6b
 
 ## Phase 10. Universal GUI coverage
 
+### Implementation status, 2026-07-26
+
+Implemented on `envy/sef2_complete`.
+
+- Every player facing command catalog entry now resolves to a permission filtered universal category action with its canonical command fallback and HUD descriptor or explicit no HUD rationale.
+- Command only descriptors were removed. The universal descriptor linter rejects incomplete fallback routes, invalid icons, duplicate controls, and unsafe destructive actor controls.
+- Added persisted per player presentation mode, pause button, HUD, reduced motion, and page size preferences. Capability masks are recalculated from server authority and the saved preference.
+- Added server side pagination and reusable category pages for core, workstations, teleports, social, observation, moderation, protection, inventory, kits, utilities, economy, settings, integrations, panels, aliases, tags, and identity.
+- Added revisioned `AdminPanelService` storage with immutable built in panels, drafts, typed controls, publication, bounded history, rollback, preview, permission separated command fallback, and live refresh.
+- Added strict panel batch planning for native bulk and participant contexts. Same tick mode requires an allowlisted action, a small frozen cohort, and exact audience and execution context permissions. Oversized requests fail without partial admission.
+- Added the typed command profile draft compiler and dry run validation boundary.
+- Added real Brigadier regression tests for panel and GUI preference permission separation.
+
+Automated evidence is recorded in `docs/PHASE_10_TESTS.md`. The complete mixed client and clean room visual matrix remains a final release gate.
+
 ### Objectives
 
 - Give every player-facing catalog entry an approved GUI descriptor and route.
