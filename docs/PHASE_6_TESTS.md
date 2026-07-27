@@ -177,27 +177,28 @@ Use two command actors and one observer.
 
 ## Completion record
 
-Automated and headless audit verification was recorded on 2026-07-26:
+Automated and headless repair verification was recorded on 2026-07-26:
 
-1. Implementation commit: `89c57a226a33971638a9efbc5a85b0069864bc71`.
+1. Implementation commit: `7ff545435807e5c1d2584d6c44d1270df69df62e`.
 2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
-3. JAR SHA-256: `238d8a4a7bc2a48194dade43ba99305191f12f467916e17de0d94d8f1c60eb4d`.
+3. JAR SHA-256: `434a18a017ce75c1111508c6ac3e67d9be9b9f6c984c250d0cfd7befb69ff376`.
 4. Java: OpenJDK `21.0.11`.
 5. Minecraft: `1.21.1`.
 6. NeoForge: `21.1.233`.
 7. Optional integrations: absent for the recorded final headless run.
 8. Configuration: ignored development `run` directory, offline mode, default Phase 6 modules, and file logging disabled.
-9. Unit tests: 191 passed through `./gradlew test`.
-10. GameTests: all 7 required tests passed through `./gradlew runGameTestServer`.
+9. Unit tests: 203 passed through `./gradlew test`.
+10. GameTests: all 9 required tests passed through `./gradlew runGameTestServer`.
 11. Build: `./gradlew build` completed successfully.
-12. Dedicated server: the exact audited source reached `Done`, accepted diagnostics, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
-13. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
-14. Logging: `/sef logging status` reported disabled, queue 0 of 8192, and no accepted, written, or dropped records. `run/logs/sef` remained absent.
+12. Dedicated server: the exact audited source reached `Done`, accepted `/sef doctor` and `/sef storage status`, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
+13. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota provider failures, a healthy security audit writer, and no kernel errors.
+14. Logging: file logging remained disabled and `run/logs/sef` remained absent. Unit coverage forced a writer failure and verified stopped acceptance, bounded loss accounting, and writer termination for both audit sinks.
 15. Storage: `command-spy.json` reported its correct missing initial state and `moderation.json` reported ready without recovery or write errors.
-16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and Phase 6 classes were packaged.
+16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and the mandatory audit and inventory lock mixin classes were packaged.
 17. Dedicated-server boundary inspection found no `net.minecraft.client` imports in the Phase 6 packages.
-18. Diff inspection found no staged whitespace error, ignored `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run-directory file.
+18. Repair coverage includes control and Unicode format character redaction, all private chat aliases, persistent freeze disable cleanup, jail login, respawn, dimension, and interaction enforcement, item toss and vanilla inventory packet paths, bounded trusted proxy and external adapter registration, and mandatory audit health.
+19. Diff inspection found no staged whitespace error, tracked `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run directory file.
 
-The authenticated moderator matrix, real proxy and external provider adapters, real LuckPerms mutation, MaxLogger coexistence, deliberate disk-full, permission-denied, writer, and forced-shutdown cases, remaining enforcement fixtures, and profiler rows remain untested release gates.
+The authenticated moderator matrix, real proxy and external provider adapters, real LuckPerms mutation, MaxLogger coexistence, deliberate disk full, permission denied, and forced shutdown cases, remaining enforcement fixtures, and profiler rows remain untested release gates. The automated writer failure fixture does not replace deliberate operating system failure testing.
 
 Do not approve a public release while a required row is untested or failing.

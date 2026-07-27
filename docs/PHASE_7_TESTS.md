@@ -167,26 +167,28 @@ The GameTest server must pass every registered world fixture. Authenticated tran
 
 ## Completion record
 
-Automated and headless audit verification was recorded on 2026-07-26:
+Automated and headless repair verification was recorded on 2026-07-26:
 
-1. Implementation commit: `89c57a226a33971638a9efbc5a85b0069864bc71`.
+1. Implementation commit: `7ff545435807e5c1d2584d6c44d1270df69df62e`.
 2. Artifact: `build/libs/sef-1.0-SNAPSHOT.jar`.
-3. JAR SHA-256: `238d8a4a7bc2a48194dade43ba99305191f12f467916e17de0d94d8f1c60eb4d`.
+3. JAR SHA-256: `434a18a017ce75c1111508c6ac3e67d9be9b9f6c984c250d0cfd7befb69ff376`.
 4. Java: OpenJDK `21.0.11`.
 5. Minecraft: `1.21.1`.
 6. NeoForge: `21.1.233`.
 7. Optional integrations: absent for the recorded final headless run.
 8. Configuration: ignored development `run` directory, offline mode, and default Phase 7 modules.
-9. Unit tests: 191 passed through `./gradlew test`.
-10. GameTests: all 7 required tests passed through `./gradlew runGameTestServer`.
+9. Unit tests: 203 passed through `./gradlew test`.
+10. GameTests: all 9 required tests passed through `./gradlew runGameTestServer`.
 11. Build: `./gradlew build` completed successfully.
-12. Dedicated server: the exact audited source reached `Done`, accepted `kit validate`, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
+12. Dedicated server: the exact audited source reached `Done`, accepted `kit validate`, `/sef doctor`, and `/sef storage status`, and stopped cleanly with all dimensions saved through `./gradlew runServer`.
 13. Kit validation: 0 definitions, 0 invalid definitions, and 0 use records on the empty staging world.
-14. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota-provider failures, and no kernel errors.
+14. Diagnostics: 183 catalog entries, 433 capabilities, 164 shortcuts, 183 policies, 6 quotas, 7 coordinated repositories, no recovery mode, no import failures, no quota provider failures, a healthy security audit writer, and no kernel errors.
 15. Storage: `kits.json` reported its correct missing initial state without recovery or write errors.
-16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and Phase 7 inventory, kit, player, and workstation classes were packaged.
+16. Artifact inspection: ZIP integrity passed, required NeoForge metadata and mixin configuration were present, and the Phase 7 inventory lock mixin, kit, player, and workstation classes were packaged.
 17. Dedicated-server boundary inspection found no `net.minecraft.client` imports in the Phase 7 packages.
-18. Diff inspection found no staged whitespace error, ignored `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run-directory file.
+18. Kit repository tests verify one time and cooldown rules at the commit boundary and reject stale or deleted definitions before a use record can be created.
+19. Inventory lock GameTests verify item use and item toss enforcement. Dedicated server mixin startup verifies the expanded vanilla inventory packet injections apply without a mixin error.
+20. Diff inspection found no staged whitespace error, tracked `AGENTS.md`, absolute workspace path, credential pattern, debug output, build output, or run directory file.
 
 The authenticated inventory transaction matrix, vanilla-client join, real Curios interaction, missing-registry fixtures, external shortcut collision fixtures, player-driven kit persistence, super-enchant client and server matrix, dirty shutdown race, and profiler rows remain untested release gates.
 
