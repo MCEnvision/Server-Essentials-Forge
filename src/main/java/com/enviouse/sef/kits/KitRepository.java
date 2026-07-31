@@ -83,7 +83,9 @@ public final class KitRepository implements StorageRepository {
         uses.clear();
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
-            state = Files.exists(path) ? RepositoryState.RECOVERY : RepositoryState.MISSING;
+            state = Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    ? RepositoryState.RECOVERY
+                    : RepositoryState.MISSING;
             return new LoadResult(state, state == RepositoryState.MISSING ? "new repository" : "storage unavailable");
         }
         try {

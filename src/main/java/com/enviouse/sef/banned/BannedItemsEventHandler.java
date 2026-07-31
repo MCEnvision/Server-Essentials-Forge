@@ -23,6 +23,10 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.common.util.TriState;
 import net.minecraft.core.registries.BuiltInRegistries;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Event-driven enforcement for banned items/blocks.
  *
@@ -32,6 +36,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
  */
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public class BannedItemsEventHandler {
+    private static final long RECOVERY_NOTICE_INTERVAL_MILLIS = 5_000L;
+    private static final Map<UUID, Long> RECOVERY_NOTICES = new ConcurrentHashMap<>();
 
     private static BannedItemsManager mgr() {
         return CommandRegistrationHandler.getBannedItemsManager();
@@ -50,8 +56,15 @@ public class BannedItemsEventHandler {
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null || !m.isBlocksEnabled()) return;
         Entity entity = ev.getEntity();
+        if (m == null || !m.available()) {
+            ev.setCanceled(true);
+            if (entity instanceof ServerPlayer player) {
+                notifyRecovery(player);
+            }
+            return;
+        }
+        if (!m.isBlocksEnabled()) return;
         BlockState placed = ev.getPlacedBlock();
         BannedEntry hit = m.matchBlock(placed);
         if (hit == null) return;
@@ -94,8 +107,13 @@ public class BannedItemsEventHandler {
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null || !m.isItemsEnabled()) return;
         if (!(ev.getEntity() instanceof ServerPlayer player)) return;
+        if (m == null || !m.available()) {
+            ev.setCanceled(true);
+            notifyRecovery(player);
+            return;
+        }
+        if (!m.isItemsEnabled()) return;
         if (m.isBypassed(player)) return;
         BannedEntry hit = m.matchItem(ev.getItemStack());
         if (hit != null) {
@@ -109,8 +127,13 @@ public class BannedItemsEventHandler {
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null || !m.isItemsEnabled()) return;
         if (!(ev.getEntity() instanceof ServerPlayer player)) return;
+        if (m == null || !m.available()) {
+            ev.setCanceled(true);
+            notifyRecovery(player);
+            return;
+        }
+        if (!m.isItemsEnabled()) return;
         if (m.isBypassed(player)) return;
         if (m.matchItem(ev.getItemStack()) != null) ev.setCanceled(true);
     }
@@ -120,8 +143,13 @@ public class BannedItemsEventHandler {
     public static void onUseItem(LivingEntityUseItemEvent.Start ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null || !m.isItemsEnabled()) return;
         if (!(ev.getEntity() instanceof ServerPlayer player)) return;
+        if (m == null || !m.available()) {
+            ev.setCanceled(true);
+            notifyRecovery(player);
+            return;
+        }
+        if (!m.isItemsEnabled()) return;
         if (m.isBypassed(player)) return;
         if (m.matchItem(ev.getItem()) != null) ev.setCanceled(true);
     }
@@ -131,9 +159,14 @@ public class BannedItemsEventHandler {
     public static void onPickup(ItemEntityPickupEvent.Pre ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null || !m.isItemsEnabled()) return;
         ServerPlayer player = (ev.getPlayer() instanceof ServerPlayer sp) ? sp : null;
-        if (player == null || m.isBypassed(player)) return;
+        if (player == null) return;
+        if (m == null || !m.available()) {
+            ev.setCanPickup(TriState.FALSE);
+            notifyRecovery(player);
+            return;
+        }
+        if (!m.isItemsEnabled() || m.isBypassed(player)) return;
         ItemStack stack = ev.getItemEntity().getItem();
         if (m.matchItem(stack) != null) {
             ev.setCanPickup(TriState.FALSE);
@@ -150,7 +183,7 @@ public class BannedItemsEventHandler {
     public static void onBlockBreak(BlockEvent.BreakEvent ev) {
         if (!enabled()) return;
         BannedItemsManager m = mgr();
-        if (m == null) return;
+        if (m == null || !m.available()) return;
         if (!(ev.getLevel() instanceof ServerLevel sl)) return;
         BlockPos pos = ev.getPos();
         if (!m.isExcepted(sl, pos)) return;
@@ -168,5 +201,17 @@ public class BannedItemsEventHandler {
     @SuppressWarnings("unused") // kept for future hover/tooltip interactions
     private static Component fmt(String s) {
         return TextFormatter.stringToFormattedText(s);
+    }
+
+    private static void notifyRecovery(ServerPlayer player) {
+        long now = System.currentTimeMillis();
+        Long previous = RECOVERY_NOTICES.put(player.getUUID(), now);
+        if (previous != null && now - previous < RECOVERY_NOTICE_INTERVAL_MILLIS) {
+            return;
+        }
+        player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                "&cItem actions are temporarily unavailable because banned item storage requires recovery."));
+        ServerEssentialsForge.LOGGER.error(
+                "[SEF] Blocked an item action because banned item storage is unavailable");
     }
 }

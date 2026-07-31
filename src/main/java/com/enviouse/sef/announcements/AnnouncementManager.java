@@ -7,6 +7,8 @@ import com.enviouse.sef.commands.CommandRootPolicy;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.storage.StorageService;
+import com.enviouse.sef.storage.StorageLifecycle;
+import com.enviouse.sef.storage.repository.StorageRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -33,6 +35,9 @@ import java.util.UUID;
 public class AnnouncementManager {
     private static final int ANNOUNCEMENT_SCHEMA_VERSION = 2;
     private static final int PREFERENCE_SCHEMA_VERSION = 1;
+    private static final int MAXIMUM_ANNOUNCEMENTS = 10_000;
+    private static final int MAXIMUM_PREFERENCE_PLAYERS = 100_000;
+    private static final int MAXIMUM_TOGGLES_PER_PLAYER = 1_024;
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type LEGACY_LIST_TYPE = new TypeToken<List<LegacyAnnouncement>>() {
     }.getType();
@@ -51,10 +56,17 @@ public class AnnouncementManager {
     private Path prefsPath;
     private StorageService.Document announcementDocument;
     private StorageService.Document preferenceDocument;
+    private StorageRepository.RepositoryState announcementState =
+            StorageRepository.RepositoryState.NEW;
+    private StorageRepository.RepositoryState preferenceState =
+            StorageRepository.RepositoryState.NEW;
     private long tickCounter;
 
     public void load(MinecraftServer server) {
-        Path directory = server.getServerDirectory().resolve("serverconfig").resolve("sef");
+        load(server.getServerDirectory().resolve("serverconfig").resolve("sef"));
+    }
+
+    void load(Path directory) {
         filePath = directory.resolve("announcements.json");
         prefsPath = directory.resolve("announcement_prefs.json");
         loadAnnouncements();
@@ -63,46 +75,59 @@ public class AnnouncementManager {
     }
 
     private void loadAnnouncements() {
-        announcements.clear();
-        announcementDocument = StorageService.read(
+        StorageService.Document candidate = StorageService.read(
                 filePath,
                 "announcements",
                 ANNOUNCEMENT_SCHEMA_VERSION).orElse(null);
-        if (announcementDocument == null) {
+        if (candidate == null) {
+            StorageRepository.RepositoryState detected = StorageLifecycle.stateFor(filePath);
+            announcementState = detected == StorageRepository.RepositoryState.MISSING
+                    && announcements.isEmpty()
+                    ? detected
+                    : StorageRepository.RepositoryState.RECOVERY;
             return;
         }
-
-        if (announcementDocument.schemaVersion() == 0) {
-            loadLegacyAnnouncements(announcementDocument.data());
-        } else {
-            loadTypedAnnouncements(announcementDocument.data());
+        try {
+            List<ScheduledAnnouncement> loaded = candidate.schemaVersion() == 0
+                    ? parseLegacyAnnouncements(candidate.data())
+                    : parseTypedAnnouncements(candidate.data());
+            announcements.clear();
+            announcements.addAll(loaded);
+            announcementDocument = candidate;
+            announcementState = StorageRepository.RepositoryState.READY;
+            if (candidate.migrated() && !save()) {
+                announcementState = StorageRepository.RepositoryState.ERROR;
+            }
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Loaded {} text and {} command announcement or announcements",
+                    getTextAnnouncements().size(),
+                    getCommandAnnouncements().size());
+        } catch (RuntimeException exception) {
+            announcementState = StorageRepository.RepositoryState.RECOVERY;
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to load announcements", exception);
         }
-        if (announcementDocument.migrated()) {
-            save();
-        }
-        ServerEssentialsForge.LOGGER.info(
-                "[SEF] Loaded {} text and {} command announcement or announcements",
-                getTextAnnouncements().size(),
-                getCommandAnnouncements().size());
     }
 
-    private void loadLegacyAnnouncements(JsonElement data) {
+    private List<ScheduledAnnouncement> parseLegacyAnnouncements(JsonElement data) {
         List<LegacyAnnouncement> loaded = GSON.fromJson(data, LEGACY_LIST_TYPE);
-        if (loaded == null) {
-            return;
+        if (loaded == null || loaded.size() > MAXIMUM_ANNOUNCEMENTS) {
+            throw new IllegalStateException("Legacy announcement snapshot is outside bounds");
         }
+        List<ScheduledAnnouncement> result = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
         for (LegacyAnnouncement legacy : loaded) {
             ScheduledAnnouncement migrated = migrateLegacy(legacy);
-            if (migrated != null && getById(migrated.id()) == null) {
-                announcements.add(migrated);
+            if (migrated == null || !ids.add(key(migrated.id()))) {
+                throw new IllegalStateException("Legacy announcement record is invalid or duplicated");
             }
+            result.add(migrated);
         }
+        return List.copyOf(result);
     }
 
-    private void loadTypedAnnouncements(JsonElement data) {
+    private List<ScheduledAnnouncement> parseTypedAnnouncements(JsonElement data) {
         if (data == null || !data.isJsonObject()) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Typed announcement data is not an object");
-            return;
+            throw new IllegalStateException("Typed announcement data is not an object");
         }
         JsonObject object = data.getAsJsonObject();
         List<TextAnnouncement> textAnnouncements = object.has("text")
@@ -111,20 +136,25 @@ public class AnnouncementManager {
         List<CommandAnnouncement> commandAnnouncements = object.has("commands")
                 ? GSON.fromJson(object.get("commands"), COMMAND_LIST_TYPE)
                 : List.of();
-        if (textAnnouncements != null) {
-            for (TextAnnouncement announcement : textAnnouncements) {
-                if (valid(announcement) && getById(announcement.id()) == null) {
-                    announcements.add(announcement);
-                }
-            }
+        if (textAnnouncements == null || commandAnnouncements == null
+                || textAnnouncements.size() + commandAnnouncements.size() > MAXIMUM_ANNOUNCEMENTS) {
+            throw new IllegalStateException("Announcement collection is outside bounds");
         }
-        if (commandAnnouncements != null) {
-            for (CommandAnnouncement announcement : commandAnnouncements) {
-                if (valid(announcement) && getById(announcement.id()) == null) {
-                    announcements.add(announcement);
-                }
+        List<ScheduledAnnouncement> result = new ArrayList<>();
+        Set<String> ids = new HashSet<>();
+        for (TextAnnouncement announcement : textAnnouncements) {
+            if (!valid(announcement) || !ids.add(key(announcement.id()))) {
+                throw new IllegalStateException("Text announcement is invalid or duplicated");
             }
+            result.add(announcement);
         }
+        for (CommandAnnouncement announcement : commandAnnouncements) {
+            if (!valid(announcement) || !ids.add(key(announcement.id()))) {
+                throw new IllegalStateException("Command announcement is invalid or duplicated");
+            }
+            result.add(announcement);
+        }
+        return List.copyOf(result);
     }
 
     private ScheduledAnnouncement migrateLegacy(LegacyAnnouncement legacy) {
@@ -170,8 +200,13 @@ public class AnnouncementManager {
         return announcement != null
                 && !invalidIdentity(announcement.id())
                 && announcement.message() != null
+                && announcement.message().length() <= 4_096
+                && announcement.message().codePoints().noneMatch(Character::isISOControl)
                 && announcement.target() != null
+                && announcement.target().length() <= 128
+                && announcement.target().codePoints().noneMatch(Character::isISOControl)
                 && announcement.intervalSeconds() > 0
+                && announcement.intervalSeconds() <= 31_557_600L
                 && announcement.offsetSeconds() >= 0;
     }
 
@@ -179,7 +214,9 @@ public class AnnouncementManager {
         if (announcement == null
                 || invalidIdentity(announcement.id())
                 || announcement.command() == null
+                || announcement.command().length() > 4_096
                 || announcement.intervalSeconds() <= 0
+                || announcement.intervalSeconds() > 31_557_600L
                 || announcement.offsetSeconds() < 0
                 || announcement.sourcePolicy() != CommandSourcePolicy.SERVER) {
             return false;
@@ -201,41 +238,61 @@ public class AnnouncementManager {
     }
 
     private void loadPreferences() {
-        playerToggles.clear();
-        preferenceDocument = StorageService.read(
+        StorageService.Document candidate = StorageService.read(
                 prefsPath,
                 "announcement preferences",
                 PREFERENCE_SCHEMA_VERSION).orElse(null);
-        if (preferenceDocument == null) {
+        if (candidate == null) {
+            StorageRepository.RepositoryState detected = StorageLifecycle.stateFor(prefsPath);
+            preferenceState = detected == StorageRepository.RepositoryState.MISSING
+                    && playerToggles.isEmpty()
+                    ? detected
+                    : StorageRepository.RepositoryState.RECOVERY;
             return;
         }
-        Map<String, List<String>> loaded = GSON.fromJson(preferenceDocument.data(), PREFERENCE_TYPE);
-        if (loaded != null) {
-            loaded.forEach((uuidText, ids) -> {
-                try {
-                    if (ids != null) {
-                        Set<String> normalizedIds = new HashSet<>();
-                        ids.stream()
-                                .filter(id -> id != null && !id.isBlank())
-                                .map(id -> id.toLowerCase(Locale.ROOT))
-                                .limit(1024)
-                                .forEach(normalizedIds::add);
-                        if (!normalizedIds.isEmpty()) {
-                            playerToggles.put(UUID.fromString(uuidText), normalizedIds);
-                        }
-                    }
-                } catch (IllegalArgumentException ignored) {
+        try {
+            Map<String, List<String>> loaded = GSON.fromJson(candidate.data(), PREFERENCE_TYPE);
+            if (loaded == null || loaded.size() > MAXIMUM_PREFERENCE_PLAYERS) {
+                throw new IllegalStateException("Announcement preference snapshot is outside bounds");
+            }
+            Map<UUID, Set<String>> validated = new HashMap<>();
+            for (Map.Entry<String, List<String>> entry : loaded.entrySet()) {
+                UUID playerId = UUID.fromString(entry.getKey());
+                List<String> ids = entry.getValue();
+                if (ids == null || ids.size() > MAXIMUM_TOGGLES_PER_PLAYER) {
+                    throw new IllegalStateException("Announcement preference group is outside bounds");
                 }
-            });
-        }
-        if (preferenceDocument.migrated()) {
-            savePreferences();
+                Set<String> normalized = new HashSet<>();
+                for (String id : ids) {
+                    if (invalidIdentity(id) || !normalized.add(key(id))) {
+                        throw new IllegalStateException("Announcement preference is invalid or duplicated");
+                    }
+                }
+                if (!normalized.isEmpty()) {
+                    validated.put(playerId, Set.copyOf(normalized));
+                }
+            }
+            playerToggles.clear();
+            validated.forEach((playerId, ids) -> playerToggles.put(playerId, new HashSet<>(ids)));
+            preferenceDocument = candidate;
+            preferenceState = StorageRepository.RepositoryState.READY;
+            if (candidate.migrated() && !savePreferences()) {
+                preferenceState = StorageRepository.RepositoryState.ERROR;
+            }
+        } catch (RuntimeException exception) {
+            preferenceState = StorageRepository.RepositoryState.RECOVERY;
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Failed to load announcement preferences",
+                    exception);
         }
     }
 
-    public void save() {
+    public boolean save() {
         if (filePath == null) {
-            return;
+            return true;
+        }
+        if (!StorageLifecycle.writable(announcementState)) {
+            return false;
         }
         JsonObject data = new JsonObject();
         data.add("text", GSON.toJsonTree(getTextAnnouncements()));
@@ -247,14 +304,25 @@ public class AnnouncementManager {
                     ANNOUNCEMENT_SCHEMA_VERSION,
                     data,
                     announcementDocument);
-        } catch (IOException exception) {
+            announcementDocument = StorageService.read(
+                    filePath,
+                    "announcements",
+                    ANNOUNCEMENT_SCHEMA_VERSION).orElse(announcementDocument);
+            announcementState = StorageRepository.RepositoryState.READY;
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            announcementState = StorageRepository.RepositoryState.ERROR;
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcements", exception);
+            return false;
         }
     }
 
-    private void savePreferences() {
+    private boolean savePreferences() {
         if (prefsPath == null) {
-            return;
+            return true;
+        }
+        if (!StorageLifecycle.writable(preferenceState)) {
+            return false;
         }
         Map<String, List<String>> output = new HashMap<>();
         playerToggles.forEach((uuid, ids) -> output.put(uuid.toString(), new ArrayList<>(ids)));
@@ -265,8 +333,16 @@ public class AnnouncementManager {
                     PREFERENCE_SCHEMA_VERSION,
                     GSON.toJsonTree(output),
                     preferenceDocument);
-        } catch (IOException exception) {
+            preferenceDocument = StorageService.read(
+                    prefsPath,
+                    "announcement preferences",
+                    PREFERENCE_SCHEMA_VERSION).orElse(preferenceDocument);
+            preferenceState = StorageRepository.RepositoryState.READY;
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            preferenceState = StorageRepository.RepositoryState.ERROR;
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to save announcement preferences", exception);
+            return false;
         }
     }
 
@@ -518,12 +594,19 @@ public class AnnouncementManager {
         boolean valid = announcement instanceof TextAnnouncement text
                 ? valid(text)
                 : announcement instanceof CommandAnnouncement command && valid(command);
-        if (!valid || getById(announcement.id()) != null) {
+        if (!valid
+                || getById(announcement.id()) != null
+                || announcements.size() >= MAXIMUM_ANNOUNCEMENTS) {
             return false;
         }
+        requireAnnouncementStorage();
         announcements.add(announcement);
         scheduleInitial(announcement);
-        save();
+        if (!save()) {
+            announcements.remove(announcement);
+            nextFireAt.remove(key(announcement.id()));
+            throw new IllegalStateException("Announcement could not be persisted");
+        }
         return true;
     }
 
@@ -540,10 +623,15 @@ public class AnnouncementManager {
         if (existing == null || !type.isInstance(existing)) {
             return false;
         }
+        requireAnnouncementStorage();
         boolean removed = announcements.remove(existing);
         if (removed) {
             nextFireAt.remove(key(id));
-            save();
+            if (!save()) {
+                announcements.add(existing);
+                scheduleInitial(existing);
+                throw new IllegalStateException("Announcement removal could not be persisted");
+            }
         }
         return removed;
     }
@@ -559,6 +647,7 @@ public class AnnouncementManager {
             ScheduledAnnouncement current = announcements.get(index);
             if (current instanceof TextAnnouncement text
                     && text.id().equalsIgnoreCase(id)) {
+                requireAnnouncementStorage();
                 TextAnnouncement replacement = text.with(
                         intervalSeconds,
                         toggleable,
@@ -569,7 +658,11 @@ public class AnnouncementManager {
                 }
                 announcements.set(index, replacement);
                 scheduleInitial(replacement);
-                save();
+                if (!save()) {
+                    announcements.set(index, current);
+                    scheduleInitial(current);
+                    throw new IllegalStateException("Announcement modification could not be persisted");
+                }
                 return true;
             }
         }
@@ -582,6 +675,10 @@ public class AnnouncementManager {
     }
 
     public boolean togglePlayer(UUID uuid, String announcementId) {
+        if (prefsPath != null && !StorageLifecycle.writable(preferenceState)) {
+            throw new IllegalStateException(
+                    "Announcement preference storage is unavailable in " + preferenceState + " state");
+        }
         String key = key(announcementId);
         Set<String> disabled = playerToggles.computeIfAbsent(uuid, ignored -> new HashSet<>());
         boolean enabled;
@@ -594,12 +691,40 @@ public class AnnouncementManager {
         if (disabled.isEmpty()) {
             playerToggles.remove(uuid);
         }
-        savePreferences();
+        if (!savePreferences()) {
+            if (enabled) {
+                playerToggles.computeIfAbsent(uuid, ignored -> new HashSet<>()).add(key);
+            } else {
+                Set<String> rollback = playerToggles.get(uuid);
+                if (rollback != null) {
+                    rollback.remove(key);
+                    if (rollback.isEmpty()) {
+                        playerToggles.remove(uuid);
+                    }
+                }
+            }
+            throw new IllegalStateException("Announcement preference could not be persisted");
+        }
         return enabled;
+    }
+
+    StorageRepository.RepositoryState announcementState() {
+        return announcementState;
+    }
+
+    StorageRepository.RepositoryState preferenceState() {
+        return preferenceState;
     }
 
     public List<TextAnnouncement> getToggleable() {
         return getTextAnnouncements().stream().filter(TextAnnouncement::toggleable).toList();
+    }
+
+    private void requireAnnouncementStorage() {
+        if (filePath != null && !StorageLifecycle.writable(announcementState)) {
+            throw new IllegalStateException(
+                    "Announcement storage is unavailable in " + announcementState + " state");
+        }
     }
 
     private static String key(String id) {

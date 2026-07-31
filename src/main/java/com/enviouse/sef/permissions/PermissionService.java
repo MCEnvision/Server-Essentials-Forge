@@ -85,35 +85,57 @@ public final class PermissionService {
                     player.getUUID(),
                     exception);
         }
+        boolean permissionApiGranted = false;
+        RuntimeException permissionApiFailure = null;
         try {
-            boolean granted = PermissionAPI.getPermission(player, node);
-            boolean directProviderGrant = !granted
-                    && DynamicPermissionService.has(player, node.getNodeName());
-            String provider = provider();
-            return new Decision(
-                    granted || directProviderGrant,
-                    node.getNodeName(),
-                    directProviderGrant ? "luckperms:direct" : provider,
-                    defaultUse(provider),
-                    Evaluation.NOT_EVALUATED,
-                    Evaluation.NOT_EVALUATED,
-                    SubjectKind.ONLINE_PLAYER,
-                    granted || directProviderGrant ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
+            permissionApiGranted = PermissionAPI.getPermission(player, node);
         } catch (RuntimeException exception) {
-            ServerEssentialsForge.LOGGER.trace("Permission service unavailable for online player", exception);
+            permissionApiFailure = exception;
+            ServerEssentialsForge.LOGGER.trace(
+                    "NeoForge permission service unavailable for online player",
+                    exception);
+        }
+        DynamicPermissionService.Decision directProviderDecision = Objects.requireNonNullElse(
+                DynamicPermissionService.decision(player, node.getNodeName()),
+                DynamicPermissionService.Decision.UNAVAILABLE);
+        if (directProviderDecision == DynamicPermissionService.Decision.DENIED) {
+            return deniedByDirectProvider(node, SubjectKind.ONLINE_PLAYER);
+        }
+        boolean directProviderGrant =
+                directProviderDecision == DynamicPermissionService.Decision.GRANTED;
+        if (permissionApiFailure != null && !directProviderGrant) {
             return unavailable(node, SubjectKind.ONLINE_PLAYER);
         }
+        String provider = directProviderGrant ? "luckperms:direct" : providerId();
+        boolean granted = permissionApiGranted || directProviderGrant;
+        return new Decision(
+                granted,
+                node.getNodeName(),
+                provider,
+                defaultUse(provider),
+                Evaluation.NOT_EVALUATED,
+                Evaluation.NOT_EVALUATED,
+                SubjectKind.ONLINE_PLAYER,
+                granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
     }
 
     public static boolean hasProviderOnly(ServerPlayer player, PermissionNode<Boolean> node) {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(node, "node");
+        boolean permissionApiGranted = false;
         try {
-            return PermissionAPI.getPermission(player, node);
+            permissionApiGranted = PermissionAPI.getPermission(player, node);
         } catch (RuntimeException exception) {
             ServerEssentialsForge.LOGGER.trace("Permission provider unavailable for online player", exception);
-            return false;
         }
+        DynamicPermissionService.Decision directProviderDecision = Objects.requireNonNullElse(
+                DynamicPermissionService.decision(player, node.getNodeName()),
+                DynamicPermissionService.Decision.UNAVAILABLE);
+        return switch (directProviderDecision) {
+            case GRANTED -> true;
+            case DENIED -> false;
+            case UNDEFINED, UNAVAILABLE -> permissionApiGranted;
+        };
     }
 
     public static boolean has(UUID playerId, PermissionNode<Boolean> node) {
@@ -139,30 +161,65 @@ public final class PermissionService {
                     playerId,
                     exception);
         }
+        boolean permissionApiGranted = false;
+        RuntimeException permissionApiFailure = null;
         try {
-            boolean granted = PermissionAPI.getOfflinePermission(playerId, node);
-            boolean directProviderGrant = !granted
-                    && DynamicPermissionService.has(playerId, node.getNodeName());
-            String provider = provider();
-            return new Decision(
-                    granted || directProviderGrant,
-                    node.getNodeName(),
-                    directProviderGrant ? "luckperms:direct" : provider,
-                    defaultUse(provider),
-                    Evaluation.NOT_EVALUATED,
-                    Evaluation.NOT_EVALUATED,
-                    SubjectKind.OFFLINE_PLAYER,
-                    granted || directProviderGrant
-                            ? DenialReason.NONE
-                            : DenialReason.PERMISSION_DENIED);
+            permissionApiGranted = PermissionAPI.getOfflinePermission(playerId, node);
         } catch (RuntimeException exception) {
-            ServerEssentialsForge.LOGGER.trace("Permission service unavailable for offline player", exception);
+            permissionApiFailure = exception;
+            ServerEssentialsForge.LOGGER.trace(
+                    "NeoForge permission service unavailable for offline player",
+                    exception);
+        }
+        DynamicPermissionService.Decision directProviderDecision = Objects.requireNonNullElse(
+                DynamicPermissionService.decision(playerId, node.getNodeName()),
+                DynamicPermissionService.Decision.UNAVAILABLE);
+        if (directProviderDecision == DynamicPermissionService.Decision.DENIED) {
+            return deniedByDirectProvider(node, SubjectKind.OFFLINE_PLAYER);
+        }
+        boolean directProviderGrant =
+                directProviderDecision == DynamicPermissionService.Decision.GRANTED;
+        if (permissionApiFailure != null && !directProviderGrant) {
             return unavailable(node, SubjectKind.OFFLINE_PLAYER);
         }
+        String provider = directProviderGrant ? "luckperms:direct" : providerId();
+        boolean granted = permissionApiGranted || directProviderGrant;
+        return new Decision(
+                granted,
+                node.getNodeName(),
+                provider,
+                defaultUse(provider),
+                Evaluation.NOT_EVALUATED,
+                Evaluation.NOT_EVALUATED,
+                SubjectKind.OFFLINE_PLAYER,
+                granted ? DenialReason.NONE : DenialReason.PERMISSION_DENIED);
     }
 
     public static boolean isConsole(CommandSourceStack source) {
         return source.getEntity() == null && source.hasPermission(4);
+    }
+
+    private static Decision deniedByDirectProvider(
+            PermissionNode<Boolean> node,
+            SubjectKind subjectKind
+    ) {
+        return new Decision(
+                false,
+                node.getNodeName(),
+                "luckperms:direct",
+                DefaultUse.NOT_USED,
+                Evaluation.NOT_EVALUATED,
+                Evaluation.NOT_EVALUATED,
+                subjectKind,
+                DenialReason.PERMISSION_DENIED);
+    }
+
+    public static String providerId() {
+        try {
+            return provider();
+        } catch (RuntimeException exception) {
+            return "unavailable";
+        }
     }
 
     private static Decision unavailable(PermissionNode<Boolean> node, SubjectKind subjectKind) {

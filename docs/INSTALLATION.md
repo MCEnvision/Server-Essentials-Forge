@@ -2,11 +2,11 @@
 
 ## Supported platform
 
-SEF targets Minecraft `1.21.1`, NeoForge `21.1.233`, and Java `21`. Use the universal JAR produced by the checked in Gradle wrapper.
+SEF targets Minecraft `1.21.1`, NeoForge `21.1.235`, and Java `21`. Use the universal JAR produced by the checked in Gradle wrapper.
 
 ## Server only mode
 
-1. Install NeoForge `21.1.233` on the server.
+1. Install NeoForge `21.1.235` on the server.
 2. Place the SEF JAR in the server `mods` directory.
 3. Start the server once, wait for the ready message, and stop it normally.
 4. Keep `gui.enabled = false` in `config/sef/common.toml`.
@@ -31,6 +31,8 @@ Vanilla clients and clients without SEF may still join. They receive command fal
 LuckPerms, FTB Essentials, and Curios are optional. SEF must start when each is absent. Enable an integration only after installing a compatible provider and checking `/sef doctor`.
 
 Provider loss never grants authority. Sensitive provider failures, unknown permission checks, missing inventory adapters, and unavailable command adapters fail closed or retain the documented previous known good state.
+
+LuckPerms NeoForge `5.4.140` failed player login in the historical NeoForge `21.1.233` matrix. That result does not establish behavior on NeoForge `21.1.235`. Use a LuckPerms and NeoForge pair verified together, or run without LuckPerms until a compatible pair is selected. Do not suppress or patch around another mod's failed login listener.
 
 ## First start checklist
 

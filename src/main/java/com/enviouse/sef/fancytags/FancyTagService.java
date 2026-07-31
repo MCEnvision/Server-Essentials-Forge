@@ -121,7 +121,9 @@ public final class FancyTagService implements StorageRepository {
         importCandidates.clear();
         registryRevision = 0L;
         flushedRevision = 0L;
-        boolean existed = java.nio.file.Files.exists(path);
+        boolean existed = java.nio.file.Files.exists(
+                path,
+                java.nio.file.LinkOption.NOFOLLOW_LINKS);
         try {
             objectStore.initialize(managedRoot);
         } catch (IOException | RuntimeException exception) {

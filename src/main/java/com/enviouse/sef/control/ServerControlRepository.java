@@ -25,9 +25,10 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class ServerControlRepository implements StorageRepository {
-    public static final int SCHEMA_VERSION = 1;
+    public static final int SCHEMA_VERSION = 2;
     public static final int HARD_MAXIMUM_RECORDS = 100_000;
     public static final int HARD_MAXIMUM_HISTORY = 200_000;
+    public static final int HARD_MAXIMUM_EXECUTIONS = 200_000;
     private static final Gson GSON = new GsonBuilder()
             .registerTypeAdapter(Instant.class, new InstantJsonAdapter())
             .setPrettyPrinting()
@@ -36,6 +37,7 @@ public final class ServerControlRepository implements StorageRepository {
 
     private final Map<UUID, ControlRecord> records = new LinkedHashMap<>();
     private final List<HistoryEntry> history = new ArrayList<>();
+    private final Map<UUID, ExecutionOperation> executions = new LinkedHashMap<>();
     private Path path;
     private StorageService.Document document;
     private RepositoryState state = RepositoryState.NEW;
@@ -120,6 +122,27 @@ public final class ServerControlRepository implements StorageRepository {
             long expectedRevision,
             String note
     ) {
+        return transition(recordId, actorId, replacement, expectedRevision, note, false);
+    }
+
+    synchronized ActionResult<ControlRecord> transitionExecuted(
+            UUID recordId,
+            UUID actorId,
+            RecordState replacement,
+            long expectedRevision,
+            String note
+    ) {
+        return transition(recordId, actorId, replacement, expectedRevision, note, true);
+    }
+
+    private ActionResult<ControlRecord> transition(
+            UUID recordId,
+            UUID actorId,
+            RecordState replacement,
+            long expectedRevision,
+            String note,
+            boolean execution
+    ) {
         writable();
         Objects.requireNonNull(recordId, "recordId");
         Objects.requireNonNull(replacement, "replacement");
@@ -130,12 +153,26 @@ public final class ServerControlRepository implements StorageRepository {
         if (current.revision() != expectedRevision) {
             return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "server control record revision changed");
         }
+        if (!execution && hasBlockingExecution(recordId)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record has an incomplete execution");
+        }
         var definition = ServerControlCatalog.require(current.featureId());
         if (!definition.states().contains(replacement)) {
             return ActionResult.failure(ActionResult.ReasonCode.POLICY_DENIED, "record state is unavailable for this feature");
         }
         if (!allowedTransition(current.state(), replacement)) {
             return ActionResult.failure(ActionResult.ReasonCode.POLICY_DENIED, "server control state transition is invalid");
+        }
+        ServerControlSchemaRegistry.RuntimeClass runtimeClass =
+                ServerControlSchemaRegistry.require(current.featureId()).runtimeClass();
+        if (!execution
+                && runtimeClass != ServerControlSchemaRegistry.RuntimeClass.REVIEW_QUEUE
+                && (replacement == RecordState.ACTIVE || replacement == RecordState.RESOLVED)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "active and resolved states require the reviewed execution path");
         }
         if ((replacement == RecordState.ACTIVE || replacement == RecordState.APPROVED)
                 && !ServerControlSchemaRegistry.require(current.featureId()).missing(current.metadata()).isEmpty()) {
@@ -176,6 +213,11 @@ public final class ServerControlRepository implements StorageRepository {
         }
         if (current.revision() != expectedRevision) {
             return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "server control record revision changed");
+        }
+        if (hasBlockingExecution(recordId)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record has an incomplete execution");
         }
         ControlRecord updated;
         try {
@@ -218,6 +260,11 @@ public final class ServerControlRepository implements StorageRepository {
         }
         if (current.revision() != expectedRevision) {
             return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "server control record revision changed");
+        }
+        if (hasBlockingExecution(recordId)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record has an incomplete execution");
         }
         if (current.state() == RecordState.ACTIVE
                 || current.state() == RecordState.ARCHIVED
@@ -290,6 +337,11 @@ public final class ServerControlRepository implements StorageRepository {
         }
         if (current.revision() != expectedRevision) {
             return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "server control record revision changed");
+        }
+        if (hasBlockingExecution(recordId)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record has an incomplete execution");
         }
         if (current.state() == RecordState.ACTIVE
                 || current.state() == RecordState.ARCHIVED
@@ -377,15 +429,255 @@ public final class ServerControlRepository implements StorageRepository {
                 .toList();
     }
 
+    public synchronized ActionResult<ExecutionOperation> prepareExecution(
+            UUID recordId,
+            UUID actorId,
+            RecordState destination,
+            long expectedRevision
+    ) {
+        writable();
+        Objects.requireNonNull(recordId, "recordId");
+        Objects.requireNonNull(actorId, "actorId");
+        Objects.requireNonNull(destination, "destination");
+        ControlRecord record = records.get(recordId);
+        if (record == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control record not found");
+        }
+        if (record.revision() != expectedRevision) {
+            return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "server control record revision changed");
+        }
+        if (hasBlockingExecution(recordId)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record has an incomplete execution");
+        }
+        if (!ServerControlCatalog.require(record.featureId()).states().contains(destination)
+                || !allowedTransition(record.state(), destination)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "server control execution destination is invalid");
+        }
+        if (executions.size() >= HARD_MAXIMUM_EXECUTIONS) {
+            pruneExecutions();
+        }
+        if (executions.size() >= HARD_MAXIMUM_EXECUTIONS) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.QUOTA_EXCEEDED,
+                    "server control execution history limit reached");
+        }
+        Instant now = Instant.now();
+        UUID operationId = UUID.randomUUID();
+        ExecutionOperation operation = new ExecutionOperation(
+                operationId,
+                "sef:control:" + operationId,
+                record.id(),
+                record.featureId(),
+                actorId,
+                expectedRevision,
+                destination,
+                ExecutionStatus.PREPARED,
+                now,
+                now,
+                "");
+        executions.put(operation.id(), operation);
+        changed();
+        return ActionResult.success(operation);
+    }
+
+    public synchronized ActionResult<ExecutionOperation> beginExecution(UUID operationId) {
+        writable();
+        ExecutionOperation current = executions.get(Objects.requireNonNull(operationId, "operationId"));
+        if (current == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control execution not found");
+        }
+        if (current.status() != ExecutionStatus.PREPARED) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control execution is not prepared");
+        }
+        ExecutionOperation updated = replaceExecution(
+                current,
+                ExecutionStatus.EXECUTING,
+                "handler invocation claimed");
+        executions.put(updated.id(), updated);
+        changed();
+        return ActionResult.success(updated);
+    }
+
+    public synchronized ActionResult<ExecutionOperation> failExecution(
+            UUID operationId,
+            String detail
+    ) {
+        writable();
+        ExecutionOperation current = executions.get(Objects.requireNonNull(operationId, "operationId"));
+        if (current == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control execution not found");
+        }
+        if (current.status() != ExecutionStatus.PREPARED
+                && current.status() != ExecutionStatus.EXECUTING) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control execution is already terminal");
+        }
+        ExecutionOperation updated = replaceExecution(current, ExecutionStatus.FAILED, detail);
+        executions.put(updated.id(), updated);
+        changed();
+        return ActionResult.success(updated);
+    }
+
+    public synchronized ActionResult<ExecutionOperation> markOutcomeUnknown(
+            UUID operationId,
+            String detail
+    ) {
+        writable();
+        ExecutionOperation current = executions.get(Objects.requireNonNull(operationId, "operationId"));
+        if (current == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control execution not found");
+        }
+        if (current.status() == ExecutionStatus.EXECUTED
+                || current.status() == ExecutionStatus.FAILED) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control execution is already terminal");
+        }
+        ExecutionOperation updated = replaceExecution(current, ExecutionStatus.OUTCOME_UNKNOWN, detail);
+        executions.put(updated.id(), updated);
+        changed();
+        return ActionResult.success(updated);
+    }
+
+    public synchronized ActionResult<ControlRecord> completeExecution(
+            UUID operationId,
+            String detail
+    ) {
+        writable();
+        ExecutionOperation operation = executions.get(Objects.requireNonNull(operationId, "operationId"));
+        if (operation == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control execution not found");
+        }
+        if (operation.status() == ExecutionStatus.EXECUTED) {
+            return find(operation.recordId())
+                    .map(ActionResult::success)
+                    .orElseGet(() -> ActionResult.failure(
+                            ActionResult.ReasonCode.NOT_FOUND,
+                            "server control record not found"));
+        }
+        if (operation.status() != ExecutionStatus.EXECUTING) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control execution is not active");
+        }
+        ControlRecord current = records.get(operation.recordId());
+        if (current == null || current.revision() != operation.recordRevision()) {
+            markOutcomeUnknown(operation.id(), "record changed before terminal commit");
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record changed before terminal commit");
+        }
+        ControlRecord updated = replaceRecordState(current, operation.destination());
+        records.put(updated.id(), updated);
+        executions.put(
+                operation.id(),
+                replaceExecution(operation, ExecutionStatus.EXECUTED, detail));
+        changed();
+        history(
+                updated,
+                operation.actorId(),
+                "executed operation " + operation.id(),
+                current.state(),
+                updated.state());
+        audit(
+                operation.actorId(),
+                updated,
+                "execute",
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS);
+        return ActionResult.success(updated);
+    }
+
+    public synchronized ActionResult<ExecutionOperation> reconcileExecution(
+            UUID operationId,
+            UUID actorId,
+            boolean effectOccurred,
+            String note
+    ) {
+        writable();
+        ExecutionOperation operation = executions.get(Objects.requireNonNull(operationId, "operationId"));
+        if (operation == null) {
+            return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "server control execution not found");
+        }
+        if (operation.status() != ExecutionStatus.OUTCOME_UNKNOWN) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control execution does not require reconciliation");
+        }
+        String boundedNote = bounded(note, 512, false);
+        if (!effectOccurred) {
+            ExecutionOperation failed = replaceExecution(
+                    operation,
+                    ExecutionStatus.FAILED,
+                    "operator confirmed not applied, " + boundedNote);
+            executions.put(failed.id(), failed);
+            changed();
+            return ActionResult.success(failed);
+        }
+        ControlRecord current = records.get(operation.recordId());
+        if (current == null || current.revision() != operation.recordRevision()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.CONFLICT,
+                    "server control record changed before reconciliation");
+        }
+        ControlRecord updated = replaceRecordState(current, operation.destination());
+        records.put(updated.id(), updated);
+        ExecutionOperation completed = replaceExecution(
+                operation,
+                ExecutionStatus.EXECUTED,
+                "operator confirmed applied, " + boundedNote);
+        executions.put(completed.id(), completed);
+        changed();
+        UUID safeActor = Objects.requireNonNullElse(actorId, new UUID(0L, 0L));
+        history(
+                updated,
+                safeActor,
+                "reconciled operation " + operation.id(),
+                current.state(),
+                updated.state());
+        audit(
+                safeActor,
+                updated,
+                "reconcile",
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS);
+        return ActionResult.success(completed);
+    }
+
+    public synchronized Optional<ExecutionOperation> execution(UUID operationId) {
+        return Optional.ofNullable(executions.get(Objects.requireNonNull(operationId, "operationId")));
+    }
+
+    public synchronized List<ExecutionOperation> executions(ExecutionStatus status) {
+        return executions.values().stream()
+                .filter(operation -> status == null || operation.status() == status)
+                .sorted(Comparator.comparing(ExecutionOperation::updatedAt).reversed())
+                .toList();
+    }
+
     public synchronized Diagnostic diagnostic() {
         prune(Instant.now());
         long active = records.values().stream()
                 .filter(record -> record.state() == RecordState.ACTIVE || record.state() == RecordState.OPEN)
                 .count();
+        long incompleteExecutions = executions.values().stream()
+                .filter(operation -> operation.status() == ExecutionStatus.PREPARED
+                        || operation.status() == ExecutionStatus.EXECUTING
+                        || operation.status() == ExecutionStatus.OUTCOME_UNKNOWN)
+                .count();
         return new Diagnostic(
                 records.size(),
                 history.size(),
                 active,
+                executions.size(),
+                incompleteExecutions,
                 revision,
                 state,
                 dirty);
@@ -397,7 +689,9 @@ public final class ServerControlRepository implements StorageRepository {
         clear();
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
-            state = Files.exists(path) ? RepositoryState.RECOVERY : RepositoryState.MISSING;
+            state = Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    ? RepositoryState.RECOVERY
+                    : RepositoryState.MISSING;
             return new LoadResult(state, state == RepositoryState.MISSING
                     ? "new server control repository"
                     : "server control storage unavailable");
@@ -407,7 +701,8 @@ public final class ServerControlRepository implements StorageRepository {
             if (snapshot == null
                     || snapshot.revision() < 1L
                     || snapshot.records().size() > HARD_MAXIMUM_RECORDS
-                    || snapshot.history().size() > HARD_MAXIMUM_HISTORY) {
+                    || snapshot.history().size() > HARD_MAXIMUM_HISTORY
+                    || snapshot.executions().size() > HARD_MAXIMUM_EXECUTIONS) {
                 throw new IllegalStateException("server control snapshot is outside bounds");
             }
             for (ControlRecord record : snapshot.records()) {
@@ -420,10 +715,31 @@ public final class ServerControlRepository implements StorageRepository {
                 validate(entry);
                 history.add(entry);
             }
-            revision = snapshot.revision();
+            boolean reconciled = false;
+            for (ExecutionOperation operation : snapshot.executions()) {
+                validate(operation);
+                ExecutionOperation loaded = switch (operation.status()) {
+                    case PREPARED -> replaceExecution(
+                            operation,
+                            ExecutionStatus.FAILED,
+                            "process stopped before handler invocation");
+                    case EXECUTING -> replaceExecution(
+                            operation,
+                            ExecutionStatus.OUTCOME_UNKNOWN,
+                            "process stopped during handler invocation");
+                    default -> operation;
+                };
+                reconciled |= loaded != operation;
+                if (executions.putIfAbsent(loaded.id(), loaded) != null) {
+                    throw new IllegalStateException("duplicate server control execution");
+                }
+            }
+            revision = reconciled
+                    ? Math.addExact(snapshot.revision(), 1L)
+                    : snapshot.revision();
             prune(Instant.now());
             state = RepositoryState.READY;
-            dirty = document.migrated();
+            dirty = document.migrated() || reconciled;
             return new LoadResult(state, "loaded server control data");
         } catch (RuntimeException exception) {
             clear();
@@ -438,7 +754,8 @@ public final class ServerControlRepository implements StorageRepository {
         Snapshot snapshot = new Snapshot(
                 revision,
                 List.copyOf(records.values()),
-                List.copyOf(history));
+                List.copyOf(history),
+                List.copyOf(executions.values()));
         StorageService.write(path, domain(), SCHEMA_VERSION, GSON.toJsonTree(snapshot), document);
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(document);
         dirty = false;
@@ -510,6 +827,63 @@ public final class ServerControlRepository implements StorageRepository {
         revision = Math.addExact(revision, 1L);
     }
 
+    private boolean hasBlockingExecution(UUID recordId) {
+        return executions.values().stream()
+                .filter(operation -> operation.recordId().equals(recordId))
+                .anyMatch(operation -> operation.status() == ExecutionStatus.PREPARED
+                        || operation.status() == ExecutionStatus.EXECUTING
+                        || operation.status() == ExecutionStatus.OUTCOME_UNKNOWN);
+    }
+
+    private void pruneExecutions() {
+        List<UUID> removable = executions.values().stream()
+                .filter(operation -> operation.status() == ExecutionStatus.EXECUTED
+                        || operation.status() == ExecutionStatus.FAILED)
+                .sorted(Comparator.comparing(ExecutionOperation::updatedAt))
+                .limit(Math.max(1L, executions.size() - HARD_MAXIMUM_EXECUTIONS + 1L))
+                .map(ExecutionOperation::id)
+                .toList();
+        removable.forEach(executions::remove);
+        if (!removable.isEmpty()) {
+            changed();
+        }
+    }
+
+    private static ControlRecord replaceRecordState(ControlRecord current, RecordState replacement) {
+        return new ControlRecord(
+                current.id(),
+                current.featureId(),
+                current.ownerId(),
+                current.subjectId(),
+                current.title(),
+                current.details(),
+                replacement,
+                current.createdAt(),
+                Instant.now(),
+                current.expiresAt(),
+                Math.addExact(current.revision(), 1L),
+                current.metadata());
+    }
+
+    private static ExecutionOperation replaceExecution(
+            ExecutionOperation current,
+            ExecutionStatus status,
+            String detail
+    ) {
+        return new ExecutionOperation(
+                current.id(),
+                current.idempotencyKey(),
+                current.recordId(),
+                current.featureId(),
+                current.actorId(),
+                current.recordRevision(),
+                current.destination(),
+                status,
+                current.createdAt(),
+                Instant.now(),
+                bounded(detail, 512, true));
+    }
+
     private void writable() {
         if (path == null
                 || state == RepositoryState.RECOVERY
@@ -523,6 +897,7 @@ public final class ServerControlRepository implements StorageRepository {
     private void clear() {
         records.clear();
         history.clear();
+        executions.clear();
         revision = 1L;
         dirty = false;
     }
@@ -602,6 +977,26 @@ public final class ServerControlRepository implements StorageRepository {
         Objects.requireNonNull(entry.occurredAt(), "history time");
         if (entry.recordRevision() < 1L) {
             throw new IllegalArgumentException("server control history revision is invalid");
+        }
+    }
+
+    private static void validate(ExecutionOperation operation) {
+        Objects.requireNonNull(operation, "execution operation");
+        Objects.requireNonNull(operation.id(), "execution id");
+        if (!("sef:control:" + operation.id()).equals(operation.idempotencyKey())) {
+            throw new IllegalArgumentException("server control idempotency key is invalid");
+        }
+        Objects.requireNonNull(operation.recordId(), "execution record");
+        ServerControlCatalog.require(operation.featureId());
+        Objects.requireNonNull(operation.actorId(), "execution actor");
+        Objects.requireNonNull(operation.destination(), "execution destination");
+        Objects.requireNonNull(operation.status(), "execution status");
+        Objects.requireNonNull(operation.createdAt(), "execution created time");
+        Objects.requireNonNull(operation.updatedAt(), "execution updated time");
+        bounded(operation.detail(), 512, true);
+        if (operation.recordRevision() < 1L
+                || operation.updatedAt().isBefore(operation.createdAt())) {
+            throw new IllegalArgumentException("server control execution is invalid");
         }
     }
 
@@ -704,14 +1099,39 @@ public final class ServerControlRepository implements StorageRepository {
     ) {
     }
 
+    public enum ExecutionStatus {
+        PREPARED,
+        EXECUTING,
+        EXECUTED,
+        FAILED,
+        OUTCOME_UNKNOWN
+    }
+
+    public record ExecutionOperation(
+            UUID id,
+            String idempotencyKey,
+            UUID recordId,
+            String featureId,
+            UUID actorId,
+            long recordRevision,
+            RecordState destination,
+            ExecutionStatus status,
+            Instant createdAt,
+            Instant updatedAt,
+            String detail
+    ) {
+    }
+
     private record Snapshot(
             long revision,
             List<ControlRecord> records,
-            List<HistoryEntry> history
+            List<HistoryEntry> history,
+            List<ExecutionOperation> executions
     ) {
         private Snapshot {
             records = records == null ? List.of() : List.copyOf(records);
             history = history == null ? List.of() : List.copyOf(history);
+            executions = executions == null ? List.of() : List.copyOf(executions);
         }
     }
 
@@ -719,6 +1139,8 @@ public final class ServerControlRepository implements StorageRepository {
             int records,
             int historyEntries,
             long activeRecords,
+            int executions,
+            long incompleteExecutions,
             long revision,
             RepositoryState state,
             boolean dirty

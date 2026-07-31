@@ -145,7 +145,9 @@ public class PlayerEventHandler implements IReloadable {
 		                    sp.getUUID(),
 		                    sp.getGameProfile().getName());
 		            SefGuiServer.trackPlayer(sp);
-		            com.enviouse.sef.gui.protocol.OfflineActionService.executeReady(sp.server);
+		            com.enviouse.sef.gui.protocol.OfflineActionService.executeReady(
+		                    sp.server,
+		                    sp.getUUID());
 		            com.enviouse.sef.disguise.DisguiseRuntime.cacheProfile(sp);
 		            SefSessionManager.instance().bind(sp).ifPresent(session -> {
 		                SefGuiServer.sendTagManifest(sp);

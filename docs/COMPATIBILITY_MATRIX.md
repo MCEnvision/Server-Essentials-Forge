@@ -5,7 +5,7 @@
 | Component | Supported value | Required | Current evidence |
 | --- | --- | --- | --- |
 | Minecraft | `1.21.1` | yes | Build and run configurations are pinned |
-| NeoForge | `21.1.233` | yes | ModDevGradle compile, unit test, GameTest, client, and server configurations are pinned |
+| NeoForge | `21.1.235` | yes | ModDevGradle compile, 487 unit tests, 39 GameTests, dedicated server, headless client, and packaged metadata pass |
 | Java | `21` | yes | Toolchain is pinned and current verification uses Java `21.0.11` |
 | Gradle | checked in wrapper, Gradle `8.8` | yes | Build uses `./gradlew` or `gradlew.bat` |
 | Loader | NeoForge only | yes | Fabric and legacy Forge are not supported |
@@ -27,7 +27,7 @@ The universal JAR does not make the client mod mandatory. Common initialization 
 
 | Integration | Declared compatibility | Required at runtime | Absent behavior | Current release state |
 | --- | --- | --- | --- | --- |
-| LuckPerms API | `5.4` | no | Internal finite permission and quota fallbacks remain authoritative | Present and absent startup, mutation invalidation, malformed metadata, outage, removal, and finite fallback coverage pass |
+| LuckPerms API | `5.4` | no | Internal finite permission and quota fallbacks remain authoritative | Direct grant, wildcard, explicit deny, bridge outage, mutation invalidation, malformed metadata, removal, and finite fallback tests pass. The recorded LuckPerms NeoForge `5.4.140` login failure was on NeoForge `21.1.233`; a current `21.1.235` player-provider matrix remains open. |
 | FTB Essentials | NeoForge `1.21.1`, CurseForge file `7608733` | no | SEF native ownership or documented fallback remains active | Present and absent startup, ownership selection, mutation boundary, removal, and failure coverage pass |
 | Curios | NeoForge `1.21.1`, CurseForge file `6529130` | no | Optional inventory slots are omitted without startup failure | Present and absent startup, slot discovery, inventory authorization, removal, and failure coverage pass |
 
@@ -41,4 +41,4 @@ Fancy Tags and disguise content use bounded negotiated payloads. Missing client 
 
 Versioned repositories use UUID ownership and retained recovery data. An unsupported newer schema, corrupt document, failed migration, or missing provider must not be interpreted as an empty successful state.
 
-Every compatibility gate in [the acceptance ledger](SEF2_ACCEPTANCE.md) is complete on the current phase branch.
+The current compatibility gates and open integration findings are tracked in [the acceptance ledger](SEF2_ACCEPTANCE.md). Final compatibility acceptance is incomplete.

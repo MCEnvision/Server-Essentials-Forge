@@ -134,6 +134,48 @@ class ServerControlRepositoryTest {
     }
 
     @Test
+    void livePolicyCannotBypassItsExecutionHandlerWithManualStateChange() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var created = repository.create(
+                "maintenance",
+                actor,
+                null,
+                "maintenance",
+                "",
+                null,
+                Map.of());
+        var configured = repository.configure(
+                created.value().id(),
+                actor,
+                "message",
+                "scheduled maintenance",
+                false,
+                created.value().revision());
+        configured = repository.configure(
+                configured.value().id(),
+                actor,
+                "deny_login",
+                "true",
+                false,
+                configured.value().revision());
+
+        var result = repository.transition(
+                configured.value().id(),
+                actor,
+                ServerControlRepository.RecordState.ACTIVE,
+                configured.value().revision(),
+                "manual activation");
+
+        assertFalse(result.successful());
+        assertEquals(ActionResult.ReasonCode.POLICY_DENIED, result.reason());
+        assertEquals(
+                ServerControlRepository.RecordState.OPEN,
+                repository.find(configured.value().id()).orElseThrow().state());
+    }
+
+    @Test
     void configureAllValidatesAndCommitsAsOneRevision() {
         ServerControlRepository repository = new ServerControlRepository();
         repository.load(temporaryDirectory);
@@ -178,5 +220,113 @@ class ServerControlRepositoryTest {
         assertEquals(configured.value().revision(), unchanged.revision());
         assertEquals("report", unchanged.title());
         assertEquals("normal", unchanged.metadata().get("field.priority"));
+    }
+
+    @Test
+    void restartReconcilesPreparedAndExecutingOperationsDeterministically() throws Exception {
+        UUID actor = UUID.randomUUID();
+        Path preparedRoot = temporaryDirectory.resolve("prepared");
+        ServerControlRepository preparedRepository = new ServerControlRepository();
+        preparedRepository.load(preparedRoot);
+        var preparedRecord = maintenance(preparedRepository, actor);
+        var prepared = preparedRepository.prepareExecution(
+                preparedRecord.id(),
+                actor,
+                ServerControlRepository.RecordState.ACTIVE,
+                preparedRecord.revision());
+        assertTrue(prepared.successful());
+        preparedRepository.flush();
+
+        ServerControlRepository preparedReplacement = new ServerControlRepository();
+        preparedReplacement.load(preparedRoot);
+        assertEquals(
+                ServerControlRepository.ExecutionStatus.FAILED,
+                preparedReplacement.execution(prepared.value().id()).orElseThrow().status());
+
+        Path executingRoot = temporaryDirectory.resolve("executing");
+        ServerControlRepository executingRepository = new ServerControlRepository();
+        executingRepository.load(executingRoot);
+        var executingRecord = maintenance(executingRepository, actor);
+        var executing = executingRepository.prepareExecution(
+                executingRecord.id(),
+                actor,
+                ServerControlRepository.RecordState.ACTIVE,
+                executingRecord.revision());
+        assertTrue(executing.successful());
+        assertTrue(executingRepository.beginExecution(executing.value().id()).successful());
+        executingRepository.flush();
+
+        ServerControlRepository executingReplacement = new ServerControlRepository();
+        executingReplacement.load(executingRoot);
+        assertEquals(
+                ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN,
+                executingReplacement.execution(executing.value().id()).orElseThrow().status());
+        assertTrue(executingReplacement.dirty());
+    }
+
+    @Test
+    void unknownOutcomeBlocksMutationUntilOperatorReconcilesIt() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var record = maintenance(repository, actor);
+        var operation = repository.prepareExecution(
+                record.id(),
+                actor,
+                ServerControlRepository.RecordState.ACTIVE,
+                record.revision()).value();
+        repository.beginExecution(operation.id());
+        repository.markOutcomeUnknown(operation.id(), "test uncertainty");
+
+        var blocked = repository.update(
+                record.id(),
+                actor,
+                "changed",
+                "",
+                record.revision());
+        assertFalse(blocked.successful());
+        assertEquals(ActionResult.ReasonCode.CONFLICT, blocked.reason());
+
+        var reconciled = repository.reconcileExecution(
+                operation.id(),
+                actor,
+                false,
+                "verified no effect");
+        assertTrue(reconciled.successful());
+        assertEquals(ServerControlRepository.ExecutionStatus.FAILED, reconciled.value().status());
+        assertTrue(repository.update(
+                record.id(),
+                actor,
+                "changed",
+                "",
+                record.revision()).successful());
+    }
+
+    private static ServerControlRepository.ControlRecord maintenance(
+            ServerControlRepository repository,
+            UUID actor
+    ) {
+        var current = repository.create(
+                "maintenance",
+                actor,
+                null,
+                "maintenance",
+                "",
+                null,
+                Map.of()).value();
+        current = repository.configure(
+                current.id(),
+                actor,
+                "message",
+                "scheduled maintenance",
+                false,
+                current.revision()).value();
+        return repository.configure(
+                current.id(),
+                actor,
+                "deny_login",
+                "true",
+                false,
+                current.revision()).value();
     }
 }

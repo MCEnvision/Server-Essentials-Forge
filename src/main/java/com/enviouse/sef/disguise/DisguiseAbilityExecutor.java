@@ -23,22 +23,31 @@ public final class DisguiseAbilityExecutor {
     ) {
         Objects.requireNonNull(player, "player");
         Objects.requireNonNull(slot, "slot");
-        if (!ConfigHandler.config.enableDisguises.get()
-                || !ConfigHandler.config.disguiseAbilitiesEnabled.get()) {
-            return ActionResult.failure(ActionResult.ReasonCode.FEATURE_DISABLED, "disguise abilities are disabled");
+        if (!ConfigHandler.config.enableDisguises.get()) {
+            return ActionResult.failure(ActionResult.ReasonCode.FEATURE_DISABLED, "disguises are disabled");
         }
         var commandPermission = PermissionsHandler.phasePermission("commands.disguise.ability");
         if (commandPermission == null || !PermissionService.has(player, commandPermission)) {
-            return ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "disguise ability permission is required");
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.PERMISSION_DENIED,
+                    "sef.commands.disguise.ability permission is required");
         }
         ActionResult<DisguiseService.AbilityAdmission> admission =
                 KernelServices.disguises().admitAbility(player.getUUID(), slot, Instant.now());
         if (!admission.successful()) {
             return ActionResult.failure(admission.reason(), admission.detail());
         }
+        var abilitiesPermission = PermissionsHandler.phasePermission("disguise.abilities");
+        if (abilitiesPermission == null || !PermissionService.has(player, abilitiesPermission)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.PERMISSION_DENIED,
+                    "sef.disguise.abilities permission is required");
+        }
         var abilityPermission = PermissionsHandler.phasePermission(admission.value().ability().permission());
         if (abilityPermission == null || !PermissionService.has(player, abilityPermission)) {
-            return ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "disguise ability permission is required");
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.PERMISSION_DENIED,
+                    admission.value().ability().permission() + " permission is required");
         }
         String actionId = "sef:disguise.ability." + admission.value().ability().id();
         var cooldownResolution = KernelServices.cooldownDurations().resolve(

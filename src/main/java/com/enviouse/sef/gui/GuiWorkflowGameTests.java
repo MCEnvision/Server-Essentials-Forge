@@ -1,20 +1,239 @@
 package com.enviouse.sef.gui;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.gui.protocol.OfflineActionRepository;
+import com.enviouse.sef.gui.protocol.OfflineActionService;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.kernel.command.ShortcutRegistry;
 import com.enviouse.sef.kernel.policy.FeatureGateService;
+import com.mojang.brigadier.ParseResults;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import java.util.ArrayList;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @GameTestHolder("sef")
 @PrefixGameTestTemplate(false)
 public final class GuiWorkflowGameTests {
     private GuiWorkflowGameTests() {
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void everyCatalogActionResolvesToAnExecutableLiveRoute(GameTestHelper helper) {
+        var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
+        List<String> failures = new ArrayList<>();
+        for (var definition : KernelServices.catalog().entries()) {
+            if (!definition.playerFacing()) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            try {
+                var workflow = GuiWorkflowCompiler.compileStructure(definition, dispatcher);
+                if (workflow.variants().isEmpty()) {
+                    failures.add(definition.id() + ", no executable variant");
+                }
+            } catch (IllegalArgumentException exception) {
+                failures.add(definition.id() + ", " + exception.getMessage());
+            }
+        }
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Command route coverage, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "command route coverage failed, " + String.join("; ", failures.stream().limit(8).toList()));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void everyActiveShortcutAndSefRootHasCatalogOwnership(GameTestHelper helper) {
+        var dispatcher = helper.getLevel().getServer().getCommands().getDispatcher();
+        var catalog = KernelServices.catalog();
+        var shortcuts = KernelServices.shortcuts();
+        List<String> failures = new ArrayList<>();
+
+        for (ShortcutRegistry.Diagnostic diagnostic : shortcuts.diagnostics()) {
+            boolean active = diagnostic.status() == ShortcutRegistry.Status.ACTIVE
+                    || diagnostic.status() == ShortcutRegistry.Status.ACTIVE_OVERRIDE;
+            if (active && dispatcher.getRoot().getChild(diagnostic.root()) == null) {
+                failures.add(diagnostic.root() + ", active shortcut is not registered");
+            }
+        }
+
+        dispatcher.getRoot().getChildren().stream()
+                .filter(node -> !shortcuts.existedBeforeRegistration(node.getName()))
+                .filter(node -> catalog.rootOwner(node.getName()).isEmpty())
+                .filter(node -> shortcuts.find(node.getName()).isEmpty())
+                .forEach(node -> failures.add(node.getName() + ", new root has no catalog owner"));
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Command ownership coverage, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "command ownership coverage failed, " + String.join("; ", failures.stream().limit(8).toList()));
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void everyEnabledConsoleActionCompilesForTheConsoleSource(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        int covered = 0;
+        for (var definition : KernelServices.catalog().entries()) {
+            if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            try {
+                GuiWorkflowCompiler.compile(definition, dispatcher, source);
+                covered++;
+            } catch (IllegalArgumentException exception) {
+                failures.add(definition.id() + ", " + exception.getMessage());
+            }
+        }
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Console command coverage, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "console command coverage failed, " + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(covered > 0, "console command coverage did not inspect any actions");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void everyReadOnlyArgumentFreeConsoleRouteExecutes(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> executed = new LinkedHashSet<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                if (!variant.fields().isEmpty()) {
+                    continue;
+                }
+                String command = variant.segments().stream()
+                        .map(GuiWorkflowCompiler.Segment::value)
+                        .reduce((left, right) -> left + " " + right)
+                        .orElse("");
+                if (command.isBlank() || !executed.add(command)) {
+                    continue;
+                }
+                try {
+                    dispatcher.execute(command, source);
+                } catch (Exception exception) {
+                    failures.add(definition.id() + ", " + command + ", "
+                            + exception.getClass().getSimpleName());
+                }
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Read only command execution, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "read only command execution failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!executed.isEmpty(), "no read only console commands were executed");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Read only command execution covered {} unique routes",
+                executed.size());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void everyConsoleWorkflowVariantAcceptsRepresentativeArguments(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> parsed = new LinkedHashSet<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                String command = render(variant);
+                if (!parsed.add(command)) {
+                    continue;
+                }
+                ParseResults<CommandSourceStack> result = dispatcher.parse(command, source);
+                if (!result.getExceptions().isEmpty() || result.getReader().canRead()) {
+                    String fields = variant.fields().stream()
+                            .map(field -> field.id() + ":" + field.type().name().toLowerCase())
+                            .reduce((left, right) -> left + "|" + right)
+                            .orElse("none");
+                    failures.add(definition.id() + ", " + command + ", " + fields);
+                }
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Representative command parsing, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "representative command parsing failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!parsed.isEmpty(), "no representative console command variants were parsed");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Representative command parsing covered {} unique variants",
+                parsed.size());
+        helper.succeed();
     }
 
     @GameTest(template = "empty", timeoutTicks = 200)
@@ -66,5 +285,115 @@ public final class GuiWorkflowGameTests {
                         .count(),
                 "typed GUI workflow count does not match the player facing catalog");
         helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void queuedGiveExecutesWithOfflineActorAndOnlyOnce(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var target = helper.makeMockServerPlayerInLevel();
+        helper.assertTrue(
+                server.getPlayerList().getPlayer(target.getUUID()) != null,
+                "mock target is not present in the live player list");
+        var definition = KernelServices.catalog()
+                .find("sef:item.give.others")
+                .orElseThrow();
+        var workflow = GuiWorkflowCompiler.compile(
+                definition,
+                server.getCommands().getDispatcher(),
+                server.createCommandSourceStack());
+        var variant = workflow.variants().stream()
+                .filter(candidate -> candidate.fields().stream()
+                        .anyMatch(field -> field.type() == GuiWorkflowCompiler.FieldType.ITEM))
+                .filter(candidate -> candidate.fields().stream()
+                        .anyMatch(field -> field.type() == GuiWorkflowCompiler.FieldType.PLAYER
+                                || field.type() == GuiWorkflowCompiler.FieldType.PLAYERS))
+                .findFirst()
+                .orElseThrow();
+        var targetField = variant.fields().stream()
+                .filter(field -> field.type() == GuiWorkflowCompiler.FieldType.PLAYER
+                        || field.type() == GuiWorkflowCompiler.FieldType.PLAYERS)
+                .findFirst()
+                .orElseThrow();
+        Map<String, String> values = new LinkedHashMap<>();
+        variant.fields().forEach(field -> values.put(field.id(), representative(field)));
+        values.put(targetField.id(), target.getGameProfile().getName());
+        int before = target.getInventory().countItem(Items.STONE);
+        OfflineActionRepository.QueuedAction action = KernelServices.offlineActions().enqueue(
+                UUID.randomUUID(),
+                target.getUUID(),
+                definition.id(),
+                variant.id(),
+                targetField.id(),
+                values,
+                Instant.now(),
+                Duration.ofMinutes(5L));
+
+        OfflineActionService.executeReady(server, target.getUUID());
+        int afterFirstPass = target.getInventory().countItem(Items.STONE);
+        OfflineActionService.executeReady(server, target.getUUID());
+        int afterSecondPass = target.getInventory().countItem(Items.STONE);
+
+        helper.assertTrue(afterFirstPass > before, "queued give did not mutate the target inventory");
+        helper.assertTrue(afterSecondPass == afterFirstPass, "queued give executed more than once");
+        helper.assertTrue(
+                KernelServices.offlineActions().entries().stream()
+                        .filter(entry -> entry.id().equals(action.id()))
+                        .anyMatch(entry -> entry.state() == OfflineActionRepository.ActionState.SUCCEEDED),
+                "queued give did not persist a successful terminal outcome");
+        helper.succeed();
+    }
+
+    private static String render(GuiWorkflowCompiler.Variant variant) {
+        var fields = variant.fields().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        GuiWorkflowCompiler.Field::id,
+                        field -> field));
+        return variant.segments().stream()
+                .map(segment -> segment.literal()
+                        ? segment.value()
+                        : representative(fields.get(segment.value())))
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private static String representative(GuiWorkflowCompiler.Field field) {
+        String fieldId = field.id().toLowerCase(java.util.Locale.ROOT);
+        if (fieldId.contains("enchantment")) {
+            return "minecraft:sharpness";
+        }
+        if (fieldId.equals("gamemode") || fieldId.equals("game_mode")) {
+            return "creative";
+        }
+        if (fieldId.equals("amount") || fieldId.equals("price") || fieldId.equals("value")) {
+            return "1";
+        }
+        if (fieldId.equals("rotation")) {
+            return "~ ~";
+        }
+        if (fieldId.contains("anchor")) {
+            return "eyes";
+        }
+        return switch (field.type()) {
+            case BOOLEAN -> "false";
+            case INTEGER -> Long.toString(Math.round(
+                    Math.max(field.minimum(), Math.min(field.maximum(), 1.0D))));
+            case DECIMAL -> Double.toString(
+                    Math.max(field.minimum(), Math.min(field.maximum(), 1.0D)));
+            case DURATION -> "1s";
+            case PLAYER -> "test-mock-player";
+            case PLAYERS -> "@a[limit=1]";
+            case ITEM -> "minecraft:stone";
+            case ENCHANTMENT -> "minecraft:sharpness";
+            case DIMENSION -> "minecraft:overworld";
+            case COORDINATES -> "~ ~ ~";
+            case PERMISSION -> "sef.commands.test";
+            case RESOURCE_LOCATION -> "minecraft:stone";
+            case IDENTIFIER -> "00000000-0000-0000-0000-000000000001";
+            case TEXT -> switch (field.renderMode()) {
+                case QUOTED -> "\"test value\"";
+                case GREEDY -> "test value";
+                default -> "test";
+            };
+        };
     }
 }

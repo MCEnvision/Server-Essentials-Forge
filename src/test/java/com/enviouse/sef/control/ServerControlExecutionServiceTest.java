@@ -4,9 +4,11 @@ import com.enviouse.sef.kernel.ActionResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -103,6 +105,244 @@ class ServerControlExecutionServiceTest {
 
         assertFalse(result.successful());
         assertEquals(ActionResult.ReasonCode.PROVIDER_ERROR, result.reason());
+    }
+
+    @Test
+    void unavailableRuntimeFeatureDoesNotReportSuccessOrBecomeActive() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var current = repository.create(
+                "resource_governor",
+                actor,
+                null,
+                "governor",
+                "",
+                null,
+                Map.of()).value();
+        current = repository.configure(
+                current.id(), actor, "maximum_tick_millis", "50", false, current.revision()).value();
+        current = repository.configure(
+                current.id(), actor, "maximum_entities", "1000", false, current.revision()).value();
+        current = repository.configure(
+                current.id(), actor, "maximum_items", "500", false, current.revision()).value();
+        current = repository.configure(
+                current.id(), actor, "response", "observe", false, current.revision()).value();
+        ServerControlExecutionService service = new ServerControlExecutionService(repository);
+        MinecraftServerControlRuntime.registerHandlers(service);
+
+        var preview = service.preview(current.id(), current.revision());
+        var result = service.execute(current.id(), actor, current.revision(), true, context());
+
+        assertFalse(preview.ready());
+        assertTrue(preview.detail().contains("runtime behavior is unavailable"));
+        assertFalse(result.successful());
+        assertEquals(ActionResult.ReasonCode.PROVIDER_ERROR, result.reason());
+        assertEquals(
+                ServerControlRepository.RecordState.OPEN,
+                repository.find(current.id()).orElseThrow().state());
+    }
+
+    @Test
+    void executionClaimIsDurableBeforeHandlerRunsAndCarriesIdempotencyKey() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var configured = configureRequired(
+                repository,
+                repository.create(
+                        "maintenance",
+                        actor,
+                        null,
+                        "maintenance",
+                        "",
+                        null,
+                        Map.of()).value(),
+                actor);
+        ServerControlExecutionService service = new ServerControlExecutionService(repository);
+        AtomicInteger effects = new AtomicInteger();
+        service.register("maintenance", (record, context) -> {
+            effects.incrementAndGet();
+            UUID operationId = context.operationId();
+            assertEquals("sef:control:" + operationId, context.idempotencyKey());
+            ServerControlRepository replacement = new ServerControlRepository();
+            replacement.load(temporaryDirectory);
+            assertEquals(
+                    ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN,
+                    replacement.execution(operationId).orElseThrow().status());
+            return ActionResult.success("maintenance activated");
+        });
+
+        var result = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+
+        assertTrue(result.successful(), result.detail());
+        assertEquals(1, effects.get());
+        assertEquals(
+                ServerControlRepository.ExecutionStatus.EXECUTED,
+                repository.execution(result.value().operationId()).orElseThrow().status());
+        var retry = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+        assertFalse(retry.successful());
+        assertEquals(1, effects.get());
+    }
+
+    @Test
+    void handlerExceptionBecomesDurableUnknownOutcomeAndBlocksRetry() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var configured = configureRequired(
+                repository,
+                repository.create(
+                        "maintenance",
+                        actor,
+                        null,
+                        "maintenance",
+                        "",
+                        null,
+                        Map.of()).value(),
+                actor);
+        ServerControlExecutionService service = new ServerControlExecutionService(repository);
+        AtomicInteger effects = new AtomicInteger();
+        service.register("maintenance", (record, context) -> {
+            effects.incrementAndGet();
+            throw new IllegalStateException("test failure");
+        });
+
+        var result = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+
+        assertFalse(result.successful());
+        assertEquals(1, effects.get());
+        UUID operationId = repository.executions(ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN)
+                .getFirst()
+                .id();
+        ServerControlRepository replacement = new ServerControlRepository();
+        replacement.load(temporaryDirectory);
+        assertEquals(
+                ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN,
+                replacement.execution(operationId).orElseThrow().status());
+        var retry = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+        assertFalse(retry.successful());
+        assertEquals(1, effects.get());
+    }
+
+    @Test
+    void persistenceFailuresBeforeDispatchPreventTheEffect() {
+        for (int failureCall : new int[]{1, 2}) {
+            Path root = temporaryDirectory.resolve("failure-" + failureCall);
+            ServerControlRepository repository = new ServerControlRepository();
+            repository.load(root);
+            UUID actor = UUID.randomUUID();
+            var configured = configureRequired(
+                    repository,
+                    repository.create(
+                            "maintenance",
+                            actor,
+                            null,
+                            "maintenance",
+                            "",
+                            null,
+                            Map.of()).value(),
+                    actor);
+            AtomicInteger commits = new AtomicInteger();
+            ServerControlExecutionService service = new ServerControlExecutionService(
+                    repository,
+                    () -> {
+                        if (commits.incrementAndGet() == failureCall) {
+                            throw new IOException("injected persistence failure");
+                        }
+                        repository.flush();
+                    });
+            AtomicInteger effects = new AtomicInteger();
+            service.register("maintenance", (record, context) -> {
+                effects.incrementAndGet();
+                return ActionResult.success("maintenance activated");
+            });
+
+            var result = service.execute(
+                    configured.id(),
+                    actor,
+                    configured.revision(),
+                    true,
+                    context());
+
+            assertFalse(result.successful());
+            assertEquals(0, effects.get());
+            assertEquals(
+                    ServerControlRepository.RecordState.OPEN,
+                    repository.find(configured.id()).orElseThrow().state());
+        }
+    }
+
+    @Test
+    void terminalPersistenceFailureDoesNotRepeatTheEffect() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        UUID actor = UUID.randomUUID();
+        var configured = configureRequired(
+                repository,
+                repository.create(
+                        "maintenance",
+                        actor,
+                        null,
+                        "maintenance",
+                        "",
+                        null,
+                        Map.of()).value(),
+                actor);
+        AtomicInteger commits = new AtomicInteger();
+        ServerControlExecutionService service = new ServerControlExecutionService(
+                repository,
+                () -> {
+                    if (commits.incrementAndGet() == 3) {
+                        throw new IOException("injected terminal persistence failure");
+                    }
+                    repository.flush();
+                });
+        AtomicInteger effects = new AtomicInteger();
+        service.register("maintenance", (record, context) -> {
+            effects.incrementAndGet();
+            return ActionResult.success("maintenance activated");
+        });
+
+        var result = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+        var retry = service.execute(
+                configured.id(),
+                actor,
+                configured.revision(),
+                true,
+                context());
+
+        assertFalse(result.successful());
+        assertFalse(retry.successful());
+        assertEquals(1, effects.get());
+        assertEquals(
+                ServerControlRepository.ExecutionStatus.EXECUTED,
+                repository.executions(null).getFirst().status());
     }
 
     private static ServerControlRepository.ControlRecord configureRequired(

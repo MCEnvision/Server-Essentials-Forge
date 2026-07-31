@@ -84,7 +84,9 @@ public final class EconomyRepository implements StorageRepository, EconomyProvid
         clearState();
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
-            state = Files.exists(path) ? RepositoryState.RECOVERY : RepositoryState.MISSING;
+            state = Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    ? RepositoryState.RECOVERY
+                    : RepositoryState.MISSING;
             return new LoadResult(state, state == RepositoryState.MISSING ? "new repository" : "storage unavailable");
         }
         try {
@@ -484,14 +486,37 @@ public final class EconomyRepository implements StorageRepository, EconomyProvid
     }
 
     public synchronized CostHold reserveCost(UUID playerId, String actionId, long amount) {
+        return reserveCost(UUID.randomUUID(), playerId, actionId, amount);
+    }
+
+    public synchronized CostHold reserveCost(
+            UUID reservationId,
+            UUID playerId,
+            String actionId,
+            long amount
+    ) {
         writable();
+        Objects.requireNonNull(reservationId, "reservationId");
+        PendingCost existing = pendingCosts.get(reservationId);
+        if (existing != null) {
+            if (!existing.playerId().equals(playerId)
+                    || existing.amount() != amount
+                    || !existing.actionId().equals(bounded(actionId, 128))) {
+                throw new IllegalStateException("Cost reservation identifier was reused");
+            }
+            return new CostHold(
+                    existing.reservationId(),
+                    existing.playerId(),
+                    existing.amount(),
+                    existing.actionId(),
+                    existing.reserveTransactionId());
+        }
         if (amount <= 0L) {
             throw new IllegalArgumentException("Cost amount must be positive");
         }
         if (pendingCosts.size() >= settings.maximumPendingCosts()) {
             throw new IllegalStateException("Pending cost reservation limit reached");
         }
-        UUID reservationId = UUID.randomUUID();
         String key = "cost.reserve." + reservationId;
         ActionResult<Transaction> withdrawn = mutate(new MutationRequest(
                 key,

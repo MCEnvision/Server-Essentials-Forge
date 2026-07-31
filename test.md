@@ -2,7 +2,7 @@
 
 This plan tests the current SEF 2 implementation against Phases 1 through 14 of `sef2.md`. It is intended for bug discovery, regression testing, and release approval. It supplements the automated suite. It does not replace `docs/SEF2_ACCEPTANCE.md`, `docs/COMMAND_REFERENCE.md`, `docs/PERMISSION_REFERENCE.md`, or the focused phase records under `docs/`.
 
-The current reference build targets Minecraft `1.21.1`, NeoForge `21.1.233`, Parchment `2024.11.17`, Java `21`, and Gradle `8.8`.
+The current reference build targets Minecraft `1.21.1`, NeoForge `21.1.235`, Parchment `2024.11.17`, Java `21`, and Gradle `8.8`.
 
 ## Safety rules
 
@@ -28,8 +28,8 @@ Use these files during testing:
 
 - `sef2.md` defines the required behavior and phase exit criteria.
 - `docs/SEF2_ACCEPTANCE.md` records the currently verified baseline.
-- `docs/COMMAND_REFERENCE.md` lists all 676 catalog actions, routes, source classes, permissions, confirmation rules, GUI descriptors, and cooldown keys.
-- `docs/PERMISSION_REFERENCE.md` lists all 11,659 capabilities.
+- `docs/COMMAND_REFERENCE.md` lists all 694 catalog actions, routes, source classes, permissions, confirmation rules, GUI descriptors, and cooldown keys.
+- `docs/PERMISSION_REFERENCE.md` lists all 11,937 capabilities.
 - `docs/CONFIGURATION_REFERENCE.md` documents all 62 module schemas and setting bounds.
 - `docs/COMPATIBILITY_MATRIX.md` records supported and tested integration combinations.
 - `docs/SECURITY_REVIEW.md` lists trust boundaries and release findings.
@@ -111,7 +111,7 @@ Use at least these identities:
 | `commandblock` | Command-block source tests in a disposable area. |
 | `rcon` | Optional remote source tests when RCON is enabled in staging. |
 
-Use a permission provider that can add, deny, unset, and refresh exact nodes while players remain online. A compatible LuckPerms build is suitable. LuckPerms NeoForge `5.4.140` failed player login in the recorded NeoForge `21.1.233` environment, so do not use that exact combination as proof of SEF failure. Use a build verified for the server, or mark provider-specific rows blocked.
+Use a permission provider that can add, deny, unset, and refresh exact nodes while players remain online. A compatible LuckPerms build is suitable. LuckPerms NeoForge `5.4.140` failed player login in the recorded NeoForge `21.1.233` environment. That historical result does not prove behavior on `21.1.235`. Use a build verified for the server, or mark provider-specific rows blocked.
 
 For every permission row, test all three states:
 
@@ -156,7 +156,7 @@ SEF_TEST_BACKUP_DIR="$(mktemp -d)"
 cp -a run/config "$SEF_TEST_BACKUP_DIR/config"
 cp -a run/world "$SEF_TEST_BACKUP_DIR/world"
 cp -a run/server.properties "$SEF_TEST_BACKUP_DIR/server.properties"
-sha256sum build/libs/sef-1.0-SNAPSHOT.jar
+sha256sum build/libs/sef-1.0.1-SNAPSHOT.jar
 ```
 
 If `run/world` does not exist, start and stop the server once, then create the snapshot. Record `SEF_TEST_BACKUP_DIR`. Do not delete it until testing is accepted.
@@ -173,25 +173,26 @@ env JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH=/usr/lib/jvm/java-21-openj
 
 Expected:
 
-- 390 unit tests pass.
-- 29 required GameTests pass.
+- 487 unit tests pass.
+- 39 required GameTests pass.
+- The command GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only live routes.
 - The build, fallback runtime, command reference, permission reference, configuration reference, and performance report complete.
 - No generated reference changes remain after generation.
-- `build/libs/sef-1.0-SNAPSHOT.jar` is a valid ZIP.
+- `build/libs/sef-1.0.1-SNAPSHOT.jar` is a valid ZIP.
 
 Inspect the result:
 
 ```bash
-unzip -t build/libs/sef-1.0-SNAPSHOT.jar
-sha256sum build/libs/sef-1.0-SNAPSHOT.jar
+unzip -t build/libs/sef-1.0.1-SNAPSHOT.jar
+sha256sum build/libs/sef-1.0.1-SNAPSHOT.jar
 git status --short
 git diff --check
 ```
 
-For the current accepted revision, the expected JAR SHA-256 is:
+For the current audited worktree, the expected JAR SHA-256 is:
 
 ```text
-a1d8e926bd65972ad40b282a341871b743d745da7484c45aef3d5667b6a5169f
+eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12
 ```
 
 A different hash is not automatically a bug after any source or resource change. It requires a new artifact inspection and recorded expected hash.
@@ -219,9 +220,9 @@ sef control status
 Current baseline:
 
 - Server reaches `Done`.
-- Catalog reports 676 entries.
-- Capability manifest reports 11,659 capabilities.
-- Shortcut registry reports 290 shortcuts.
+- Catalog reports 694 entries.
+- Capability manifest reports 11,937 capabilities.
+- Shortcut registry reports 315 shortcuts.
 - Configuration registry reports 62 modules.
 - Storage coordinator reports 27 repositories.
 - Security audit is healthy.
@@ -328,6 +329,40 @@ Expected:
 - Root visibility never grants child authority.
 - Vanilla operator status does not create an unregistered SEF permission.
 - A stale command tree cannot bypass execution-time permission checks.
+
+### LuckPerms wildcard and provider bridge regression
+
+Use a non-operator test player. Remove every inherited group grant before starting.
+
+```text
+/lp user playera permission unset sef.*
+/lp user playera permission unset *
+/lp user playera permission set sef.* true
+/lp user playera permission check sef.commands.enchant.unsafe_level
+/lp user playera permission check sef.commands.disguise.mob
+/lp user playera permission check sef.commands.disguise.ability
+```
+
+Actions:
+
+1. With only `sef.*` true, reconnect and verify the authorized SEF command tree appears.
+2. Run an ordinary SEF command, `/disguise status`, and an unsafe enchant action that specifically requires `sef.commands.enchant.unsafe_level`.
+3. Set `sef.commands.enchant.unsafe_level` false while `sef.*` remains true. Refresh LuckPerms data and verify the exact deny wins in suggestions and execution.
+4. Unset the exact deny. Set `sef.commands.enchant.*` false. Verify that nearest wildcard deny wins over `sef.*`.
+5. Set `sef.commands.enchant.unsafe_level` true while `sef.commands.enchant.*` is false. Verify the exact grant wins.
+6. Repeat the same precedence test with `sef.commands.disguise.ability` and one exact trait node from `docs/PERMISSION_REFERENCE.md`.
+7. Replace `sef.*` with global `*` and repeat one allowed and one explicitly denied action.
+8. Trigger a permission refresh while a GUI, InvSee menu, warmup, confirmation, disguise, or delegated command is active. Verify stale authority is removed before mutation.
+9. In a disposable compatibility environment, reproduce a transient NeoForge permission capability initialization failure while LuckPerms has a loaded direct grant. Verify the granted action continues, `/sef doctor` identifies the provider, and an explicit direct deny still wins.
+10. Repeat the provider failure with no direct grant. The action must fail closed.
+11. Repeat the bridge failure while creating an approval profile or access grant that delegates an authorized permission. A real exact or wildcard LuckPerms grant must work, an exact deny must win, and an access lease or one-execution sudo scope must not authorize delegation.
+
+Expected:
+
+- Resolution order is exact node, nearest wildcard, broader wildcards, then global `*`.
+- The first defined false or true result wins.
+- A transient NeoForge bridge failure never erases a real direct LuckPerms grant.
+- Provider failure without a real grant never falls back to operator status or an internal permissive default.
 
 ### Announcement typing and duration parsing
 
@@ -1065,15 +1100,18 @@ Test:
 
 Actions:
 
-1. Test self and eligible other-player forms.
-2. Revoke permissions while fly, god, personal time, or personal weather is active.
-3. Test speed and experience minimum, maximum, underflow, overflow, and invalid type.
-4. Test utility routes in Overworld, Nether, and End.
-5. Test unsafe top and bottom destinations, unloaded chunks, vanished targets, and protected targets.
-6. Keep suicide disabled by default. If enabled in staging, verify it is separately permissioned and self-only.
+1. Damage a player, set food below `20`, and give that player nonzero saturation. Run both self and eligible other-player `/feed` forms. Inspect the state immediately after each command.
+2. Test self and eligible other-player forms for the remaining utilities.
+3. Revoke permissions while fly, god, personal time, or personal weather is active.
+4. Test speed and experience minimum, maximum, underflow, overflow, and invalid type.
+5. Test utility routes in Overworld, Nether, and End.
+6. Test unsafe top and bottom destinations, unloaded chunks, vanished targets, and protected targets.
+7. Keep suicide disabled by default. If enabled in staging, verify it is separately permissioned and self-only.
 
 Expected:
 
+- `/feed` immediately leaves the target at food level `20`, saturation `0.0F`, and the exact pre-command health value. Any later natural regeneration must come only from normal vanilla rules and ticks.
+- `/heal` remains the separate explicit recovery command.
 - Long-lived states reconcile after permission or feature loss.
 - Navigation utilities never teleport into a rejected hazard.
 
@@ -2057,7 +2095,11 @@ Expected:
 
 ## Phase 13. Server control and remaining systems
 
-The current server-control catalog contains 75 feature families. Test every family. The 70-system product commitment plus supporting control families cannot be reduced to a representative sample.
+The current server-control catalog contains 75 feature families. Test every family. A schema, record, generic editor, or command route is not proof of runtime behavior.
+
+The current source deliberately classifies these sixteen families as unavailable: `admin_journal`, `afk_zones`, `approvals`, `capability_leases`, `chat_channels`, `display_ownership`, `display_profiles`, `player_warp_review`, `portal_policy`, `resource_governor`, `resource_worlds`, `rollouts`, `server_presentation`, `spawn_ecology`, `staff_duty`, and `waypoints`.
+
+For each unavailable family, complete field validation and record tests, then confirm preview reports unavailable, execution returns provider error, generic `state ... active` and `state ... resolved` are denied, and the record remains unchanged. Mark the feature incomplete. Do not attempt the feature-specific success scenario until a real runtime implementation replaces that classification.
 
 ### Common control workflow
 
@@ -2102,6 +2144,8 @@ Expected:
 - Stale updates never overwrite current state.
 - Dangerous execution requires its current confirmation.
 - Runtime failure does not report a completed action.
+- A live policy, scheduled job, or integration cannot become active or resolved through the generic state command.
+- `/sef doctor` reports exactly 59 executable and 16 unavailable server controls until the listed implementations exist.
 - GUI and command use the same record and revision.
 
 ### Phase 13A. Operational safety foundation
@@ -2244,7 +2288,7 @@ Expected:
 
 #### Native capacity queue and bypass
 
-Use at least three clients. Set `server.properties` `max-players` higher than the SEF admission limit so an exempt player can use the reserved headroom. SEF cannot override the vanilla hard player cap.
+Use at least three clients. Test once with `server.properties` `max-players` above the SEF admission limit, then again at the exact vanilla capacity. SEF intentionally clears Minecraft’s exact full-server denial only for profiles with the explicit admission or queue exemption.
 
 Create and activate an admission policy:
 
@@ -2286,11 +2330,11 @@ Actions:
 6. Close a queued client before release. Verify cleanup within the one-second queue tick and no reserved slot leak.
 7. Wait past `maximum_wait_seconds`. Verify disconnect with an expiry message and no later login.
 8. Restart or deactivate the queue policy while clients wait. Verify every gate is completed, every connection receives a truthful stop response, and no entry survives as a ghost reservation.
-9. Grant `sef.commands.control.admission.exempt` to `admina`. Fill the SEF limit with ordinary players, then join `admina`. The exempt player must bypass the SEF admission cap while still respecting the vanilla hard cap.
+9. Grant `sef.commands.control.admission.exempt` to `admina`. Fill the SEF limit with ordinary players, then join `admina`. The exempt player must bypass the SEF admission cap.
 10. Remove the admission exemption and grant `sef.commands.control.queue.exempt`; repeat the SEF-cap test.
 11. Change `reserved_slots` to `1`. With `maximum_players` still `2`, verify one ordinary player fills ordinary capacity, the next ordinary player queues, and an exempt administrator can use the reserved headroom.
-12. Set `reserved_slots` equal to and above `maximum_players`. Verify ordinary admission capacity becomes zero without arithmetic underflow, while exempt access remains bounded by the vanilla hard cap.
-13. Fill the actual vanilla `max-players` cap and attempt the exempt login. Record the vanilla full-server result. This is expected unless the server separately grants Minecraft’s own player-limit bypass.
+12. Set `reserved_slots` equal to and above `maximum_players`. Verify ordinary admission capacity becomes zero without arithmetic underflow while exempt access remains available.
+13. Fill the actual vanilla `max-players` cap and attempt the exempt login. The exempt profile must pass the exact full-server denial. Remove both exemptions and repeat. The ordinary profile must receive the normal full-server result.
 14. Set mode to `deny_retry`, then `restricted_lobby`, then `proxy_adapter`. Verify native wait is used only for `native_wait`; unavailable proxy mode reports provider failure and does not claim a working proxy queue.
 15. Set `maximum_players` to `0` on a disposable copy, test the documented unlimited behavior, then restore a bounded positive limit.
 16. Race a disconnect, two queued releases, an exemption refresh, and a policy revision in the same second.
@@ -2301,7 +2345,7 @@ Expected:
 - Release is FIFO and reservations prevent more than the configured number of simultaneous admissions.
 - `reserved_slots` is subtracted from ordinary capacity and never from exempt administrative headroom.
 - Disconnect, timeout, policy change, replacement login, successful login, and shutdown remove their entries.
-- Exemption nodes bypass only SEF admission or queue policy. They do not silently bypass Minecraft’s hard `max-players` cap.
+- Exemption nodes bypass the matching SEF admission or queue policy and Minecraft’s exact full-server denial. They do not bypass bans, whitelist denial, incompatible protocol, authentication, maintenance, or unrelated login failures.
 
 ### Phase 13H. Content and world policy
 
@@ -2823,10 +2867,10 @@ The dedicated tick profile target recorded for the accepted baseline is approxim
 Run:
 
 ```bash
-unzip -t build/libs/sef-1.0-SNAPSHOT.jar
-jar tf build/libs/sef-1.0-SNAPSHOT.jar
-jdeps --multi-release 21 build/libs/sef-1.0-SNAPSHOT.jar
-sha256sum build/libs/sef-1.0-SNAPSHOT.jar
+unzip -t build/libs/sef-1.0.1-SNAPSHOT.jar
+jar tf build/libs/sef-1.0.1-SNAPSHOT.jar
+jdeps --multi-release 21 build/libs/sef-1.0.1-SNAPSHOT.jar
+sha256sum build/libs/sef-1.0.1-SNAPSHOT.jar
 ```
 
 Inspect for:
@@ -2886,9 +2930,9 @@ Do not approve the release until every item is `pass`:
 - [ ] Enhanced client negotiates and remains connected.
 - [ ] No-SEF fallback client remains connected and command complete.
 - [ ] Incompatible protocol falls back without a kick.
-- [ ] All 676 command actions completed the universal command matrix.
-- [ ] All 11,659 capabilities are generated and independently enforceable where applicable.
-- [ ] All 290 shortcuts preserve canonical policy.
+- [ ] All 694 command actions completed the universal command matrix.
+- [ ] All 11,937 capabilities are generated and independently enforceable where applicable.
+- [ ] All 315 shortcuts preserve canonical policy.
 - [ ] All 27 repositories pass clean, migration, corruption, crash, and shutdown checks.
 - [ ] All 62 module schemas pass transactional validation and rollback.
 - [ ] All 75 server-control feature families pass the common workflow and their required scenario.

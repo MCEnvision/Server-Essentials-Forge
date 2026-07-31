@@ -93,6 +93,42 @@ class EconomyCostServiceTest {
         assertTrue(result.value().commit().successful());
     }
 
+    @Test
+    void repeatedStableOperationReturnsOneNativeReservation(
+            @TempDir Path temporaryDirectory
+    ) {
+        UUID player = UUID.randomUUID();
+        UUID operation = UUID.randomUUID();
+        EconomyRepository repository = repository();
+        repository.load(temporaryDirectory);
+        assertTrue(repository.createAccount(new EconomyProvider.MutationRequest(
+                "create.stable",
+                player,
+                player,
+                "test",
+                repository.currency(),
+                1_000L,
+                Map.of(),
+                false)).successful());
+        EconomyCostService service = new EconomyCostService(new EconomyService(
+                repository,
+                settings(EconomyService.Mode.NATIVE, "")));
+
+        ActionResult<CostService.Reservation> first =
+                service.reserve(player, "economy sign purchase", new BigDecimal("1.25"), operation);
+        ActionResult<CostService.Reservation> repeated =
+                service.reserve(player, "economy sign purchase", new BigDecimal("1.25"), operation);
+
+        assertTrue(first.successful());
+        assertTrue(repeated.successful());
+        assertEquals(
+                first.value().auditContext().get("cost_reservation_id"),
+                repeated.value().auditContext().get("cost_reservation_id"));
+        assertEquals(875L, repository.account(player).orElseThrow().balance());
+        assertTrue(first.value().refund().successful());
+        assertEquals(1_000L, repository.account(player).orElseThrow().balance());
+    }
+
     private static EconomyService.Settings settings(
             EconomyService.Mode mode,
             String providerId

@@ -7,6 +7,7 @@ import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.teleport.SafeTeleportService;
 import com.enviouse.sef.teleport.SavedLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -17,12 +18,17 @@ import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.level.BlockEvent;
 
+import java.io.IOException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Locale;
 import java.util.Set;
 
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public final class ModerationEvents {
+    private static final SafeTeleportService.Policy JAIL_POLICY =
+            new SafeTeleportService.Policy(4, 256, 16, false, false, true, true, 40);
+    private static final Duration RETRY_DELAY = Duration.ofSeconds(30);
     private static final Set<String> JAIL_COMMAND_ALLOWLIST = Set.of(
             "msg", "tell", "w", "whisper", "r", "reply",
             "helpop", "ac", "adminchat", "staffchat", "pchat", "teammsg", "tm",
@@ -116,37 +122,200 @@ public final class ModerationEvents {
             return;
         }
         Instant now = Instant.now();
-        for (ModerationRepository.Sentence expired
-                : KernelServices.moderation().takeExpiredSentences(now)) {
-            releaseExpired(server, expired);
+        ModerationRepository repository = KernelServices.moderation();
+        repository.markExpiredReleasePending(now);
+        repository.purgeReleased(now.minus(Duration.ofDays(1)));
+        if (repository.dirty() && !persist("jail expiry transition")) {
+            return;
         }
-        KernelServices.moderation().purgeExpired(now);
+        repository.purgeExpired(now);
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            enforceSentence(player, false);
+            reconcile(player, false);
         }
     }
 
-    private static void releaseExpired(MinecraftServer server, ModerationRepository.Sentence sentence) {
-        ServerPlayer player = server.getPlayerList().getPlayer(sentence.playerId());
-        if (player == null || sentence.releaseLocation() == null) {
-            return;
+    static TransitionResult completePreparedJail(
+            MinecraftServer server,
+            ServerPlayer actor,
+            ServerPlayer player,
+            ModerationRepository.Sentence sentence,
+            boolean rollbackKnownFailure
+    ) {
+        ModerationRepository repository = KernelServices.moderation();
+        ModerationRepository.Jail jail = repository.jail(sentence.jailName()).orElse(null);
+        if (jail == null) {
+            repository.outcomeUnknown(
+                    sentence.playerId(),
+                    sentence.operationId(),
+                    ModerationRepository.TransitionAction.JAIL,
+                    "jail destination is missing");
+            persist("missing jail destination");
+            return new TransitionResult(false, "Jail destination is missing.");
         }
-        KernelServices.safeTeleports().teleport(
-                server,
-                null,
-                player,
-                sentence.releaseLocation(),
-                "jail sentence expiry",
-                new SafeTeleportService.Policy(4, 256, 16, false, false, true, false, 20),
-                () -> KernelServices.moderation().sentence(player.getUUID()).isEmpty());
+        try {
+            SafeTeleportService.TeleportResult teleported = KernelServices.safeTeleports().teleport(
+                    server,
+                    actor,
+                    player,
+                    jail.location(),
+                    "jail",
+                    JAIL_POLICY,
+                    () -> matching(
+                            sentence.playerId(),
+                            sentence.operationId(),
+                            ModerationRepository.TransitionAction.JAIL));
+            if (!teleported.successful()) {
+                if (rollbackKnownFailure) {
+                    repository.rollbackJail(
+                            sentence.playerId(),
+                            sentence.operationId(),
+                            teleported.detail());
+                } else {
+                    repository.outcomeUnknown(
+                            sentence.playerId(),
+                            sentence.operationId(),
+                            ModerationRepository.TransitionAction.JAIL,
+                            teleported.detail());
+                }
+                persist("failed jail teleport");
+                return new TransitionResult(false, teleported.detail());
+            }
+            if (repository.activateJail(sentence.playerId(), sentence.operationId()).isEmpty()
+                    || !persist("completed jail transition")) {
+                repository.outcomeUnknown(
+                        sentence.playerId(),
+                        sentence.operationId(),
+                        ModerationRepository.TransitionAction.JAIL,
+                        "jail teleport completed but final storage commit failed");
+                persist("unknown jail outcome");
+                return new TransitionResult(false, "The teleport completed but its durable state is uncertain.");
+            }
+            return new TransitionResult(true, "");
+        } catch (RuntimeException exception) {
+            repository.outcomeUnknown(
+                    sentence.playerId(),
+                    sentence.operationId(),
+                    ModerationRepository.TransitionAction.JAIL,
+                    exception.getClass().getSimpleName());
+            persist("unknown jail outcome");
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Jail teleport outcome is unknown for player {}",
+                    sentence.playerId(),
+                    exception);
+            return new TransitionResult(false, "The jail teleport outcome is uncertain.");
+        }
     }
 
-    private static void enforceSentence(ServerPlayer player, boolean force) {
-        var sentence = KernelServices.moderation().sentence(player.getUUID());
-        if (sentence.isEmpty()) {
+    static TransitionResult release(
+            MinecraftServer server,
+            ServerPlayer actor,
+            ServerPlayer player,
+            ModerationRepository.Sentence sentence,
+            String reason
+    ) {
+        ModerationRepository repository = KernelServices.moderation();
+        ModerationRepository.Sentence releasing = repository.beginRelease(
+                sentence.playerId(),
+                sentence.operationId()).orElse(null);
+        if (releasing == null) {
+            return new TransitionResult(false, "The jail sentence changed.");
+        }
+        if (!persist("prepared jail release")) {
+            repository.releasePending(
+                    sentence.playerId(),
+                    sentence.operationId(),
+                    "release intent could not be persisted");
+            return new TransitionResult(false, "The release intent could not be stored.");
+        }
+        SavedLocation destination = releaseDestination(server, releasing);
+        try {
+            SafeTeleportService.TeleportResult teleported = KernelServices.safeTeleports().teleport(
+                    server,
+                    actor,
+                    player,
+                    destination,
+                    reason,
+                    JAIL_POLICY,
+                    () -> matching(
+                            sentence.playerId(),
+                            sentence.operationId(),
+                            ModerationRepository.TransitionAction.RELEASE));
+            if (!teleported.successful()) {
+                repository.releasePending(
+                        sentence.playerId(),
+                        sentence.operationId(),
+                        teleported.detail());
+                persist("failed jail release");
+                return new TransitionResult(false, teleported.detail());
+            }
+            if (repository.completeRelease(sentence.playerId(), sentence.operationId()).isEmpty()
+                    || !persist("completed jail release")) {
+                repository.outcomeUnknown(
+                        sentence.playerId(),
+                        sentence.operationId(),
+                        ModerationRepository.TransitionAction.RELEASE,
+                        "release teleport completed but final storage commit failed");
+                persist("unknown jail release outcome");
+                return new TransitionResult(false, "The teleport completed but its durable state is uncertain.");
+            }
+            return new TransitionResult(true, "");
+        } catch (RuntimeException exception) {
+            repository.outcomeUnknown(
+                    sentence.playerId(),
+                    sentence.operationId(),
+                    ModerationRepository.TransitionAction.RELEASE,
+                    exception.getClass().getSimpleName());
+            persist("unknown jail release outcome");
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Jail release outcome is unknown for player {}",
+                    sentence.playerId(),
+                    exception);
+            return new TransitionResult(false, "The jail release outcome is uncertain.");
+        }
+    }
+
+    private static void reconcile(ServerPlayer player, boolean force) {
+        ModerationRepository repository = KernelServices.moderation();
+        ModerationRepository.Sentence sentence = repository.transition(player.getUUID()).orElse(null);
+        if (sentence == null || sentence.state() == ModerationRepository.SentenceState.RELEASED) {
             return;
         }
-        var jail = KernelServices.moderation().jail(sentence.orElseThrow().jailName());
+        if (sentence.state() == ModerationRepository.SentenceState.ACTIVE
+                && sentence.expired(Instant.now())) {
+            sentence = repository.prepareRelease(player.getUUID()).orElse(sentence);
+            if (!persist("login jail expiry transition")) {
+                return;
+            }
+        }
+        if (!force
+                && !sentence.lastFailure().isBlank()
+                && Instant.now().isBefore(sentence.updatedAt().plus(RETRY_DELAY))) {
+            return;
+        }
+        switch (sentence.state()) {
+            case JAILING -> completePreparedJail(
+                    player.getServer(), null, player, sentence, false);
+            case ACTIVE -> enforceSentence(player, force, sentence);
+            case RELEASE_PENDING, RELEASING -> release(
+                    player.getServer(), null, player, sentence, "jail sentence release");
+            case OUTCOME_UNKNOWN -> {
+                if (sentence.pendingAction() == ModerationRepository.TransitionAction.JAIL) {
+                    completePreparedJail(player.getServer(), null, player, sentence, false);
+                } else if (sentence.pendingAction() == ModerationRepository.TransitionAction.RELEASE) {
+                    release(player.getServer(), null, player, sentence, "jail transition reconciliation");
+                }
+            }
+            case RELEASED -> {
+            }
+        }
+    }
+
+    private static void enforceSentence(
+            ServerPlayer player,
+            boolean force,
+            ModerationRepository.Sentence sentence
+    ) {
+        var jail = KernelServices.moderation().jail(sentence.jailName());
         if (jail.isEmpty()) {
             return;
         }
@@ -165,8 +334,11 @@ public final class ModerationEvents {
                 player,
                 destination,
                 "jail enforcement",
-                new SafeTeleportService.Policy(4, 256, 16, false, false, true, false, 20),
-                () -> KernelServices.moderation().sentence(player.getUUID()).isPresent());
+                JAIL_POLICY,
+                () -> KernelServices.moderation().transition(player.getUUID())
+                        .map(current -> current.operationId().equals(sentence.operationId())
+                                && current.state() == ModerationRepository.SentenceState.ACTIVE)
+                        .orElse(false));
     }
 
     private static boolean jailed(ServerPlayer player) {
@@ -203,13 +375,58 @@ public final class ModerationEvents {
             if (player.isAlive()
                     && !player.hasDisconnected()
                     && player.getServer().getPlayerList().getPlayer(player.getUUID()) == player) {
-                enforceSentence(player, true);
+                reconcile(player, true);
             }
         });
+    }
+
+    private static SavedLocation releaseDestination(
+            MinecraftServer server,
+            ModerationRepository.Sentence sentence
+    ) {
+        if (sentence.releaseLocation() != null) {
+            return sentence.releaseLocation();
+        }
+        ServerLevel level = server.overworld();
+        var position = level.getSharedSpawnPos();
+        return new SavedLocation(
+                level.dimension().location().toString(),
+                position.getX() + 0.5D,
+                position.getY(),
+                position.getZ() + 0.5D,
+                level.getSharedSpawnAngle(),
+                0.0F);
+    }
+
+    private static boolean matching(
+            java.util.UUID playerId,
+            java.util.UUID operationId,
+            ModerationRepository.TransitionAction action
+    ) {
+        return KernelServices.moderation().transition(playerId)
+                .map(current -> current.operationId().equals(operationId)
+                        && current.pendingAction() == action)
+                .orElse(false);
+    }
+
+    static boolean persist(String operation) {
+        try {
+            KernelServices.moderation().flush();
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Moderation storage failed during {}",
+                    operation,
+                    exception);
+            return false;
+        }
     }
 
     private static boolean enabled() {
         return ConfigHandler.config.enableModerationEssentials.get()
                 && ConfigHandler.config.enableJails.get();
+    }
+
+    record TransitionResult(boolean successful, String detail) {
     }
 }

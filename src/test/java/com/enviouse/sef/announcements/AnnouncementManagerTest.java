@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -120,6 +121,43 @@ class AnnouncementManagerTest {
         assertEquals("success", audit.get("result").getAsString());
         assertEquals("result 1", audit.get("reasonCode").getAsString());
         assertEquals("say", audit.get("origin").getAsString());
+    }
+
+    @Test
+    void malformedReloadPreservesLiveAnnouncementsAndRejectsMutation() throws Exception {
+        AnnouncementManager manager = new AnnouncementManager();
+        TextAnnouncement original = new TextAnnouncement(
+                "original",
+                "notice",
+                60L,
+                true,
+                "@a",
+                true,
+                0L);
+        assertTrue(manager.add(original));
+        Files.writeString(
+                temporaryDirectory.resolve("announcements.json"),
+                """
+                        {"domain":"announcements","schemaVersion":2,
+                        "data":{"text":[{"id":"bad","message":"notice","intervalSeconds":0,
+                        "toggleable":true,"target":"@a","enabled":true,"offsetSeconds":0}],
+                        "commands":[]}}
+                        """);
+
+        manager.load(temporaryDirectory);
+
+        assertEquals(
+                com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY,
+                manager.announcementState());
+        assertEquals(List.of(original), manager.getTextAnnouncements());
+        assertThrows(IllegalStateException.class, () -> manager.add(new TextAnnouncement(
+                "blocked",
+                "notice",
+                60L,
+                true,
+                "@a",
+                true,
+                0L)));
     }
 
     private JsonObject onlyAuditEvent() throws Exception {

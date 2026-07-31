@@ -49,6 +49,28 @@ public final class ServerControlCommands {
                 .then(Commands.literal("status")
                         .requires(source -> has(source, "commands.control.status"))
                         .executes(context -> status(context.getSource())))
+                .then(Commands.literal("recovery")
+                        .requires(source -> has(source, "commands.control.status"))
+                        .executes(context -> recovery(context.getSource(), 1))
+                        .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                                .executes(context -> recovery(
+                                        context.getSource(),
+                                        IntegerArgumentType.getInteger(context, "page")))))
+                .then(Commands.literal("reconcile")
+                        .requires(source -> has(source, "commands.control.status"))
+                        .then(Commands.argument("operation", StringArgumentType.word())
+                                .then(Commands.argument("outcome", StringArgumentType.word())
+                                        .suggests((context, builder) -> {
+                                            builder.suggest("applied");
+                                            builder.suggest("not_applied");
+                                            return builder.buildFuture();
+                                        })
+                                        .then(Commands.argument("note", StringArgumentType.greedyString())
+                                                .executes(context -> reconcile(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "operation"),
+                                                        StringArgumentType.getString(context, "outcome"),
+                                                        StringArgumentType.getString(context, "note")))))))
                 .then(Commands.literal("view")
                         .then(Commands.argument("record", StringArgumentType.word())
                                 .executes(context -> view(
@@ -113,6 +135,14 @@ public final class ServerControlCommands {
                         .executes(context -> fields(context.getSource(), feature, 1))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
                                 .executes(context -> fields(
+                                        context.getSource(),
+                                        feature,
+                                        IntegerArgumentType.getInteger(context, "page")))))
+                .then(Commands.literal("manage")
+                        .requires(source -> has(source, permission(feature, "manage")))
+                        .executes(context -> list(context.getSource(), feature, 1))
+                        .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                                .executes(context -> list(
                                         context.getSource(),
                                         feature,
                                         IntegerArgumentType.getInteger(context, "page")))))
@@ -290,9 +320,84 @@ public final class ServerControlCommands {
         info(source, "records " + diagnostic.records()
                 + ", active " + diagnostic.activeRecords()
                 + ", history " + diagnostic.historyEntries());
+        info(source, "executions " + diagnostic.executions()
+                + ", incomplete " + diagnostic.incompleteExecutions());
         info(source, "revision " + diagnostic.revision()
                 + ", state " + diagnostic.state().name().toLowerCase(Locale.ROOT)
                 + ", dirty " + diagnostic.dirty());
+        return 1;
+    }
+
+    private static int recovery(CommandSourceStack source, int requestedPage) {
+        List<ServerControlRepository.ExecutionOperation> visible =
+                KernelServices.serverControls()
+                        .executions(ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN)
+                        .stream()
+                        .filter(operation -> has(
+                                source,
+                                permission(
+                                        ServerControlCatalog.require(operation.featureId()),
+                                        "manage")))
+                        .toList();
+        return page(
+                source,
+                "server control recovery",
+                visible,
+                requestedPage,
+                operation -> "&e" + operation.id()
+                        + " &8| &f" + operation.featureId()
+                        + " &8| &7record " + operation.recordId()
+                        + " &8| &7" + value(operation.detail()));
+    }
+
+    private static int reconcile(
+            CommandSourceStack source,
+            String operationInput,
+            String outcome,
+            String note
+    ) {
+        UUID operationId = uuid(operationInput);
+        if (operationId == null) {
+            return fail(source, "operation id is invalid");
+        }
+        ServerControlRepository.ExecutionOperation operation =
+                KernelServices.serverControls().execution(operationId).orElse(null);
+        if (operation == null
+                || operation.status() != ServerControlRepository.ExecutionStatus.OUTCOME_UNKNOWN) {
+            return fail(source, "execution recovery record not found");
+        }
+        ServerControlCatalog.FeatureDefinition feature =
+                ServerControlCatalog.require(operation.featureId());
+        if (!has(source, permission(feature, "manage"))) {
+            return fail(source, "you cannot reconcile this feature");
+        }
+        boolean applied;
+        if ("applied".equalsIgnoreCase(outcome)) {
+            applied = true;
+        } else if ("not_applied".equalsIgnoreCase(outcome)) {
+            applied = false;
+        } else {
+            return fail(source, "outcome must be applied or not_applied");
+        }
+        ActionResult<ServerControlRepository.ExecutionOperation> result =
+                KernelServices.serverControls().reconcileExecution(
+                        operationId,
+                        actorId(source),
+                        applied,
+                        note);
+        if (!result.successful()) {
+            return fail(source, detail(result));
+        }
+        try {
+            KernelServices.serverControls().flush();
+        } catch (java.io.IOException | RuntimeException exception) {
+            return fail(source, "execution reconciliation could not be durably saved");
+        }
+        success(
+                source,
+                "execution reconciled as "
+                        + result.value().status().name().toLowerCase(Locale.ROOT)
+                        + ", " + operationId);
         return 1;
     }
 

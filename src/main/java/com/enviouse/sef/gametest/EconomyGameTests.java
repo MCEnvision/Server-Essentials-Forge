@@ -68,4 +68,36 @@ public final class EconomyGameTests {
                 "inventory full trade inserted requested items");
         helper.succeed();
     }
+
+    @GameTest(template = "empty")
+    public static void failedOrExceptionalPurchaseCommitRestoresInventory(GameTestHelper helper) {
+        ServerPlayer player = helper.makeMockServerPlayerInLevel();
+        Inventory inventory = player.getInventory();
+
+        EconomyInventoryTransaction.Result rejected = EconomyInventoryTransaction.buy(
+                inventory,
+                Items.DIAMOND,
+                2,
+                () -> false);
+        helper.assertTrue(!rejected.successful(), "rejected reservation committed a purchase");
+        helper.assertTrue(
+                EconomyInventoryTransaction.countComponentSafe(inventory, Items.DIAMOND) == 0,
+                "rejected reservation retained purchased items");
+
+        try {
+            EconomyInventoryTransaction.buy(
+                    inventory,
+                    Items.DIAMOND,
+                    2,
+                    () -> {
+                        throw new IllegalStateException("injected commit failure");
+                    });
+            helper.fail("exceptional reservation commit did not throw");
+        } catch (IllegalStateException expected) {
+            helper.assertTrue(
+                    EconomyInventoryTransaction.countComponentSafe(inventory, Items.DIAMOND) == 0,
+                    "exceptional reservation commit retained purchased items");
+        }
+        helper.succeed();
+    }
 }

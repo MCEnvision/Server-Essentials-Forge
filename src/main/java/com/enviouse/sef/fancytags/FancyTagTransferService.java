@@ -127,7 +127,7 @@ public final class FancyTagTransferService {
         Objects.requireNonNull(uploadId, "uploadId");
         Objects.requireNonNull(now, "now");
         prune(now);
-        Upload upload = uploads.remove(uploadId);
+        Upload upload = uploads.get(uploadId);
         if (upload == null || !upload.ownerId.equals(ownerId)) {
             return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "upload session is unavailable");
         }
@@ -137,7 +137,11 @@ public final class FancyTagTransferService {
         }
         String actual = sha256(bytes);
         if (!actual.equals(upload.expectedHash)) {
+            uploads.remove(uploadId, upload);
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "upload hash does not match");
+        }
+        if (!uploads.remove(uploadId, upload)) {
+            return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "upload session changed");
         }
         return ActionResult.success(new CompletedUpload(
                 upload.uploadId,

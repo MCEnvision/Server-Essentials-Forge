@@ -226,5 +226,8 @@ public class CommandRegistrationHandler {
             MsgCommands.register(e.getDispatcher());
         }
         AutomationCommands.registerPublishedAliases(e.getDispatcher());
+        KernelServices.shortcuts().captureRegisteredRoots(e.getDispatcher().getRoot().getChildren().stream()
+                .map(node -> node.getName().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet()));
     }
 }

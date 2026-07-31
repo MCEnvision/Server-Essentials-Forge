@@ -6,21 +6,34 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 
 import java.io.IOException;
+import java.io.StringReader;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -47,7 +60,12 @@ public final class StorageService {
     }
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final int MAX_DOCUMENT_BYTES = 16 * 1024 * 1024;
+    static final int MAX_DOCUMENT_BYTES = 16 * 1024 * 1024;
+    static final int MAX_JSON_DEPTH = 128;
+    static final int MAX_JSON_CONTAINER_ENTRIES = 100_000;
+    static final int MAX_JSON_TOTAL_VALUES = 1_000_000;
+    static final int MAX_JSON_STRING_LENGTH = 1_048_576;
+    static final int MAX_JSON_NAME_LENGTH = 1_024;
     private static final Clock CLOCK = Clock.systemUTC();
     private static final Map<Path, StoreStatus> STATUS = new ConcurrentHashMap<>();
 
@@ -55,24 +73,43 @@ public final class StorageService {
     }
 
     public static Optional<Document> read(Path path, String domain, int currentVersion) {
+        return read(path, domain, currentVersion, true);
+    }
+
+    private static Optional<Document> read(
+            Path path,
+            String domain,
+            int currentVersion,
+            boolean allowPreviousRecovery
+    ) {
         Path normalized = path.toAbsolutePath().normalize();
-        if (!Files.exists(normalized)) {
+        if (!Files.exists(normalized, LinkOption.NOFOLLOW_LINKS)) {
+            if (allowPreviousRecovery) {
+                try {
+                    if (AtomicFileStore.restorePrevious(normalized, MAX_DOCUMENT_BYTES)) {
+                        LOGGER.log(
+                                System.Logger.Level.WARNING,
+                                "[SEF] Restored the previous durable generation for "
+                                        + normalized.getFileName());
+                        return read(normalized, domain, currentVersion, false);
+                    }
+                } catch (IOException exception) {
+                    rejected(normalized, domain, currentVersion, "previous generation recovery failed", exception);
+                    return Optional.empty();
+                }
+            }
             STATUS.put(normalized, new StoreStatus(
                     normalized, domain, currentVersion, 0L, Instant.now(CLOCK), "missing"));
             return Optional.empty();
         }
 
         try {
-            long size = Files.size(normalized);
-            if (size > MAX_DOCUMENT_BYTES) {
-                quarantine(normalized, domain, "document exceeds size limit");
-                return Optional.empty();
-            }
-
-            JsonElement root = JsonParser.parseString(Files.readString(normalized, StandardCharsets.UTF_8));
+            byte[] encoded = AtomicFileStore.readBounded(normalized, MAX_DOCUMENT_BYTES);
+            String json = decodeUtf8(encoded);
+            validateJsonStructure(json);
+            JsonElement root = JsonParser.parseString(json);
             if (root == null || root.isJsonNull()) {
-                quarantine(normalized, domain, "document is empty");
-                return Optional.empty();
+                throw new JsonStructureException("Managed document is empty");
             }
 
             if (!isEnvelope(root)) {
@@ -82,30 +119,32 @@ public final class StorageService {
                         0,
                         currentVersion,
                         "v0.bak",
-                        size)) {
+                        encoded.length)) {
                     return Optional.empty();
                 }
                 STATUS.put(normalized, new StoreStatus(
-                        normalized, domain, 0, size, Instant.now(CLOCK), "legacy"));
+                        normalized, domain, 0, encoded.length, Instant.now(CLOCK), "legacy"));
                 return Optional.of(new Document(
                         domain,
                         0,
                         root,
                         new JsonObject(),
-                        root.deepCopy(),
+                        boundedCopy(root),
                         true));
             }
 
             JsonObject object = root.getAsJsonObject();
             String storedDomain = object.get("domain").getAsString();
             int version = object.get("schemaVersion").getAsInt();
+            if (object.get("schemaVersion").getAsDouble() != version) {
+                throw new JsonStructureException("Managed document schema version is not an integer");
+            }
             if (!domain.equals(storedDomain)) {
-                quarantine(normalized, domain, "domain mismatch");
-                return Optional.empty();
+                throw new JsonStructureException("Managed document domain does not match");
             }
             if (version > currentVersion || version < 1) {
                 STATUS.put(normalized, new StoreStatus(
-                        normalized, domain, version, size, Instant.now(CLOCK), "unsupported"));
+                        normalized, domain, version, encoded.length, Instant.now(CLOCK), "unsupported"));
                 LOGGER.log(
                         System.Logger.Level.ERROR,
                         "[SEF] Refusing unsupported " + domain + " storage version " + version
@@ -113,7 +152,7 @@ public final class StorageService {
                 return Optional.empty();
             }
 
-            JsonObject extras = object.deepCopy();
+            JsonObject extras = boundedCopy(object).getAsJsonObject();
             extras.remove("domain");
             extras.remove("schemaVersion");
             extras.remove("data");
@@ -125,14 +164,14 @@ public final class StorageService {
                         version,
                         currentVersion,
                         "v" + version + ".bak",
-                        size)) {
+                        encoded.length)) {
                 return Optional.empty();
             }
             STATUS.put(normalized, new StoreStatus(
                     normalized,
                     domain,
                     version,
-                    size,
+                    encoded.length,
                     Instant.now(CLOCK),
                     migrated ? "migration pending" : "ready"));
             return Optional.of(new Document(
@@ -140,10 +179,30 @@ public final class StorageService {
                     version,
                     data,
                     extras,
-                    data.deepCopy(),
+                    boundedCopy(data),
                     migrated));
-        } catch (Exception exception) {
-            quarantine(normalized, domain, exception.getClass().getSimpleName());
+        } catch (AtomicFileStore.UnsafeStoragePathException exception) {
+            rejected(normalized, domain, currentVersion, "unsafe managed path", exception);
+            return Optional.empty();
+        } catch (IOException | RuntimeException exception) {
+            boolean quarantined = quarantine(normalized, domain, exception.getClass().getSimpleName());
+            if (quarantined && allowPreviousRecovery) {
+                try {
+                    if (AtomicFileStore.restorePrevious(normalized, MAX_DOCUMENT_BYTES)) {
+                        LOGGER.log(
+                                System.Logger.Level.WARNING,
+                                "[SEF] Recovered " + domain + " from its previous durable generation");
+                        return read(normalized, domain, currentVersion, false);
+                    }
+                } catch (IOException recoveryFailure) {
+                    rejected(
+                            normalized,
+                            domain,
+                            currentVersion,
+                            "previous generation recovery failed",
+                            recoveryFailure);
+                }
+            }
             return Optional.empty();
         }
     }
@@ -167,13 +226,23 @@ public final class StorageService {
             Set<String> dynamicObjectPaths
     ) throws IOException {
         Path normalized = path.toAbsolutePath().normalize();
-        JsonObject root = previous == null ? new JsonObject() : previous.rootExtras().deepCopy();
+        if (schemaVersion < 1) {
+            throw new IOException("Managed storage schema version is invalid");
+        }
+        JsonObject root = previous == null
+                ? new JsonObject()
+                : boundedCopy(previous.rootExtras()).getAsJsonObject();
         root.addProperty("domain", domain);
         root.addProperty("schemaVersion", schemaVersion);
         root.add("data", previous == null
-                ? data
+                ? boundedCopy(data)
                 : mergeUnknownFields(previous.originalData(), data, "", dynamicObjectPaths));
+        validateJsonElement(root);
         byte[] content = GSON.toJson(root).getBytes(StandardCharsets.UTF_8);
+        if (content.length > MAX_DOCUMENT_BYTES) {
+            throw new AtomicFileStore.DocumentLimitException(
+                    "Managed document exceeds its byte limit");
+        }
         AtomicFileStore.write(normalized, content);
         STATUS.put(normalized, new StoreStatus(
                 normalized,
@@ -214,29 +283,31 @@ public final class StorageService {
         List<Path> normalizedRoots = managedRoots.stream()
                 .map(path -> path.toAbsolutePath().normalize())
                 .toList();
-        Path snapshot = exportRoot.resolve("storage_" + System.currentTimeMillis()).toAbsolutePath().normalize();
-        if (!snapshot.startsWith(exportRoot.toAbsolutePath().normalize())) {
+        Path normalizedExportRoot = exportRoot.toAbsolutePath().normalize();
+        AtomicFileStore.createSafeDirectories(normalizedExportRoot);
+        Path snapshot = normalizedExportRoot.resolve("storage_" + System.currentTimeMillis()).normalize();
+        if (!snapshot.startsWith(normalizedExportRoot)) {
             throw new IOException("Storage export escaped its configured directory");
         }
-        Files.createDirectories(snapshot);
+        AtomicFileStore.createSafeDirectories(snapshot);
         for (StoreStatus status : statuses()) {
             Path source = status.path().toAbsolutePath().normalize();
-            boolean managed = normalizedRoots.stream().anyMatch(root -> source.getParent().equals(root));
+            boolean managed = normalizedRoots.stream()
+                    .anyMatch(root -> source.getParent() != null && source.getParent().equals(root));
             if (!managed
-                    || !Files.isRegularFile(source)
                     || !include.test(status)) {
                 continue;
             }
-            long size = Files.size(source);
-            if (size > MAX_DOCUMENT_BYTES) {
-                throw new IOException("Managed document exceeds export size limit");
-            }
+            byte[] content = AtomicFileStore.readBounded(source, MAX_DOCUMENT_BYTES);
             Path target = snapshot.resolve(source.getFileName());
-            if (Files.exists(target)) {
+            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
                 String prefix = status.domain().replaceAll("[^a-zA-Z0-9._]", "_");
                 target = snapshot.resolve(prefix + "_" + source.getFileName());
             }
-            AtomicFileStore.write(target, Files.readAllBytes(source));
+            if (!target.normalize().startsWith(snapshot)) {
+                throw new IOException("Storage export target escaped its snapshot directory");
+            }
+            AtomicFileStore.write(target, content);
         }
         return snapshot;
     }
@@ -259,8 +330,10 @@ public final class StorageService {
         JsonObject object = root.getAsJsonObject();
         return object.has("domain")
                 && object.get("domain").isJsonPrimitive()
+                && object.getAsJsonPrimitive("domain").isString()
                 && object.has("schemaVersion")
                 && object.get("schemaVersion").isJsonPrimitive()
+                && object.getAsJsonPrimitive("schemaVersion").isNumber()
                 && object.has("data");
     }
 
@@ -270,39 +343,64 @@ public final class StorageService {
             String path,
             Set<String> dynamicObjectPaths
     ) {
-        if (original == null || current == null) {
-            return current;
-        }
-        if (original.isJsonArray() && current.isJsonArray()) {
-            JsonArray oldArray = original.getAsJsonArray();
-            JsonArray newArray = current.getAsJsonArray();
-            JsonArray merged = new JsonArray();
-            for (int index = 0; index < newArray.size(); index++) {
-                JsonElement newValue = newArray.get(index);
-                JsonElement oldValue = findMatchingArrayElement(oldArray, newValue, index);
-                merged.add(mergeUnknownFields(
-                        oldValue,
-                        newValue,
-                        path + "/" + index,
-                        dynamicObjectPaths));
+        JsonElement[] result = new JsonElement[1];
+        Deque<MergeTask> tasks = new ArrayDeque<>();
+        tasks.push(new MergeTask(original, current, path, value -> result[0] = value, 0));
+        int processed = 0;
+        while (!tasks.isEmpty()) {
+            MergeTask task = tasks.pop();
+            processed++;
+            if (processed > MAX_JSON_TOTAL_VALUES || task.depth() > MAX_JSON_DEPTH) {
+                throw new IllegalArgumentException("Managed JSON merge exceeds structural limits");
             }
-            return merged;
+            JsonElement oldValue = task.original();
+            JsonElement newValue = task.current();
+            if (oldValue == null || newValue == null) {
+                task.sink().accept(boundedCopy(newValue));
+                continue;
+            }
+            if (oldValue.isJsonArray() && newValue.isJsonArray()) {
+                JsonArray oldArray = oldValue.getAsJsonArray();
+                JsonArray newArray = newValue.getAsJsonArray();
+                JsonArray merged = new JsonArray();
+                for (int index = 0; index < newArray.size(); index++) {
+                    merged.add(com.google.gson.JsonNull.INSTANCE);
+                }
+                task.sink().accept(merged);
+                for (int index = newArray.size() - 1; index >= 0; index--) {
+                    int targetIndex = index;
+                    JsonElement child = newArray.get(index);
+                    tasks.push(new MergeTask(
+                            findMatchingArrayElement(oldArray, child, index),
+                            child,
+                            task.path() + "/" + index,
+                            value -> merged.set(targetIndex, value),
+                            task.depth() + 1));
+                }
+                continue;
+            }
+            if (oldValue.isJsonObject() && newValue.isJsonObject()) {
+                JsonObject merged = dynamicObjectPaths.contains(task.path())
+                        ? new JsonObject()
+                        : boundedCopy(oldValue).getAsJsonObject();
+                task.sink().accept(merged);
+                List<Map.Entry<String, JsonElement>> entries =
+                        new ArrayList<>(newValue.getAsJsonObject().entrySet());
+                Collections.reverse(entries);
+                for (Map.Entry<String, JsonElement> entry : entries) {
+                    String key = entry.getKey();
+                    tasks.push(new MergeTask(
+                            oldValue.getAsJsonObject().get(key),
+                            entry.getValue(),
+                            task.path() + "/" + escapePathSegment(key),
+                            value -> merged.add(key, value),
+                            task.depth() + 1));
+                }
+                continue;
+            }
+            task.sink().accept(boundedCopy(newValue));
         }
-        if (!original.isJsonObject() || !current.isJsonObject()) {
-            return current;
-        }
-        JsonObject merged = dynamicObjectPaths.contains(path)
-                ? new JsonObject()
-                : original.getAsJsonObject().deepCopy();
-        for (Map.Entry<String, JsonElement> entry : current.getAsJsonObject().entrySet()) {
-            JsonElement oldValue = original.getAsJsonObject().get(entry.getKey());
-            merged.add(entry.getKey(), mergeUnknownFields(
-                    oldValue,
-                    entry.getValue(),
-                    path + "/" + escapePathSegment(entry.getKey()),
-                    dynamicObjectPaths));
-        }
-        return merged;
+        return result[0];
     }
 
     private static JsonElement findMatchingArrayElement(JsonArray original, JsonElement current, int index) {
@@ -325,6 +423,230 @@ public final class StorageService {
 
     private static String escapePathSegment(String value) {
         return value.replace("~", "~0").replace("/", "~1");
+    }
+
+    private static String decodeUtf8(byte[] encoded) throws CharacterCodingException {
+        return StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(encoded))
+                .toString();
+    }
+
+    private static void validateJsonStructure(String json) throws IOException {
+        try (JsonReader reader = new JsonReader(new StringReader(json))) {
+            reader.setLenient(false);
+            Deque<ContainerCounter> containers = new ArrayDeque<>();
+            boolean rootSeen = false;
+            int totalValues = 0;
+            while (true) {
+                JsonToken token = reader.peek();
+                if (token == JsonToken.END_DOCUMENT) {
+                    if (!rootSeen || !containers.isEmpty()) {
+                        throw new JsonStructureException("Managed JSON is incomplete");
+                    }
+                    return;
+                }
+                switch (token) {
+                    case BEGIN_ARRAY -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        reader.beginArray();
+                        containers.push(new ContainerCounter(true));
+                        checkedDepth(containers.size());
+                    }
+                    case BEGIN_OBJECT -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        reader.beginObject();
+                        containers.push(new ContainerCounter(false));
+                        checkedDepth(containers.size());
+                    }
+                    case END_ARRAY -> {
+                        requireContainer(containers, true);
+                        reader.endArray();
+                        containers.pop();
+                    }
+                    case END_OBJECT -> {
+                        requireContainer(containers, false);
+                        reader.endObject();
+                        containers.pop();
+                    }
+                    case NAME -> {
+                        requireContainer(containers, false);
+                        String name = reader.nextName();
+                        if (name.length() > MAX_JSON_NAME_LENGTH) {
+                            throw new JsonStructureException("Managed JSON name exceeds its limit");
+                        }
+                        containers.peek().increment();
+                    }
+                    case STRING -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        if (reader.nextString().length() > MAX_JSON_STRING_LENGTH) {
+                            throw new JsonStructureException("Managed JSON string exceeds its limit");
+                        }
+                    }
+                    case NUMBER -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        if (reader.nextString().length() > 128) {
+                            throw new JsonStructureException("Managed JSON number exceeds its limit");
+                        }
+                    }
+                    case BOOLEAN -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        reader.nextBoolean();
+                    }
+                    case NULL -> {
+                        rootSeen = beforeJsonValue(containers, rootSeen);
+                        totalValues = checkedValueCount(totalValues);
+                        reader.nextNull();
+                    }
+                    default -> throw new JsonStructureException("Managed JSON token is invalid");
+                }
+            }
+        } catch (IllegalStateException exception) {
+            throw new JsonStructureException("Managed JSON is malformed", exception);
+        }
+    }
+
+    private static boolean beforeJsonValue(
+            Deque<ContainerCounter> containers,
+            boolean rootSeen
+    ) throws JsonStructureException {
+        if (containers.isEmpty()) {
+            if (rootSeen) {
+                throw new JsonStructureException("Managed JSON has multiple root values");
+            }
+            return true;
+        }
+        if (containers.peek().array()) {
+            containers.peek().increment();
+        }
+        return rootSeen;
+    }
+
+    private static int checkedValueCount(int current) throws JsonStructureException {
+        int next = Math.addExact(current, 1);
+        if (next > MAX_JSON_TOTAL_VALUES) {
+            throw new JsonStructureException("Managed JSON value count exceeds its limit");
+        }
+        return next;
+    }
+
+    private static void checkedDepth(int depth) throws JsonStructureException {
+        if (depth > MAX_JSON_DEPTH) {
+            throw new JsonStructureException("Managed JSON nesting exceeds its limit");
+        }
+    }
+
+    private static void requireContainer(
+            Deque<ContainerCounter> containers,
+            boolean array
+    ) throws JsonStructureException {
+        if (containers.isEmpty() || containers.peek().array() != array) {
+            throw new JsonStructureException("Managed JSON container is malformed");
+        }
+    }
+
+    private static void validateJsonElement(JsonElement root) throws IOException {
+        Deque<ElementDepth> elements = new ArrayDeque<>();
+        elements.push(new ElementDepth(root, 0));
+        int totalValues = 0;
+        while (!elements.isEmpty()) {
+            ElementDepth item = elements.pop();
+            checkedDepth(item.depth());
+            totalValues = checkedValueCount(totalValues);
+            JsonElement element = item.element();
+            if (element == null || element.isJsonNull()) {
+                continue;
+            }
+            if (element.isJsonPrimitive()) {
+                if (element.getAsJsonPrimitive().isString()
+                        && element.getAsString().length() > MAX_JSON_STRING_LENGTH) {
+                    throw new JsonStructureException("Managed JSON string exceeds its limit");
+                }
+                continue;
+            }
+            if (element.isJsonArray()) {
+                JsonArray array = element.getAsJsonArray();
+                if (array.size() > MAX_JSON_CONTAINER_ENTRIES) {
+                    throw new JsonStructureException("Managed JSON array exceeds its limit");
+                }
+                for (int index = array.size() - 1; index >= 0; index--) {
+                    elements.push(new ElementDepth(array.get(index), item.depth() + 1));
+                }
+                continue;
+            }
+            JsonObject object = element.getAsJsonObject();
+            if (object.size() > MAX_JSON_CONTAINER_ENTRIES) {
+                throw new JsonStructureException("Managed JSON object exceeds its limit");
+            }
+            List<Map.Entry<String, JsonElement>> entries =
+                    new ArrayList<>(object.entrySet());
+            Collections.reverse(entries);
+            for (Map.Entry<String, JsonElement> entry : entries) {
+                if (entry.getKey().length() > MAX_JSON_NAME_LENGTH) {
+                    throw new JsonStructureException("Managed JSON name exceeds its limit");
+                }
+                elements.push(new ElementDepth(entry.getValue(), item.depth() + 1));
+            }
+        }
+    }
+
+    private static JsonElement boundedCopy(JsonElement source) {
+        if (source == null) {
+            return com.google.gson.JsonNull.INSTANCE;
+        }
+        JsonElement[] result = new JsonElement[1];
+        Deque<CopyTask> tasks = new ArrayDeque<>();
+        tasks.push(new CopyTask(source, value -> result[0] = value, 0));
+        int processed = 0;
+        while (!tasks.isEmpty()) {
+            CopyTask task = tasks.pop();
+            processed++;
+            if (processed > MAX_JSON_TOTAL_VALUES || task.depth() > MAX_JSON_DEPTH) {
+                throw new IllegalArgumentException("Managed JSON copy exceeds structural limits");
+            }
+            JsonElement element = task.source();
+            if (element == null || element.isJsonNull() || element.isJsonPrimitive()) {
+                task.sink().accept(element == null
+                        ? com.google.gson.JsonNull.INSTANCE
+                        : element);
+                continue;
+            }
+            if (element.isJsonArray()) {
+                JsonArray sourceArray = element.getAsJsonArray();
+                JsonArray targetArray = new JsonArray();
+                for (int index = 0; index < sourceArray.size(); index++) {
+                    targetArray.add(com.google.gson.JsonNull.INSTANCE);
+                }
+                task.sink().accept(targetArray);
+                for (int index = sourceArray.size() - 1; index >= 0; index--) {
+                    int targetIndex = index;
+                    tasks.push(new CopyTask(
+                            sourceArray.get(index),
+                            value -> targetArray.set(targetIndex, value),
+                            task.depth() + 1));
+                }
+                continue;
+            }
+            JsonObject targetObject = new JsonObject();
+            task.sink().accept(targetObject);
+            List<Map.Entry<String, JsonElement>> entries =
+                    new ArrayList<>(element.getAsJsonObject().entrySet());
+            Collections.reverse(entries);
+            for (Map.Entry<String, JsonElement> entry : entries) {
+                String key = entry.getKey();
+                tasks.push(new CopyTask(
+                        entry.getValue(),
+                        value -> targetObject.add(key, value),
+                        task.depth() + 1));
+            }
+        }
+        return result[0];
     }
 
     private static boolean prepareMigration(
@@ -389,7 +711,7 @@ public final class StorageService {
         }
     }
 
-    private static void quarantine(Path path, String domain, String reason) {
+    private static boolean quarantine(Path path, String domain, String reason) {
         try {
             Path quarantined = AtomicFileStore.quarantine(
                     path,
@@ -406,6 +728,7 @@ public final class StorageService {
                     System.Logger.Level.ERROR,
                     "[SEF] Quarantined unreadable " + domain + " storage "
                             + quarantined.getFileName() + " because " + reason);
+            return true;
         } catch (IOException quarantineFailure) {
             STATUS.put(path, new StoreStatus(
                     path,
@@ -418,6 +741,77 @@ public final class StorageService {
                     System.Logger.Level.ERROR,
                     "[SEF] Failed to quarantine unreadable " + domain + " storage " + path.getFileName(),
                     quarantineFailure);
+            return false;
+        }
+    }
+
+    private static void rejected(
+            Path path,
+            String domain,
+            int schemaVersion,
+            String reason,
+            Exception exception
+    ) {
+        STATUS.put(path, new StoreStatus(
+                path,
+                domain,
+                schemaVersion,
+                0L,
+                Instant.now(CLOCK),
+                "rejected"));
+        LOGGER.log(
+                System.Logger.Level.ERROR,
+                "[SEF] Rejected " + domain + " storage " + path.getFileName() + " because " + reason,
+                exception);
+    }
+
+    private static final class ContainerCounter {
+        private final boolean array;
+        private int count;
+
+        private ContainerCounter(boolean array) {
+            this.array = array;
+        }
+
+        private boolean array() {
+            return array;
+        }
+
+        private void increment() throws JsonStructureException {
+            count = Math.addExact(count, 1);
+            if (count > MAX_JSON_CONTAINER_ENTRIES) {
+                throw new JsonStructureException(
+                        "Managed JSON container entry count exceeds its limit");
+            }
+        }
+    }
+
+    private record ElementDepth(JsonElement element, int depth) {
+    }
+
+    private record CopyTask(
+            JsonElement source,
+            Consumer<JsonElement> sink,
+            int depth
+    ) {
+    }
+
+    private record MergeTask(
+            JsonElement original,
+            JsonElement current,
+            String path,
+            Consumer<JsonElement> sink,
+            int depth
+    ) {
+    }
+
+    private static final class JsonStructureException extends IOException {
+        private JsonStructureException(String message) {
+            super(message);
+        }
+
+        private JsonStructureException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

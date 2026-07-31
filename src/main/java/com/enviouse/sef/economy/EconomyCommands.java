@@ -17,6 +17,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
@@ -92,11 +93,11 @@ public final class EconomyCommands {
         if (active("setworth")) {
             dispatcher.register(Commands.literal("setworth")
                     .requires(source -> has(source, "commands.setworth"))
-                    .then(Commands.argument("item", StringArgumentType.word())
+                    .then(Commands.argument("item", ResourceLocationArgument.id())
                             .then(Commands.argument("amount", StringArgumentType.word())
                                     .executes(context -> setWorth(
                                             context.getSource(),
-                                            StringArgumentType.getString(context, "item"),
+                                            ResourceLocationArgument.getId(context, "item").toString(),
                                             StringArgumentType.getString(context, "amount"))))));
         }
     }

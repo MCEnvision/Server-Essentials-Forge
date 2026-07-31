@@ -121,7 +121,14 @@ public class WarnCommand {
                     "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
             return 0;
         }
-        WarnManager.WarnEntry entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
+        WarnManager.WarnEntry entry;
+        try {
+            entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cWarning could not be added. &7" + exception.getMessage()));
+            return 0;
+        }
 
         // Notify admin
         String adminMsg = ConfigHandler.config.warnAddedMsg.get()
@@ -196,7 +203,14 @@ public class WarnCommand {
             return 0;
         }
 
-        boolean removed = manager.removeWarn(target.getUUID(), warnId);
+        boolean removed;
+        try {
+            removed = manager.removeWarn(target.getUUID(), warnId);
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cWarning could not be removed. &7" + exception.getMessage()));
+            return 0;
+        }
         if (!removed) {
             source.sendFailure(TextFormatter.stringToFormattedText(
                 "&cWarning #" + warnId + " not found for " + target.getGameProfile().getName() + "."));

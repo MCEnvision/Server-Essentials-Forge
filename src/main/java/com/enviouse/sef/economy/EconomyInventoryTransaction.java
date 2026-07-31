@@ -39,6 +39,35 @@ public final class EconomyInventoryTransaction {
         return Result.success();
     }
 
+    public static Result buy(
+            Inventory inventory,
+            Item item,
+            int quantity,
+            BooleanSupplier commit
+    ) {
+        validate(inventory, item, quantity);
+        Objects.requireNonNull(commit, "commit");
+        if (!canFit(inventory, item, quantity)) {
+            return Result.failure(Code.INVENTORY_FULL);
+        }
+        List<ItemStack> before = snapshot(inventory);
+        try {
+            if (!insert(inventory, item, quantity)) {
+                restore(inventory, before);
+                return Result.failure(Code.COMMIT_FAILED);
+            }
+            if (!commit.getAsBoolean()) {
+                restore(inventory, before);
+                return Result.failure(Code.PROVIDER_REJECTED);
+            }
+            inventory.setChanged();
+            return Result.success();
+        } catch (RuntimeException exception) {
+            restore(inventory, before);
+            throw exception;
+        }
+    }
+
     public static Result sell(
             Inventory inventory,
             Item item,

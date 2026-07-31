@@ -83,6 +83,36 @@ class PlayerProfileRepositoryTest {
     }
 
     @Test
+    void malformedProfileCollectionDoesNotPublishValidatedPrefix() throws Exception {
+        Path profileFile = temporaryDirectory.resolve(PlayerData.playerDataFileName);
+        UUID validPlayer = UUID.randomUUID();
+        UUID malformedPlayer = UUID.randomUUID();
+        Files.writeString(profileFile, """
+                {
+                  "domain": "integrated player identities",
+                  "schemaVersion": 1,
+                  "data": {
+                    "players": {
+                      "%s": {
+                        "username": "EnVy",
+                        "nickname": "Captain",
+                        "updatedAt": "2026-07-28T00:00:00Z"
+                      },
+                      "%s": []
+                    }
+                  }
+                }
+                """.formatted(validPlayer, malformedPlayer));
+        PlayerProfileRepository repository = new PlayerProfileRepository();
+
+        repository.load(temporaryDirectory.toFile());
+
+        assertEquals(StorageRepository.RepositoryState.RECOVERY, repository.diagnostic().state());
+        assertTrue(repository.find(validPlayer).isEmpty());
+        assertTrue(repository.find(malformedPlayer).isEmpty());
+    }
+
+    @Test
     void missingProfileCollectionEntersRecovery() throws Exception {
         Path profileFile = temporaryDirectory.resolve(PlayerData.playerDataFileName);
         Files.writeString(profileFile, """

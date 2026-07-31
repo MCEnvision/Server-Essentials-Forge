@@ -6,8 +6,8 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.SEFUtilities;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -23,19 +23,18 @@ import net.minecraft.sounds.SoundSource;
 public class ChatReplyHandler {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
-        // /ans <messageId> <reply>
         dispatcher.register(Commands.literal("ans")
             .requires(src -> PermissionService.has(src, PermissionsHandler.ansCommand))
-            .then(Commands.argument("messageId", LongArgumentType.longArg(1))
+            .then(Commands.argument("token", StringArgumentType.word())
                 .then(Commands.argument("reply", StringArgumentType.greedyString())
                     .executes(ctx -> {
-                        long messageId = LongArgumentType.getLong(ctx, "messageId");
+                        String token = StringArgumentType.getString(ctx, "token");
                         String reply = StringArgumentType.getString(ctx, "reply");
-                        return handleReply(ctx.getSource(), messageId, reply);
+                        return handleReply(ctx.getSource(), token, reply);
                     }))));
     }
 
-    private static int handleReply(CommandSourceStack source, long messageId, String reply) {
+    private static int handleReply(CommandSourceStack source, String token, String reply) {
         if (!PermissionService.has(source, PermissionsHandler.ansCommand)) {
             source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.noPermissionMsg.get()));
             return 0;
@@ -48,54 +47,66 @@ public class ChatReplyHandler {
             return 0;
         }
 
-        ChatMessageManager.ChatRecord original = ChatMessageManager.getMessage(messageId);
+        if (reply == null || reply.isBlank() || reply.length() > 1_024) {
+            unavailable(source);
+            return 0;
+        }
+
+        ChatMessageManager.ChatRecord original =
+                ChatMessageManager.resolve(token, replier.getUUID());
         if (original == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.messageNotFoundMsg.get()));
+            unavailable(source);
             return 0;
         }
-
         ServerPlayer originalSender = source.getServer().getPlayerList().getPlayer(original.senderUuid());
-        if (originalSender == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.playerOfflineMsg.get()));
+        if (originalSender == null
+                || !VanishUtil.playerAllowedToSeeOther(
+                        replier,
+                        originalSender,
+                        VanishUtil.isVanished(replier),
+                        true)) {
+            unavailable(source);
             return 0;
         }
 
-        // Build summary of original message
         String summary = original.message();
         int maxLen = ConfigHandler.config.replySummaryLength.get();
         if (maxLen > 0 && summary.length() > maxLen) {
             summary = summary.substring(0, maxLen) + "...";
         }
 
-        // Get the replier's formatted name (with rank/prefix/suffix)
         String replierFormattedName = SEFUtilities.getRawPreferredPlayerName(replier.getGameProfile());
 
-        // Build reply header
         String headerFormat = ConfigHandler.config.replyHeaderFormat.get()
             .replace("$replier", replierFormattedName)
             .replace("$original_sender", original.formattedName())
             .replace("$summary", summary);
         MutableComponent header = TextFormatter.stringToFormattedText(headerFormat);
 
-        // Build reply body with the replier's full name
         String bodyFormat = ConfigHandler.config.replyBodyFormat.get()
             .replace("$replier", replierFormattedName)
             .replace("$message", reply);
         MutableComponent replyMsg = TextFormatter.stringToFormattedText(bodyFormat);
         MutableComponent fullReply = header.append("\n").append(replyMsg);
 
-        // Send to original sender
+        if (!ChatMessageManager.consume(token, replier.getUUID())) {
+            unavailable(source);
+            return 0;
+        }
         originalSender.sendSystemMessage(fullReply);
         if (ConfigHandler.config.enableReplySound.get()) {
             originalSender.playNotifySound(SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.MASTER, 1.0f, 1.0f);
         }
 
-        // Send confirmation to replier
         replier.sendSystemMessage(fullReply);
 
         ServerEssentialsForge.LOGGER.info(
-            "[REPLY] {} replied to message {} from {} with {} characters",
-            replier.getGameProfile().getName(), messageId, original.rawName(), reply.length());
+            "[REPLY] {} replied to {} with {} characters",
+            replier.getGameProfile().getName(), original.rawName(), reply.length());
         return 1;
+    }
+
+    private static void unavailable(CommandSourceStack source) {
+        source.sendFailure(TextFormatter.stringToFormattedText(ConfigHandler.config.messageNotFoundMsg.get()));
     }
 }

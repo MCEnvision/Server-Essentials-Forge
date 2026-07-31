@@ -12,6 +12,7 @@ import com.enviouse.sef.gui.protocol.SefPayloads;
 import com.enviouse.sef.gui.protocol.SefProtocol;
 import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.storage.repository.StorageRepository;
 import com.enviouse.sef.util.DurationParser;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
@@ -1880,13 +1881,19 @@ public final class FancyTagCommands {
     private static int doctor(CommandSourceStack source) {
         FancyTagService service = KernelServices.fancyTags();
         FancyTagObjectStore.IntegrityReport report = service.integrity();
-        info(source, "repository " + service.state().name().toLowerCase(Locale.ROOT)
+        info(source, "repository " + repositoryStatus(service.state())
                 + ", enhanced rendering " + ConfigHandler.config.fancyTagsEnhancedRendering.get()
                 + ", server inbox " + ConfigHandler.config.fancyTagsServerInboxEnabled.get());
         info(source, "missing " + report.missing().size()
                 + ", corrupt " + report.corrupt().size()
                 + ", orphaned " + report.orphaned().size());
         return report.missing().isEmpty() && report.corrupt().isEmpty() ? 1 : 0;
+    }
+
+    static String repositoryStatus(StorageRepository.RepositoryState state) {
+        return state == StorageRepository.RepositoryState.MISSING
+                ? "unused, file is created on first write"
+                : state.name().toLowerCase(Locale.ROOT);
     }
 
     private static int reload(CommandSourceStack source) {

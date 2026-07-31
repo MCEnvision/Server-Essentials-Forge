@@ -626,24 +626,29 @@ public final class ModerationCommands {
                 Map.of("jail", jail.orElseThrow().normalizedName(), "target", target.getUUID().toString()),
                 List.of(target.getUUID()), () -> {
                     SavedLocation release = SavedLocation.from(target);
-                    SafeTeleportService.TeleportResult teleported = KernelServices.safeTeleports().teleport(
-                            source.getServer(),
-                            source.getPlayer(),
-                            target,
-                            jail.orElseThrow().location(),
-                            "jail",
-                            jailPolicy(),
-                            () -> KernelServices.moderation().jail(jailName).isPresent());
-                    if (!teleported.successful()) {
-                        return fail(source, "Jail destination rejected. " + teleported.detail());
-                    }
-                    KernelServices.moderation().sentence(
+                    ModerationRepository.Sentence prepared = KernelServices.moderation().prepareSentence(
                             target.getUUID(),
                             jailName,
                             expiry.instant(),
                             reason,
                             source.getPlayer() == null ? null : source.getPlayer().getUUID(),
                             release);
+                    if (!ModerationEvents.persist("prepared jail transition")) {
+                        KernelServices.moderation().rollbackJail(
+                                target.getUUID(),
+                                prepared.operationId(),
+                                "jail intent could not be persisted");
+                        return fail(source, "The jail intent could not be stored.");
+                    }
+                    ModerationEvents.TransitionResult result = ModerationEvents.completePreparedJail(
+                            source.getServer(),
+                            source.getPlayer(),
+                            target,
+                            prepared,
+                            true);
+                    if (!result.successful()) {
+                        return fail(source, "Jail destination rejected. " + result.detail());
+                    }
                     target.sendSystemMessage(Component.literal(reason));
                     success(source, "Jailed " + target.getGameProfile().getName() + ".");
                     return 1;
@@ -660,20 +665,22 @@ public final class ModerationCommands {
         }
         return execute(source, "sef:moderation.unjail",
                 Map.of("target", target.getUUID().toString()), List.of(target.getUUID()), () -> {
-                    ModerationRepository.Sentence removed = KernelServices.moderation()
-                            .release(target.getUUID()).orElse(null);
-                    if (removed == null) {
+                    ModerationRepository.Sentence pending = KernelServices.moderation()
+                            .prepareRelease(target.getUUID()).orElse(null);
+                    if (pending == null) {
                         return fail(source, "The jail sentence changed.");
                     }
-                    if (removed.releaseLocation() != null) {
-                        KernelServices.safeTeleports().teleport(
-                                source.getServer(),
-                                source.getPlayer(),
-                                target,
-                                removed.releaseLocation(),
-                                "jail release",
-                                jailPolicy(),
-                                () -> KernelServices.moderation().sentence(target.getUUID()).isEmpty());
+                    if (!ModerationEvents.persist("prepared jail release")) {
+                        return fail(source, "The release intent could not be stored.");
+                    }
+                    ModerationEvents.TransitionResult result = ModerationEvents.release(
+                            source.getServer(),
+                            source.getPlayer(),
+                            target,
+                            pending,
+                            "jail release");
+                    if (!result.successful()) {
+                        return fail(source, "The player remains jailed. " + result.detail());
                     }
                     success(source, "Released " + target.getGameProfile().getName() + ".");
                     return 1;
@@ -871,10 +878,6 @@ public final class ModerationCommands {
             return null;
         }
         return reason;
-    }
-
-    private static SafeTeleportService.Policy jailPolicy() {
-        return new SafeTeleportService.Policy(4, 256, 16, false, false, true, true, 40);
     }
 
     @SafeVarargs

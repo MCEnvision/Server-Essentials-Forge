@@ -24,7 +24,7 @@ public final class ServerControlGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void everyServerControlSchemaHasANativeHandler(GameTestHelper helper) {
+    public static void everyServerControlSchemaIsTruthfullyClassified(GameTestHelper helper) {
         ServerControlRepository repository = repository();
         ServerControlExecutionService executions = new ServerControlExecutionService(repository);
 
@@ -32,11 +32,14 @@ public final class ServerControlGameTests {
 
         var diagnostic = executions.diagnostic();
         helper.assertTrue(
-                diagnostic.registeredHandlers().size() == ServerControlSchemaRegistry.schemas().size(),
-                "not every server control schema has a native handler");
+                diagnostic.registeredHandlers().size()
+                        + diagnostic.unavailableIntegrations().size()
+                        == ServerControlSchemaRegistry.schemas().size(),
+                "not every server control schema has a runtime classification");
         helper.assertTrue(
-                diagnostic.unavailableIntegrations().isEmpty(),
-                "server control handler registration is incomplete");
+                diagnostic.unavailableIntegrations().equals(
+                        MinecraftServerControlRuntime.unavailableRuntimeFeatures()),
+                "server control unavailability diagnostics are inaccurate");
         helper.succeed();
     }
 

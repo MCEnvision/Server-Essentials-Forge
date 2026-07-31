@@ -236,6 +236,44 @@ class FancyTagServiceTest {
     }
 
     @Test
+    void onlyOwnerCanFinishAndIncompleteFinishKeepsUploadActive() throws Exception {
+        FancyTagService service = new FancyTagService(settings(true, Duration.ZERO));
+        service.load(directory);
+        UUID owner = UUID.randomUUID();
+        UUID attacker = UUID.randomUUID();
+        var draft = service.createDraft("owned_upload", "Owned Upload", owner).value();
+        var lease = service.acquireLease(
+                "owned_upload",
+                owner,
+                draft.recordRevision(),
+                false).value();
+        byte[] image = png(8, 8, 0xff445566);
+        Instant now = Instant.parse("2026-07-26T12:00:00Z");
+        var upload = service.transfers().begin(
+                owner,
+                draft.id(),
+                lease.leaseId(),
+                draft.recordRevision(),
+                image.length,
+                sha256(image),
+                now).value();
+
+        assertFalse(service.transfers().finish(attacker, upload.uploadId(), now).successful());
+        assertEquals(1, service.transfers().active(now).size());
+        assertFalse(service.transfers().finish(owner, upload.uploadId(), now).successful());
+        assertEquals(1, service.transfers().active(now).size());
+        assertTrue(service.transfers().acceptChunk(
+                owner,
+                upload.uploadId(),
+                0,
+                image,
+                now).successful());
+        assertTrue(service.transfers().finish(owner, upload.uploadId(), now).successful());
+        assertFalse(service.transfers().finish(owner, upload.uploadId(), now).successful());
+        assertTrue(service.transfers().active(now).isEmpty());
+    }
+
+    @Test
     void duplicateRestoreExportAndDeleteKeepImmutableHistory() throws Exception {
         FancyTagService service = new FancyTagService(settings(true, Duration.ZERO));
         service.load(directory);

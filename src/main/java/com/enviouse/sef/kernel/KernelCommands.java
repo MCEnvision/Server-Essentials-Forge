@@ -235,6 +235,7 @@ public final class KernelCommands {
 
     private static int commands(CommandSourceStack source, int requestedPage) {
         List<CommandDefinition> visible = KernelServices.catalog().entries().stream()
+                .filter(CommandDefinition::playerFacing)
                 .filter(definition -> definition.permissionIds().stream().allMatch(id -> has(source, id)))
                 .toList();
         int pages = Math.max(1, (visible.size() + PAGE_SIZE - 1) / PAGE_SIZE);
@@ -271,7 +272,7 @@ public final class KernelCommands {
         for (ShortcutRegistry.Diagnostic diagnostic : diagnostics) {
             String color = switch (diagnostic.status()) {
                 case ACTIVE, ACTIVE_OVERRIDE -> "&a";
-                case CANONICAL_ONLY, RESTART_REQUIRED -> "&e";
+                case DISABLED, CANONICAL_ONLY, RESTART_REQUIRED -> "&e";
                 case CONFLICT -> "&c";
             };
             source.sendSuccess(() -> TextFormatter.stringToFormattedText(
@@ -287,8 +288,19 @@ public final class KernelCommands {
         var repositories = storage.diagnostics();
         var profiles = KernelServices.profiles().diagnostic();
         var quotaProviderProblems = KernelServices.quotas().providerDiagnostics();
+        var serverControlExecutions = KernelServices.serverControlExecutions().diagnostic();
         var restartRequiredDrift = KernelServices.restartRequiredConfigurationDrift();
         var securityAudit = SecurityAuditService.health();
+        long unusedRepositories = repositories.stream()
+                .filter(repository -> repository.state()
+                        == com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.MISSING)
+                .count();
+        long failedRepositories = repositories.stream()
+                .filter(repository -> switch (repository.state()) {
+                    case RECOVERY, UNSUPPORTED, ERROR, CLOSED -> true;
+                    default -> false;
+                })
+                .count();
         source.sendSuccess(() -> TextFormatter.stringToFormattedText("&6SEF doctor"), false);
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Catalog entries: &f" + KernelServices.catalog().size()
@@ -300,7 +312,24 @@ public final class KernelCommands {
                         + " &8| &7policy revision: &f" + KernelServices.commandPolicies().revision()), false);
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Repositories: &f" + repositories.size()
+                        + " &8| &7unused: &f" + unusedRepositories
+                        + " &8| &7errors: " + (failedRepositories == 0 ? "&a0" : "&c" + failedRepositories)
                         + " &8| &7recovery mode: " + (storage.recoveryMode() ? "&cactive" : "&ainactive")), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Permission provider: &f" + PermissionService.providerId()
+                        + " &8| &7SEF wildcard hierarchy: &aactive"), false);
+        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                "&7Server controls: &f" + serverControlExecutions.registeredHandlers().size()
+                        + "/" + serverControlExecutions.schemas()
+                        + " executable &8| &7unavailable: "
+                        + (serverControlExecutions.unavailableIntegrations().isEmpty()
+                        ? "&a0"
+                        : "&e" + serverControlExecutions.unavailableIntegrations().size())), false);
+        if (!serverControlExecutions.unavailableIntegrations().isEmpty()) {
+            source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                    "&eUnavailable runtime controls: &f"
+                            + String.join(", ", serverControlExecutions.unavailableIntegrations())), false);
+        }
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&7Player profiles: &f" + profiles.profileCount()
                         + " &8| &7state: &f"
@@ -329,9 +358,21 @@ public final class KernelCommands {
                         + " &8| &7sessions: &f" + SefSessionManager.instance().activeCount()
                         + " &8| &7pending: &f" + SefSessionManager.instance().pendingCount()), false);
         for (var repository : repositories) {
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(
-                    "&7" + repository.id() + " &8| &f" + repository.state().name().toLowerCase(java.util.Locale.ROOT)
-                            + (repository.dirty() ? " &8| &edirty" : "")), false);
+            String state = switch (repository.state()) {
+                case MISSING -> "unused, file is created on first write";
+                case NEW -> "not loaded";
+                default -> repository.state().name().toLowerCase(java.util.Locale.ROOT);
+            };
+            String line = "&7" + repository.id() + " &8| &f" + state
+                    + (repository.dirty() ? " &8| &edirty" : "");
+            if (switch (repository.state()) {
+                case RECOVERY, UNSUPPORTED, ERROR, CLOSED -> true;
+                default -> false;
+            }) {
+                source.sendFailure(TextFormatter.stringToFormattedText("&c" + line));
+            } else {
+                source.sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
+            }
         }
         for (var problem : catalogProblems) {
             source.sendFailure(TextFormatter.stringToFormattedText(
@@ -348,6 +389,7 @@ public final class KernelCommands {
         boolean healthy = catalogProblems.isEmpty()
                 && quotaProviderProblems.isEmpty()
                 && restartRequiredDrift.isEmpty()
+                && failedRepositories == 0
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.UNSUPPORTED
                 && profiles.state() != com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.ERROR

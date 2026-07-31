@@ -8,6 +8,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -22,7 +23,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public final class ModerationRepository implements StorageRepository {
-    private static final int SCHEMA_VERSION = 1;
+    private static final int SCHEMA_VERSION = 2;
     private static final int MAXIMUM_JAILS = 256;
     private static final int MAXIMUM_SENTENCES = 10000;
     private static final int MAXIMUM_CONTROLS = 40000;
@@ -71,7 +72,9 @@ public final class ModerationRepository implements StorageRepository {
         warnings.clear();
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
-            state = Files.exists(path) ? RepositoryState.RECOVERY : RepositoryState.MISSING;
+            state = Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)
+                    ? RepositoryState.RECOVERY
+                    : RepositoryState.MISSING;
             return new LoadResult(state, state == RepositoryState.MISSING ? "new repository" : "storage unavailable");
         }
         try {
@@ -89,6 +92,7 @@ public final class ModerationRepository implements StorageRepository {
                 }
             }
             for (Sentence sentence : snapshot.sentences()) {
+                sentence = normalizeLoaded(sentence);
                 validate(sentence);
                 if (sentences.putIfAbsent(sentence.playerId(), sentence) != null) {
                     throw new IllegalStateException("duplicate jail sentence");
@@ -137,7 +141,8 @@ public final class ModerationRepository implements StorageRepository {
     public synchronized boolean deleteJail(String name) {
         writable();
         String normalized = normalizeName(name);
-        if (sentences.values().stream().anyMatch(sentence -> sentence.jailName().equals(normalized))) {
+        if (sentences.values().stream().anyMatch(sentence -> sentence.constrainsPlayer()
+                && sentence.jailName().equals(normalized))) {
             throw new IllegalStateException("Jail still has active occupants");
         }
         boolean removed = jails.remove(normalized) != null;
@@ -155,7 +160,7 @@ public final class ModerationRepository implements StorageRepository {
         return jails.values().stream().sorted(Comparator.comparing(Jail::normalizedName)).toList();
     }
 
-    public synchronized Sentence sentence(
+    public synchronized Sentence prepareSentence(
             UUID playerId,
             String jailName,
             Instant expiresAt,
@@ -171,14 +176,24 @@ public final class ModerationRepository implements StorageRepository {
         if (!sentences.containsKey(playerId) && sentences.size() >= MAXIMUM_SENTENCES) {
             throw new IllegalStateException("Jail sentence limit reached");
         }
+        Sentence existing = sentences.get(playerId);
+        if (existing != null && existing.state() != SentenceState.RELEASED) {
+            throw new IllegalStateException("Player already has a jail transition");
+        }
+        Instant now = Instant.now();
         Sentence sentence = new Sentence(
                 playerId,
                 normalized,
-                Instant.now(),
+                now,
                 expiresAt,
                 bounded(reason, 512),
                 actorId,
                 releaseLocation,
+                UUID.randomUUID(),
+                SentenceState.JAILING,
+                TransitionAction.JAIL,
+                now,
+                "",
                 1);
         validate(sentence);
         sentences.put(playerId, sentence);
@@ -186,44 +201,209 @@ public final class ModerationRepository implements StorageRepository {
         return sentence;
     }
 
+    public synchronized Sentence sentence(
+            UUID playerId,
+            String jailName,
+            Instant expiresAt,
+            String reason,
+            UUID actorId,
+            SavedLocation releaseLocation
+    ) {
+        return prepareSentence(playerId, jailName, expiresAt, reason, actorId, releaseLocation);
+    }
+
     public synchronized Optional<Sentence> sentence(UUID playerId) {
         Sentence sentence = sentences.get(playerId);
-        if (sentence == null) {
-            return Optional.empty();
-        }
-        if (sentence.expired(Instant.now())) {
+        if (sentence == null || !sentence.constrainsPlayer()) {
             return Optional.empty();
         }
         return Optional.of(sentence);
     }
 
-    public synchronized Optional<Sentence> release(UUID playerId) {
+    public synchronized Optional<Sentence> transition(UUID playerId) {
+        return Optional.ofNullable(sentences.get(playerId));
+    }
+
+    public synchronized Optional<Sentence> activateJail(UUID playerId, UUID operationId) {
         writable();
-        Sentence removed = sentences.remove(playerId);
-        if (removed != null) {
-            revision++;
+        Sentence current = matching(playerId, operationId, TransitionAction.JAIL);
+        if (current == null) {
+            return Optional.empty();
         }
-        return Optional.ofNullable(removed);
+        if (current.state() == SentenceState.ACTIVE) {
+            return Optional.of(current);
+        }
+        Sentence updated = transition(current, SentenceState.ACTIVE, TransitionAction.NONE, "");
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> rollbackJail(UUID playerId, UUID operationId, String detail) {
+        writable();
+        Sentence current = matching(playerId, operationId, TransitionAction.JAIL);
+        if (current == null) {
+            return Optional.empty();
+        }
+        sentences.remove(playerId);
+        revision++;
+        return Optional.of(current);
+    }
+
+    public synchronized Optional<Sentence> prepareRelease(UUID playerId) {
+        writable();
+        Sentence current = sentences.get(playerId);
+        if (current == null || current.state() == SentenceState.RELEASED) {
+            return Optional.empty();
+        }
+        if (current.pendingAction() == TransitionAction.RELEASE) {
+            return Optional.of(current);
+        }
+        Sentence updated = new Sentence(
+                current.playerId(),
+                current.jailName(),
+                current.createdAt(),
+                current.expiresAt(),
+                current.reason(),
+                current.actorId(),
+                current.releaseLocation(),
+                UUID.randomUUID(),
+                SentenceState.RELEASE_PENDING,
+                TransitionAction.RELEASE,
+                Instant.now(),
+                "",
+                current.revision() + 1);
+        validate(updated);
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> beginRelease(UUID playerId, UUID operationId) {
+        writable();
+        Sentence current = matching(playerId, operationId, TransitionAction.RELEASE);
+        if (current == null) {
+            return Optional.empty();
+        }
+        if (current.state() == SentenceState.RELEASING) {
+            return Optional.of(current);
+        }
+        Sentence updated = transition(current, SentenceState.RELEASING, TransitionAction.RELEASE, "");
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> releasePending(
+            UUID playerId,
+            UUID operationId,
+            String detail
+    ) {
+        writable();
+        Sentence current = matching(playerId, operationId, TransitionAction.RELEASE);
+        if (current == null) {
+            return Optional.empty();
+        }
+        Sentence updated = transition(
+                current,
+                SentenceState.RELEASE_PENDING,
+                TransitionAction.RELEASE,
+                bounded(detail, 256));
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> completeRelease(UUID playerId, UUID operationId) {
+        writable();
+        Sentence current = matching(playerId, operationId, TransitionAction.RELEASE);
+        if (current == null) {
+            return Optional.empty();
+        }
+        if (current.state() == SentenceState.RELEASED) {
+            return Optional.of(current);
+        }
+        Sentence updated = transition(current, SentenceState.RELEASED, TransitionAction.NONE, "");
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> outcomeUnknown(
+            UUID playerId,
+            UUID operationId,
+            TransitionAction action,
+            String detail
+    ) {
+        writable();
+        Sentence current = matching(playerId, operationId, action);
+        if (current == null) {
+            return Optional.empty();
+        }
+        Sentence updated = transition(
+                current,
+                SentenceState.OUTCOME_UNKNOWN,
+                action,
+                bounded(detail, 256));
+        sentences.put(playerId, updated);
+        revision++;
+        return Optional.of(updated);
+    }
+
+    public synchronized Optional<Sentence> release(UUID playerId) {
+        return prepareRelease(playerId);
     }
 
     public synchronized List<Sentence> sentences() {
-        Instant now = Instant.now();
         return sentences.values().stream()
-                .filter(sentence -> !sentence.expired(now))
+                .filter(Sentence::constrainsPlayer)
                 .sorted(Comparator.comparing(Sentence::createdAt))
                 .toList();
     }
 
-    public synchronized List<Sentence> takeExpiredSentences(Instant now) {
+    public synchronized List<Sentence> markExpiredReleasePending(Instant now) {
         writable();
         List<Sentence> expired = sentences.values().stream()
+                .filter(sentence -> sentence.state() == SentenceState.ACTIVE)
                 .filter(sentence -> sentence.expired(now))
                 .toList();
         if (!expired.isEmpty()) {
-            expired.forEach(sentence -> sentences.remove(sentence.playerId()));
+            expired.forEach(sentence -> {
+                Sentence updated = new Sentence(
+                        sentence.playerId(),
+                        sentence.jailName(),
+                        sentence.createdAt(),
+                        sentence.expiresAt(),
+                        sentence.reason(),
+                        sentence.actorId(),
+                        sentence.releaseLocation(),
+                        UUID.randomUUID(),
+                        SentenceState.RELEASE_PENDING,
+                        TransitionAction.RELEASE,
+                        Instant.now(),
+                        "",
+                        sentence.revision() + 1);
+                sentences.put(sentence.playerId(), updated);
+            });
             revision++;
         }
-        return expired;
+        return expired.stream().map(sentence -> sentences.get(sentence.playerId())).toList();
+    }
+
+    public synchronized List<Sentence> takeExpiredSentences(Instant now) {
+        return markExpiredReleasePending(now);
+    }
+
+    public synchronized int purgeReleased(Instant before) {
+        writable();
+        int initial = sentences.size();
+        sentences.values().removeIf(sentence -> sentence.state() == SentenceState.RELEASED
+                && sentence.updatedAt().isBefore(before));
+        int removed = initial - sentences.size();
+        if (removed > 0) {
+            revision++;
+        }
+        return removed;
     }
 
     public synchronized int purgeExpired(Instant now) {
@@ -342,7 +522,7 @@ public final class ModerationRepository implements StorageRepository {
             writable();
             snapshot = new Snapshot(
                     jails(),
-                    sentences(),
+                    List.copyOf(sentences.values()),
                     controls(null),
                     warnings.values().stream().flatMap(List::stream).toList());
             destination = path;
@@ -400,12 +580,97 @@ public final class ModerationRepository implements StorageRepository {
 
     private static void validate(Sentence sentence) {
         Objects.requireNonNull(sentence, "sentence");
+        Objects.requireNonNull(sentence.playerId(), "playerId");
         normalizeName(sentence.jailName());
         bounded(sentence.reason(), 512);
+        Objects.requireNonNull(sentence.operationId(), "operationId");
+        Objects.requireNonNull(sentence.state(), "state");
+        Objects.requireNonNull(sentence.pendingAction(), "pendingAction");
+        Objects.requireNonNull(sentence.updatedAt(), "updatedAt");
+        bounded(sentence.lastFailure(), 256);
         if (sentence.expiresAt() != null && !sentence.expiresAt().isAfter(sentence.createdAt())
-                || sentence.revision() < 1) {
+                || sentence.revision() < 1
+                || sentence.updatedAt().isBefore(sentence.createdAt())
+                || !validTransitionState(sentence.state(), sentence.pendingAction())) {
             throw new IllegalArgumentException("Jail sentence is invalid");
         }
+    }
+
+    private static Sentence normalizeLoaded(Sentence sentence) {
+        Objects.requireNonNull(sentence, "sentence");
+        SentenceState state = sentence.state() == null ? SentenceState.ACTIVE : sentence.state();
+        TransitionAction action = sentence.pendingAction();
+        if (action == null) {
+            action = switch (state) {
+                case JAILING -> TransitionAction.JAIL;
+                case RELEASE_PENDING, RELEASING -> TransitionAction.RELEASE;
+                case ACTIVE, RELEASED -> TransitionAction.NONE;
+                case OUTCOME_UNKNOWN -> TransitionAction.JAIL;
+            };
+        }
+        UUID operationId = sentence.operationId();
+        if (operationId == null) {
+            operationId = UUID.nameUUIDFromBytes(
+                    ("sef:jail:" + sentence.playerId() + ":" + sentence.createdAt())
+                            .getBytes(StandardCharsets.UTF_8));
+        }
+        return new Sentence(
+                sentence.playerId(),
+                sentence.jailName(),
+                sentence.createdAt(),
+                sentence.expiresAt(),
+                sentence.reason(),
+                sentence.actorId(),
+                sentence.releaseLocation(),
+                operationId,
+                state,
+                action,
+                sentence.updatedAt() == null ? sentence.createdAt() : sentence.updatedAt(),
+                sentence.lastFailure() == null ? "" : sentence.lastFailure(),
+                sentence.revision());
+    }
+
+    private static boolean validTransitionState(SentenceState state, TransitionAction action) {
+        return switch (state) {
+            case JAILING -> action == TransitionAction.JAIL;
+            case ACTIVE, RELEASED -> action == TransitionAction.NONE;
+            case RELEASE_PENDING, RELEASING -> action == TransitionAction.RELEASE;
+            case OUTCOME_UNKNOWN -> action == TransitionAction.JAIL || action == TransitionAction.RELEASE;
+        };
+    }
+
+    private Sentence matching(UUID playerId, UUID operationId, TransitionAction action) {
+        Sentence current = sentences.get(playerId);
+        if (current == null
+                || !current.operationId().equals(operationId)
+                || current.pendingAction() != action) {
+            return null;
+        }
+        return current;
+    }
+
+    private static Sentence transition(
+            Sentence current,
+            SentenceState state,
+            TransitionAction action,
+            String failure
+    ) {
+        Sentence updated = new Sentence(
+                current.playerId(),
+                current.jailName(),
+                current.createdAt(),
+                current.expiresAt(),
+                current.reason(),
+                current.actorId(),
+                current.releaseLocation(),
+                current.operationId(),
+                state,
+                action,
+                Instant.now(),
+                failure,
+                current.revision() + 1);
+        validate(updated);
+        return updated;
     }
 
     private static void validate(Control control) {
@@ -472,11 +737,35 @@ public final class ModerationRepository implements StorageRepository {
             String reason,
             UUID actorId,
             SavedLocation releaseLocation,
+            UUID operationId,
+            SentenceState state,
+            TransitionAction pendingAction,
+            Instant updatedAt,
+            String lastFailure,
             long revision
     ) {
         public boolean expired(Instant now) {
             return expiresAt != null && !expiresAt.isAfter(now);
         }
+
+        public boolean constrainsPlayer() {
+            return state != SentenceState.RELEASED;
+        }
+    }
+
+    public enum SentenceState {
+        JAILING,
+        ACTIVE,
+        RELEASE_PENDING,
+        RELEASING,
+        RELEASED,
+        OUTCOME_UNKNOWN
+    }
+
+    public enum TransitionAction {
+        NONE,
+        JAIL,
+        RELEASE
     }
 
     public record Control(

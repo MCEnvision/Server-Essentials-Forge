@@ -59,7 +59,8 @@ public final class GuiPreferenceRepository implements StorageRepository {
         preferences.clear();
         revision = 0L;
         flushedRevision = 0L;
-        boolean existedBeforeRead = Files.exists(path);
+        boolean existedBeforeRead =
+                Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS);
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
             state = existedBeforeRead ? RepositoryState.RECOVERY : RepositoryState.MISSING;

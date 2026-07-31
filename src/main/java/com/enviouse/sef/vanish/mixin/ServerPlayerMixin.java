@@ -11,15 +11,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.ChatType;
 import net.minecraft.network.chat.ChatType.Bound;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.OutgoingChatMessage;
+import net.minecraft.network.chat.PlayerChatMessage;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.chat.ChatMessageManager;
+import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.fancytags.FancyTagFallbackRenderer;
+import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.vanish.VanishConfig;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.TraceHandler;
@@ -41,26 +52,74 @@ public abstract class ServerPlayerMixin extends Player {
 	@Inject(method = "sendChatMessage", at = @At("HEAD"), cancellable = true)
 	public void vanishmod$onSendChatMessage(OutgoingChatMessage message, boolean filter, Bound chatType, CallbackInfo callback) {
 		if (message instanceof OutgoingChatMessage.Player playerChatMessage) {
-			Player sender = server.getPlayerList().getPlayer(playerChatMessage.message().link().sender());
-			ResourceKey<ChatType> chatTypeKey = VanishUtil.getChatTypeRegistryKey(chatType, this);
+			ServerPlayer receiver = (ServerPlayer) (Object) this;
+			ServerPlayer sender = server.getPlayerList().getPlayer(playerChatMessage.message().sender());
+			if (sender == null) {
+				return;
+			}
+			ResourceKey<ChatType> chatTypeKey = VanishUtil.getChatTypeRegistryKey(chatType, receiver);
+			boolean ordinaryChat = ChatType.CHAT.equals(chatTypeKey);
+			boolean teamChat = ChatType.TEAM_MSG_COMMAND_INCOMING.equals(chatTypeKey);
+			boolean hiddenFromReceiver = VanishUtil.isVanished(sender, receiver);
 
-			if (VanishUtil.isVanished(sender, this)) {
-				if (!VanishConfig.CONFIG.hideChatMessages.get() || (chatTypeKey != ChatType.CHAT && chatTypeKey != ChatType.TEAM_MSG_COMMAND_INCOMING)) {
-					if (VanishConfig.CONFIG.hidePlayerNameInChat.get()) {
-						Component replacement = Component.literal(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get());
-
-						TraceHandler.trace(sender, Component.literal("Chat Message Sender (now \"").append(replacement).append("\")"), message.content().getString());
-						chatType = ChatType.bind(chatTypeKey, level().registryAccess(), replacement);
-					}
-
-					sendSystemMessage(chatType.decorate(playerChatMessage.content()));
+			if (hiddenFromReceiver) {
+				if (VanishConfig.CONFIG.hideChatMessages.get() && (ordinaryChat || teamChat)) {
+					TraceHandler.trace(sender, "Chat Message", message.content().getString());
 					callback.cancel();
 					return;
 				}
 
-				TraceHandler.trace(sender, "Chat Message", message.content().getString());
+				if (VanishConfig.CONFIG.hidePlayerNameInChat.get()) {
+					Component replacement =
+							Component.literal(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get());
+					TraceHandler.trace(
+							sender,
+							Component.literal("Chat Message Sender (now \"")
+									.append(replacement)
+									.append("\")"),
+							message.content().getString());
+					chatType = ChatType.bind(chatTypeKey, level().registryAccess(), replacement);
+				}
+				new OutgoingChatMessage.Disguised(playerChatMessage.content())
+						.sendToPlayer(receiver, filter, chatType);
 				callback.cancel();
+				return;
 			}
+
+			if (!ordinaryChat) {
+				return;
+			}
+			Component decorated = FancyTagFallbackRenderer.decorateChat(
+					playerChatMessage.content().copy(),
+					sender,
+					receiver);
+			if (ConfigHandler.config.enableChatReplies.get()
+					&& PermissionService.has(receiver, PermissionsHandler.ansCommand)) {
+				try {
+					String token = ChatMessageManager.issueToken(
+							sender.getUUID(),
+							receiver.getUUID(),
+							sender.getGameProfile().getName(),
+							SEFUtilities.getRawPreferredPlayerName(sender.getGameProfile()),
+							playerChatMessage.content().getString());
+					decorated = decorated.copy().withStyle(style -> style
+							.withClickEvent(new ClickEvent(
+									ClickEvent.Action.SUGGEST_COMMAND,
+									"/ans " + token + " "))
+							.withHoverEvent(new HoverEvent(
+									HoverEvent.Action.SHOW_TEXT,
+									TextFormatter.stringToFormattedText("&eClick to reply"))));
+				} catch (RuntimeException exception) {
+					ServerEssentialsForge.LOGGER.error(
+							"[SEF] Failed to issue a chat reply capability for {}",
+							receiver.getUUID(),
+							exception);
+				}
+			}
+			PlayerChatMessage decoratedMessage =
+					playerChatMessage.message().withUnsignedContent(decorated);
+			OutgoingChatMessage.create(decoratedMessage).sendToPlayer(receiver, filter, chatType);
+			callback.cancel();
 		}
 	}
 

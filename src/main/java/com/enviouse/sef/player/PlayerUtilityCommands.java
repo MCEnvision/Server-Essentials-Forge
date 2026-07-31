@@ -238,7 +238,7 @@ public final class PlayerUtilityCommands {
     private static int feed(CommandSourceStack source, ServerPlayer target, boolean other) {
         return targetMutation(source, target, "feed", other, () -> {
             target.getFoodData().setFoodLevel(20);
-            target.getFoodData().setSaturation(20.0F);
+            target.getFoodData().setSaturation(0.0F);
         });
     }
 

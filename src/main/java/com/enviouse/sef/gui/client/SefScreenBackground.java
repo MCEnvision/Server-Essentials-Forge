@@ -14,6 +14,5 @@ final class SefScreenBackground {
             int mouseY,
             float partialTick
     ) {
-        screen.renderTransparentBackground(graphics);
     }
 }

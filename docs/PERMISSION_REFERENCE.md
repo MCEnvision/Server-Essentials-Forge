@@ -2,26 +2,26 @@
 
 This file is generated from the permission manifest and sealed command registry. Change permission definitions and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Permission entries: 11659. Defaults are fail closed unless a row explicitly states `true`.
+Permission entries: 11937. Defaults are fail closed unless a row explicitly states `true`.
 
 | Permission | Default | Name | Description | Catalog commands |
 | --- | --- | --- | --- | --- |
 | `sef.adminchat.see` | `false` | See Admin Chat | Can see admin chat messages | none |
-| `sef.adminchat.use` | `false` | Use Admin Chat | Allows using admin chat | none |
+| `sef.adminchat.use` | `false` | Use Admin Chat | Allows using admin chat | `sef:chat.admin` |
 | `sef.alts.export` | `false` | Export alternate account data | Allows exporting retained alternate account records | none |
 | `sef.alts.ip.view` | `false` | View alternate account addresses | Allows viewing raw addresses in alternate account results | none |
 | `sef.alts.purge` | `false` | Purge alternate account data | Allows deleting retained alternate account records | none |
 | `sef.announcements.bypass` | `false` | Bypass announcements | Receives announcements even if toggled off | none |
-| `sef.announcements.command.manage` | `false` | Manage command announcements | Allows adding and removing command announcements | none |
-| `sef.announcements.manage` | `false` | Manage announcements | Allows adding/removing announcements | none |
-| `sef.announcements.title` | `false` | Title announcements | Allows using /titleannouncement | none |
-| `sef.announcements.toggle` | `true` | Toggle announcements | Allows toggling announcements on/off | none |
+| `sef.announcements.command.manage` | `false` | Manage command announcements | Allows adding and removing command announcements | `sef:announcement.command` |
+| `sef.announcements.manage` | `false` | Manage announcements | Allows adding/removing announcements | `sef:announcement.text` |
+| `sef.announcements.title` | `false` | Title announcements | Allows using /titleannouncement | `sef:announcement.title` |
+| `sef.announcements.toggle` | `true` | Toggle announcements | Allows toggling announcements on/off | `sef:announcement.toggle` |
 | `sef.ans.notify` | `true` | Reply notifications | Receive sound when someone replies to you | none |
 | `sef.banned.bypass` | `false` | Bypass banned items | Player is exempt from banned-item confiscation and banned-block sweeps | none |
 | `sef.banned.bypass.exempt` | `false` | Banned item exemption bypass | Allows banned item actions against exempt players | none |
 | `sef.banned.exempt` | `false` | Banned item exemption | Prevents ordinary targeted banned item actions | none |
 | `sef.banned.hierarchy.bypass` | `false` | Banned item hierarchy bypass | Allows banned item actions across target hierarchy | none |
-| `sef.banned.view` | `true` | View banned items | Allows viewing the banned item list | none |
+| `sef.banned.view` | `true` | View banned items | Allows viewing the banned item list | `sef:banned.list` |
 | `sef.chat.colors` | `true` | Chat colors | Enables/Disables colors in chat | none |
 | `sef.chat.colors.0` | `true` | Chat color &0 | Allows usage of &0 in chat | none |
 | `sef.chat.colors.1` | `true` | Chat color &1 | Allows usage of &1 in chat | none |
@@ -95,12 +95,12 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.alias.rollback` | `false` | Alias rollback | Allows the reviewed alias rollback lifecycle action | `sef:alias.rollback` |
 | `sef.commands.alias.run` | `false` | Alias run | Allows the reviewed alias run lifecycle action | `sef:alias.run` |
 | `sef.commands.alias.validate` | `false` | Alias validate | Allows the reviewed alias validate lifecycle action | `sef:alias.validate` |
-| `sef.commands.ans` | `true` | Reply command | Allows using the /ans reply command | none |
+| `sef.commands.ans` | `true` | Reply command | Allows using the /ans reply command | `sef:chat.reply` |
 | `sef.commands.anvil` | `true` | Anvil command | Allows using /anvil and /av | `sef:workstation.anvil` |
 | `sef.commands.approval.approve` | `false` | Approval commands.approval.approve | Controls the separately gated two person approval action commands.approval.approve | `sef:approval.approve` |
 | `sef.commands.approval.history` | `false` | Approval commands.approval.history | Controls the separately gated two person approval action commands.approval.history | none |
 | `sef.commands.approval.inspect` | `false` | Approval commands.approval.inspect | Controls the separately gated two person approval action commands.approval.inspect | none |
-| `sef.commands.approval.list` | `false` | Approval commands.approval.list | Controls the separately gated two person approval action commands.approval.list | none |
+| `sef.commands.approval.list` | `false` | Approval commands.approval.list | Controls the separately gated two person approval action commands.approval.list | `sef:approval.list` |
 | `sef.commands.approval.request` | `false` | Approval commands.approval.request | Controls the separately gated two person approval action commands.approval.request | `sef:approval.request` |
 | `sef.commands.approval.revoke` | `false` | Approval commands.approval.revoke | Controls the separately gated two person approval action commands.approval.revoke | `sef:approval.revoke` |
 | `sef.commands.approval.revoke.others` | `false` | Approval commands.approval.revoke.others | Controls the separately gated two person approval action commands.approval.revoke.others | none |
@@ -128,8 +128,8 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.bundle.rollback` | `false` | Bundle rollback | Allows the reviewed bundle rollback lifecycle action | `sef:bundle.rollback` |
 | `sef.commands.bundle.run` | `false` | Bundle run | Allows the reviewed bundle run lifecycle action | `sef:bundle.run` |
 | `sef.commands.cartographytable` | `true` | Cartography table | Allows the virtual cartography table | `sef:workstation.cartographytable` |
-| `sef.commands.checkalts` | `false` | Check Alts command | Allows using /checkalts to list alternate accounts | none |
-| `sef.commands.clearchat` | `false` | Clear Chat command | Allows using /cc and /clearchat to clear chat | none |
+| `sef.commands.checkalts` | `false` | Check Alts command | Allows using /checkalts to list alternate accounts | `sef:identity.alts` |
+| `sef.commands.clearchat` | `false` | Clear Chat command | Allows using /cc and /clearchat to clear chat | `sef:chat.clear` |
 | `sef.commands.clearinventory` | `true` | Clear inventory | Allows clearing the executing player's inventory | `sef:inventory.clear` |
 | `sef.commands.clearinventory.others` | `false` | Clear other inventories | Allows clearing an eligible player's inventory | none |
 | `sef.commands.colors` | `true` | Colors command | Enables/Disables the "/colors" command | none |
@@ -848,7 +848,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.control.world_policy.view` | `false` | World Policy view | Allows viewing authorized World Policy records | `sef:control.world_policy.view` |
 | `sef.commands.cooldown.explain` | `false` | Fancy Tags commands.cooldown.explain | Controls the separately gated Fancy Tags action commands.cooldown.explain | none |
 | `sef.commands.cooldown.keys` | `false` | Fancy Tags commands.cooldown.keys | Controls the separately gated Fancy Tags action commands.cooldown.keys | none |
-| `sef.commands.countdown` | `false` | Countdown command | Allows using /countdown to broadcast a timed countdown | none |
+| `sef.commands.countdown` | `false` | Countdown command | Allows using /countdown to broadcast a timed countdown | `sef:announcement.countdown` |
 | `sef.commands.craft` | `true` | Craft command | Allows using /craft and /c | `sef:workstation.craft` |
 | `sef.commands.createkit` | `false` | Create kits | Allows creating bounded kits from inventory | `sef:kit.create` |
 | `sef.commands.customtext` | `true` | Custom text | Allows reading configured text pages | `sef:social.text` |
@@ -1028,8 +1028,8 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.msgtoggle` | `true` | Message toggle | Allows toggling incoming private messages | `sef:social.message.toggle` |
 | `sef.commands.mute` | `false` | Mute command | Allows using /mute to mute a player | `sef:moderation.mute`, `sef:moderation.mutelist` |
 | `sef.commands.near` | `false` | near command | Allows the near player utility command | `sef:utility.near` |
-| `sef.commands.nick` | `true` | Nickname | Enables/Disables the "/nick <nickname>" command | none |
-| `sef.commands.nick.others` | `false` | Modify nicknames | Enables/Disables the "/nickfor <username> <nickname>" command | none |
+| `sef.commands.nick` | `true` | Nickname | Enables/Disables the "/nick <nickname>" command | `sef:identity.nick` |
+| `sef.commands.nick.others` | `false` | Modify nicknames | Enables/Disables the "/nickfor <username> <nickname>" command | `sef:identity.nick.others` |
 | `sef.commands.panel.draft` | `false` | Edit administrative panel drafts | Allows creating and changing unpublished administrative panel drafts | `sef:panel.draft.control_add`, `sef:panel.draft.control_remove`, `sef:panel.draft.create`, `sef:panel.draft.delete` |
 | `sef.commands.panel.inspect` | `false` | Inspect administrative panels | Allows viewing typed panel controls and command fallbacks | `sef:panel.inspect` |
 | `sef.commands.panel.list` | `false` | List administrative panels | Allows listing permission filtered built in and published administrative panels | `sef:panel.list` |
@@ -1138,7 +1138,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.superenchantingtable.unsafe` | `false` | Unsafe super enchanting | Allows configured incompatible item and enchantment combinations | none |
 | `sef.commands.tags` | `true` | Fancy Tags commands.tags | Controls the separately gated Fancy Tags action commands.tags | none |
 | `sef.commands.tags.archive` | `false` | Fancy Tags commands.tags.archive | Controls the separately gated Fancy Tags action commands.tags.archive | `sef:tags.archive` |
-| `sef.commands.tags.assign.bulk` | `false` | Fancy Tags commands.tags.assign.bulk | Controls the separately gated Fancy Tags action commands.tags.assign.bulk | `sef:tags.assign.bulk` |
+| `sef.commands.tags.assign.bulk` | `false` | Fancy Tags commands.tags.assign.bulk | Controls the separately gated Fancy Tags action commands.tags.assign.bulk | none |
 | `sef.commands.tags.assign.default` | `false` | Fancy Tags commands.tags.assign.default | Controls the separately gated Fancy Tags action commands.tags.assign.default | `sef:tags.assign.default` |
 | `sef.commands.tags.assign.group` | `false` | Fancy Tags commands.tags.assign.group | Controls the separately gated Fancy Tags action commands.tags.assign.group | `sef:tags.assign.group` |
 | `sef.commands.tags.assign.offline` | `false` | Fancy Tags commands.tags.assign.offline | Controls the separately gated Fancy Tags action commands.tags.assign.offline | none |
@@ -1218,7 +1218,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.tpahere` | `true` | Teleport here request command | Allows requesting another player teleport to you | `sef:teleport.request.here` |
 | `sef.commands.tpall` | `false` | Teleport all command | Allows teleporting all visible online players | `sef:teleport.direct.all` |
 | `sef.commands.tpautoaccept` | `false` | Auto accept teleport requests | Allows automatically accepting teleport requests | `sef:teleport.request.auto` |
-| `sef.commands.tpblock` | `true` | Block teleport requests | Allows blocking teleport requests from a player | `sef:teleport.request.block` |
+| `sef.commands.tpblock` | `true` | Block teleport requests | Allows blocking teleport requests from a player | `sef:teleport.request.block`, `sef:teleport.request.blocked` |
 | `sef.commands.tpcancel` | `true` | Cancel teleport request | Allows cancelling an outgoing teleport request | `sef:teleport.request.cancel` |
 | `sef.commands.tpdeny` | `true` | Deny teleport request | Allows denying an incoming teleport request | `sef:teleport.request.deny` |
 | `sef.commands.tphere` | `false` | Teleport here command | Allows teleporting another player to the actor | `sef:teleport.direct.here` |
@@ -1244,7 +1244,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.commands.warps` | `true` | Warps command | Allows listing visible server warps | `sef:teleport.warp.list` |
 | `sef.commands.welcome.preview` | `false` | Preview welcome message | Allows previewing welcome definitions | none |
 | `sef.commands.welcome.send` | `false` | Send welcome message | Allows manually sending welcome definitions | none |
-| `sef.commands.whois` | `true` | Nickname | Enables/Disables the "/whois <nickname>" command | none |
+| `sef.commands.whois` | `true` | Nickname | Enables/Disables the "/whois <nickname>" command | `sef:identity.whois` |
 | `sef.commands.workbench` | `true` | Workbench | Allows the workbench alias | `sef:workstation.workbench` |
 | `sef.commands.workstation.cooldown.bypass` | `false` | Bypass workstation cooldowns | Allows bypassing additional workstation cooldowns | none |
 | `sef.commands.worth` | `true` | View item worth | Allows inspecting configured item worth | `sef:economy.worth` |
@@ -1693,6 +1693,96 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.alias.validate.60` | `false` | Cooldown alias.validate 60 | Sets the cooldown for sef:alias.validate to 60 seconds | none |
 | `sef.cooldown.alias.validate.600` | `false` | Cooldown alias.validate 600 | Sets the cooldown for sef:alias.validate to 600 seconds | none |
 | `sef.cooldown.alias.validate.86400` | `false` | Cooldown alias.validate 86400 | Sets the cooldown for sef:alias.validate to 86400 seconds | none |
+| `sef.cooldown.announcement.bulletin.0` | `false` | Cooldown announcement.bulletin 0 | Sets the cooldown for sef:announcement.bulletin to 0 seconds | none |
+| `sef.cooldown.announcement.bulletin.1` | `false` | Cooldown announcement.bulletin 1 | Sets the cooldown for sef:announcement.bulletin to 1 seconds | none |
+| `sef.cooldown.announcement.bulletin.10` | `false` | Cooldown announcement.bulletin 10 | Sets the cooldown for sef:announcement.bulletin to 10 seconds | none |
+| `sef.cooldown.announcement.bulletin.120` | `false` | Cooldown announcement.bulletin 120 | Sets the cooldown for sef:announcement.bulletin to 120 seconds | none |
+| `sef.cooldown.announcement.bulletin.15` | `false` | Cooldown announcement.bulletin 15 | Sets the cooldown for sef:announcement.bulletin to 15 seconds | none |
+| `sef.cooldown.announcement.bulletin.1800` | `false` | Cooldown announcement.bulletin 1800 | Sets the cooldown for sef:announcement.bulletin to 1800 seconds | none |
+| `sef.cooldown.announcement.bulletin.21600` | `false` | Cooldown announcement.bulletin 21600 | Sets the cooldown for sef:announcement.bulletin to 21600 seconds | none |
+| `sef.cooldown.announcement.bulletin.3` | `false` | Cooldown announcement.bulletin 3 | Sets the cooldown for sef:announcement.bulletin to 3 seconds | none |
+| `sef.cooldown.announcement.bulletin.30` | `false` | Cooldown announcement.bulletin 30 | Sets the cooldown for sef:announcement.bulletin to 30 seconds | none |
+| `sef.cooldown.announcement.bulletin.300` | `false` | Cooldown announcement.bulletin 300 | Sets the cooldown for sef:announcement.bulletin to 300 seconds | none |
+| `sef.cooldown.announcement.bulletin.3600` | `false` | Cooldown announcement.bulletin 3600 | Sets the cooldown for sef:announcement.bulletin to 3600 seconds | none |
+| `sef.cooldown.announcement.bulletin.5` | `false` | Cooldown announcement.bulletin 5 | Sets the cooldown for sef:announcement.bulletin to 5 seconds | none |
+| `sef.cooldown.announcement.bulletin.60` | `false` | Cooldown announcement.bulletin 60 | Sets the cooldown for sef:announcement.bulletin to 60 seconds | none |
+| `sef.cooldown.announcement.bulletin.600` | `false` | Cooldown announcement.bulletin 600 | Sets the cooldown for sef:announcement.bulletin to 600 seconds | none |
+| `sef.cooldown.announcement.bulletin.86400` | `false` | Cooldown announcement.bulletin 86400 | Sets the cooldown for sef:announcement.bulletin to 86400 seconds | none |
+| `sef.cooldown.announcement.command.0` | `false` | Cooldown announcement.command 0 | Sets the cooldown for sef:announcement.command to 0 seconds | none |
+| `sef.cooldown.announcement.command.1` | `false` | Cooldown announcement.command 1 | Sets the cooldown for sef:announcement.command to 1 seconds | none |
+| `sef.cooldown.announcement.command.10` | `false` | Cooldown announcement.command 10 | Sets the cooldown for sef:announcement.command to 10 seconds | none |
+| `sef.cooldown.announcement.command.120` | `false` | Cooldown announcement.command 120 | Sets the cooldown for sef:announcement.command to 120 seconds | none |
+| `sef.cooldown.announcement.command.15` | `false` | Cooldown announcement.command 15 | Sets the cooldown for sef:announcement.command to 15 seconds | none |
+| `sef.cooldown.announcement.command.1800` | `false` | Cooldown announcement.command 1800 | Sets the cooldown for sef:announcement.command to 1800 seconds | none |
+| `sef.cooldown.announcement.command.21600` | `false` | Cooldown announcement.command 21600 | Sets the cooldown for sef:announcement.command to 21600 seconds | none |
+| `sef.cooldown.announcement.command.3` | `false` | Cooldown announcement.command 3 | Sets the cooldown for sef:announcement.command to 3 seconds | none |
+| `sef.cooldown.announcement.command.30` | `false` | Cooldown announcement.command 30 | Sets the cooldown for sef:announcement.command to 30 seconds | none |
+| `sef.cooldown.announcement.command.300` | `false` | Cooldown announcement.command 300 | Sets the cooldown for sef:announcement.command to 300 seconds | none |
+| `sef.cooldown.announcement.command.3600` | `false` | Cooldown announcement.command 3600 | Sets the cooldown for sef:announcement.command to 3600 seconds | none |
+| `sef.cooldown.announcement.command.5` | `false` | Cooldown announcement.command 5 | Sets the cooldown for sef:announcement.command to 5 seconds | none |
+| `sef.cooldown.announcement.command.60` | `false` | Cooldown announcement.command 60 | Sets the cooldown for sef:announcement.command to 60 seconds | none |
+| `sef.cooldown.announcement.command.600` | `false` | Cooldown announcement.command 600 | Sets the cooldown for sef:announcement.command to 600 seconds | none |
+| `sef.cooldown.announcement.command.86400` | `false` | Cooldown announcement.command 86400 | Sets the cooldown for sef:announcement.command to 86400 seconds | none |
+| `sef.cooldown.announcement.countdown.0` | `false` | Cooldown announcement.countdown 0 | Sets the cooldown for sef:announcement.countdown to 0 seconds | none |
+| `sef.cooldown.announcement.countdown.1` | `false` | Cooldown announcement.countdown 1 | Sets the cooldown for sef:announcement.countdown to 1 seconds | none |
+| `sef.cooldown.announcement.countdown.10` | `false` | Cooldown announcement.countdown 10 | Sets the cooldown for sef:announcement.countdown to 10 seconds | none |
+| `sef.cooldown.announcement.countdown.120` | `false` | Cooldown announcement.countdown 120 | Sets the cooldown for sef:announcement.countdown to 120 seconds | none |
+| `sef.cooldown.announcement.countdown.15` | `false` | Cooldown announcement.countdown 15 | Sets the cooldown for sef:announcement.countdown to 15 seconds | none |
+| `sef.cooldown.announcement.countdown.1800` | `false` | Cooldown announcement.countdown 1800 | Sets the cooldown for sef:announcement.countdown to 1800 seconds | none |
+| `sef.cooldown.announcement.countdown.21600` | `false` | Cooldown announcement.countdown 21600 | Sets the cooldown for sef:announcement.countdown to 21600 seconds | none |
+| `sef.cooldown.announcement.countdown.3` | `false` | Cooldown announcement.countdown 3 | Sets the cooldown for sef:announcement.countdown to 3 seconds | none |
+| `sef.cooldown.announcement.countdown.30` | `false` | Cooldown announcement.countdown 30 | Sets the cooldown for sef:announcement.countdown to 30 seconds | none |
+| `sef.cooldown.announcement.countdown.300` | `false` | Cooldown announcement.countdown 300 | Sets the cooldown for sef:announcement.countdown to 300 seconds | none |
+| `sef.cooldown.announcement.countdown.3600` | `false` | Cooldown announcement.countdown 3600 | Sets the cooldown for sef:announcement.countdown to 3600 seconds | none |
+| `sef.cooldown.announcement.countdown.5` | `false` | Cooldown announcement.countdown 5 | Sets the cooldown for sef:announcement.countdown to 5 seconds | none |
+| `sef.cooldown.announcement.countdown.60` | `false` | Cooldown announcement.countdown 60 | Sets the cooldown for sef:announcement.countdown to 60 seconds | none |
+| `sef.cooldown.announcement.countdown.600` | `false` | Cooldown announcement.countdown 600 | Sets the cooldown for sef:announcement.countdown to 600 seconds | none |
+| `sef.cooldown.announcement.countdown.86400` | `false` | Cooldown announcement.countdown 86400 | Sets the cooldown for sef:announcement.countdown to 86400 seconds | none |
+| `sef.cooldown.announcement.text.0` | `false` | Cooldown announcement.text 0 | Sets the cooldown for sef:announcement.text to 0 seconds | none |
+| `sef.cooldown.announcement.text.1` | `false` | Cooldown announcement.text 1 | Sets the cooldown for sef:announcement.text to 1 seconds | none |
+| `sef.cooldown.announcement.text.10` | `false` | Cooldown announcement.text 10 | Sets the cooldown for sef:announcement.text to 10 seconds | none |
+| `sef.cooldown.announcement.text.120` | `false` | Cooldown announcement.text 120 | Sets the cooldown for sef:announcement.text to 120 seconds | none |
+| `sef.cooldown.announcement.text.15` | `false` | Cooldown announcement.text 15 | Sets the cooldown for sef:announcement.text to 15 seconds | none |
+| `sef.cooldown.announcement.text.1800` | `false` | Cooldown announcement.text 1800 | Sets the cooldown for sef:announcement.text to 1800 seconds | none |
+| `sef.cooldown.announcement.text.21600` | `false` | Cooldown announcement.text 21600 | Sets the cooldown for sef:announcement.text to 21600 seconds | none |
+| `sef.cooldown.announcement.text.3` | `false` | Cooldown announcement.text 3 | Sets the cooldown for sef:announcement.text to 3 seconds | none |
+| `sef.cooldown.announcement.text.30` | `false` | Cooldown announcement.text 30 | Sets the cooldown for sef:announcement.text to 30 seconds | none |
+| `sef.cooldown.announcement.text.300` | `false` | Cooldown announcement.text 300 | Sets the cooldown for sef:announcement.text to 300 seconds | none |
+| `sef.cooldown.announcement.text.3600` | `false` | Cooldown announcement.text 3600 | Sets the cooldown for sef:announcement.text to 3600 seconds | none |
+| `sef.cooldown.announcement.text.5` | `false` | Cooldown announcement.text 5 | Sets the cooldown for sef:announcement.text to 5 seconds | none |
+| `sef.cooldown.announcement.text.60` | `false` | Cooldown announcement.text 60 | Sets the cooldown for sef:announcement.text to 60 seconds | none |
+| `sef.cooldown.announcement.text.600` | `false` | Cooldown announcement.text 600 | Sets the cooldown for sef:announcement.text to 600 seconds | none |
+| `sef.cooldown.announcement.text.86400` | `false` | Cooldown announcement.text 86400 | Sets the cooldown for sef:announcement.text to 86400 seconds | none |
+| `sef.cooldown.announcement.title.0` | `false` | Cooldown announcement.title 0 | Sets the cooldown for sef:announcement.title to 0 seconds | none |
+| `sef.cooldown.announcement.title.1` | `false` | Cooldown announcement.title 1 | Sets the cooldown for sef:announcement.title to 1 seconds | none |
+| `sef.cooldown.announcement.title.10` | `false` | Cooldown announcement.title 10 | Sets the cooldown for sef:announcement.title to 10 seconds | none |
+| `sef.cooldown.announcement.title.120` | `false` | Cooldown announcement.title 120 | Sets the cooldown for sef:announcement.title to 120 seconds | none |
+| `sef.cooldown.announcement.title.15` | `false` | Cooldown announcement.title 15 | Sets the cooldown for sef:announcement.title to 15 seconds | none |
+| `sef.cooldown.announcement.title.1800` | `false` | Cooldown announcement.title 1800 | Sets the cooldown for sef:announcement.title to 1800 seconds | none |
+| `sef.cooldown.announcement.title.21600` | `false` | Cooldown announcement.title 21600 | Sets the cooldown for sef:announcement.title to 21600 seconds | none |
+| `sef.cooldown.announcement.title.3` | `false` | Cooldown announcement.title 3 | Sets the cooldown for sef:announcement.title to 3 seconds | none |
+| `sef.cooldown.announcement.title.30` | `false` | Cooldown announcement.title 30 | Sets the cooldown for sef:announcement.title to 30 seconds | none |
+| `sef.cooldown.announcement.title.300` | `false` | Cooldown announcement.title 300 | Sets the cooldown for sef:announcement.title to 300 seconds | none |
+| `sef.cooldown.announcement.title.3600` | `false` | Cooldown announcement.title 3600 | Sets the cooldown for sef:announcement.title to 3600 seconds | none |
+| `sef.cooldown.announcement.title.5` | `false` | Cooldown announcement.title 5 | Sets the cooldown for sef:announcement.title to 5 seconds | none |
+| `sef.cooldown.announcement.title.60` | `false` | Cooldown announcement.title 60 | Sets the cooldown for sef:announcement.title to 60 seconds | none |
+| `sef.cooldown.announcement.title.600` | `false` | Cooldown announcement.title 600 | Sets the cooldown for sef:announcement.title to 600 seconds | none |
+| `sef.cooldown.announcement.title.86400` | `false` | Cooldown announcement.title 86400 | Sets the cooldown for sef:announcement.title to 86400 seconds | none |
+| `sef.cooldown.announcement.toggle.0` | `false` | Cooldown announcement.toggle 0 | Sets the cooldown for sef:announcement.toggle to 0 seconds | none |
+| `sef.cooldown.announcement.toggle.1` | `false` | Cooldown announcement.toggle 1 | Sets the cooldown for sef:announcement.toggle to 1 seconds | none |
+| `sef.cooldown.announcement.toggle.10` | `false` | Cooldown announcement.toggle 10 | Sets the cooldown for sef:announcement.toggle to 10 seconds | none |
+| `sef.cooldown.announcement.toggle.120` | `false` | Cooldown announcement.toggle 120 | Sets the cooldown for sef:announcement.toggle to 120 seconds | none |
+| `sef.cooldown.announcement.toggle.15` | `false` | Cooldown announcement.toggle 15 | Sets the cooldown for sef:announcement.toggle to 15 seconds | none |
+| `sef.cooldown.announcement.toggle.1800` | `false` | Cooldown announcement.toggle 1800 | Sets the cooldown for sef:announcement.toggle to 1800 seconds | none |
+| `sef.cooldown.announcement.toggle.21600` | `false` | Cooldown announcement.toggle 21600 | Sets the cooldown for sef:announcement.toggle to 21600 seconds | none |
+| `sef.cooldown.announcement.toggle.3` | `false` | Cooldown announcement.toggle 3 | Sets the cooldown for sef:announcement.toggle to 3 seconds | none |
+| `sef.cooldown.announcement.toggle.30` | `false` | Cooldown announcement.toggle 30 | Sets the cooldown for sef:announcement.toggle to 30 seconds | none |
+| `sef.cooldown.announcement.toggle.300` | `false` | Cooldown announcement.toggle 300 | Sets the cooldown for sef:announcement.toggle to 300 seconds | none |
+| `sef.cooldown.announcement.toggle.3600` | `false` | Cooldown announcement.toggle 3600 | Sets the cooldown for sef:announcement.toggle to 3600 seconds | none |
+| `sef.cooldown.announcement.toggle.5` | `false` | Cooldown announcement.toggle 5 | Sets the cooldown for sef:announcement.toggle to 5 seconds | none |
+| `sef.cooldown.announcement.toggle.60` | `false` | Cooldown announcement.toggle 60 | Sets the cooldown for sef:announcement.toggle to 60 seconds | none |
+| `sef.cooldown.announcement.toggle.600` | `false` | Cooldown announcement.toggle 600 | Sets the cooldown for sef:announcement.toggle to 600 seconds | none |
+| `sef.cooldown.announcement.toggle.86400` | `false` | Cooldown announcement.toggle 86400 | Sets the cooldown for sef:announcement.toggle to 86400 seconds | none |
 | `sef.cooldown.anvil.0` | `false` | Cooldown anvil 0 | Sets the cooldown for sef:workstation.anvil to 0 seconds | none |
 | `sef.cooldown.anvil.1` | `false` | Cooldown anvil 1 | Sets the cooldown for sef:workstation.anvil to 1 seconds | none |
 | `sef.cooldown.anvil.10` | `false` | Cooldown anvil 10 | Sets the cooldown for sef:workstation.anvil to 10 seconds | none |
@@ -1723,6 +1813,21 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.approval.approve.60` | `false` | Cooldown approval.approve 60 | Sets the cooldown for sef:approval.approve to 60 seconds | none |
 | `sef.cooldown.approval.approve.600` | `false` | Cooldown approval.approve 600 | Sets the cooldown for sef:approval.approve to 600 seconds | none |
 | `sef.cooldown.approval.approve.86400` | `false` | Cooldown approval.approve 86400 | Sets the cooldown for sef:approval.approve to 86400 seconds | none |
+| `sef.cooldown.approval.list.0` | `false` | Cooldown approval.list 0 | Sets the cooldown for sef:approval.list to 0 seconds | none |
+| `sef.cooldown.approval.list.1` | `false` | Cooldown approval.list 1 | Sets the cooldown for sef:approval.list to 1 seconds | none |
+| `sef.cooldown.approval.list.10` | `false` | Cooldown approval.list 10 | Sets the cooldown for sef:approval.list to 10 seconds | none |
+| `sef.cooldown.approval.list.120` | `false` | Cooldown approval.list 120 | Sets the cooldown for sef:approval.list to 120 seconds | none |
+| `sef.cooldown.approval.list.15` | `false` | Cooldown approval.list 15 | Sets the cooldown for sef:approval.list to 15 seconds | none |
+| `sef.cooldown.approval.list.1800` | `false` | Cooldown approval.list 1800 | Sets the cooldown for sef:approval.list to 1800 seconds | none |
+| `sef.cooldown.approval.list.21600` | `false` | Cooldown approval.list 21600 | Sets the cooldown for sef:approval.list to 21600 seconds | none |
+| `sef.cooldown.approval.list.3` | `false` | Cooldown approval.list 3 | Sets the cooldown for sef:approval.list to 3 seconds | none |
+| `sef.cooldown.approval.list.30` | `false` | Cooldown approval.list 30 | Sets the cooldown for sef:approval.list to 30 seconds | none |
+| `sef.cooldown.approval.list.300` | `false` | Cooldown approval.list 300 | Sets the cooldown for sef:approval.list to 300 seconds | none |
+| `sef.cooldown.approval.list.3600` | `false` | Cooldown approval.list 3600 | Sets the cooldown for sef:approval.list to 3600 seconds | none |
+| `sef.cooldown.approval.list.5` | `false` | Cooldown approval.list 5 | Sets the cooldown for sef:approval.list to 5 seconds | none |
+| `sef.cooldown.approval.list.60` | `false` | Cooldown approval.list 60 | Sets the cooldown for sef:approval.list to 60 seconds | none |
+| `sef.cooldown.approval.list.600` | `false` | Cooldown approval.list 600 | Sets the cooldown for sef:approval.list to 600 seconds | none |
+| `sef.cooldown.approval.list.86400` | `false` | Cooldown approval.list 86400 | Sets the cooldown for sef:approval.list to 86400 seconds | none |
 | `sef.cooldown.approval.request.0` | `false` | Cooldown approval.request 0 | Sets the cooldown for sef:approval.request to 0 seconds | none |
 | `sef.cooldown.approval.request.1` | `false` | Cooldown approval.request 1 | Sets the cooldown for sef:approval.request to 1 seconds | none |
 | `sef.cooldown.approval.request.10` | `false` | Cooldown approval.request 10 | Sets the cooldown for sef:approval.request to 10 seconds | none |
@@ -1753,6 +1858,21 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.approval.revoke.60` | `false` | Cooldown approval.revoke 60 | Sets the cooldown for sef:approval.revoke to 60 seconds | none |
 | `sef.cooldown.approval.revoke.600` | `false` | Cooldown approval.revoke 600 | Sets the cooldown for sef:approval.revoke to 600 seconds | none |
 | `sef.cooldown.approval.revoke.86400` | `false` | Cooldown approval.revoke 86400 | Sets the cooldown for sef:approval.revoke to 86400 seconds | none |
+| `sef.cooldown.banned.list.0` | `false` | Cooldown banned.list 0 | Sets the cooldown for sef:banned.list to 0 seconds | none |
+| `sef.cooldown.banned.list.1` | `false` | Cooldown banned.list 1 | Sets the cooldown for sef:banned.list to 1 seconds | none |
+| `sef.cooldown.banned.list.10` | `false` | Cooldown banned.list 10 | Sets the cooldown for sef:banned.list to 10 seconds | none |
+| `sef.cooldown.banned.list.120` | `false` | Cooldown banned.list 120 | Sets the cooldown for sef:banned.list to 120 seconds | none |
+| `sef.cooldown.banned.list.15` | `false` | Cooldown banned.list 15 | Sets the cooldown for sef:banned.list to 15 seconds | none |
+| `sef.cooldown.banned.list.1800` | `false` | Cooldown banned.list 1800 | Sets the cooldown for sef:banned.list to 1800 seconds | none |
+| `sef.cooldown.banned.list.21600` | `false` | Cooldown banned.list 21600 | Sets the cooldown for sef:banned.list to 21600 seconds | none |
+| `sef.cooldown.banned.list.3` | `false` | Cooldown banned.list 3 | Sets the cooldown for sef:banned.list to 3 seconds | none |
+| `sef.cooldown.banned.list.30` | `false` | Cooldown banned.list 30 | Sets the cooldown for sef:banned.list to 30 seconds | none |
+| `sef.cooldown.banned.list.300` | `false` | Cooldown banned.list 300 | Sets the cooldown for sef:banned.list to 300 seconds | none |
+| `sef.cooldown.banned.list.3600` | `false` | Cooldown banned.list 3600 | Sets the cooldown for sef:banned.list to 3600 seconds | none |
+| `sef.cooldown.banned.list.5` | `false` | Cooldown banned.list 5 | Sets the cooldown for sef:banned.list to 5 seconds | none |
+| `sef.cooldown.banned.list.60` | `false` | Cooldown banned.list 60 | Sets the cooldown for sef:banned.list to 60 seconds | none |
+| `sef.cooldown.banned.list.600` | `false` | Cooldown banned.list 600 | Sets the cooldown for sef:banned.list to 600 seconds | none |
+| `sef.cooldown.banned.list.86400` | `false` | Cooldown banned.list 86400 | Sets the cooldown for sef:banned.list to 86400 seconds | none |
 | `sef.cooldown.bundle.cancel.0` | `false` | Cooldown bundle.cancel 0 | Sets the cooldown for sef:bundle.cancel to 0 seconds | none |
 | `sef.cooldown.bundle.cancel.1` | `false` | Cooldown bundle.cancel 1 | Sets the cooldown for sef:bundle.cancel to 1 seconds | none |
 | `sef.cooldown.bundle.cancel.10` | `false` | Cooldown bundle.cancel 10 | Sets the cooldown for sef:bundle.cancel to 10 seconds | none |
@@ -1933,6 +2053,81 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.bundle.run.60` | `false` | Cooldown bundle.run 60 | Sets the cooldown for sef:bundle.run to 60 seconds | none |
 | `sef.cooldown.bundle.run.600` | `false` | Cooldown bundle.run 600 | Sets the cooldown for sef:bundle.run to 600 seconds | none |
 | `sef.cooldown.bundle.run.86400` | `false` | Cooldown bundle.run 86400 | Sets the cooldown for sef:bundle.run to 86400 seconds | none |
+| `sef.cooldown.chat.admin.0` | `false` | Cooldown chat.admin 0 | Sets the cooldown for sef:chat.admin to 0 seconds | none |
+| `sef.cooldown.chat.admin.1` | `false` | Cooldown chat.admin 1 | Sets the cooldown for sef:chat.admin to 1 seconds | none |
+| `sef.cooldown.chat.admin.10` | `false` | Cooldown chat.admin 10 | Sets the cooldown for sef:chat.admin to 10 seconds | none |
+| `sef.cooldown.chat.admin.120` | `false` | Cooldown chat.admin 120 | Sets the cooldown for sef:chat.admin to 120 seconds | none |
+| `sef.cooldown.chat.admin.15` | `false` | Cooldown chat.admin 15 | Sets the cooldown for sef:chat.admin to 15 seconds | none |
+| `sef.cooldown.chat.admin.1800` | `false` | Cooldown chat.admin 1800 | Sets the cooldown for sef:chat.admin to 1800 seconds | none |
+| `sef.cooldown.chat.admin.21600` | `false` | Cooldown chat.admin 21600 | Sets the cooldown for sef:chat.admin to 21600 seconds | none |
+| `sef.cooldown.chat.admin.3` | `false` | Cooldown chat.admin 3 | Sets the cooldown for sef:chat.admin to 3 seconds | none |
+| `sef.cooldown.chat.admin.30` | `false` | Cooldown chat.admin 30 | Sets the cooldown for sef:chat.admin to 30 seconds | none |
+| `sef.cooldown.chat.admin.300` | `false` | Cooldown chat.admin 300 | Sets the cooldown for sef:chat.admin to 300 seconds | none |
+| `sef.cooldown.chat.admin.3600` | `false` | Cooldown chat.admin 3600 | Sets the cooldown for sef:chat.admin to 3600 seconds | none |
+| `sef.cooldown.chat.admin.5` | `false` | Cooldown chat.admin 5 | Sets the cooldown for sef:chat.admin to 5 seconds | none |
+| `sef.cooldown.chat.admin.60` | `false` | Cooldown chat.admin 60 | Sets the cooldown for sef:chat.admin to 60 seconds | none |
+| `sef.cooldown.chat.admin.600` | `false` | Cooldown chat.admin 600 | Sets the cooldown for sef:chat.admin to 600 seconds | none |
+| `sef.cooldown.chat.admin.86400` | `false` | Cooldown chat.admin 86400 | Sets the cooldown for sef:chat.admin to 86400 seconds | none |
+| `sef.cooldown.chat.clear.0` | `false` | Cooldown chat.clear 0 | Sets the cooldown for sef:chat.clear to 0 seconds | none |
+| `sef.cooldown.chat.clear.1` | `false` | Cooldown chat.clear 1 | Sets the cooldown for sef:chat.clear to 1 seconds | none |
+| `sef.cooldown.chat.clear.10` | `false` | Cooldown chat.clear 10 | Sets the cooldown for sef:chat.clear to 10 seconds | none |
+| `sef.cooldown.chat.clear.120` | `false` | Cooldown chat.clear 120 | Sets the cooldown for sef:chat.clear to 120 seconds | none |
+| `sef.cooldown.chat.clear.15` | `false` | Cooldown chat.clear 15 | Sets the cooldown for sef:chat.clear to 15 seconds | none |
+| `sef.cooldown.chat.clear.1800` | `false` | Cooldown chat.clear 1800 | Sets the cooldown for sef:chat.clear to 1800 seconds | none |
+| `sef.cooldown.chat.clear.21600` | `false` | Cooldown chat.clear 21600 | Sets the cooldown for sef:chat.clear to 21600 seconds | none |
+| `sef.cooldown.chat.clear.3` | `false` | Cooldown chat.clear 3 | Sets the cooldown for sef:chat.clear to 3 seconds | none |
+| `sef.cooldown.chat.clear.30` | `false` | Cooldown chat.clear 30 | Sets the cooldown for sef:chat.clear to 30 seconds | none |
+| `sef.cooldown.chat.clear.300` | `false` | Cooldown chat.clear 300 | Sets the cooldown for sef:chat.clear to 300 seconds | none |
+| `sef.cooldown.chat.clear.3600` | `false` | Cooldown chat.clear 3600 | Sets the cooldown for sef:chat.clear to 3600 seconds | none |
+| `sef.cooldown.chat.clear.5` | `false` | Cooldown chat.clear 5 | Sets the cooldown for sef:chat.clear to 5 seconds | none |
+| `sef.cooldown.chat.clear.60` | `false` | Cooldown chat.clear 60 | Sets the cooldown for sef:chat.clear to 60 seconds | none |
+| `sef.cooldown.chat.clear.600` | `false` | Cooldown chat.clear 600 | Sets the cooldown for sef:chat.clear to 600 seconds | none |
+| `sef.cooldown.chat.clear.86400` | `false` | Cooldown chat.clear 86400 | Sets the cooldown for sef:chat.clear to 86400 seconds | none |
+| `sef.cooldown.chat.helpop.0` | `false` | Cooldown chat.helpop 0 | Sets the cooldown for sef:chat.helpop to 0 seconds | none |
+| `sef.cooldown.chat.helpop.1` | `false` | Cooldown chat.helpop 1 | Sets the cooldown for sef:chat.helpop to 1 seconds | none |
+| `sef.cooldown.chat.helpop.10` | `false` | Cooldown chat.helpop 10 | Sets the cooldown for sef:chat.helpop to 10 seconds | none |
+| `sef.cooldown.chat.helpop.120` | `false` | Cooldown chat.helpop 120 | Sets the cooldown for sef:chat.helpop to 120 seconds | none |
+| `sef.cooldown.chat.helpop.15` | `false` | Cooldown chat.helpop 15 | Sets the cooldown for sef:chat.helpop to 15 seconds | none |
+| `sef.cooldown.chat.helpop.1800` | `false` | Cooldown chat.helpop 1800 | Sets the cooldown for sef:chat.helpop to 1800 seconds | none |
+| `sef.cooldown.chat.helpop.21600` | `false` | Cooldown chat.helpop 21600 | Sets the cooldown for sef:chat.helpop to 21600 seconds | none |
+| `sef.cooldown.chat.helpop.3` | `false` | Cooldown chat.helpop 3 | Sets the cooldown for sef:chat.helpop to 3 seconds | none |
+| `sef.cooldown.chat.helpop.30` | `false` | Cooldown chat.helpop 30 | Sets the cooldown for sef:chat.helpop to 30 seconds | none |
+| `sef.cooldown.chat.helpop.300` | `false` | Cooldown chat.helpop 300 | Sets the cooldown for sef:chat.helpop to 300 seconds | none |
+| `sef.cooldown.chat.helpop.3600` | `false` | Cooldown chat.helpop 3600 | Sets the cooldown for sef:chat.helpop to 3600 seconds | none |
+| `sef.cooldown.chat.helpop.5` | `false` | Cooldown chat.helpop 5 | Sets the cooldown for sef:chat.helpop to 5 seconds | none |
+| `sef.cooldown.chat.helpop.60` | `false` | Cooldown chat.helpop 60 | Sets the cooldown for sef:chat.helpop to 60 seconds | none |
+| `sef.cooldown.chat.helpop.600` | `false` | Cooldown chat.helpop 600 | Sets the cooldown for sef:chat.helpop to 600 seconds | none |
+| `sef.cooldown.chat.helpop.86400` | `false` | Cooldown chat.helpop 86400 | Sets the cooldown for sef:chat.helpop to 86400 seconds | none |
+| `sef.cooldown.chat.helpop.reply.0` | `false` | Cooldown chat.helpop.reply 0 | Sets the cooldown for sef:chat.helpop.reply to 0 seconds | none |
+| `sef.cooldown.chat.helpop.reply.1` | `false` | Cooldown chat.helpop.reply 1 | Sets the cooldown for sef:chat.helpop.reply to 1 seconds | none |
+| `sef.cooldown.chat.helpop.reply.10` | `false` | Cooldown chat.helpop.reply 10 | Sets the cooldown for sef:chat.helpop.reply to 10 seconds | none |
+| `sef.cooldown.chat.helpop.reply.120` | `false` | Cooldown chat.helpop.reply 120 | Sets the cooldown for sef:chat.helpop.reply to 120 seconds | none |
+| `sef.cooldown.chat.helpop.reply.15` | `false` | Cooldown chat.helpop.reply 15 | Sets the cooldown for sef:chat.helpop.reply to 15 seconds | none |
+| `sef.cooldown.chat.helpop.reply.1800` | `false` | Cooldown chat.helpop.reply 1800 | Sets the cooldown for sef:chat.helpop.reply to 1800 seconds | none |
+| `sef.cooldown.chat.helpop.reply.21600` | `false` | Cooldown chat.helpop.reply 21600 | Sets the cooldown for sef:chat.helpop.reply to 21600 seconds | none |
+| `sef.cooldown.chat.helpop.reply.3` | `false` | Cooldown chat.helpop.reply 3 | Sets the cooldown for sef:chat.helpop.reply to 3 seconds | none |
+| `sef.cooldown.chat.helpop.reply.30` | `false` | Cooldown chat.helpop.reply 30 | Sets the cooldown for sef:chat.helpop.reply to 30 seconds | none |
+| `sef.cooldown.chat.helpop.reply.300` | `false` | Cooldown chat.helpop.reply 300 | Sets the cooldown for sef:chat.helpop.reply to 300 seconds | none |
+| `sef.cooldown.chat.helpop.reply.3600` | `false` | Cooldown chat.helpop.reply 3600 | Sets the cooldown for sef:chat.helpop.reply to 3600 seconds | none |
+| `sef.cooldown.chat.helpop.reply.5` | `false` | Cooldown chat.helpop.reply 5 | Sets the cooldown for sef:chat.helpop.reply to 5 seconds | none |
+| `sef.cooldown.chat.helpop.reply.60` | `false` | Cooldown chat.helpop.reply 60 | Sets the cooldown for sef:chat.helpop.reply to 60 seconds | none |
+| `sef.cooldown.chat.helpop.reply.600` | `false` | Cooldown chat.helpop.reply 600 | Sets the cooldown for sef:chat.helpop.reply to 600 seconds | none |
+| `sef.cooldown.chat.helpop.reply.86400` | `false` | Cooldown chat.helpop.reply 86400 | Sets the cooldown for sef:chat.helpop.reply to 86400 seconds | none |
+| `sef.cooldown.chat.reply.0` | `false` | Cooldown chat.reply 0 | Sets the cooldown for sef:chat.reply to 0 seconds | none |
+| `sef.cooldown.chat.reply.1` | `false` | Cooldown chat.reply 1 | Sets the cooldown for sef:chat.reply to 1 seconds | none |
+| `sef.cooldown.chat.reply.10` | `false` | Cooldown chat.reply 10 | Sets the cooldown for sef:chat.reply to 10 seconds | none |
+| `sef.cooldown.chat.reply.120` | `false` | Cooldown chat.reply 120 | Sets the cooldown for sef:chat.reply to 120 seconds | none |
+| `sef.cooldown.chat.reply.15` | `false` | Cooldown chat.reply 15 | Sets the cooldown for sef:chat.reply to 15 seconds | none |
+| `sef.cooldown.chat.reply.1800` | `false` | Cooldown chat.reply 1800 | Sets the cooldown for sef:chat.reply to 1800 seconds | none |
+| `sef.cooldown.chat.reply.21600` | `false` | Cooldown chat.reply 21600 | Sets the cooldown for sef:chat.reply to 21600 seconds | none |
+| `sef.cooldown.chat.reply.3` | `false` | Cooldown chat.reply 3 | Sets the cooldown for sef:chat.reply to 3 seconds | none |
+| `sef.cooldown.chat.reply.30` | `false` | Cooldown chat.reply 30 | Sets the cooldown for sef:chat.reply to 30 seconds | none |
+| `sef.cooldown.chat.reply.300` | `false` | Cooldown chat.reply 300 | Sets the cooldown for sef:chat.reply to 300 seconds | none |
+| `sef.cooldown.chat.reply.3600` | `false` | Cooldown chat.reply 3600 | Sets the cooldown for sef:chat.reply to 3600 seconds | none |
+| `sef.cooldown.chat.reply.5` | `false` | Cooldown chat.reply 5 | Sets the cooldown for sef:chat.reply to 5 seconds | none |
+| `sef.cooldown.chat.reply.60` | `false` | Cooldown chat.reply 60 | Sets the cooldown for sef:chat.reply to 60 seconds | none |
+| `sef.cooldown.chat.reply.600` | `false` | Cooldown chat.reply 600 | Sets the cooldown for sef:chat.reply to 600 seconds | none |
+| `sef.cooldown.chat.reply.86400` | `false` | Cooldown chat.reply 86400 | Sets the cooldown for sef:chat.reply to 86400 seconds | none |
 | `sef.cooldown.commandspy.audience.0` | `false` | Cooldown commandspy.audience 0 | Sets the cooldown for sef:commandspy.audience to 0 seconds | none |
 | `sef.cooldown.commandspy.audience.1` | `false` | Cooldown commandspy.audience 1 | Sets the cooldown for sef:commandspy.audience to 1 seconds | none |
 | `sef.cooldown.commandspy.audience.10` | `false` | Cooldown commandspy.audience 10 | Sets the cooldown for sef:commandspy.audience to 10 seconds | none |
@@ -7648,6 +7843,66 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.guis.status.60` | `false` | Cooldown guis.status 60 | Sets the cooldown for sef:guis.status to 60 seconds | none |
 | `sef.cooldown.guis.status.600` | `false` | Cooldown guis.status 600 | Sets the cooldown for sef:guis.status to 600 seconds | none |
 | `sef.cooldown.guis.status.86400` | `false` | Cooldown guis.status 86400 | Sets the cooldown for sef:guis.status to 86400 seconds | none |
+| `sef.cooldown.identity.alts.0` | `false` | Cooldown identity.alts 0 | Sets the cooldown for sef:identity.alts to 0 seconds | none |
+| `sef.cooldown.identity.alts.1` | `false` | Cooldown identity.alts 1 | Sets the cooldown for sef:identity.alts to 1 seconds | none |
+| `sef.cooldown.identity.alts.10` | `false` | Cooldown identity.alts 10 | Sets the cooldown for sef:identity.alts to 10 seconds | none |
+| `sef.cooldown.identity.alts.120` | `false` | Cooldown identity.alts 120 | Sets the cooldown for sef:identity.alts to 120 seconds | none |
+| `sef.cooldown.identity.alts.15` | `false` | Cooldown identity.alts 15 | Sets the cooldown for sef:identity.alts to 15 seconds | none |
+| `sef.cooldown.identity.alts.1800` | `false` | Cooldown identity.alts 1800 | Sets the cooldown for sef:identity.alts to 1800 seconds | none |
+| `sef.cooldown.identity.alts.21600` | `false` | Cooldown identity.alts 21600 | Sets the cooldown for sef:identity.alts to 21600 seconds | none |
+| `sef.cooldown.identity.alts.3` | `false` | Cooldown identity.alts 3 | Sets the cooldown for sef:identity.alts to 3 seconds | none |
+| `sef.cooldown.identity.alts.30` | `false` | Cooldown identity.alts 30 | Sets the cooldown for sef:identity.alts to 30 seconds | none |
+| `sef.cooldown.identity.alts.300` | `false` | Cooldown identity.alts 300 | Sets the cooldown for sef:identity.alts to 300 seconds | none |
+| `sef.cooldown.identity.alts.3600` | `false` | Cooldown identity.alts 3600 | Sets the cooldown for sef:identity.alts to 3600 seconds | none |
+| `sef.cooldown.identity.alts.5` | `false` | Cooldown identity.alts 5 | Sets the cooldown for sef:identity.alts to 5 seconds | none |
+| `sef.cooldown.identity.alts.60` | `false` | Cooldown identity.alts 60 | Sets the cooldown for sef:identity.alts to 60 seconds | none |
+| `sef.cooldown.identity.alts.600` | `false` | Cooldown identity.alts 600 | Sets the cooldown for sef:identity.alts to 600 seconds | none |
+| `sef.cooldown.identity.alts.86400` | `false` | Cooldown identity.alts 86400 | Sets the cooldown for sef:identity.alts to 86400 seconds | none |
+| `sef.cooldown.identity.nick.0` | `false` | Cooldown identity.nick 0 | Sets the cooldown for sef:identity.nick to 0 seconds | none |
+| `sef.cooldown.identity.nick.1` | `false` | Cooldown identity.nick 1 | Sets the cooldown for sef:identity.nick to 1 seconds | none |
+| `sef.cooldown.identity.nick.10` | `false` | Cooldown identity.nick 10 | Sets the cooldown for sef:identity.nick to 10 seconds | none |
+| `sef.cooldown.identity.nick.120` | `false` | Cooldown identity.nick 120 | Sets the cooldown for sef:identity.nick to 120 seconds | none |
+| `sef.cooldown.identity.nick.15` | `false` | Cooldown identity.nick 15 | Sets the cooldown for sef:identity.nick to 15 seconds | none |
+| `sef.cooldown.identity.nick.1800` | `false` | Cooldown identity.nick 1800 | Sets the cooldown for sef:identity.nick to 1800 seconds | none |
+| `sef.cooldown.identity.nick.21600` | `false` | Cooldown identity.nick 21600 | Sets the cooldown for sef:identity.nick to 21600 seconds | none |
+| `sef.cooldown.identity.nick.3` | `false` | Cooldown identity.nick 3 | Sets the cooldown for sef:identity.nick to 3 seconds | none |
+| `sef.cooldown.identity.nick.30` | `false` | Cooldown identity.nick 30 | Sets the cooldown for sef:identity.nick to 30 seconds | none |
+| `sef.cooldown.identity.nick.300` | `false` | Cooldown identity.nick 300 | Sets the cooldown for sef:identity.nick to 300 seconds | none |
+| `sef.cooldown.identity.nick.3600` | `false` | Cooldown identity.nick 3600 | Sets the cooldown for sef:identity.nick to 3600 seconds | none |
+| `sef.cooldown.identity.nick.5` | `false` | Cooldown identity.nick 5 | Sets the cooldown for sef:identity.nick to 5 seconds | none |
+| `sef.cooldown.identity.nick.60` | `false` | Cooldown identity.nick 60 | Sets the cooldown for sef:identity.nick to 60 seconds | none |
+| `sef.cooldown.identity.nick.600` | `false` | Cooldown identity.nick 600 | Sets the cooldown for sef:identity.nick to 600 seconds | none |
+| `sef.cooldown.identity.nick.86400` | `false` | Cooldown identity.nick 86400 | Sets the cooldown for sef:identity.nick to 86400 seconds | none |
+| `sef.cooldown.identity.nick.others.0` | `false` | Cooldown identity.nick.others 0 | Sets the cooldown for sef:identity.nick.others to 0 seconds | none |
+| `sef.cooldown.identity.nick.others.1` | `false` | Cooldown identity.nick.others 1 | Sets the cooldown for sef:identity.nick.others to 1 seconds | none |
+| `sef.cooldown.identity.nick.others.10` | `false` | Cooldown identity.nick.others 10 | Sets the cooldown for sef:identity.nick.others to 10 seconds | none |
+| `sef.cooldown.identity.nick.others.120` | `false` | Cooldown identity.nick.others 120 | Sets the cooldown for sef:identity.nick.others to 120 seconds | none |
+| `sef.cooldown.identity.nick.others.15` | `false` | Cooldown identity.nick.others 15 | Sets the cooldown for sef:identity.nick.others to 15 seconds | none |
+| `sef.cooldown.identity.nick.others.1800` | `false` | Cooldown identity.nick.others 1800 | Sets the cooldown for sef:identity.nick.others to 1800 seconds | none |
+| `sef.cooldown.identity.nick.others.21600` | `false` | Cooldown identity.nick.others 21600 | Sets the cooldown for sef:identity.nick.others to 21600 seconds | none |
+| `sef.cooldown.identity.nick.others.3` | `false` | Cooldown identity.nick.others 3 | Sets the cooldown for sef:identity.nick.others to 3 seconds | none |
+| `sef.cooldown.identity.nick.others.30` | `false` | Cooldown identity.nick.others 30 | Sets the cooldown for sef:identity.nick.others to 30 seconds | none |
+| `sef.cooldown.identity.nick.others.300` | `false` | Cooldown identity.nick.others 300 | Sets the cooldown for sef:identity.nick.others to 300 seconds | none |
+| `sef.cooldown.identity.nick.others.3600` | `false` | Cooldown identity.nick.others 3600 | Sets the cooldown for sef:identity.nick.others to 3600 seconds | none |
+| `sef.cooldown.identity.nick.others.5` | `false` | Cooldown identity.nick.others 5 | Sets the cooldown for sef:identity.nick.others to 5 seconds | none |
+| `sef.cooldown.identity.nick.others.60` | `false` | Cooldown identity.nick.others 60 | Sets the cooldown for sef:identity.nick.others to 60 seconds | none |
+| `sef.cooldown.identity.nick.others.600` | `false` | Cooldown identity.nick.others 600 | Sets the cooldown for sef:identity.nick.others to 600 seconds | none |
+| `sef.cooldown.identity.nick.others.86400` | `false` | Cooldown identity.nick.others 86400 | Sets the cooldown for sef:identity.nick.others to 86400 seconds | none |
+| `sef.cooldown.identity.whois.0` | `false` | Cooldown identity.whois 0 | Sets the cooldown for sef:identity.whois to 0 seconds | none |
+| `sef.cooldown.identity.whois.1` | `false` | Cooldown identity.whois 1 | Sets the cooldown for sef:identity.whois to 1 seconds | none |
+| `sef.cooldown.identity.whois.10` | `false` | Cooldown identity.whois 10 | Sets the cooldown for sef:identity.whois to 10 seconds | none |
+| `sef.cooldown.identity.whois.120` | `false` | Cooldown identity.whois 120 | Sets the cooldown for sef:identity.whois to 120 seconds | none |
+| `sef.cooldown.identity.whois.15` | `false` | Cooldown identity.whois 15 | Sets the cooldown for sef:identity.whois to 15 seconds | none |
+| `sef.cooldown.identity.whois.1800` | `false` | Cooldown identity.whois 1800 | Sets the cooldown for sef:identity.whois to 1800 seconds | none |
+| `sef.cooldown.identity.whois.21600` | `false` | Cooldown identity.whois 21600 | Sets the cooldown for sef:identity.whois to 21600 seconds | none |
+| `sef.cooldown.identity.whois.3` | `false` | Cooldown identity.whois 3 | Sets the cooldown for sef:identity.whois to 3 seconds | none |
+| `sef.cooldown.identity.whois.30` | `false` | Cooldown identity.whois 30 | Sets the cooldown for sef:identity.whois to 30 seconds | none |
+| `sef.cooldown.identity.whois.300` | `false` | Cooldown identity.whois 300 | Sets the cooldown for sef:identity.whois to 300 seconds | none |
+| `sef.cooldown.identity.whois.3600` | `false` | Cooldown identity.whois 3600 | Sets the cooldown for sef:identity.whois to 3600 seconds | none |
+| `sef.cooldown.identity.whois.5` | `false` | Cooldown identity.whois 5 | Sets the cooldown for sef:identity.whois to 5 seconds | none |
+| `sef.cooldown.identity.whois.60` | `false` | Cooldown identity.whois 60 | Sets the cooldown for sef:identity.whois to 60 seconds | none |
+| `sef.cooldown.identity.whois.600` | `false` | Cooldown identity.whois 600 | Sets the cooldown for sef:identity.whois to 600 seconds | none |
+| `sef.cooldown.identity.whois.86400` | `false` | Cooldown identity.whois 86400 | Sets the cooldown for sef:identity.whois to 86400 seconds | none |
 | `sef.cooldown.inventory.book.0` | `false` | Cooldown inventory.book 0 | Sets the cooldown for sef:inventory.book to 0 seconds | none |
 | `sef.cooldown.inventory.book.1` | `false` | Cooldown inventory.book 1 | Sets the cooldown for sef:inventory.book to 1 seconds | none |
 | `sef.cooldown.inventory.book.10` | `false` | Cooldown inventory.book 10 | Sets the cooldown for sef:inventory.book to 10 seconds | none |
@@ -9553,21 +9808,6 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.tags.archive.60` | `false` | Cooldown tags.archive 60 | Sets the cooldown for sef:tags.archive to 60 seconds | none |
 | `sef.cooldown.tags.archive.600` | `false` | Cooldown tags.archive 600 | Sets the cooldown for sef:tags.archive to 600 seconds | none |
 | `sef.cooldown.tags.archive.86400` | `false` | Cooldown tags.archive 86400 | Sets the cooldown for sef:tags.archive to 86400 seconds | none |
-| `sef.cooldown.tags.assign.bulk.0` | `false` | Cooldown tags.assign.bulk 0 | Sets the cooldown for sef:tags.assign.bulk to 0 seconds | none |
-| `sef.cooldown.tags.assign.bulk.1` | `false` | Cooldown tags.assign.bulk 1 | Sets the cooldown for sef:tags.assign.bulk to 1 seconds | none |
-| `sef.cooldown.tags.assign.bulk.10` | `false` | Cooldown tags.assign.bulk 10 | Sets the cooldown for sef:tags.assign.bulk to 10 seconds | none |
-| `sef.cooldown.tags.assign.bulk.120` | `false` | Cooldown tags.assign.bulk 120 | Sets the cooldown for sef:tags.assign.bulk to 120 seconds | none |
-| `sef.cooldown.tags.assign.bulk.15` | `false` | Cooldown tags.assign.bulk 15 | Sets the cooldown for sef:tags.assign.bulk to 15 seconds | none |
-| `sef.cooldown.tags.assign.bulk.1800` | `false` | Cooldown tags.assign.bulk 1800 | Sets the cooldown for sef:tags.assign.bulk to 1800 seconds | none |
-| `sef.cooldown.tags.assign.bulk.21600` | `false` | Cooldown tags.assign.bulk 21600 | Sets the cooldown for sef:tags.assign.bulk to 21600 seconds | none |
-| `sef.cooldown.tags.assign.bulk.3` | `false` | Cooldown tags.assign.bulk 3 | Sets the cooldown for sef:tags.assign.bulk to 3 seconds | none |
-| `sef.cooldown.tags.assign.bulk.30` | `false` | Cooldown tags.assign.bulk 30 | Sets the cooldown for sef:tags.assign.bulk to 30 seconds | none |
-| `sef.cooldown.tags.assign.bulk.300` | `false` | Cooldown tags.assign.bulk 300 | Sets the cooldown for sef:tags.assign.bulk to 300 seconds | none |
-| `sef.cooldown.tags.assign.bulk.3600` | `false` | Cooldown tags.assign.bulk 3600 | Sets the cooldown for sef:tags.assign.bulk to 3600 seconds | none |
-| `sef.cooldown.tags.assign.bulk.5` | `false` | Cooldown tags.assign.bulk 5 | Sets the cooldown for sef:tags.assign.bulk to 5 seconds | none |
-| `sef.cooldown.tags.assign.bulk.60` | `false` | Cooldown tags.assign.bulk 60 | Sets the cooldown for sef:tags.assign.bulk to 60 seconds | none |
-| `sef.cooldown.tags.assign.bulk.600` | `false` | Cooldown tags.assign.bulk 600 | Sets the cooldown for sef:tags.assign.bulk to 600 seconds | none |
-| `sef.cooldown.tags.assign.bulk.86400` | `false` | Cooldown tags.assign.bulk 86400 | Sets the cooldown for sef:tags.assign.bulk to 86400 seconds | none |
 | `sef.cooldown.tags.assign.default.0` | `false` | Cooldown tags.assign.default 0 | Sets the cooldown for sef:tags.assign.default to 0 seconds | none |
 | `sef.cooldown.tags.assign.default.1` | `false` | Cooldown tags.assign.default 1 | Sets the cooldown for sef:tags.assign.default to 1 seconds | none |
 | `sef.cooldown.tags.assign.default.10` | `false` | Cooldown tags.assign.default 10 | Sets the cooldown for sef:tags.assign.default to 10 seconds | none |
@@ -10858,6 +11098,21 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.teleport.request.block.60` | `false` | Cooldown teleport.request.block 60 | Sets the cooldown for sef:teleport.request.block to 60 seconds | none |
 | `sef.cooldown.teleport.request.block.600` | `false` | Cooldown teleport.request.block 600 | Sets the cooldown for sef:teleport.request.block to 600 seconds | none |
 | `sef.cooldown.teleport.request.block.86400` | `false` | Cooldown teleport.request.block 86400 | Sets the cooldown for sef:teleport.request.block to 86400 seconds | none |
+| `sef.cooldown.teleport.request.blocked.0` | `false` | Cooldown teleport.request.blocked 0 | Sets the cooldown for sef:teleport.request.blocked to 0 seconds | none |
+| `sef.cooldown.teleport.request.blocked.1` | `false` | Cooldown teleport.request.blocked 1 | Sets the cooldown for sef:teleport.request.blocked to 1 seconds | none |
+| `sef.cooldown.teleport.request.blocked.10` | `false` | Cooldown teleport.request.blocked 10 | Sets the cooldown for sef:teleport.request.blocked to 10 seconds | none |
+| `sef.cooldown.teleport.request.blocked.120` | `false` | Cooldown teleport.request.blocked 120 | Sets the cooldown for sef:teleport.request.blocked to 120 seconds | none |
+| `sef.cooldown.teleport.request.blocked.15` | `false` | Cooldown teleport.request.blocked 15 | Sets the cooldown for sef:teleport.request.blocked to 15 seconds | none |
+| `sef.cooldown.teleport.request.blocked.1800` | `false` | Cooldown teleport.request.blocked 1800 | Sets the cooldown for sef:teleport.request.blocked to 1800 seconds | none |
+| `sef.cooldown.teleport.request.blocked.21600` | `false` | Cooldown teleport.request.blocked 21600 | Sets the cooldown for sef:teleport.request.blocked to 21600 seconds | none |
+| `sef.cooldown.teleport.request.blocked.3` | `false` | Cooldown teleport.request.blocked 3 | Sets the cooldown for sef:teleport.request.blocked to 3 seconds | none |
+| `sef.cooldown.teleport.request.blocked.30` | `false` | Cooldown teleport.request.blocked 30 | Sets the cooldown for sef:teleport.request.blocked to 30 seconds | none |
+| `sef.cooldown.teleport.request.blocked.300` | `false` | Cooldown teleport.request.blocked 300 | Sets the cooldown for sef:teleport.request.blocked to 300 seconds | none |
+| `sef.cooldown.teleport.request.blocked.3600` | `false` | Cooldown teleport.request.blocked 3600 | Sets the cooldown for sef:teleport.request.blocked to 3600 seconds | none |
+| `sef.cooldown.teleport.request.blocked.5` | `false` | Cooldown teleport.request.blocked 5 | Sets the cooldown for sef:teleport.request.blocked to 5 seconds | none |
+| `sef.cooldown.teleport.request.blocked.60` | `false` | Cooldown teleport.request.blocked 60 | Sets the cooldown for sef:teleport.request.blocked to 60 seconds | none |
+| `sef.cooldown.teleport.request.blocked.600` | `false` | Cooldown teleport.request.blocked 600 | Sets the cooldown for sef:teleport.request.blocked to 600 seconds | none |
+| `sef.cooldown.teleport.request.blocked.86400` | `false` | Cooldown teleport.request.blocked 86400 | Sets the cooldown for sef:teleport.request.blocked to 86400 seconds | none |
 | `sef.cooldown.teleport.request.cancel.0` | `false` | Cooldown teleport.request.cancel 0 | Sets the cooldown for sef:teleport.request.cancel to 0 seconds | none |
 | `sef.cooldown.teleport.request.cancel.1` | `false` | Cooldown teleport.request.cancel 1 | Sets the cooldown for sef:teleport.request.cancel to 1 seconds | none |
 | `sef.cooldown.teleport.request.cancel.10` | `false` | Cooldown teleport.request.cancel 10 | Sets the cooldown for sef:teleport.request.cancel to 10 seconds | none |
@@ -11353,6 +11608,21 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.cooldown.utility.top.60` | `false` | Cooldown utility.top 60 | Sets the cooldown for sef:utility.top to 60 seconds | none |
 | `sef.cooldown.utility.top.600` | `false` | Cooldown utility.top 600 | Sets the cooldown for sef:utility.top to 600 seconds | none |
 | `sef.cooldown.utility.top.86400` | `false` | Cooldown utility.top 86400 | Sets the cooldown for sef:utility.top to 86400 seconds | none |
+| `sef.cooldown.vanish.manage.0` | `false` | Cooldown vanish.manage 0 | Sets the cooldown for sef:vanish.manage to 0 seconds | none |
+| `sef.cooldown.vanish.manage.1` | `false` | Cooldown vanish.manage 1 | Sets the cooldown for sef:vanish.manage to 1 seconds | none |
+| `sef.cooldown.vanish.manage.10` | `false` | Cooldown vanish.manage 10 | Sets the cooldown for sef:vanish.manage to 10 seconds | none |
+| `sef.cooldown.vanish.manage.120` | `false` | Cooldown vanish.manage 120 | Sets the cooldown for sef:vanish.manage to 120 seconds | none |
+| `sef.cooldown.vanish.manage.15` | `false` | Cooldown vanish.manage 15 | Sets the cooldown for sef:vanish.manage to 15 seconds | none |
+| `sef.cooldown.vanish.manage.1800` | `false` | Cooldown vanish.manage 1800 | Sets the cooldown for sef:vanish.manage to 1800 seconds | none |
+| `sef.cooldown.vanish.manage.21600` | `false` | Cooldown vanish.manage 21600 | Sets the cooldown for sef:vanish.manage to 21600 seconds | none |
+| `sef.cooldown.vanish.manage.3` | `false` | Cooldown vanish.manage 3 | Sets the cooldown for sef:vanish.manage to 3 seconds | none |
+| `sef.cooldown.vanish.manage.30` | `false` | Cooldown vanish.manage 30 | Sets the cooldown for sef:vanish.manage to 30 seconds | none |
+| `sef.cooldown.vanish.manage.300` | `false` | Cooldown vanish.manage 300 | Sets the cooldown for sef:vanish.manage to 300 seconds | none |
+| `sef.cooldown.vanish.manage.3600` | `false` | Cooldown vanish.manage 3600 | Sets the cooldown for sef:vanish.manage to 3600 seconds | none |
+| `sef.cooldown.vanish.manage.5` | `false` | Cooldown vanish.manage 5 | Sets the cooldown for sef:vanish.manage to 5 seconds | none |
+| `sef.cooldown.vanish.manage.60` | `false` | Cooldown vanish.manage 60 | Sets the cooldown for sef:vanish.manage to 60 seconds | none |
+| `sef.cooldown.vanish.manage.600` | `false` | Cooldown vanish.manage 600 | Sets the cooldown for sef:vanish.manage to 600 seconds | none |
+| `sef.cooldown.vanish.manage.86400` | `false` | Cooldown vanish.manage 86400 | Sets the cooldown for sef:vanish.manage to 86400 seconds | none |
 | `sef.cooldown.workstation.cartographytable.0` | `false` | Cooldown workstation.cartographytable 0 | Sets the cooldown for sef:workstation.cartographytable to 0 seconds | none |
 | `sef.cooldown.workstation.cartographytable.1` | `false` | Cooldown workstation.cartographytable 1 | Sets the cooldown for sef:workstation.cartographytable to 1 seconds | none |
 | `sef.cooldown.workstation.cartographytable.10` | `false` | Cooldown workstation.cartographytable 10 | Sets the cooldown for sef:workstation.cartographytable to 10 seconds | none |
@@ -11463,6 +11733,14 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.disguise.options.name` | `false` | Disguise disguise.options.name | Controls the separately gated disguise action disguise.options.name | none |
 | `sef.disguise.persist` | `false` | Disguise disguise.persist | Controls the separately gated disguise action disguise.persist | none |
 | `sef.disguise.protected_identity` | `false` | Disguise disguise.protected_identity | Controls the separately gated disguise action disguise.protected_identity | none |
+| `sef.disguise.trait.climbing` | `false` | Disguise disguise.trait.climbing | Controls the separately gated disguise action disguise.trait.climbing | none |
+| `sef.disguise.trait.controlled_flight` | `false` | Disguise disguise.trait.controlled_flight | Controls the separately gated disguise action disguise.trait.controlled_flight | none |
+| `sef.disguise.trait.daylight_sensitivity` | `false` | Disguise disguise.trait.daylight_sensitivity | Controls the separately gated disguise action disguise.trait.daylight_sensitivity | none |
+| `sef.disguise.trait.fire_resistance` | `false` | Disguise disguise.trait.fire_resistance | Controls the separately gated disguise action disguise.trait.fire_resistance | none |
+| `sef.disguise.trait.reduced_fall_damage` | `false` | Disguise disguise.trait.reduced_fall_damage | Controls the separately gated disguise action disguise.trait.reduced_fall_damage | none |
+| `sef.disguise.trait.swim_speed` | `false` | Disguise disguise.trait.swim_speed | Controls the separately gated disguise action disguise.trait.swim_speed | none |
+| `sef.disguise.trait.water_breathing` | `false` | Disguise disguise.trait.water_breathing | Controls the separately gated disguise action disguise.trait.water_breathing | none |
+| `sef.disguise.trait.water_vulnerability` | `false` | Disguise disguise.trait.water_vulnerability | Controls the separately gated disguise action disguise.trait.water_vulnerability | none |
 | `sef.disguise.traits` | `false` | Disguise disguise.traits | Controls the separately gated disguise action disguise.traits | none |
 | `sef.disguise.type.minecraft.bat` | `false` | Disguise disguise.type.minecraft.bat | Controls the separately gated disguise action disguise.type.minecraft.bat | none |
 | `sef.disguise.type.minecraft.bee` | `false` | Disguise disguise.type.minecraft.bee | Controls the separately gated disguise action disguise.type.minecraft.bee | none |
@@ -11539,8 +11817,8 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.gui.search` | `true` | Modular configuration gui.search | Controls the separately gated modular configuration or GUI policy action gui.search | none |
 | `sef.gui.use` | `true` | Modular configuration gui.use | Controls the separately gated modular configuration or GUI policy action gui.use | none |
 | `sef.helpop.receive` | `false` | Receive HelpOp | Receives HelpOp messages (operators) | none |
-| `sef.helpop.reply` | `false` | Reply HelpOp | Allows using /helpopop to reply | none |
-| `sef.helpop.send` | `true` | Send HelpOp | Allows sending /helpop requests | none |
+| `sef.helpop.reply` | `false` | Reply HelpOp | Allows using /helpopop to reply | `sef:chat.helpop.reply` |
+| `sef.helpop.send` | `true` | Send HelpOp | Allows sending /helpop requests | `sef:chat.helpop` |
 | `sef.home.admin.delete` | `false` | Home administration delete | Allows deleting another player's home | none |
 | `sef.home.admin.export` | `false` | Home administration export | Allows inspecting home repository export metadata | none |
 | `sef.home.admin.limit` | `false` | Home administration limit | Allows inspecting another player's effective home quota | none |
@@ -11590,7 +11868,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.mute.seeblocked` | `false` | See muted messages | Receives muted player messages relayed to operators | none |
 | `sef.nick.colors` | `false` | Nickname colors | Allows using color codes in nicknames | none |
 | `sef.nick.styles` | `false` | Nickname styles | Allows using style codes in nicknames | none |
-| `sef.opbulletin.manage` | `false` | Manage operator bulletins | Allows managing operator bulletins | none |
+| `sef.opbulletin.manage` | `false` | Manage operator bulletins | Allows managing operator bulletins | `sef:announcement.bulletin` |
 | `sef.opbulletin.receive` | `false` | Receive operator bulletins | Shows operator bulletins on login | none |
 | `sef.playerwarps.10` | `false` | Ten player warps | Sets the finite player warp quota tier to ten | none |
 | `sef.playerwarps.25` | `false` | Twenty five player warps | Sets the finite player warp quota tier to twenty five | none |
@@ -11656,7 +11934,7 @@ Permission entries: 11659. Defaults are fail closed unless a row explicitly stat
 | `sef.utilities.hierarchy.bypass` | `false` | Utility hierarchy bypass | Allows player utility mutations across hierarchy | none |
 | `sef.vanish.1` | `false` | Use vanish level 1 | Allows vanishing at level 1 | none |
 | `sef.vanish.2` | `false` | Use vanish level 2 | Allows vanishing at level 2 | none |
-| `sef.vanish.3` | `false` | Use vanish level 3 | Allows vanishing at level 3 | none |
+| `sef.vanish.3` | `false` | Use vanish level 3 | Allows vanishing at level 3 | `sef:vanish.manage` |
 | `sef.vanish.bypass.exempt` | `false` | Vanish exemption bypass | Allows changing vanish state for exempt players | none |
 | `sef.vanish.exempt` | `false` | Vanish exemption | Prevents other players from changing this player's vanish state | none |
 | `sef.vanish.hierarchy.bypass` | `false` | Vanish hierarchy bypass | Allows changing vanish state regardless of target hierarchy | none |

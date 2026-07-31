@@ -65,6 +65,30 @@ class KernelServicesCatalogTest {
     }
 
     @Test
+    void everyCatalogFeatureHasAPublishedRuntimeGate() {
+        KernelServices.initialize();
+        Set<String> published = KernelServices.featureGates().snapshot().features().keySet();
+
+        KernelServices.catalog().entries().forEach(definition ->
+                assertTrue(published.contains(definition.featureId()),
+                        definition.id() + " uses unpublished feature " + definition.featureId()));
+    }
+
+    @Test
+    void fancyTagsAndDisguiseUseTheirEnabledModuleGates() {
+        KernelServices.initialize();
+        Map<String, Boolean> features = KernelServices.featureGates().snapshot().features();
+
+        assertEquals(
+                "sef.fancy_tags",
+                KernelServices.catalog().find("sef:tags.doctor").orElseThrow().featureId());
+        assertEquals("fancy_tags", KernelServices.moduleConfigs().moduleForFeature("sef.fancy_tags"));
+        assertTrue(features.get("sef.fancy_tags"));
+        assertEquals("disguise", KernelServices.moduleConfigs().moduleForFeature("sef.disguise"));
+        assertTrue(features.get("sef.disguise"));
+    }
+
+    @Test
     void phaseSixAndSevenActionsAndShortcutsHaveCatalogOwnership() {
         KernelServices.initialize();
         Set<String> requiredActions = Set.of(

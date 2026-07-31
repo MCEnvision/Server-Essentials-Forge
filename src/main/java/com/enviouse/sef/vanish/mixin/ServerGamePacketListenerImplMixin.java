@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import com.enviouse.sef.invlock.InvLockManager;
 import com.enviouse.sef.social.ConnectionMessageService;
-import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.TraceHandler;
 import com.enviouse.sef.disguise.DisguiseProxyService;
@@ -51,7 +50,6 @@ public class ServerGamePacketListenerImplMixin {
 		TraceHandler.setTracing(player, false);
 	}
 
-	// Track active entity during packet handling for sound/event suppression.
 	@Inject(method = "handlePlayerAction", at = @At("HEAD"), cancellable = true)
 	public void vanishmod$beforeHandlePlayerAction(ServerboundPlayerActionPacket packet, CallbackInfo ci) {
 		if (InvLockManager.isEnforced(player.getUUID())
@@ -63,7 +61,6 @@ public class ServerGamePacketListenerImplMixin {
 			ci.cancel();
 			return;
 		}
-		VanishUtil.ACTIVE_ENTITY.set(player);
 	}
 
 	@Inject(
@@ -92,42 +89,11 @@ public class ServerGamePacketListenerImplMixin {
 		}
 	}
 
-	@Inject(method = {"handlePlayerAction", "handleUseItemOn", "handleUseItem", "handleInteract"}, at = @At("RETURN"))
-	public void vanishmod$afterPacket(CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.remove();
-	}
-
-	@Inject(method = "handleUseItemOn", at = @At("HEAD"))
-	public void vanishmod$beforeHandleUseItemOn(CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.set(player);
-	}
-
-	@Inject(method = "handleUseItem", at = @At("HEAD"))
-	public void vanishmod$beforeHandleUseItem(CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.set(player);
-	}
-
-	@Inject(method = "handleInteract", at = @At("HEAD"))
-	public void vanishmod$beforeHandleInteract(ServerboundInteractPacket packet, CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.set(player);
-	}
-
 	@Inject(method = "handleInteract", at = @At("HEAD"), cancellable = true)
 	private void sef$remapDisguiseProxy(ServerboundInteractPacket packet, CallbackInfo ci) {
 		int entityId = ((ServerboundInteractPacketAccessor) packet).sef$getEntityId();
 		if (DisguiseProxyService.handleInteraction(player, packet, entityId)) {
-			VanishUtil.ACTIVE_ENTITY.remove();
 			ci.cancel();
 		}
-	}
-
-	@Inject(method = "tick", at = @At("HEAD"))
-	public void vanishmod$beforeTick(CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.set(player);
-	}
-
-	@Inject(method = "tick", at = @At("RETURN"))
-	public void vanishmod$afterTick(CallbackInfo ci) {
-		VanishUtil.ACTIVE_ENTITY.remove();
 	}
 }

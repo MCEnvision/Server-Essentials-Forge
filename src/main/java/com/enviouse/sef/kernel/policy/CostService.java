@@ -12,6 +12,16 @@ public interface CostService {
 
     ActionResult<Reservation> reserve(UUID actorId, String actionId, BigDecimal amount);
 
+    default ActionResult<Reservation> reserve(
+            UUID actorId,
+            String actionId,
+            BigDecimal amount,
+            UUID operationId
+    ) {
+        Objects.requireNonNull(operationId, "operationId");
+        return reserve(actorId, actionId, amount);
+    }
+
     interface Reservation extends AutoCloseable {
         BigDecimal amount();
 

@@ -88,7 +88,9 @@ public final class DisguiseService implements StorageRepository {
         abilityCooldowns.clear();
         revision = 0L;
         flushedRevision = 0L;
-        boolean existed = java.nio.file.Files.exists(path);
+        boolean existed = java.nio.file.Files.exists(
+                path,
+                java.nio.file.LinkOption.NOFOLLOW_LINKS);
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
             state = existed ? RepositoryState.RECOVERY : RepositoryState.MISSING;
@@ -568,15 +570,18 @@ public final class DisguiseService implements StorageRepository {
         if (record == null) {
             return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "player is not disguised");
         }
-        if (!settings.abilitiesEnabled()) {
-            return ActionResult.failure(ActionResult.ReasonCode.FEATURE_DISABLED, "disguise abilities are disabled");
-        }
         MobAdapter adapter = mobAdapters.get(record.reference());
         AbilityDefinition ability = adapter == null ? null : adapter.abilities().get(slot);
         if (ability == null) {
             return ActionResult.failure(
                     ActionResult.ReasonCode.NOT_FOUND,
                     "this disguise has no " + slot.name().toLowerCase(Locale.ROOT) + " ability");
+        }
+        if (!settings.abilitiesEnabled()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.FEATURE_DISABLED,
+                    "disguise abilities are disabled in disguise.toml at "
+                            + "runtime.disguise_abilities_enabled");
         }
         if (!record.abilitiesEnabled()) {
             return ActionResult.failure(

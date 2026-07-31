@@ -10,19 +10,21 @@ import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.datafixers.util.Pair;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundAnimatePacket;
+import net.minecraft.network.protocol.game.ClientboundEntityEventPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
-import net.minecraft.network.protocol.game.ClientboundRotateHeadPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
-import net.minecraft.network.protocol.game.ClientboundTeleportEntityPacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerEntity;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
 
@@ -36,13 +38,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 public final class DisguiseProxyService {
     private static final int MAXIMUM_PROXIES_PER_VIEWER = SefProtocol.MAXIMUM_DISGUISE_PROJECTIONS;
     private static final int MAXIMUM_TOTAL_PROXIES = 65_536;
+    private static final int SPATIAL_BUCKET_SIZE = 32;
+    private static final int SPATIAL_BUCKET_RADIUS = 4;
+    private static final int MAXIMUM_SYNCHRONIZATION_CHECKS_PER_TICK = 8_192;
+    private static final long MAXIMUM_SYNCHRONIZATION_NANOS = TimeUnit.MILLISECONDS.toNanos(2);
     private static final double MAXIMUM_TRACKING_DISTANCE_SQUARED = 128.0D * 128.0D;
     private static final double MAXIMUM_INTERACTION_DISTANCE_SQUARED = 3.0D * 3.0D;
     private static final Map<ObserverSubject, ProxyView> PROXIES = new HashMap<>();
+    private static final Map<ObserverEntity, ObserverSubject> REAL_ENTITY_INDEX = new HashMap<>();
+    private static final Map<UUID, PermissionCache> PERMISSION_CACHE = new HashMap<>();
+    private static int viewerCursor;
+    private static volatile TickDiagnostic lastDiagnostic = new TickDiagnostic(0, 0, 0L);
 
     private DisguiseProxyService() {
     }
@@ -54,27 +65,42 @@ public final class DisguiseProxyService {
             clear(server);
             return;
         }
-        Set<UUID> online = server.getPlayerList().getPlayers().stream()
-                .map(ServerPlayer::getUUID)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        List<ObserverSubject> abandoned;
-        synchronized (PROXIES) {
-            abandoned = PROXIES.keySet().stream()
-                    .filter(key -> !online.contains(key.observerId()) || !online.contains(key.subjectId()))
-                    .toList();
+        long started = System.nanoTime();
+        List<ServerPlayer> viewers = List.copyOf(server.getPlayerList().getPlayers());
+        if (viewers.isEmpty()) {
+            lastDiagnostic = new TickDiagnostic(0, 0, System.nanoTime() - started);
+            return;
         }
-        abandoned.forEach(key -> remove(server, key, false));
-        for (ServerPlayer viewer : server.getPlayerList().getPlayers()) {
-            synchronizeViewer(viewer);
+        SubjectIndex index = subjectIndex(server);
+        int checks = 0;
+        int synchronizedViewers = 0;
+        int start = Math.floorMod(viewerCursor, viewers.size());
+        for (int offset = 0; offset < viewers.size(); offset++) {
+            if (checks >= MAXIMUM_SYNCHRONIZATION_CHECKS_PER_TICK
+                    || System.nanoTime() - started >= MAXIMUM_SYNCHRONIZATION_NANOS) {
+                break;
+            }
+            int viewerIndex = Math.floorMod(start + offset, viewers.size());
+            ServerPlayer viewer = viewers.get(viewerIndex);
+            int remaining = MAXIMUM_SYNCHRONIZATION_CHECKS_PER_TICK - checks;
+            checks += synchronizeViewer(viewer, index, remaining, server.getTickCount());
+            synchronizedViewers++;
+            viewerCursor = Math.floorMod(viewerIndex + 1, viewers.size());
         }
+        lastDiagnostic = new TickDiagnostic(
+                synchronizedViewers,
+                checks,
+                System.nanoTime() - started);
     }
 
     public static boolean shouldSuppressRealSpawn(ServerPlayer viewer, int entityId) {
         synchronized (PROXIES) {
-            return PROXIES.values().stream().anyMatch(view ->
-                    view.allocation().observerId().equals(viewer.getUUID())
-                            && view.realEntityId() == entityId);
+            return REAL_ENTITY_INDEX.containsKey(new ObserverEntity(viewer.getUUID(), entityId));
         }
+    }
+
+    public static TickDiagnostic diagnostic() {
+        return lastDiagnostic;
     }
 
     public static boolean handleInteraction(
@@ -136,6 +162,9 @@ public final class DisguiseProxyService {
                     .toList();
         }
         affected.forEach(key -> remove(server, key, false));
+        synchronized (PROXIES) {
+            PERMISSION_CACHE.remove(playerId);
+        }
     }
 
     public static void clear(MinecraftServer server) {
@@ -145,6 +174,11 @@ public final class DisguiseProxyService {
         }
         keys.forEach(key -> remove(server, key, true));
         KernelServices.disguiseProxyIds().clear();
+        synchronized (PROXIES) {
+            REAL_ENTITY_INDEX.clear();
+            PERMISSION_CACHE.clear();
+            viewerCursor = 0;
+        }
     }
 
     public static int size() {
@@ -153,27 +187,31 @@ public final class DisguiseProxyService {
         }
     }
 
-    private static void synchronizeViewer(ServerPlayer viewer) {
+    private static int synchronizeViewer(
+            ServerPlayer viewer,
+            SubjectIndex index,
+            int maximumChecks,
+            int tick
+    ) {
         if (supportsEnhancedDisguises(viewer)) {
             removeViewer(viewer, true);
-            return;
+            return 1;
         }
+        boolean staff = staff(viewer, tick);
         Set<UUID> desired = new HashSet<>();
         int accepted = 0;
-        for (DisguiseService.DisguiseRecord record : KernelServices.disguises().active()) {
-            if (accepted >= MAXIMUM_PROXIES_PER_VIEWER) {
+        int checks = 0;
+        for (IndexedSubject indexed : index.nearby(viewer)) {
+            if (accepted >= MAXIMUM_PROXIES_PER_VIEWER || checks >= maximumChecks) {
                 break;
             }
-            ServerPlayer subject = viewer.server.getPlayerList().getPlayer(record.subjectId());
-            if (subject == null
-                    || subject == viewer
-                    || subject.level() != viewer.level()
+            checks++;
+            ServerPlayer subject = indexed.subject();
+            DisguiseService.DisguiseRecord record = indexed.record();
+            if (subject == viewer
                     || viewer.distanceToSqr(subject) > MAXIMUM_TRACKING_DISTANCE_SQUARED) {
                 continue;
             }
-            boolean staff = PermissionService.has(
-                    viewer,
-                    PermissionsHandler.phasePermission("commands.disguise.inspect"));
             DisguiseService.Projection projection = KernelServices.disguises().projection(
                     viewer.getUUID(),
                     subject.getUUID(),
@@ -184,64 +222,58 @@ public final class DisguiseProxyService {
                 continue;
             }
             desired.add(subject.getUUID());
-            synchronize(viewer, subject, projection.record());
+            synchronize(viewer, subject, projection.record(), staff);
             accepted++;
         }
-        List<ObserverSubject> stale;
-        synchronized (PROXIES) {
-            stale = PROXIES.keySet().stream()
-                    .filter(key -> key.observerId().equals(viewer.getUUID())
-                            && !desired.contains(key.subjectId()))
-                    .toList();
+        if (checks < maximumChecks) {
+            List<ObserverSubject> stale;
+            synchronized (PROXIES) {
+                stale = PROXIES.keySet().stream()
+                        .filter(key -> key.observerId().equals(viewer.getUUID())
+                                && !desired.contains(key.subjectId()))
+                        .toList();
+            }
+            stale.forEach(key -> remove(viewer.server, key, true));
         }
-        stale.forEach(key -> remove(viewer.server, key, true));
+        return Math.max(1, checks);
     }
 
     private static void synchronize(
             ServerPlayer viewer,
             ServerPlayer subject,
-            DisguiseService.DisguiseRecord record
+            DisguiseService.DisguiseRecord record,
+            boolean staff
     ) {
         ObserverSubject key = new ObserverSubject(viewer.getUUID(), subject.getUUID());
         ProxyView current;
         synchronized (PROXIES) {
             current = PROXIES.get(key);
         }
-        if (current == null || current.allocation().disguiseRevision() != record.revision()) {
+        if (current == null
+                || current.allocation().disguiseRevision() != record.revision()
+                || current.realEntityId() != subject.getId()) {
             if (current != null) {
                 remove(viewer.server, key, false);
             }
-            spawn(viewer, subject, record);
+            spawn(viewer, subject, record, staff);
             return;
         }
         copyTransform(subject, current.proxy());
-        viewer.connection.send(new ClientboundTeleportEntityPacket(current.proxy()));
-        viewer.connection.send(new ClientboundRotateHeadPacket(
-                current.proxy(),
-                (byte) Math.floor(current.proxy().getYHeadRot() * 256.0F / 360.0F)));
-        viewer.connection.send(new ClientboundSetEntityMotionPacket(
-                current.proxy().getId(),
-                current.proxy().getDeltaMovement()));
+        current.tracker().sendChanges();
+        sendAnimations(viewer, subject, current);
         Map<EquipmentSlot, ItemStack> equipment =
-                effectiveEquipment(viewer, subject, record.equipmentPolicy());
+                effectiveEquipment(subject, record.equipmentPolicy(), staff);
         if (!sameEquipment(current.equipment(), equipment)) {
             sendEquipment(viewer, current.proxy().getId(), equipment);
-            synchronized (PROXIES) {
-                if (PROXIES.get(key) == current) {
-                    PROXIES.put(key, new ProxyView(
-                            current.allocation(),
-                            current.realEntityId(),
-                            current.proxy(),
-                            equipment));
-                }
-            }
+            current.equipment(equipment);
         }
     }
 
     private static void spawn(
             ServerPlayer viewer,
             ServerPlayer subject,
-            DisguiseService.DisguiseRecord record
+            DisguiseService.DisguiseRecord record,
+            boolean staff
     ) {
         synchronized (PROXIES) {
             if (PROXIES.size() >= MAXIMUM_TOTAL_PROXIES) {
@@ -266,10 +298,26 @@ public final class DisguiseProxyService {
                         + record.revision()).getBytes(StandardCharsets.UTF_8)));
         copyTransform(subject, proxy);
         Map<EquipmentSlot, ItemStack> equipment =
-                effectiveEquipment(viewer, subject, record.equipmentPolicy());
-        ProxyView created = new ProxyView(allocation, subject.getId(), proxy, equipment);
+                effectiveEquipment(subject, record.equipmentPolicy(), staff);
+        ServerEntity tracker = new ServerEntity(
+                subject.serverLevel(),
+                proxy,
+                1,
+                true,
+                packet -> viewer.connection.send(packet));
+        ProxyView created = new ProxyView(
+                allocation,
+                subject.getId(),
+                proxy,
+                tracker,
+                equipment,
+                subject.swinging,
+                subject.swingTime,
+                subject.hurtTime);
         synchronized (PROXIES) {
-            PROXIES.put(new ObserverSubject(viewer.getUUID(), subject.getUUID()), created);
+            ObserverSubject key = new ObserverSubject(viewer.getUUID(), subject.getUUID());
+            PROXIES.put(key, created);
+            REAL_ENTITY_INDEX.put(new ObserverEntity(viewer.getUUID(), subject.getId()), key);
         }
         viewer.connection.send(new ClientboundRemoveEntitiesPacket(subject.getId()));
         viewer.connection.send(new ClientboundAddEntityPacket(proxy, 0, proxy.blockPosition()));
@@ -290,18 +338,46 @@ public final class DisguiseProxyService {
         proxy.setPose(subject.getPose());
         proxy.setOnGround(subject.onGround());
         proxy.setDeltaMovement(subject.getDeltaMovement());
+        proxy.setSprinting(subject.isSprinting());
+        proxy.setShiftKeyDown(subject.isShiftKeyDown());
+        proxy.setSwimming(subject.isSwimming());
+        proxy.setGlowingTag(subject.isCurrentlyGlowing());
+        if (proxy instanceof LivingEntity living) {
+            living.setYBodyRot(subject.yBodyRot);
+            living.setArrowCount(subject.getArrowCount());
+            living.setStingerCount(subject.getStingerCount());
+        }
+        if (proxy instanceof Bat bat) {
+            bat.setResting(false);
+        }
+    }
+
+    private static void sendAnimations(
+            ServerPlayer viewer,
+            ServerPlayer subject,
+            ProxyView view
+    ) {
+        if (subject.swinging
+                && (!view.swinging() || subject.swingTime < view.swingTime())) {
+            int action = subject.swingingArm == InteractionHand.OFF_HAND
+                    ? ClientboundAnimatePacket.SWING_OFF_HAND
+                    : ClientboundAnimatePacket.SWING_MAIN_HAND;
+            viewer.connection.send(new ClientboundAnimatePacket(view.proxy(), action));
+        }
+        if (subject.hurtTime > view.hurtTime()) {
+            viewer.connection.send(new ClientboundEntityEventPacket(view.proxy(), (byte) 2));
+        }
+        view.animationState(subject.swinging, subject.swingTime, subject.hurtTime);
     }
 
     private static Map<EquipmentSlot, ItemStack> effectiveEquipment(
-            ServerPlayer viewer,
             ServerPlayer subject,
-            DisguiseService.EquipmentPolicy policy
+            DisguiseService.EquipmentPolicy policy,
+            boolean staff
     ) {
         boolean reveal = policy == DisguiseService.EquipmentPolicy.SHOW_REAL_EQUIPMENT
                 || policy == DisguiseService.EquipmentPolicy.STAFF_REVEAL
-                && PermissionService.has(
-                        viewer,
-                        PermissionsHandler.phasePermission("commands.disguise.inspect"));
+                && staff;
         Map<EquipmentSlot, ItemStack> equipment = new EnumMap<>(EquipmentSlot.class);
         for (EquipmentSlot slot : EquipmentSlot.values()) {
             boolean held = slot == EquipmentSlot.MAINHAND || slot == EquipmentSlot.OFFHAND;
@@ -354,6 +430,11 @@ public final class DisguiseProxyService {
         ProxyView removed;
         synchronized (PROXIES) {
             removed = PROXIES.remove(key);
+            if (removed != null) {
+                REAL_ENTITY_INDEX.remove(
+                        new ObserverEntity(key.observerId(), removed.realEntityId()),
+                        key);
+            }
         }
         KernelServices.disguiseProxyIds().release(key.observerId(), key.subjectId());
         if (removed == null) {
@@ -381,9 +462,9 @@ public final class DisguiseProxyService {
             viewer.connection.send(new ClientboundSetEntityDataPacket(subject.getId(), metadata));
         }
         sendEquipment(viewer, subject.getId(), effectiveEquipment(
-                viewer,
                 subject,
-                DisguiseService.EquipmentPolicy.SHOW_REAL_EQUIPMENT));
+                DisguiseService.EquipmentPolicy.SHOW_REAL_EQUIPMENT,
+                true));
         viewer.connection.send(new ClientboundSetEntityMotionPacket(
                 subject.getId(),
                 subject.getDeltaMovement()));
@@ -395,14 +476,153 @@ public final class DisguiseProxyService {
                 .orElse(false);
     }
 
+    private static SubjectIndex subjectIndex(MinecraftServer server) {
+        Map<UUID, DisguiseService.DisguiseRecord> active = new HashMap<>();
+        for (DisguiseService.DisguiseRecord record : KernelServices.disguises().active()) {
+            active.put(record.subjectId(), record);
+        }
+        Map<SpatialBucket, List<IndexedSubject>> buckets = new HashMap<>();
+        for (ServerPlayer subject : server.getPlayerList().getPlayers()) {
+            DisguiseService.DisguiseRecord record = active.get(subject.getUUID());
+            if (record == null) {
+                continue;
+            }
+            SpatialBucket bucket = SpatialBucket.of(subject);
+            buckets.computeIfAbsent(bucket, ignored -> new ArrayList<>())
+                    .add(new IndexedSubject(subject, record));
+        }
+        buckets.replaceAll((ignored, subjects) -> List.copyOf(subjects));
+        return new SubjectIndex(Map.copyOf(buckets));
+    }
+
+    private static boolean staff(ServerPlayer viewer, int tick) {
+        synchronized (PROXIES) {
+            PermissionCache cached = PERMISSION_CACHE.get(viewer.getUUID());
+            if (cached != null && cached.expiresAfterTick() >= tick) {
+                return cached.staff();
+            }
+        }
+        boolean staff = PermissionService.has(
+                viewer,
+                PermissionsHandler.phasePermission("commands.disguise.inspect"));
+        synchronized (PROXIES) {
+            PERMISSION_CACHE.put(viewer.getUUID(), new PermissionCache(staff, tick + 20));
+        }
+        return staff;
+    }
+
     private record ObserverSubject(UUID observerId, UUID subjectId) {
     }
 
-    private record ProxyView(
-            ProxyEntityIdAllocator.Allocation allocation,
-            int realEntityId,
-            Entity proxy,
-            Map<EquipmentSlot, ItemStack> equipment
+    private record ObserverEntity(UUID observerId, int realEntityId) {
+    }
+
+    private record PermissionCache(boolean staff, int expiresAfterTick) {
+    }
+
+    private record IndexedSubject(
+            ServerPlayer subject,
+            DisguiseService.DisguiseRecord record
     ) {
+    }
+
+    private record SpatialBucket(String dimensionId, int x, int z) {
+        private static SpatialBucket of(ServerPlayer player) {
+            return new SpatialBucket(
+                    player.level().dimension().location().toString(),
+                    Math.floorDiv(player.getBlockX(), SPATIAL_BUCKET_SIZE),
+                    Math.floorDiv(player.getBlockZ(), SPATIAL_BUCKET_SIZE));
+        }
+    }
+
+    private record SubjectIndex(Map<SpatialBucket, List<IndexedSubject>> buckets) {
+        private List<IndexedSubject> nearby(ServerPlayer viewer) {
+            SpatialBucket origin = SpatialBucket.of(viewer);
+            List<IndexedSubject> result = new ArrayList<>();
+            for (int x = -SPATIAL_BUCKET_RADIUS; x <= SPATIAL_BUCKET_RADIUS; x++) {
+                for (int z = -SPATIAL_BUCKET_RADIUS; z <= SPATIAL_BUCKET_RADIUS; z++) {
+                    result.addAll(buckets.getOrDefault(
+                            new SpatialBucket(origin.dimensionId(), origin.x() + x, origin.z() + z),
+                            List.of()));
+                }
+            }
+            return result;
+        }
+    }
+
+    public record TickDiagnostic(int synchronizedViewers, int subjectChecks, long elapsedNanos) {
+    }
+
+    private static final class ProxyView {
+        private final ProxyEntityIdAllocator.Allocation allocation;
+        private final int realEntityId;
+        private final Entity proxy;
+        private final ServerEntity tracker;
+        private Map<EquipmentSlot, ItemStack> equipment;
+        private boolean swinging;
+        private int swingTime;
+        private int hurtTime;
+
+        private ProxyView(
+                ProxyEntityIdAllocator.Allocation allocation,
+                int realEntityId,
+                Entity proxy,
+                ServerEntity tracker,
+                Map<EquipmentSlot, ItemStack> equipment,
+                boolean swinging,
+                int swingTime,
+                int hurtTime
+        ) {
+            this.allocation = allocation;
+            this.realEntityId = realEntityId;
+            this.proxy = proxy;
+            this.tracker = tracker;
+            this.equipment = equipment;
+            this.swinging = swinging;
+            this.swingTime = swingTime;
+            this.hurtTime = hurtTime;
+        }
+
+        private ProxyEntityIdAllocator.Allocation allocation() {
+            return allocation;
+        }
+
+        private int realEntityId() {
+            return realEntityId;
+        }
+
+        private Entity proxy() {
+            return proxy;
+        }
+
+        private ServerEntity tracker() {
+            return tracker;
+        }
+
+        private Map<EquipmentSlot, ItemStack> equipment() {
+            return equipment;
+        }
+
+        private void equipment(Map<EquipmentSlot, ItemStack> replacement) {
+            equipment = replacement;
+        }
+
+        private boolean swinging() {
+            return swinging;
+        }
+
+        private int swingTime() {
+            return swingTime;
+        }
+
+        private int hurtTime() {
+            return hurtTime;
+        }
+
+        private void animationState(boolean newSwinging, int newSwingTime, int newHurtTime) {
+            swinging = newSwinging;
+            swingTime = newSwingTime;
+            hurtTime = newHurtTime;
+        }
     }
 }

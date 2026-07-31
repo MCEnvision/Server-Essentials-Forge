@@ -3,6 +3,7 @@ package com.enviouse.sef.gui.protocol;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
+import com.enviouse.sef.kernel.ExecutionOperationScope;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -136,7 +137,7 @@ public final class GuiWorkflowCommandHooks {
         public int run(CommandContext<CommandSourceStack> context)
                 throws CommandSyntaxException {
             CommandSourceStack source = context.getSource();
-            if (source.getPlayer() == null) {
+            if (source.getPlayer() == null && ExecutionOperationScope.current().isEmpty()) {
                 return delegate.run(context);
             }
             Collection<ServerPlayer> targets =

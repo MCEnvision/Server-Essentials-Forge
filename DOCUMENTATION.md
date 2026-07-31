@@ -14,14 +14,14 @@ Use this source order when requirements appear to conflict:
 
 Do not describe a roadmap item as implemented until code, configuration, tests, and operational documentation agree.
 
-SEF 2 Phases 0 through 14, global verification, and final product acceptance are complete on the current phase branch. The authoritative status and evidence are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
+SEF 2 is not release complete on the current phase branch. Sixteen Phase 13 runtime families remain explicitly unavailable, and the multiplayer and interactive regression matrices are still open. The authoritative status and current automated evidence are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
 
 ## 2. Platform and toolchain
 
 The project currently pins:
 
 1. Minecraft `1.21.1`.
-2. NeoForge `21.1.233`.
+2. NeoForge `21.1.235`.
 3. Java toolchain `21`.
 4. Gradle Wrapper `8.8`.
 5. ModDevGradle `2.0.141`.
@@ -86,7 +86,7 @@ Important package ownership:
 25. `com.enviouse.sef.gui` and `com.enviouse.sef.gui.protocol` own the universal descriptor catalog, typed workflows, sessions, bounded payloads, server validation, client screens, and private HUD projection.
 26. `com.enviouse.sef.fancytags` owns tag definitions, assignments, secure import, content-addressed objects, publication recovery, transfers, cleanup, and server authority. Client rendering and local projects stay under `com.enviouse.sef.gui.client`.
 27. `com.enviouse.sef.disguise` owns disguise definitions, assignments, traits, abilities, proxy identity, target policy, expiry, persistence, and projection.
-28. `com.enviouse.sef.control` owns the 70 server-control schemas, persistent records, community workflows, approvals, access leases, administrative locks, runtime enforcement, command fallback, and GUI bindings.
+28. `com.enviouse.sef.control` owns the 75 server-control schemas, persistent records, community workflows, approvals, access leases, administrative locks, runtime enforcement, command fallback, and GUI bindings.
 29. `com.enviouse.sef.escrow` owns parcels, lost and found, direct trades, auctions, watches, blocks, claims, settlement, expiry, and recovery.
 30. `com.enviouse.sef.recovery` owns grave and recovery migration state.
 31. `com.enviouse.sef.config.modules` owns the 62 typed module schemas, transactional publication, migration, backup, rollback, watcher, command editor, and generated documentation model.
@@ -133,6 +133,8 @@ The current top level command families include:
 30. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma`, with explicit target support only where the matching other-player permission is granted.
 31. `/cartographytable`, `/grindstone`, `/loom`, `/smithingtable`, `/stonecutter`, `/workbench`, and `/wb`, plus their canonical `/sef workstation` routes.
 
+`/feed` sets the target food level to `20` and saturation to `0.0F` without changing health, exhaustion, effects, or fire state. This avoids the saturation-driven fast-regeneration burst. Later natural regeneration remains governed by normal Minecraft gamerules, ticks, food level, and exhaustion. `/heal` remains the separate explicit recovery command.
+
 `/sudo`, `/run`, and `/silent` are registered through the hardened Phase 11 administrative execution service. Their dangerous actions remain disabled or denied by default and do not call the retained legacy sudo executor.
 
 Aliases must reach the same executor, permission, module toggle, and cooldown policy as their canonical command.
@@ -141,18 +143,20 @@ Aliases must reach the same executor, permission, module toggle, and cooldown po
 
 ### 6.1 Permission service
 
-`PermissionService` is the central facade over NeoForge `PermissionAPI`.
+`PermissionService` is the central facade over NeoForge `PermissionAPI` and the optional direct LuckPerms decision path.
 
 Current source behavior:
 
-1. Online players use `PermissionAPI.getPermission`.
-2. UUID based checks use `PermissionAPI.getOfflinePermission`.
-3. An unavailable permission service fails closed.
-4. Console and RCON sources without an entity require vanilla permission level `4`.
-5. Command blocks and other nonplayer level `2` sources do not receive a general bypass.
-6. LuckPerms remains optional. NeoForge selects the installed permission provider.
-7. Structured permission decisions retain the permission id, outcome, provider source, default use state, hierarchy state, exemption state, subject class, and reason without exposing player supplied command arguments.
-8. Permission refresh invalidates cached optional provider data and quota policy revisions, reconciles vanish state, refreshes the tab name, and sends a newly filtered Brigadier tree to the affected online player.
+1. Online players evaluate `PermissionAPI.getPermission` and, when LuckPerms is installed, the current cached direct LuckPerms decision.
+2. UUID based checks evaluate `PermissionAPI.getOfflinePermission` and the same direct provider decision when the user is available.
+3. Direct LuckPerms evaluation checks the exact node, then the nearest `.*` ancestor, then broader ancestors, then global `*`. The first defined result wins, including an explicit deny.
+4. A direct deny overrides a conflicting NeoForge grant. A direct grant remains valid during a transient NeoForge capability initialization failure. Undefined direct state defers to NeoForge. Failure of both paths fails closed.
+5. Console and RCON sources without an entity require vanilla permission level `4`.
+6. Command blocks and other nonplayer level `2` sources do not receive a general bypass.
+7. LuckPerms remains optional. Servers without it continue through the active NeoForge permission handler.
+8. Structured permission decisions retain the permission id, outcome, provider source, default use state, hierarchy state, exemption state, subject class, and reason without exposing player supplied command arguments.
+9. Permission refresh invalidates cached optional provider data and quota policy revisions, reconciles vanish state, refreshes the tab name, and sends a newly filtered Brigadier tree to the affected online player.
+10. Provider-only delegation checks in approval and access-grant workflows use the same exact and wildcard LuckPerms bridge. They intentionally exclude access leases and one-execution sudo scope so temporary SEF authority cannot mint new authority.
 
 `PermissionsHandler.playerHasPermission` remains as a compatibility method and delegates to `PermissionService`. New implementation should call `PermissionService` directly.
 
@@ -750,7 +754,7 @@ Required Phase 1 integration verification includes:
 4. FTB Essentials with its required dependencies.
 5. All three integration families installed together.
 
-The dedicated startup matrix passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every run reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. Provider absence, failure, refresh invalidation, finite fallback, metadata parsing, ownership selection, and optional-inventory behavior also have deterministic automated coverage.
+The earlier dedicated integration startup matrix passed on NeoForge `21.1.233` with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every startup reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. This historical startup evidence does not prove current compatibility on `21.1.235`. LuckPerms NeoForge `5.4.140` also threw `Capability has not been initialised` from its own login listener on `21.1.233`. Provider absence, direct wildcard and denial precedence, bridge failure, refresh invalidation, finite fallback, metadata parsing, ownership selection, and optional-inventory behavior have deterministic automated coverage. A current real multiplayer integration matrix remains open.
 
 ### 14.1 Optional enhanced client protocol
 
@@ -798,7 +802,7 @@ Bare `/msg`, `/give`, `/enchant`, `/invsee`, and `/disguise` open their typed wo
 
 The reviewed other-player give workflow may select up to `1000` visible UUIDs. Online targets execute independently through the canonical route. Each offline target receives one separate deferred record. `OfflineActionRepository` stores only the action id, compiled variant, bounded typed values, issuer UUID, target UUID, timestamps, and state. `OfflineActionService` waits until both authenticated players are online, then fetches the action again, recompiles its current workflow, checks module and action availability, rechecks the issuer’s permission and current target, validates every field, substitutes the target’s current authenticated name, and executes the canonical route. Records expire after seven days. Batch execution is intentionally per-target rather than atomic and reports immediate, queued, and failed counts. Private messages and unrelated actions are not accepted by this queue.
 
-`SefPanelScreen` is client only. It provides the dashboard, list, detail, form, picker, confirmation, and progress views with vanilla widgets, item icons, keyboard focus, narration summaries, search, refresh, paging, and resize initialization. `SefWorkflowScreen`, `SefPlayerPickerScreen`, `SefItemPickerScreen`, `SefSuggestionPickerScreen`, `SefControlEditorScreen`, `FancyTagStudioScreen`, and `SefInvSeeScreen` remain client-only implementations. The pause screen button is added only while the current session has the pause capability. The configurable keybind is unbound by default.
+`SefPanelScreen` is client only. It provides the dashboard, list, detail, form, picker, confirmation, and progress views with vanilla widgets, item icons, keyboard focus, narration summaries, search, refresh, paging, and resize initialization. `SefWorkflowScreen`, `SefPlayerPickerScreen`, `SefItemPickerScreen`, `SefSuggestionPickerScreen`, `SefControlEditorScreen`, `FancyTagStudioScreen`, and `SefInvSeeScreen` remain client-only implementations. SEF screens do not request Minecraft’s menu blur pass and leave the live world sharp behind their opaque panels. Item picker slots draw no label over the icon and hover renders exactly one native item tooltip. The pause screen button is added only while the current session has the pause capability. The configurable keybind is unbound by default.
 
 SEF screens always use a transparent sharp-world background. `/sef client preference blur off` explicitly preserves this behavior. `/sef client preference blur on` is rejected, and old UUID preference records with a missing or true `backgroundBlur` value normalize to false. The server always clears the legacy blur feature bit. Each SEF screen draws one transparent overlay before its panel and suppresses the second background pass that `Screen.render` normally invokes, so the superclass widget render cannot call Minecraft’s blur effect or darken the panel again.
 
@@ -985,7 +989,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
-The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the final 390-test unit suite, 29 required GameTests, dedicated-server checks, enhanced and fallback client matrix, migration and recovery fixtures, performance budgets, security review, and JAR inspection.
+The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 487-test unit suite, 39 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
 ## 17. Operations and recovery
 
@@ -1116,13 +1120,15 @@ Enhanced projection copies current and previous position, body rotation, head ro
 
 ### 20.3 Server controls and community workflows
 
-`ServerControlSchemaRegistry` defines all 70 server-control systems and their typed fields, defaults, bounds, permissions, confirmation policy, fallback command, workflow, and HUD decision. `ServerControlExecutionService` validates operation shape and revisions. `MinecraftServerControlRuntime` registers the live handlers and enforcement hooks for maintenance, restart, change windows, guardrails, cleanup, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and display ownership.
+`ServerControlSchemaRegistry` defines all 75 server-control systems and their typed fields, defaults, bounds, permissions, confirmation policy, fallback command, workflow, and HUD decision. `ServerControlExecutionService` validates operation shape and revisions. Fifty-nine schemas currently have executable runtime handlers.
 
-`ServerControlRepository` stores bounded control records. `CommunityStateRepository` owns social and governance state that needs dedicated indexes and ownership rules. Approval, access lease, and administrative lock domains use separate repositories so authorization state is never inferred from a generic record. Runtime mutation rechecks feature, source, permission, hierarchy, exemption, target, revision, confirmation, rate, and recovery state.
+The following sixteen schemas do not yet have complete runtime behavior and are not release complete: `admin_journal`, `afk_zones`, `approvals`, `capability_leases`, `chat_channels`, `display_ownership`, `display_profiles`, `player_warp_review`, `portal_policy`, `resource_governor`, `resource_worlds`, `rollouts`, `server_presentation`, `spawn_ecology`, `staff_duty`, and `waypoints`. Their schemas, permissions, records, command fallback, and editor descriptors remain visible for testing, but preview reports the runtime as unavailable and execution cannot activate or resolve the record. `/sef doctor` reports the executable and unavailable counts and names.
+
+`ServerControlRepository` stores bounded control records. `CommunityStateRepository` owns social and governance state that needs dedicated indexes and ownership rules. Approval, access lease, and administrative lock domains use separate repositories so authorization state is never inferred from a generic record. Runtime mutation rechecks feature, source, permission, hierarchy, exemption, target, revision, confirmation, rate, and recovery state. A live policy, scheduled job, or integration record cannot enter `ACTIVE` or `RESOLVED` through the generic state command. Only a successful execution handler may perform that transition.
 
 The `admission` policy owns `maximum_players`, `reserved_slots`, `joins_per_minute`, and its denial message. The `queue` policy supports `deny_retry`, `native_wait`, `restricted_lobby`, and `proxy_adapter`. Native wait is implemented during NeoForge player negotiation. It holds a bounded login future, not joined player state, and applies `maximum_entries`, `maximum_wait_seconds`, duplicate-login replacement, disconnected-client cleanup, FIFO release, and short release reservations. Queue state is visible through the queue control diagnostics.
 
-`sef.commands.control.admission.exempt` bypasses the SEF admission limit and rate policy. `sef.commands.control.queue.exempt` bypasses the SEF queue gate. These permissions do not override the hard `max-players` limit owned by Minecraft. Configure the SEF admission maximum below `server.properties` `max-players` when administrative headroom is required. A true network-wide Velocity queue still requires a trusted proxy adapter; unavailable `proxy_adapter` mode fails explicitly.
+`sef.commands.control.admission.exempt` bypasses the SEF admission limit and rate policy. `sef.commands.control.queue.exempt` bypasses the SEF queue gate. During the exact vanilla full-server denial, SEF permits a connection with either explicit exemption to continue. This is an intentional administrator bypass and does not raise the advertised `max-players` value or admit ordinary players beyond it. A true network-wide Velocity queue still requires a trusted proxy adapter; unavailable `proxy_adapter` mode fails explicitly.
 
 ### 20.4 Escrow and recovery
 
@@ -1152,7 +1158,10 @@ Permission appears denied:
 2. Confirm the module is enabled.
 3. Confirm LuckPerms is loaded when it is the intended provider.
 4. Test with `/lp user <name> permission check <node>` when LuckPerms is installed.
-5. Remember that generic operator level `2` is not a permission service bypass.
+5. Test the exact node, its nearest wildcard, `sef.*`, and global `*`. An exact false assignment overrides a broader true assignment.
+6. Run `/sef doctor` and confirm the reported permission provider. `luckperms:direct` in an action decision means the direct provider path supplied the result.
+7. Refresh LuckPerms data, resend the command tree, and reconnect before treating stale suggestions as an execution decision.
+8. Remember that generic operator level `2` is not a permission service bypass.
 
 Delegated `/sudo` is denied:
 
@@ -1189,10 +1198,11 @@ Fancy Tags or disguise says disabled while its module file says enabled:
 Admission queue does not admit an exempt administrator:
 
 1. Confirm `sef.commands.control.admission.exempt` or `sef.commands.control.queue.exempt`.
-2. Keep `server.properties` `max-players` above the SEF `maximum_players` value when administrative headroom is required.
+2. Confirm the exemption is a real provider grant and is not overridden by a more specific deny.
 3. Confirm the active queue mode is `native_wait`.
 4. Inspect `/queue` and `/sef control queue list`.
-5. If the vanilla hard player cap is already full, configure Minecraft’s own player-limit bypass separately. SEF does not override that hard cap.
+5. Confirm `/sef doctor` reports the admission and queue runtime as executable.
+6. If the server is full, inspect the log for a non-capacity denial. SEF clears only Minecraft’s exact full-server denial for explicitly exempt profiles.
 
 ## 22. Security and privacy
 
@@ -1239,4 +1249,4 @@ Before an approved release:
 
 ## 24. Completion status
 
-[sef2.md](sef2.md) remains the exhaustive product and architecture blueprint. Phases 0 through 14, the global verification matrix, and final product acceptance are complete on the current phase branch. The authoritative counts, runtime evidence, artifact digest, and per-phase result are in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
+[sef2.md](sef2.md) remains the exhaustive product and architecture blueprint. Final product acceptance is incomplete on the current phase branch. Sixteen Phase 13 runtime families and the required multiplayer and interactive verification remain open. The authoritative counts, runtime evidence, artifact digest, and per-phase result are in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).

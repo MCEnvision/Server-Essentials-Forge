@@ -4,6 +4,8 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
@@ -46,9 +48,7 @@ public final class DisguiseRuntime {
 
     @SubscribeEvent
     public static void tick(ServerTickEvent.Post event) {
-        if (event.getServer().getTickCount() % 2 == 0) {
-            DisguiseProxyService.tick(event.getServer());
-        }
+        DisguiseProxyService.tick(event.getServer());
         if (event.getServer().getTickCount() % 20 != 0) {
             return;
         }
@@ -62,15 +62,6 @@ public final class DisguiseRuntime {
                     .filter(value -> value.entityType().equals(record.reference()))
                     .findFirst()
                     .orElse(null);
-            if (adapter != null && adapter.traits().contains(DisguiseService.Trait.FIRE_RESISTANCE)) {
-                player.addEffect(new MobEffectInstance(
-                        MobEffects.FIRE_RESISTANCE,
-                        40,
-                        0,
-                        false,
-                        false,
-                        false));
-            }
             if (adapter != null) {
                 applyTraits(player, adapter);
             }
@@ -185,10 +176,14 @@ public final class DisguiseRuntime {
         if (record == null || !record.traitsEnabled()) {
             return;
         }
+        if (!mayUseTraits(player)) {
+            return;
+        }
         KernelServices.disguises().supportedMobs().stream()
                 .filter(adapter -> adapter.entityType().equals(record.reference()))
                 .findFirst()
                 .filter(adapter -> adapter.traits().contains(DisguiseService.Trait.REDUCED_FALL_DAMAGE))
+                .filter(adapter -> mayUseTrait(player, DisguiseService.Trait.REDUCED_FALL_DAMAGE))
                 .ifPresent(adapter -> event.setDamageMultiplier(event.getDamageMultiplier() * 0.25F));
     }
 
@@ -196,15 +191,27 @@ public final class DisguiseRuntime {
             ServerPlayer player,
             DisguiseService.MobAdapter adapter
     ) {
-        if (adapter.traits().contains(DisguiseService.Trait.WATER_BREATHING)) {
+        if (!mayUseTraits(player)) {
+            return;
+        }
+        if (adapter.traits().contains(DisguiseService.Trait.FIRE_RESISTANCE)
+                && mayUseTrait(player, DisguiseService.Trait.FIRE_RESISTANCE)) {
+            player.addEffect(new MobEffectInstance(
+                    MobEffects.FIRE_RESISTANCE, 40, 0, false, false, false));
+        }
+        if (adapter.traits().contains(DisguiseService.Trait.WATER_BREATHING)
+                && mayUseTrait(player, DisguiseService.Trait.WATER_BREATHING)) {
             player.addEffect(new MobEffectInstance(
                     MobEffects.WATER_BREATHING, 40, 0, false, false, false));
         }
-        if (adapter.traits().contains(DisguiseService.Trait.SWIM_SPEED) && player.isInWater()) {
+        if (adapter.traits().contains(DisguiseService.Trait.SWIM_SPEED)
+                && mayUseTrait(player, DisguiseService.Trait.SWIM_SPEED)
+                && player.isInWater()) {
             player.addEffect(new MobEffectInstance(
                     MobEffects.DOLPHINS_GRACE, 40, 0, false, false, false));
         }
         if (adapter.traits().contains(DisguiseService.Trait.CLIMBING)
+                && mayUseTrait(player, DisguiseService.Trait.CLIMBING)
                 && player.horizontalCollision
                 && !player.isShiftKeyDown()) {
             player.setDeltaMovement(
@@ -213,22 +220,39 @@ public final class DisguiseRuntime {
                     player.getDeltaMovement().z);
             player.hurtMarked = true;
         }
-        if (adapter.traits().contains(DisguiseService.Trait.CONTROLLED_FLIGHT)) {
+        if (adapter.traits().contains(DisguiseService.Trait.CONTROLLED_FLIGHT)
+                && mayUseTrait(player, DisguiseService.Trait.CONTROLLED_FLIGHT)) {
             player.addEffect(new MobEffectInstance(
                     MobEffects.SLOW_FALLING, 40, 0, false, false, false));
         }
         if (adapter.traits().contains(DisguiseService.Trait.WATER_VULNERABILITY)
+                && mayUseTrait(player, DisguiseService.Trait.WATER_VULNERABILITY)
                 && player.isInWaterRainOrBubble()
                 && player.server.getTickCount() % 20 == 0) {
             player.hurt(player.damageSources().drown(), 1.0F);
         }
         if (adapter.traits().contains(DisguiseService.Trait.DAYLIGHT_SENSITIVITY)
+                && mayUseTrait(player, DisguiseService.Trait.DAYLIGHT_SENSITIVITY)
                 && player.level().isDay()
                 && player.level().canSeeSky(player.blockPosition())
                 && player.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).isEmpty()
                 && !player.isInWaterRainOrBubble()) {
             player.igniteForSeconds(2);
         }
+    }
+
+    static String traitPermission(DisguiseService.Trait trait) {
+        return "disguise.trait." + trait.name().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static boolean mayUseTraits(ServerPlayer player) {
+        var permission = PermissionsHandler.phasePermission("disguise.traits");
+        return permission != null && PermissionService.has(player, permission);
+    }
+
+    private static boolean mayUseTrait(ServerPlayer player, DisguiseService.Trait trait) {
+        var permission = PermissionsHandler.phasePermission(traitPermission(trait));
+        return permission != null && PermissionService.has(player, permission);
     }
 
     private static void playProfileSound(

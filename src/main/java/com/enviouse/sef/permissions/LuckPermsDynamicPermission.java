@@ -3,9 +3,11 @@ package com.enviouse.sef.permissions;
 import net.luckperms.api.model.user.User;
 import net.luckperms.api.node.NodeType;
 import net.luckperms.api.node.types.PermissionNode;
+import net.luckperms.api.util.Tristate;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.LinkedHashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -14,18 +16,36 @@ final class LuckPermsDynamicPermission {
     }
 
     static boolean has(ServerPlayer player, String permission) {
-        return has(player.getUUID(), permission);
+        return decide(player.getUUID(), permission) == HierarchicalPermissionResolver.Evaluation.GRANTED;
     }
 
     static boolean has(UUID playerId, String permission) {
+        return decide(playerId, permission) == HierarchicalPermissionResolver.Evaluation.GRANTED;
+    }
+
+    static HierarchicalPermissionResolver.Evaluation decide(ServerPlayer player, String permission) {
+        return decide(player.getUUID(), permission);
+    }
+
+    static HierarchicalPermissionResolver.Evaluation decide(UUID playerId, String permission) {
         User user = net.luckperms.api.LuckPermsProvider.get()
                 .getUserManager()
                 .getUser(playerId);
-        return user != null
-                && user.getCachedData()
-                .getPermissionData()
-                .checkPermission(permission)
-                .asBoolean();
+        return user == null
+                ? HierarchicalPermissionResolver.Evaluation.UNDEFINED
+                : HierarchicalPermissionResolver.resolveDecision(
+                permission,
+                candidate -> evaluation(user.getCachedData()
+                        .getPermissionData()
+                        .checkPermission(candidate)));
+    }
+
+    private static HierarchicalPermissionResolver.Evaluation evaluation(Tristate value) {
+        return switch (Objects.requireNonNullElse(value, Tristate.UNDEFINED)) {
+            case TRUE -> HierarchicalPermissionResolver.Evaluation.GRANTED;
+            case FALSE -> HierarchicalPermissionResolver.Evaluation.DENIED;
+            case UNDEFINED -> HierarchicalPermissionResolver.Evaluation.UNDEFINED;
+        };
     }
 
     static PermissionCooldownResolver.GrantSnapshot cooldownSnapshot(UUID playerId, String prefix) {

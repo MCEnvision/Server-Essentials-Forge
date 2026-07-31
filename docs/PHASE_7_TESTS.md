@@ -34,6 +34,7 @@ Automated tests protect:
 12. Kit load-time rejection of orphan, malformed, and over-limit use history.
 13. Super-enchanting minimum, maximum, removal, invalid-range, and stale-policy behavior.
 14. Exact inventory condensation totals and incomplete-recipe nonmutation in GameTests.
+15. Public-dispatcher `/feed <player>` execution with food restoration, zero saturation, and no health mutation.
 
 The GameTest server must pass every registered world fixture. Authenticated transaction, menu, client presentation, optional-mod, and super-enchant rows below remain required.
 
@@ -120,7 +121,7 @@ The GameTest server must pass every registered world fixture. Authenticated tran
 ## Player utility matrix
 
 1. Toggle AFK and verify logout cleanup.
-2. Feed, heal, and rest self and eligible targets.
+2. Damage a hungry player with nonzero saturation, then feed self and eligible targets. Immediately verify food is `20`, saturation is `0.0F`, and health is unchanged. Test heal and rest separately.
 3. Toggle fly and god mode.
 4. Revoke permission while active and verify state is removed by reconciliation.
 5. Set walk and fly speeds at minimum, maximum, and outside bounds.
@@ -166,6 +167,18 @@ The GameTest server must pass every registered world fixture. Authenticated tran
 5. Corrupt `kits.json`, restart, and verify quarantine or recovery without overwrite.
 6. Test normal shutdown and forced process termination with dirty kit state.
 7. Verify the next periodic or shutdown snapshot preserves a mutation made during an earlier asynchronous write.
+
+## Follow-up feed regression, 2026-07-30
+
+The `/feed` regeneration-separation correction is implemented and locally verified on the current phase branch:
+
+1. Both self and other-player routes use the same canonical mutation.
+2. The command sets food to `20` and saturation to `0.0F` without changing health.
+3. `/heal` remains unchanged and separate.
+4. A live server-dispatcher GameTest executes `/feed <player>` against a damaged, hungry player with nonzero saturation and verifies the resulting state.
+5. All 487 unit tests and all 39 required GameTests pass on NeoForge `21.1.235`.
+6. The build, dedicated-server startup and shutdown, headless client startup, generated references, artifact metadata, ZIP integrity, and filename safety checks pass.
+7. The current artifact is `build/libs/sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`.
 
 ## Completion record
 

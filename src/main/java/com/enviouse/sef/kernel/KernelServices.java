@@ -433,6 +433,7 @@ public final class KernelServices {
         registerPhaseElevenCommands();
         registerPhaseTwelveCommands();
         registerPhaseThirteenCommands();
+        registerLegacyCommands();
         cooldownDurations = new PermissionCooldownResolver(catalog.entries());
         for (PermissionManifest.Definition definition : PermissionManifest.definitions()) {
             if (!capabilities.contains(definition.id())) {
@@ -1409,8 +1410,18 @@ public final class KernelServices {
                 CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
         registerTeleport("sef:teleport.player_warp.rename", "renamepwarp", Set.of("renamepwarp"), "sef.commands.renamepwarp",
                 CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
-        registerTeleport("sef:teleport.player_warp.manage", "pwarp manage", Set.of(), "sef.playerwarps.edit",
-                CommandDefinition.AccessClass.PLAYER, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.SELF);
+        registerDomainCommand(
+                "sef:teleport.player_warp.manage",
+                "pwarp info",
+                Set.of(),
+                "sef.playerwarps.edit",
+                CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.SELF,
+                "sef.teleport.player_warps",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:teleports",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
         registerTeleport("sef:teleport.player_warp.moderate", "pwarp moderate", Set.of(), "sef.playerwarps.moderate",
                 CommandDefinition.AccessClass.ADMINISTRATOR, "sef.teleport.player_warps", CommandDefinition.TargetBehavior.REQUIRED_PLAYER);
 
@@ -1772,7 +1783,9 @@ public final class KernelServices {
         for (String action : List.of("setjail", "deljail", "jails", "jail", "unjail", "jailedplayers")) {
             registerDomainCommand("sef:moderation." + action, action, Set.of(action),
                     "sef.commands." + action, CommandDefinition.AccessClass.ADMINISTRATOR,
-                    STANDARD_COMMAND_SOURCES,
+                    action.equals("setjail")
+                            ? Set.of(CommandDefinition.SourceType.PLAYER)
+                            : STANDARD_COMMAND_SOURCES,
                     action.equals("jail") || action.equals("unjail")
                             ? CommandDefinition.TargetBehavior.REQUIRED_PLAYER
                             : CommandDefinition.TargetBehavior.SERVER,
@@ -1820,7 +1833,11 @@ public final class KernelServices {
         inventoryPermissions.forEach((action, permission) -> registerDomainCommand(
                 "sef:inventory." + action, action, inventoryRoots.get(action),
                 permission, CommandDefinition.AccessClass.PLAYER,
-                STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                Set.of("book", "condense", "disposal", "hat", "itemdb", "itemlore", "itemname", "more")
+                        .contains(action)
+                        ? Set.of(CommandDefinition.SourceType.PLAYER)
+                        : STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
                 "sef.inventory", AuditService.AuditClass.ADMIN_ACTION,
                 "sef:inventory", CommandDefinition.ConflictPolicy.PREFER_SEF));
         registerDomainCommand("sef:item.give.self", "i", Set.of("i"),
@@ -1871,7 +1888,10 @@ public final class KernelServices {
             };
             registerDomainCommand("sef:kit." + action, route, roots,
                     permission, CommandDefinition.AccessClass.PLAYER,
-                    STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    Set.of("create", "list", "show").contains(action)
+                            ? Set.of(CommandDefinition.SourceType.PLAYER)
+                            : STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
                     "sef.kits", AuditService.AuditClass.ADMIN_ACTION,
                     "sef:kits", CommandDefinition.ConflictPolicy.PREFER_SEF);
         }
@@ -1880,7 +1900,11 @@ public final class KernelServices {
                 "rest", "suicide", "near", "getpos", "compass", "depth", "top", "bottom", "jump")) {
             registerDomainCommand("sef:utility." + utility, utility, Set.of(utility),
                     "sef.commands." + utility, CommandDefinition.AccessClass.PLAYER,
-                    STANDARD_COMMAND_SOURCES, CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    Set.of("afk", "bottom", "compass", "depth", "jump", "near", "top")
+                            .contains(utility)
+                            ? Set.of(CommandDefinition.SourceType.PLAYER)
+                            : STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
                     utility.equals("suicide") ? "sef.utilities.suicide" : "sef.utilities",
                     AuditService.AuditClass.METADATA_ONLY,
                     "sef:utilities", CommandDefinition.ConflictPolicy.PREFER_SEF);
@@ -1960,7 +1984,7 @@ public final class KernelServices {
         for (String type : List.of(
                 "balance", "buy", "sell", "trade", "free", "disposal",
                 "kit", "heal", "repair", "time", "weather", "warp")) {
-            registerDomainCommand(
+            registerDomainAction(
                     "sef:economy.sign." + type,
                     "sign " + type,
                     Set.of(),
@@ -1972,7 +1996,7 @@ public final class KernelServices {
                     AuditService.AuditClass.METADATA_ONLY,
                     "sef:economy",
                     CommandDefinition.ConflictPolicy.PREFER_SEF);
-            registerDomainCommand(
+            registerDomainAction(
                     "sef:economy.sign.create." + type,
                     "sign create " + type,
                     Set.of(),
@@ -2307,7 +2331,7 @@ public final class KernelServices {
                 "status", "list", "view", "create", "duplicate", "edit", "validate",
                 "publish", "hide", "archive", "restore", "delete",
                 "revision.list", "revision.view", "revision.restore",
-                "assign.player", "assign.group", "assign.team", "assign.default", "assign.bulk",
+                "assign.player", "assign.group", "assign.team", "assign.default",
                 "unassign", "assignments.player", "assignments.tag", "assignments.group",
                 "report", "moderation.queue", "moderation.suspend", "moderation.clear",
                 "category.list", "category.create", "category.edit", "category.delete",
@@ -2320,8 +2344,12 @@ public final class KernelServices {
                 "backup.preview", "backup.create", "gc.preview", "gc.run", "reload", "doctor")) {
             registerDomainCommand(
                     "sef:tags." + action,
-                    "sef tags " + action.replace('.', ' '),
-                    Set.of(),
+                    "sef tags " + switch (action) {
+                        case "lease.view" -> "lease status";
+                        case "lease.override" -> "lease release";
+                        default -> action.replace('.', ' ');
+                    },
+                    action.equals("status") ? Set.of("fancytags") : Set.of(),
                     "sef.commands.tags." + action,
                     safeTagActions.getOrDefault(
                             action,
@@ -2364,7 +2392,12 @@ public final class KernelServices {
                         case "preset.manage" -> "disguise presets";
                         default -> "disguise " + action.replace('.', ' ');
                     },
-                    action.equals("set.mob") ? Set.of("disguise") : Set.of(),
+                    switch (action) {
+                        case "set.mob" -> Set.of("disguise");
+                        case "clear" -> Set.of("undisguise");
+                        case "ability" -> Set.of("dability");
+                        default -> Set.of();
+                    },
                     permission,
                     action.equals("status") || action.equals("list")
                             ? CommandDefinition.AccessClass.PLAYER
@@ -2430,6 +2463,18 @@ public final class KernelServices {
                     "sef:control",
                     CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
         }
+        registerDomainCommand(
+                "sef:approval.list",
+                "approval",
+                Set.of("approvals"),
+                "sef.commands.approval.list",
+                CommandDefinition.AccessClass.OWNER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.control",
+                AuditService.AuditClass.SENSITIVE_ACCESS,
+                "sef:control",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
         for (String action : List.of(
                 "lock",
                 "unlock",
@@ -2461,7 +2506,7 @@ public final class KernelServices {
                     "sef:control",
                     CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
         }
-        registerDomainCommand(
+        registerDomainAction(
                 "sef:workstation.super_enchant.mutate",
                 "sef workstation super_enchant mutate",
                 Set.of(),
@@ -2669,7 +2714,11 @@ public final class KernelServices {
                 "close", "reload", "doctor", "explain", "coverage")) {
             registerDomainCommand(
                     "sef:guis." + action,
-                    "sef guis " + action,
+                    "sef guis " + switch (action) {
+                        case "enable" -> "on";
+                        case "disable" -> "off";
+                        default -> action;
+                    },
                     Set.of(),
                     "sef.commands.guis." + action,
                     action.equals("status") || action.equals("coverage")
@@ -2700,6 +2749,240 @@ public final class KernelServices {
                 CommandDefinition.ConflictPolicy.CANONICAL_ONLY);
     }
 
+    private static void registerLegacyCommands() {
+        registerDomainCommand(
+                "sef:chat.admin",
+                "ac",
+                Set.of("ac", "chat"),
+                "sef.adminchat.use",
+                CommandDefinition.AccessClass.STAFF,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:social",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:chat.helpop",
+                "helpop",
+                Set.of("helpop"),
+                "sef.helpop.send",
+                CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.NONE,
+                "sef.core",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:social",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:chat.helpop.reply",
+                "helpopop",
+                Set.of("helpopop"),
+                "sef.helpop.reply",
+                CommandDefinition.AccessClass.STAFF,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.core",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:social",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:identity.nick",
+                "nick",
+                Set.of("nick"),
+                "sef.commands.nick",
+                CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.SELF,
+                "sef.core",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:identity.nick.others",
+                "nickfor",
+                Set.of("nickfor"),
+                "sef.commands.nick.others",
+                CommandDefinition.AccessClass.STAFF,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.core",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:identity.whois",
+                "whois",
+                Set.of("whois"),
+                "sef.commands.whois",
+                CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                "sef.core",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:vanish.manage",
+                "vanish",
+                Set.of("vanish", "v"),
+                "sef.vanish.3",
+                CommandDefinition.AccessClass.TRUSTED_PLAYER,
+                STANDARD_COMMAND_SOURCES,
+                CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                "sef.core",
+                AuditService.AuditClass.ADMIN_ACTION,
+                "sef:identity",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+        registerDomainCommand(
+                "sef:teleport.request.blocked",
+                "tpblocked",
+                Set.of("tpblocked"),
+                "sef.commands.tpblock",
+                CommandDefinition.AccessClass.PLAYER,
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                CommandDefinition.TargetBehavior.SELF,
+                "sef.teleport.requests",
+                AuditService.AuditClass.METADATA_ONLY,
+                "sef:teleports",
+                CommandDefinition.ConflictPolicy.PREFER_SEF);
+
+        if (ConfigHandler.config.enableAnnouncements.get()) {
+            registerDomainCommand(
+                    "sef:announcement.text",
+                    "textannouncement",
+                    Set.of("textannouncement"),
+                    "sef.announcements.manage",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.core",
+                    AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+            registerDomainCommand(
+                    "sef:announcement.command",
+                    "commandannouncement",
+                    Set.of("commandannouncement"),
+                    "sef.announcements.command.manage",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.core",
+                    AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+            registerDomainCommand(
+                    "sef:announcement.title",
+                    "titleannouncement",
+                    Set.of("titleannouncement"),
+                    "sef.announcements.title",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.BOUNDED_PLAYERS,
+                    "sef.core",
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+            registerDomainCommand(
+                    "sef:announcement.toggle",
+                    "toggle",
+                    Set.of("toggle"),
+                    "sef.announcements.toggle",
+                    CommandDefinition.AccessClass.PLAYER,
+                    Set.of(CommandDefinition.SourceType.PLAYER),
+                    CommandDefinition.TargetBehavior.SELF,
+                    "sef.core",
+                    AuditService.AuditClass.METADATA_ONLY,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableChatReplies.get()) {
+            registerDomainCommand(
+                    "sef:chat.reply",
+                    "ans",
+                    Set.of("ans"),
+                    "sef.commands.ans",
+                    CommandDefinition.AccessClass.PLAYER,
+                    Set.of(CommandDefinition.SourceType.PLAYER),
+                    CommandDefinition.TargetBehavior.REQUIRED_PLAYER,
+                    "sef.core",
+                    AuditService.AuditClass.METADATA_ONLY,
+                    "sef:social",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableOpBulletin.get()) {
+            registerDomainCommand(
+                    "sef:announcement.bulletin",
+                    "opbulletin",
+                    Set.of("opbulletin"),
+                    "sef.opbulletin.manage",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.core",
+                    AuditService.AuditClass.CONFIG_DEFINITION,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableBannedItems.get()) {
+            registerDomainCommand(
+                    "sef:banned.list",
+                    "banned",
+                    Set.of("banned"),
+                    "sef.banned.view",
+                    CommandDefinition.AccessClass.PLAYER,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.NONE,
+                    "sef.core",
+                    AuditService.AuditClass.SENSITIVE_ACCESS,
+                    "sef:moderation",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableClearChat.get()) {
+            registerDomainCommand(
+                    "sef:chat.clear",
+                    "clearchat",
+                    Set.of("clearchat", "cc"),
+                    "sef.commands.clearchat",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.core",
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:moderation",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableCheckAlts.get()) {
+            registerDomainCommand(
+                    "sef:identity.alts",
+                    "checkalts",
+                    Set.of("checkalts"),
+                    "sef.commands.checkalts",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,
+                    "sef.core",
+                    AuditService.AuditClass.SENSITIVE_ACCESS,
+                    "sef:identity",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+        if (ConfigHandler.config.enableCountdown.get()) {
+            registerDomainCommand(
+                    "sef:announcement.countdown",
+                    "countdown",
+                    Set.of("countdown"),
+                    "sef.commands.countdown",
+                    CommandDefinition.AccessClass.ADMINISTRATOR,
+                    STANDARD_COMMAND_SOURCES,
+                    CommandDefinition.TargetBehavior.SERVER,
+                    "sef.core",
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    "sef:core",
+                    CommandDefinition.ConflictPolicy.PREFER_SEF);
+        }
+    }
+
     private static void registerDomainCommand(
             String id,
             String route,
@@ -2712,6 +2995,63 @@ public final class KernelServices {
             AuditService.AuditClass auditClass,
             String descriptor,
             CommandDefinition.ConflictPolicy conflictPolicy
+    ) {
+        registerDomainAction(
+                id,
+                route,
+                roots,
+                permission,
+                access,
+                sources,
+                targetBehavior,
+                feature,
+                auditClass,
+                descriptor,
+                conflictPolicy,
+                true);
+    }
+
+    private static void registerDomainAction(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            Set<CommandDefinition.SourceType> sources,
+            CommandDefinition.TargetBehavior targetBehavior,
+            String feature,
+            AuditService.AuditClass auditClass,
+            String descriptor,
+            CommandDefinition.ConflictPolicy conflictPolicy
+    ) {
+        registerDomainAction(
+                id,
+                route,
+                roots,
+                permission,
+                access,
+                sources,
+                targetBehavior,
+                feature,
+                auditClass,
+                descriptor,
+                conflictPolicy,
+                false);
+    }
+
+    private static void registerDomainAction(
+            String id,
+            String route,
+            Set<String> roots,
+            String permission,
+            CommandDefinition.AccessClass access,
+            Set<CommandDefinition.SourceType> sources,
+            CommandDefinition.TargetBehavior targetBehavior,
+            String feature,
+            AuditService.AuditClass auditClass,
+            String descriptor,
+            CommandDefinition.ConflictPolicy conflictPolicy,
+            boolean playerFacing
     ) {
         String hudDescriptor = hudDescriptor(id);
         catalog.register(new CommandDefinition(
@@ -2735,7 +3075,7 @@ public final class KernelServices {
                 "",
                 "domain collections and projections have finite hard bounds",
                 conflictPolicy,
-                true,
+                playerFacing,
                 true));
     }
 

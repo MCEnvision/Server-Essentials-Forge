@@ -106,7 +106,18 @@ public class CheckAltsCommand {
 
     private static int purgeExpired(CommandSourceStack source) {
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
-        int removed = tracker.purgeExpiredRecords();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
+        int removed;
+        try {
+            removed = tracker.purgeExpiredRecords();
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cExpired records could not be purged. &7" + exception.getMessage()));
+            return 0;
+        }
         audit(source, "purge expired", Integer.toString(removed));
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aPurged &e" + removed + " &aexpired alternate account record(s)."), false);
@@ -115,7 +126,18 @@ public class CheckAltsCommand {
 
     private static int purgeAll(CommandSourceStack source) {
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
-        int removed = tracker.purgeAll();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
+        int removed;
+        try {
+            removed = tracker.purgeAll();
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cAlternate account records could not be purged. &7" + exception.getMessage()));
+            return 0;
+        }
         audit(source, "purge all", Integer.toString(removed));
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aPurged &e" + removed + " &aalternate account record(s)."), false);
@@ -123,11 +145,15 @@ public class CheckAltsCommand {
     }
 
     private static int export(CommandSourceStack source) {
+        AltTracker tracker = CommandRegistrationHandler.getAltTracker();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
         boolean includeRaw = PermissionService.has(source, PermissionsHandler.checkAltsIpView);
         java.nio.file.Path directory = source.getServer().getServerDirectory()
                 .resolve("serverconfig").resolve("sef").resolve("exports");
-        com.google.gson.JsonObject snapshot =
-                CommandRegistrationHandler.getAltTracker().buildExport(includeRaw);
+        com.google.gson.JsonObject snapshot = tracker.buildExport(includeRaw);
         String issuer = source.getTextName();
         boolean accepted = StorageExportService.submit(() -> {
             try {

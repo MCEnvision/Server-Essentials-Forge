@@ -4,22 +4,20 @@ SEFPORTED is a server essentials mod for Minecraft 1.21.1 on NeoForge. It provid
 
 The project is the NeoForge 1.21.1 port and active development base for SEF 2. The current mod uses one universal JAR. With enhanced GUIs disabled it remains server only. With enhanced GUIs enabled, compatible clients may install the same JAR for optional screens and private HUD state. Vanilla clients and clients without SEF can still connect because the enhanced protocol is optional and the mod metadata uses `displayTest = "IGNORE_SERVER_VERSION"`.
 
-The enhanced client protocol, universal catalog, administrative control surfaces, Fancy Tags editor, disguise projection, modular configuration editor, and every planned SEF 2 phase are implemented on the current phase branch. Command fallback remains authoritative for clients that do not negotiate the enhanced protocol.
+The enhanced client protocol, universal catalog, administrative control surfaces, Fancy Tags editor, disguise projection, and modular configuration editor are present on the current phase branch. Command fallback remains authoritative for clients that do not negotiate the enhanced protocol. The branch is not yet complete against every SEF 2 requirement. Sixteen Phase 13 control families are deliberately reported as unavailable until their real runtime behavior exists.
 
 ## Current status
 
 Current project metadata:
 
 1. Minecraft `1.21.1`.
-2. NeoForge `21.1.233`.
+2. NeoForge `21.1.235`.
 3. Java `21`.
 4. Parchment mappings `2024.11.17`.
 5. Mod id `sef`.
-6. Artifact version `1.0-SNAPSHOT`.
+6. Artifact version `1.0.1-SNAPSHOT`.
 
-This branch is feature complete against `sef2.md`. Treat its builds as release candidates until the phase branch is explicitly approved and advanced to `main`.
-
-Phases 0 through 14 are implemented. Automated evidence is recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md).
+Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 487 unit tests, 39 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
 
 ## Current features
 
@@ -63,15 +61,15 @@ The current implementation includes:
 36. A correlated command-event journal and disabled-by-default file sink under `logs/sef`. The sink uses bounded records and queues, batched writes, rotation, retention previews with state-bound confirmation, health diagnostics, search, redacted export, connection-event streams, shutdown markers, incomplete-session recovery markers, and fixed-path protection.
 37. Versioned kits with safe inventory snapshots, cooldowns, one time policy, per kit dynamic permissions, atomic capacity checks, optional bounded overflow dropping, administrative validation, metadata export, usage reset, and load time rejection of orphan or over limit use history. The repository rejects stale, deleted, cooling down, or already claimed definitions at commit time.
 38. Hardened self and other-player inventory tools including `/clearinventory`, `/enderchest`, `/disposal`, `/more`, `/condense`, `/hat`, `/itemname`, `/itemlore`, `/itemdb`, `/book`, and `/recipe`. Live inventory and ender-chest menus close or downgrade when permission, feature, or policy revisions change. InvSee preserves preexisting Brigadier routes cooperatively instead of deleting another mod’s command node.
-39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
+39. Player utilities for AFK state, feed, heal, fly, god mode, rest, speed, experience, personal time and weather, nearby players, position, compass, depth, top, bottom, and jump. `/feed` fills hunger with zero saturation and leaves health unchanged, while `/heal` remains the explicit recovery command. Long-lived fly, god, personal time, and personal weather state is rechecked after permission changes.
 40. `/gm`, `/gmc`, `/gms`, `/gmsp`, and `/gma` self and target shortcuts, plus bounded self-only `/i`. Self and target gamemode routes use separate least-privilege permissions. Additional vanilla workstations include workbench, cartography table, grindstone, loom, smithing table, and stonecutter routes. Super enchanting enforces a configurable bounded safety ceiling, with level `1000` covered by GameTests, and closes stale menus after policy reload. Every shortcut inherits its canonical feature, permission, cooldown, audit, and collision policy.
 41. Integer minor-unit economy storage with idempotent ledger mutations, crash-recoverable cost reservations, cached balance ranking, exact payment confirmation, account freezes, component-safe worth and sales, external provider ownership, import-once backup and reports, configurable fixed and scaled command costs, and all twelve strict vanilla economy sign types. Sign creation, use, ownership bypass, and management are separately permissioned and audited.
 42. Optional enhanced client capability negotiation with versioned sessions, typed bounded payloads, replay protection, permission invalidation, command fallback, configurable reminders, vanilla styled dashboards and workflows, searchable known-player pickers with all, online, and offline filters, bounded multi-target give selection, creative-style item browsing with icon-only slots and one native tooltip, consistently sharp screen backgrounds, private HUD deltas, viewer-specific nickname projection, and a content-addressed static Fancy Tags prototype.
 43. Hardened `/sudo`, `/run`, and `/silent` execution. Ordinary sudo preserves the target’s real permissions. Disabled by default delegated sudo can admit one exact reviewed command through an immutable, expiring, single use grant without changing operator state, permission provider data, groups, persistent player data, or the target command tree. Target-context suggestions, confirmation, revision binding, audit lifecycle, cleanup, root and profile permissions, and wildcard diagnostics are enforced.
 44. Complete Fancy Tags registry, assignment, secure import and archive validation, content-addressed storage, publication recovery, bounded transfer, client cache, local projects, editor, glyph bridge, world rendering, cleanup, and command fallback.
 45. Persistent disguise definitions and assignments with namespaced registered entity selection, player and entity projection, stable proxy interpolation, client-ticked mob idle and movement animation state, proxy identity, traits, abilities, truthful per-disguise capability feedback, target policy, expiry, client presentation, command workflows, and safe fallback when an adapter or enhanced client is absent.
-46. Seventy server-control systems spanning operations, maintenance, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and unified display ownership. Admission includes a bounded native login wait mode with FIFO release, timeout, duplicate cleanup, and separate admission and queue exemption permissions. Every system has typed schema, policy, permission, persistence, command fallback, GUI workflow, and HUD or explicit no-HUD ownership.
-47. Offline inventory inspection with versioned backup and conflict protection, bounded multi-target item grants, and a persistent UUID-bound offline give queue that creates one independently revalidated login action for each selected offline target. Administrative enchanting has distinct unsafe capabilities. Permission-derived canonical cooldowns and item escrow cover parcels, lost and found, trades, auctions, watches, blocks, claims, settlement, and recovery.
+46. Seventy-five typed server-control schemas spanning operations, maintenance, staff workflow, onboarding, recovery, governance, admission, world policy, diagnostics, privacy, markets, community knowledge, and unified display ownership. Fifty-nine currently have executable runtime handlers. Sixteen are visible as unavailable in `/sef doctor` and fail during preview instead of reporting false activation. Admission includes a bounded native login wait mode with FIFO release, timeout, duplicate cleanup, and separate admission and queue exemption permissions.
+47. Offline inventory inspection with versioned backup and conflict protection, bounded multi-target item grants, and a persistent UUID-bound offline give queue that creates one independently revalidated login action for each selected offline target. Queued actions use immutable actor attribution, a restricted execution profile, durable claims and receipts, duplicate suppression, outcome-unknown recovery, and do not require the original actor to remain online. Administrative enchanting has distinct unsafe capabilities. Permission-derived canonical cooldowns and item escrow cover parcels, lost and found, trades, auctions, watches, blocks, claims, settlement, and recovery.
 48. A 62-module configuration platform with a small bootstrap file, typed validation, transactional publication, migration backups, optimistic revisions, rollback, debounced watching, in-game workflows, command-only editing, secret filtering, and generated reference drift tests.
 
 The full SEF 2 command and platform blueprint is documented in [sef2.md](sef2.md). The phase-by-phase implementation record is [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md).
@@ -101,6 +99,9 @@ Every exposed command path is expected to use a permission node. The current sec
 19. File logging is off by default. Disabled startup creates no `logs/sef` directory or writer. Enabled logging owns only fixed descendants of `logs/sef`, refuses symlink escapes, bounds its queue and record sizes, preserves mandatory security audit independently from capture filters, and remains degraded until an earlier incomplete-session marker is acknowledged.
 20. Item grants, kit claims, inventory edits, live menus, and super enchanting validate capacity, registry state, configuration revision, and current authorization before committing a mutation. Inventory lock denies drop, swap, crafting, container click, creative slot, pickup, and item use paths on the logical server.
 21. Economy values use exact integer minor units. Player transfers, administrative adjustments, command charges, imports, and sign transactions apply independent permissions, bounds, hierarchy, confirmation, idempotency, rollback, and audit policy. External mode never creates native shadow balances.
+22. LuckPerms permission evaluation resolves the exact node, nearest matching wildcard, broader wildcards, and global `*` in that order. An explicit deny at the first defined level wins. A direct LuckPerms grant may safely bridge a transient NeoForge permission capability failure, but an unavailable provider without a real grant fails closed. Provider-only approval and access-grant checks use the same bridge while deliberately excluding access leases and one-execution delegation.
+23. Deferred offline give actions execute when the target logs in, even when the authenticated issuer is offline. Queue-time authorization and immutable actor attribution are retained, execution uses only the stored restricted action profile, and feature, registry item, amount, canonical route, durable operation state, and duplicate receipts are revalidated. They never gain console authority.
+24. Live server-control policies cannot be marked active or resolved through the generic state command. Their execution handler must succeed first. Missing runtime behavior is exposed before execution and cannot create active state.
 
 Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative commands.
 
@@ -109,7 +110,7 @@ Review [DOCUMENTATION.md](DOCUMENTATION.md) before enabling administrative comma
 Server requirements:
 
 1. Minecraft server `1.21.1`.
-2. NeoForge `21.1.233`, or a compatible version within the declared NeoForge range.
+2. NeoForge `21.1.235`. The packaged metadata requires this exact verified version. The recorded LuckPerms NeoForge `5.4.140` failure occurred on NeoForge `21.1.233` inside LuckPerms player placement. It does not establish LuckPerms compatibility or incompatibility on `21.1.235`.
 3. Java `21`.
 
 Optional integrations:
@@ -162,7 +163,7 @@ Primary configuration:
 24. `<world>/serverconfig/sef/fancy-tags.json` and its fixed object roots contain Fancy Tags metadata, content, journals, recovery state, and retained revisions.
 25. `<world>/serverconfig/sef/disguises.json` contains versioned disguise definitions and UUID assignments.
 26. `<world>/serverconfig/sef/inventory-recovery.json` and player-data recovery copies contain bounded recovery metadata for graves and offline inventory operations.
-27. `<world>/serverconfig/sef/server-control.json` contains typed state for the 70 advanced server-control systems.
+27. `<world>/serverconfig/sef/server-control.json` contains typed state for the 75 advanced server-control systems.
 28. `<world>/serverconfig/sef/community-state.json` contains indexed community, workflow, watch, poll, event, knowledge, and display state.
 29. `<world>/serverconfig/sef/approvals.json`, `access-leases.json`, and `admin-lock.json` keep approval and temporary authority separate from ordinary control records.
 30. `<world>/serverconfig/sef/escrow.json` contains UUID-owned parcel, lost-and-found, trade, auction, claim, settlement, and recovery records.
@@ -183,6 +184,7 @@ Generated references:
 7. [Performance report](docs/PERFORMANCE_REPORT.md)
 8. [Security review](docs/SECURITY_REVIEW.md)
 9. [Release notes](docs/RELEASE_NOTES.md)
+10. [Full code audit and remediation report](audit.md)
 
 Run `./gradlew generateProjectReferences` after changing a module schema, command catalog entry, shortcut, GUI descriptor, or permission definition. Unit tests fail when tracked references drift from their runtime registries.
 

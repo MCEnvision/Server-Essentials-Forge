@@ -93,7 +93,7 @@ class ReleasePerformanceTest {
         return """
                 # Performance Report
 
-                Measured on %s with Java `%s`, %d available processors, Minecraft `1.21.1`, and NeoForge `21.1.233`.
+                Measured on %s with Java `%s`, %d available processors, Minecraft `1.21.1`, and NeoForge `21.1.235`.
 
                 These deterministic metadata and configuration workloads run outside the logical server tick. The final row records the dedicated-server tick profile captured during the release matrix.
 

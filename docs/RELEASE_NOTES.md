@@ -1,6 +1,6 @@
 # SEF 2 Unreleased Engineering Preview
 
-Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` working tree. Version metadata remains `1.0-SNAPSHOT`. These notes are not a public release declaration.
+Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` working tree. Version metadata is `1.0.1-SNAPSHOT`. These notes are not a public release declaration.
 
 ## Added
 
@@ -28,6 +28,22 @@ Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` workin
 3. Fixed detectable hard linked module and migration files being accepted.
 4. Fixed configuration documentation upgrades lacking a fixed recovery backup and exact materialization path.
 5. Fixed generated reference drift caused by unordered dependency and conflict sets.
+6. Fixed LuckPerms broad wildcard grants, exact denial precedence, and transient NeoForge permission bridge failures.
+7. Fixed SEF screen blur and duplicate item-picker tooltips.
+8. Fixed disguise root suggestions, namespaced entity ids, misleading ability errors, proxy movement, and animation synchronization.
+9. Fixed offline queued actions running before the target was online or through a console authority escalation.
+10. Fixed full-server admission exemptions being rejected by Minecraft before the SEF queue or exemption policy could run.
+11. Fixed server-control schemas being reported as executable without a real runtime handler and blocked manual activation from impersonating execution.
+12. Fixed server-control and queued-action crash windows with durable operation claims, receipts, ambiguous-outcome blocking, and restart reconciliation.
+13. Fixed legacy enforcement stores clearing live bans, mutes, filters, warnings, MOTD, bulletins, alternate-account state, announcements, or profiles after damaged input.
+14. Fixed public chat losing signed-player provenance and fixed `/ans` revealing vanished identity, content, or presence.
+15. Fixed managed JSON depth exhaustion, symbolic-link traversal, file-open races, export boundary checks, and incomplete atomic rename durability.
+16. Fixed jail transition ordering, unsafe destination recovery, economy sign cancellation, mute restart extension, and invalid mute record handling.
+17. Fixed quadratic disguise synchronization, synchronous entity diagnostics, dead active-entity mixin state, and unbounded diagnostic refresh.
+18. Fixed private chat retention, Fancy Tag upload ownership ordering, markdown escaping, and hidden exception diagnostics.
+19. Fixed command catalog, shortcut, GUI workflow, source-policy, and live-dispatcher disagreement across the complete registered command surface.
+20. Fixed `/setworth` parsing for namespaced item identifiers and narrowed NeoForge metadata to the verified `21.1.235` version.
+21. Fixed `/feed` granting saturation and causing a fast natural-regeneration burst. It now fills hunger with zero saturation, leaves health unchanged, and has live-dispatcher GameTest coverage.
 
 ## Migration
 
@@ -42,8 +58,8 @@ See [the migration guide](MIGRATION_GUIDE.md) for recovery and rollback details.
 
 ## Compatibility
 
-The target remains Minecraft `1.21.1`, NeoForge `21.1.233`, and Java `21`. LuckPerms, FTB Essentials, and Curios remain optional. The same universal JAR may be installed on compatible clients for enhanced presentation, while vanilla and non-SEF clients retain command access.
+The target is Minecraft `1.21.1`, NeoForge `21.1.235`, and Java `21`. LuckPerms, FTB Essentials, and Curios remain optional. The recorded LuckPerms NeoForge `5.4.140` player-placement failure occurred on NeoForge `21.1.233`; current integration compatibility on `21.1.235` remains unverified. The same universal JAR may be installed on compatible clients for enhanced presentation, while vanilla and non-SEF clients retain command access.
 
 ## Verification state
 
-All 390 unit tests, all 29 required GameTests, Java 21 build, dedicated-server checks, enhanced and fallback client matrix, migration and recovery fixtures, integration isolation, generated performance budgets, live tick profiling, security review, generated-reference drift, and final artifact inspection pass. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).
+All 487 unit tests, all 39 required GameTests, registration checks for all 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated references, dedicated-server startup, headless client startup, security scans, and current artifact inspection pass. The current artifact is `build/libs/sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`. All twenty confirmed findings in `audit.md` are repaired. Release acceptance does not pass yet. Sixteen Phase 13 runtime families remain unavailable, and the renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are still open. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).

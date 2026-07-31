@@ -13,30 +13,35 @@ public final class DynamicPermissionService {
     }
 
     public static boolean has(ServerPlayer player, String permission) {
-        if (player == null
-                || permission == null
-                || !permission.matches("[a-z0-9_.-]{1,128}")
-                || !ModList.get().isLoaded("luckperms")) {
-            return false;
-        }
-        try {
-            return LuckPermsDynamicPermission.has(player, permission);
-        } catch (LinkageError | RuntimeException exception) {
-            return false;
-        }
+        return decision(player, permission) == Decision.GRANTED;
     }
 
     public static boolean has(UUID playerId, String permission) {
+        return decision(playerId, permission) == Decision.GRANTED;
+    }
+
+    public static Decision decision(ServerPlayer player, String permission) {
+        if (player == null) {
+            return Decision.UNAVAILABLE;
+        }
+        return decision(player.getUUID(), permission);
+    }
+
+    public static Decision decision(UUID playerId, String permission) {
         if (playerId == null
                 || permission == null
                 || !permission.matches("[a-z0-9_.-]{1,128}")
                 || !ModList.get().isLoaded("luckperms")) {
-            return false;
+            return Decision.UNAVAILABLE;
         }
         try {
-            return LuckPermsDynamicPermission.has(playerId, permission);
+            return switch (LuckPermsDynamicPermission.decide(playerId, permission)) {
+                case GRANTED -> Decision.GRANTED;
+                case DENIED -> Decision.DENIED;
+                case UNDEFINED -> Decision.UNDEFINED;
+            };
         } catch (LinkageError | RuntimeException exception) {
-            return false;
+            return Decision.UNAVAILABLE;
         }
     }
 
@@ -72,5 +77,12 @@ public final class DynamicPermissionService {
         }
         return normalizedPermission.startsWith(
                 normalizedGrant.substring(0, normalizedGrant.length() - 1));
+    }
+
+    public enum Decision {
+        GRANTED,
+        DENIED,
+        UNDEFINED,
+        UNAVAILABLE
     }
 }

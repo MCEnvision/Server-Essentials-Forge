@@ -21,36 +21,56 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 | [Phase 4](../sef2.md#phase-4-homes-teleports-spawn-warps-and-rtp) | 22 | Complete | Home, request, history, spawn, warp, player-warp, RTP, safety, world-border, hazard, missing-dimension, race, quota, and recovery behavior pass unit and GameTest coverage. |
 | [Phase 5](../sef2.md#phase-5-social-identity-mail-and-connection-messages) | 23 | Complete | Private messaging, observation privacy, mail, identity, nickname projection, connection messages, reminders, retention, provider failure, and vanished-player suppression pass. |
 | [Phase 6](../sef2.md#phase-6-moderation-and-protection) | 35 | Complete | Moderation, address policy, command observation, absolute redaction, file ownership, symlink rejection, queue failure, rotation, retention, shutdown recovery, controls, and protection enforcement pass. |
-| [Phase 7](../sef2.md#phase-7-inventory-workstations-kits-and-player-utilities) | 23 | Complete | Inventory authorization, offline inventory backup, workstations, kits, item validation, utility state, shortcut collision, super enchanting, revocation, and server enforcement pass. |
+| [Phase 7](../sef2.md#phase-7-inventory-workstations-kits-and-player-utilities) | 24 | In progress | Automated inventory authorization, revocation, and zero-saturation `/feed` tests pass. The revised target-above-viewer InvSee layout and Curios paging still require the multiplayer matrix in `test.md`. |
 | [Phase 8](../sef2.md#phase-8-native-economy-and-signs) | 14 | Complete | Exact money arithmetic, provider ownership, idempotent transactions, cost recovery, import once, inventory compensation, all sign types, persistence failure, and bounded ranking pass. |
-| [Phase 9](../sef2.md#phase-9-client-protocol-and-gui-pilot) | 62 | Complete | Optional negotiation, typed bounded payloads, replay protection, session invalidation, enhanced connection, command-fallback connection, headless visual startup, reconnect cleanup, and dedicated-server isolation pass. |
-| [Phase 10](../sef2.md#phase-10-universal-gui-coverage) | 43 | Complete | Every catalog action has a permission-filtered descriptor, typed workflow or reviewed direct route, command fallback, session validation, confirmation, result projection, HUD decision, and catalog lint coverage. |
+| [Phase 9](../sef2.md#phase-9-client-protocol-and-gui-pilot) | 62 | In progress | Protocol and headless startup tests pass. Sharp world backgrounds, pause button visibility, reconnect, and mixed-client behavior require renewed interactive verification. |
+| [Phase 10](../sef2.md#phase-10-universal-gui-coverage) | 43 | In progress | Descriptor and workflow lint pass. Player filtering, multi-target selection, item browsing, one-tooltip rendering, homes actions, and GUI scale behavior require renewed interactive verification. |
 | [Phase 11](../sef2.md#phase-11-custom-aliases-bundles-fake-identity-and-sudo-suite) | 47 | Complete | Alias publication, bundle pacing and recovery, profiles, fake identity, sudo consent and locks, one-use delegation, indirection denial, server source, silent execution, audit lifecycle, and mixed-client fallback pass. |
 | [Phase 12A](../sef2.md#phase-12a-fancy-tags) | 14 | Complete | Registry, assignment, secure image and archive validation, content-addressed storage, publication recovery, bounded transfer, cache, editor, rendering, cleanup, and mixed-client degradation pass. |
-| [Phase 12B](../sef2.md#phase-12b-disguise) | 34 | Complete | Persistent state, target policy, projection, proxy identity, traits, abilities, command workflows, expiry, cleanup, adapter failure, client presentation, and vanilla fallback pass. |
-| [Phase 13A](../sef2.md#phase-13a-operational-safety-foundation) | 10 | Complete | Maintenance, restart, change windows, health, guardrails, cleanup, approvals, runtime enforcement, workflows, and private HUD state are registered and tested. |
-| [Phase 13B](../sef2.md#phase-13b-community-and-staff-workflow) | 9 | Complete | Staff duty, queues, handoffs, tasks, schedules, announcements, ticketing, reports, workflows, persistence, and fallback routes are registered and tested. |
+| [Phase 12B](../sef2.md#phase-12b-disguise) | 34 | In progress | Permission, state, syntax, and adapter tests pass. Bat, Enderman, movement, swing, hurt, reconnect, and mixed-client animation require renewed multiplayer visual verification. |
+| [Phase 13A](../sef2.md#phase-13a-operational-safety-foundation) | 10 | In progress | `resource_governor` has no executable runtime. Its preview now fails honestly and manual activation is denied. |
+| [Phase 13B](../sef2.md#phase-13b-community-and-staff-workflow) | 9 | In progress | `chat_channels` and `staff_duty` have no executable runtime. Their previews fail honestly and manual activation is denied. |
 | [Phase 13C](../sef2.md#phase-13c-onboarding-and-rewards) | 7 | Complete | Onboarding, checklists, rules, rewards, referrals, streaks, idempotent claims, workflows, and persistence are registered and tested. |
-| [Phase 13D](../sef2.md#phase-13d-recovery-and-world-operations) | 7 | Complete | Graves, inventory recovery, world operations, cleanup, snapshots, rollback state, failure handling, workflows, and persistence are registered and tested. |
-| [Phase 13E](../sef2.md#phase-13e-governance-and-navigation) | 9 | Complete | Governance, waypoints, map policy, travel, portals, regions, navigation, workflows, bounded state, and command fallback are registered and tested. |
-| [Phase 13F](../sef2.md#phase-13f-staff-governance-and-due-process) | 6 | Complete | Approval separation, access leases, administrative locks, appeals, discipline, review state, expiry, recovery, workflows, and audit pass. |
-| [Phase 13G](../sef2.md#phase-13g-chat-safety-admission-and-access) | 6 | Complete | Automod, chat control, admission, invites, access applications, replay protection, expiry, enforcement, workflows, and private state projection pass. |
-| [Phase 13H](../sef2.md#phase-13h-content-and-world-policy) | 5 | Complete | Resource packs, presentation, border transitions, ecology, world policy, previews, rollback state, workflows, and fallback routes are registered and tested. |
+| [Phase 13D](../sef2.md#phase-13d-recovery-and-world-operations) | 7 | In progress | `resource_worlds` has no executable runtime. Existing recovery behavior remains separately testable. |
+| [Phase 13E](../sef2.md#phase-13e-governance-and-navigation) | 9 | In progress | `waypoints`, `portal_policy`, and `player_warp_review` have no executable runtime. |
+| [Phase 13F](../sef2.md#phase-13f-staff-governance-and-due-process) | 6 | In progress | `approvals` and `capability_leases` control records are not connected to their dedicated authorization repositories. |
+| [Phase 13G](../sef2.md#phase-13g-chat-safety-admission-and-access) | 6 | In progress | Native queue enforcement and explicit full-server exemption are implemented. Multi-client capacity, FIFO, timeout, reconnect, and denial-boundary verification remains required. |
+| [Phase 13H](../sef2.md#phase-13h-content-and-world-policy) | 5 | In progress | `server_presentation` and `spawn_ecology` have no executable runtime. |
 | [Phase 13I](../sef2.md#phase-13i-diagnostics-data-packs-and-verified-recovery) | 5 | Complete | Diagnostics, data-pack publication, backups, verification, restore staging, rehearsal, failure recovery, workflows, and audit are registered and tested. |
 | [Phase 13J](../sef2.md#phase-13j-privacy-and-evidence) | 3 | Complete | Privacy projection, export, correction, deletion, anonymization, evidence custody, retention, hold, destruction, workflows, and audit are registered and tested. |
 | [Phase 13K](../sef2.md#phase-13k-item-logistics-and-player-market) | 4 | Complete | Parcels, lost and found, direct trades, auctions, escrow, duplicate-source rejection, blocks, watches, settlement, recovery, workflows, and persistence pass. |
 | [Phase 13L](../sef2.md#phase-13l-community-governance-and-knowledge) | 3 | Complete | Polls, events, capacity, waitlists, check-in, rewards, knowledge publication, search, workflows, and persistence are registered and tested. |
-| [Phase 13M](../sef2.md#phase-13m-unified-display-ownership) | 4 | Complete | Display ownership, priority, leases, composition, privacy, packet budgets, workflows, HUD decisions, and fallback presentation are registered and tested. |
+| [Phase 13M](../sef2.md#phase-13m-unified-display-ownership) | 4 | In progress | `display_profiles` and `display_ownership` have no executable runtime. |
 | [Phase 13N](../sef2.md#phase-13n-unrestricted-administrative-enchanting-and-workstation-completion) | 16 | Complete | Canonical and shortcut routing, unsafe level and item permissions, level 1000 storage, destructive actions, stale-menu rejection, overflow safety, GUI workflow, dedicated server, and mixed client pass. |
 | [Phase 13O](../sef2.md#phase-13o-permission-derived-command-cooldowns) | 39 | Complete | Canonical permission-derived resolution, exact and inherited precedence, finite fallback, provider failure, persistence, refresh, reconnect, alias, shortcut, GUI, bundle, sudo, diagnostics, and migration coverage pass. |
 | [Phase 13.5](../sef2.md#phase-135-modular-responsive-configuration-platform) | 331 | Complete | All 62 module schemas, bootstrap split, transactional load, validation, migration, backup, rollback, watcher debounce, typed commands, workflow protocol, secrets filtering, generated references, mixed clients, and performance budgets pass. |
-| [Phase 14](../sef2.md#phase-14-release-hardening) | 16 | Complete | User and maintainer documentation, generated references, installation, migration, compatibility, performance, security, release notes, clean build, server and client matrix, and JAR inspection pass. |
-| [Global verification](../sef2.md#test-layers) | 356 | Complete | All 390 unit tests and all 29 required GameTests pass. Java 21 build, dedicated server, enhanced client, fallback client, migration fixtures, performance budgets, generated-reference drift, security review, and artifact inspection pass. |
-| [Final acceptance](../sef2.md#product) | 253 | Complete | Product, permission, server mode, GUI, persistence, security, performance, compatibility, migration, documentation, and verification criteria are implemented and verified on the current source revision. |
+| [Phase 14](../sef2.md#phase-14-release-hardening) | 16 | In progress | Documentation, automated tests, generated references, build, GameTests, dedicated-server startup, headless client startup, and artifact inspection pass on the current worktree. Multiplayer and interactive visual matrices remain required. |
+| [Global verification](../sef2.md#test-layers) | 356 | In progress | The current automated, build, server, client-startup, security-scan, and artifact gates pass. Multiplayer, LuckPerms staging, and interactive GUI and disguise verification remain incomplete. |
+| [Final acceptance](../sef2.md#product) | 253 | Incomplete | Sixteen Phase 13 runtime families remain unavailable and interactive regression testing is outstanding. |
 
-## Current verified baseline
+## Current verified worktree
 
-Verified on 2026-07-27 with Java `21.0.11`, Minecraft `1.21.1`, NeoForge `21.1.233`, Parchment `2024.11.17`, and Gradle `8.8`.
+The current worktree has the following verified evidence:
+
+- All 487 unit tests pass.
+- All 39 required GameTests pass.
+- Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
+- All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
+- NeoForge `21.1.235` resolves through ModDevGradle, passes compilation, the unit suite, all GameTests, the clean build, dedicated server startup and shutdown, headless client startup, and exact packaged dependency metadata inspection.
+- `./gradlew build compileFallbackRuntimeJava generateProjectReferences generatePerformanceReport` passes.
+- The dedicated server reaches `Done` with the admission mixin loaded, then stops and saves every dimension through the timeout shutdown path.
+- The headless Xvfb client initializes the render thread, resources, textures, and GUI atlas and remains running until the bounded timeout. The expected headless OpenAL device error is not an SEF failure.
+- `git diff --check` passes.
+- The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
+- The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
+- The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
+- The current JAR is `sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`.
+
+This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
+
+## Previous verified baseline
+
+The values below describe the previous source revision and artifact. They are retained for comparison and must not be treated as acceptance evidence for the current worktree.
 
 - All 390 unit tests pass.
 - All 29 required GameTests pass.

@@ -78,7 +78,14 @@ public class ToggleCommand {
                 "&cNo toggleable announcement with id &e" + id));
             return 0;
         }
-        boolean nowOn = manager.togglePlayer(player.getUUID(), id);
+        boolean nowOn;
+        try {
+            nowOn = manager.togglePlayer(player.getUUID(), id);
+        } catch (IllegalStateException exception) {
+            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cAnnouncement preference could not be saved. &7" + exception.getMessage()));
+            return 0;
+        }
         String text = nowOn
             ? ConfigHandler.config.toggleOnText.get() + " &7Enabled announcement: &e" + id
             : ConfigHandler.config.toggleOffText.get() + " &7Disabled announcement: &e" + id;

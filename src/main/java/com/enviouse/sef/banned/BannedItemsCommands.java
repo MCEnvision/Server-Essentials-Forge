@@ -17,6 +17,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -93,7 +94,7 @@ public class BannedItemsCommands {
         // ── Mutations: op-only ──────────────────────────────────────────────
         // /banned add <item> [duration] [announce] [reason...]
         root.then(Commands.literal("add").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("item", StringArgumentType.word())
+            .then(Commands.argument("item", ResourceLocationArgument.id())
                 .suggests(SUGGEST_ALL_ITEMS)
                 .executes(ctx -> doAdd(ctx, "infinite", false, ""))
                 .then(Commands.argument("duration", StringArgumentType.word())
@@ -128,7 +129,7 @@ public class BannedItemsCommands {
 
         // /banned update <item> [duration] [announce] [reason...]
         root.then(Commands.literal("update").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("item", StringArgumentType.word())
+            .then(Commands.argument("item", ResourceLocationArgument.id())
                 .suggests(SUGGEST_BANNED)
                 .executes(ctx -> doUpdate(ctx, null, null, null))
                 .then(Commands.argument("duration", StringArgumentType.word())
@@ -284,7 +285,7 @@ public class BannedItemsCommands {
 
     private static int doAdd(CommandContext<CommandSourceStack> ctx, String durationStr,
                              boolean announce, String reason) {
-        String item = StringArgumentType.getString(ctx, "item");
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
         long durMs = parseDurationMs(durationStr);
         String issuer = sourceName(ctx.getSource());
         boolean added = manager.addBan(item, reason == null ? "" : reason, durMs, issuer, announce);
@@ -347,7 +348,7 @@ public class BannedItemsCommands {
 
     private static int doUpdate(CommandContext<CommandSourceStack> ctx,
                                 String durationStr, Boolean announce, String reason) {
-        String item = StringArgumentType.getString(ctx, "item");
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
         Long durMs = durationStr == null ? null : parseDurationMs(durationStr);
         boolean ok = manager.updateBan(item, reason, durMs, announce);
         if (!ok) {

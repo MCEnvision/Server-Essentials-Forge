@@ -7,6 +7,7 @@ import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.policy.CostService;
 import com.enviouse.sef.permissions.PermissionService;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -24,6 +25,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.storage.ServerLevelData;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -33,6 +35,7 @@ import net.neoforged.neoforge.event.level.ExplosionEvent;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 
 import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -50,7 +53,7 @@ public final class EconomySignHandler {
     private EconomySignHandler() {
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = false)
     public static void onPlaced(BlockEvent.EntityPlaceEvent event) {
         if (!enabled() || !(event.getEntity() instanceof ServerPlayer player)) {
             return;
@@ -71,7 +74,7 @@ public final class EconomySignHandler {
         rememberPlacement(new LocationKey(dimensionId, position), player.getUUID());
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = false)
     public static void onBroken(BlockEvent.BreakEvent event) {
         if (!enabled() || !(event.getLevel() instanceof ServerLevel level)) {
             return;
@@ -79,7 +82,7 @@ public final class EconomySignHandler {
         removeAt(level, event.getPos());
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = false)
     public static void onExplosion(ExplosionEvent.Detonate event) {
         if (!enabled() || !(event.getLevel() instanceof ServerLevel level)) {
             return;
@@ -89,7 +92,7 @@ public final class EconomySignHandler {
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.LOW)
+    @SubscribeEvent(priority = EventPriority.LOWEST, receiveCanceled = false)
     public static void onRightClick(PlayerInteractEvent.RightClickBlock event) {
         if (!enabled()
                 || event.isCanceled()
@@ -204,35 +207,55 @@ public final class EconomySignHandler {
         parameters.put("sign", record.key().stableId());
         parameters.put("type", type.id());
         parameters.put("revision", Long.toString(record.revision()));
+        UUID operationId = UUID.randomUUID();
+        parameters.put("operation_id", operationId.toString());
         KernelCommandExecutor.execute(
                 player.createCommandSourceStack(),
                 "sef:economy.sign." + type.id(),
                 parameters,
                 List.of(player.getUUID()),
                 false,
-                () -> executeAuthorized(player, record),
+                () -> executeAuthorized(player, record, operationId),
                 usePermission(type));
     }
 
-    private static int executeAuthorized(ServerPlayer player, EconomySignRepository.SignRecord record) {
+    private static int executeAuthorized(
+            ServerPlayer player,
+            EconomySignRepository.SignRecord record,
+            UUID operationId
+    ) {
         try {
             return switch (record.type()) {
                 case BALANCE -> balance(player);
-                case BUY -> buy(player, record.arguments());
+                case BUY -> buy(player, record.arguments(), operationId);
                 case SELL -> sell(player, record.arguments());
                 case TRADE -> trade(player, record.arguments());
                 case FREE -> free(player, record.arguments());
                 case DISPOSAL -> disposal(player);
-                case KIT -> commandWithCharge(player, "kit " + record.arguments().getFirst(), 0L, "kit sign");
-                case HEAL -> heal(player, amount(record.arguments().getFirst()));
-                case REPAIR -> repair(player, amount(record.arguments().getFirst()));
-                case TIME -> time(player, record.arguments().get(0), amount(record.arguments().get(1)));
-                case WEATHER -> weather(player, record.arguments().get(0), amount(record.arguments().get(1)));
+                case KIT -> commandWithCharge(
+                        player,
+                        "kit " + record.arguments().getFirst(),
+                        0L,
+                        "kit sign",
+                        operationId);
+                case HEAL -> heal(player, amount(record.arguments().getFirst()), operationId);
+                case REPAIR -> repair(player, amount(record.arguments().getFirst()), operationId);
+                case TIME -> time(
+                        player,
+                        record.arguments().get(0),
+                        amount(record.arguments().get(1)),
+                        operationId);
+                case WEATHER -> weather(
+                        player,
+                        record.arguments().get(0),
+                        amount(record.arguments().get(1)),
+                        operationId);
                 case WARP -> commandWithCharge(
                         player,
                         "warp " + record.arguments().get(0),
                         amount(record.arguments().get(1)),
-                        "warp sign");
+                        "warp sign",
+                        operationId);
             };
         } catch (IllegalArgumentException | IllegalStateException | ArithmeticException exception) {
             fail(player, message(exception));
@@ -251,30 +274,39 @@ public final class EconomySignHandler {
         return 1;
     }
 
-    private static int buy(ServerPlayer player, List<String> arguments) {
+    private static int buy(ServerPlayer player, List<String> arguments, UUID operationId) {
         Item item = item(arguments.get(0));
         int quantity = Integer.parseInt(arguments.get(1));
         long value = amount(arguments.get(2));
         validateSignValue(value);
-        java.util.concurrent.atomic.AtomicReference<Charge> reserved =
-                new java.util.concurrent.atomic.AtomicReference<>();
-        EconomyInventoryTransaction.Result transaction = EconomyInventoryTransaction.buy(
-                player.getInventory(),
-                item,
-                quantity,
-                () -> {
-                    Charge charge = charge(player, value, "economy sign purchase");
-                    reserved.set(charge);
-                    return charge.successful();
-                },
-                () -> rollbackCharge(player, reserved.get()));
+        ActionResult<CostService.Reservation> reserved =
+                reserve(player, value, "economy sign purchase", operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
+            return 0;
+        }
+        java.util.concurrent.atomic.AtomicReference<String> failure =
+                new java.util.concurrent.atomic.AtomicReference<>("");
+        EconomyInventoryTransaction.Result transaction;
+        try (CostService.Reservation reservation = reserved.value()) {
+            transaction = EconomyInventoryTransaction.buy(
+                    player.getInventory(),
+                    item,
+                    quantity,
+                    () -> {
+                        ActionResult<Void> committed = reservation.commit();
+                        if (!committed.successful()) {
+                            failure.set(committed.detail());
+                        }
+                        return committed.successful();
+                    });
+        }
         if (!transaction.successful()) {
-            Charge charge = reserved.get();
             fail(player, transaction.code() == EconomyInventoryTransaction.Code.INVENTORY_FULL
                     ? "Your inventory does not have enough space."
-                    : charge != null && !charge.detail().isBlank()
-                    ? charge.detail()
-                    : "The purchase failed. Your balance and inventory were restored.");
+                    : failure.get().isBlank()
+                    ? "The purchase failed. Your balance and inventory were restored."
+                    : failure.get() + ". Your balance and inventory were restored.");
             return 0;
         }
         sync(player);
@@ -368,142 +400,178 @@ public final class EconomySignHandler {
         return 1;
     }
 
-    private static int heal(ServerPlayer player, long price) {
+    private static int heal(ServerPlayer player, long price, UUID operationId) {
         if (player.getHealth() >= player.getMaxHealth()
                 && player.getFoodData().getFoodLevel() >= 20
                 && player.getRemainingFireTicks() <= 0) {
             fail(player, "You do not need healing.");
             return 0;
         }
-        Charge charge = charge(player, price, "economy sign heal");
-        if (!charge.successful()) {
-            fail(player, charge.detail());
+        ActionResult<CostService.Reservation> reserved =
+                reserve(player, price, "economy sign heal", operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
             return 0;
         }
-        player.setHealth(player.getMaxHealth());
-        player.getFoodData().setFoodLevel(20);
-        player.getFoodData().setSaturation(5.0F);
-        player.clearFire();
+        float health = player.getHealth();
+        int food = player.getFoodData().getFoodLevel();
+        float saturation = player.getFoodData().getSaturationLevel();
+        int fireTicks = player.getRemainingFireTicks();
+        try (CostService.Reservation reservation = reserved.value()) {
+            player.setHealth(player.getMaxHealth());
+            player.getFoodData().setFoodLevel(20);
+            player.getFoodData().setSaturation(5.0F);
+            player.clearFire();
+            ActionResult<Void> committed = reservation.commit();
+            if (!committed.successful()) {
+                player.setHealth(health);
+                player.getFoodData().setFoodLevel(food);
+                player.getFoodData().setSaturation(saturation);
+                player.setRemainingFireTicks(fireTicks);
+                fail(player, committed.detail());
+                return 0;
+            }
+        }
         success(player, "You were healed for " + KernelServices.economy().format(price) + ".");
         return 1;
     }
 
-    private static int repair(ServerPlayer player, long price) {
+    private static int repair(ServerPlayer player, long price, UUID operationId) {
         ItemStack held = player.getMainHandItem();
         if (held.isEmpty() || !held.isDamageableItem() || !held.isDamaged()) {
             fail(player, "Hold a damaged repairable item.");
             return 0;
         }
-        Charge charge = charge(player, price, "economy sign repair");
-        if (!charge.successful()) {
-            fail(player, charge.detail());
+        ActionResult<CostService.Reservation> reserved =
+                reserve(player, price, "economy sign repair", operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
             return 0;
         }
-        held.setDamageValue(0);
+        int damage = held.getDamageValue();
+        try (CostService.Reservation reservation = reserved.value()) {
+            held.setDamageValue(0);
+            ActionResult<Void> committed = reservation.commit();
+            if (!committed.successful()) {
+                held.setDamageValue(damage);
+                fail(player, committed.detail());
+                return 0;
+            }
+        }
         sync(player);
         success(player, "Your held item was repaired for " + KernelServices.economy().format(price) + ".");
         return 1;
     }
 
-    private static int time(ServerPlayer player, String setting, long price) {
-        Charge charge = charge(player, price, "economy sign time");
-        if (!charge.successful()) {
-            fail(player, charge.detail());
+    private static int time(ServerPlayer player, String setting, long price, UUID operationId) {
+        ActionResult<CostService.Reservation> reserved =
+                reserve(player, price, "economy sign time", operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
             return 0;
         }
         ServerLevel level = player.serverLevel();
-        long day = level.getDayTime() - Math.floorMod(level.getDayTime(), 24_000L);
-        level.setDayTime(day + (setting.equals("day") ? 1_000L : 13_000L));
+        long previous = level.getDayTime();
+        try (CostService.Reservation reservation = reserved.value()) {
+            long day = previous - Math.floorMod(previous, 24_000L);
+            level.setDayTime(day + (setting.equals("day") ? 1_000L : 13_000L));
+            ActionResult<Void> committed = reservation.commit();
+            if (!committed.successful()) {
+                level.setDayTime(previous);
+                fail(player, committed.detail());
+                return 0;
+            }
+        }
         success(player, "Time changed to " + setting + ".");
         return 1;
     }
 
-    private static int weather(ServerPlayer player, String setting, long price) {
-        Charge charge = charge(player, price, "economy sign weather");
-        if (!charge.successful()) {
-            fail(player, charge.detail());
+    private static int weather(ServerPlayer player, String setting, long price, UUID operationId) {
+        if (!Set.of("clear", "rain", "thunder").contains(setting)) {
+            throw new IllegalArgumentException("Economy sign weather option is invalid");
+        }
+        ActionResult<CostService.Reservation> reserved =
+                reserve(player, price, "economy sign weather", operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
             return 0;
         }
-        switch (setting) {
-            case "clear" -> player.serverLevel().setWeatherParameters(12_000, 0, false, false);
-            case "rain" -> player.serverLevel().setWeatherParameters(0, 12_000, true, false);
-            case "thunder" -> player.serverLevel().setWeatherParameters(0, 12_000, true, true);
-            default -> {
-                rollbackCharge(player, charge);
-                throw new IllegalArgumentException("Economy sign weather option is invalid");
+        ServerLevel level = player.serverLevel();
+        ServerLevelData weather = (ServerLevelData) level.getLevelData();
+        int previousClearTime = weather.getClearWeatherTime();
+        int previousRainTime = weather.getRainTime();
+        int previousThunderTime = weather.getThunderTime();
+        boolean previousRaining = weather.isRaining();
+        boolean previousThundering = weather.isThundering();
+        try (CostService.Reservation reservation = reserved.value()) {
+            switch (setting) {
+                case "clear" -> level.setWeatherParameters(12_000, 0, false, false);
+                case "rain" -> level.setWeatherParameters(0, 12_000, true, false);
+                case "thunder" -> level.setWeatherParameters(0, 12_000, true, true);
+                default -> throw new IllegalStateException("validated weather option changed");
+            }
+            ActionResult<Void> committed = reservation.commit();
+            if (!committed.successful()) {
+                weather.setClearWeatherTime(previousClearTime);
+                weather.setRainTime(previousRainTime);
+                weather.setThunderTime(previousThunderTime);
+                weather.setRaining(previousRaining);
+                weather.setThundering(previousThundering);
+                fail(player, committed.detail());
+                return 0;
             }
         }
         success(player, "Weather changed to " + setting + ".");
         return 1;
     }
 
-    private static int commandWithCharge(ServerPlayer player, String command, long price, String reason) {
-        Charge charge = charge(player, price, reason);
-        if (!charge.successful()) {
-            fail(player, charge.detail());
+    private static int commandWithCharge(
+            ServerPlayer player,
+            String command,
+            long price,
+            String reason,
+            UUID operationId
+    ) {
+        ActionResult<CostService.Reservation> reserved = reserve(player, price, reason, operationId);
+        if (!reserved.successful()) {
+            fail(player, reserved.detail());
             return 0;
         }
-        final int result;
-        try {
-            result = player.getServer().getCommands().getDispatcher()
-                    .execute(command, player.createCommandSourceStack());
-        } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
-            rollbackCharge(player, charge);
-            fail(player, exception.getRawMessage().getString() + ". Your balance was restored.");
-            return 0;
+        try (CostService.Reservation reservation = reserved.value()) {
+            final int result;
+            try {
+                result = player.getServer().getCommands().getDispatcher()
+                        .execute(command, player.createCommandSourceStack());
+            } catch (com.mojang.brigadier.exceptions.CommandSyntaxException exception) {
+                fail(player, exception.getRawMessage().getString() + ". Your balance was restored.");
+                return 0;
+            } catch (RuntimeException exception) {
+                fail(player, "The linked command failed. Your balance was restored.");
+                throw exception;
+            }
+            if (result <= 0) {
+                fail(player, "The linked command failed. Your balance was restored.");
+                return 0;
+            }
+            ActionResult<Void> committed = reservation.commit();
+            if (!committed.successful()) {
+                fail(player, committed.detail());
+                return 0;
+            }
+            return result;
         }
-        if (result <= 0) {
-            rollbackCharge(player, charge);
-            fail(player, "The linked command failed. Your balance was restored.");
-            return 0;
-        }
-        return result;
     }
 
-    private static Charge charge(ServerPlayer player, long amount, String reason) {
+    private static ActionResult<CostService.Reservation> reserve(
+            ServerPlayer player,
+            long amount,
+            String reason,
+            UUID operationId
+    ) {
         validateSignValue(amount);
-        if (amount == 0L) {
-            return Charge.free();
-        }
         EconomyProvider provider = KernelServices.economy().requireProvider();
-        ActionResult<EconomyProvider.Transaction> result = provider.withdraw(
-                new EconomyProvider.MutationRequest(
-                        "sign.charge." + UUID.randomUUID(),
-                        player.getUUID(),
-                        player.getUUID(),
-                        reason,
-                        provider.currency(),
-                        amount,
-                        Map.of("route", "economy_sign"),
-                        false));
-        return result.successful()
-                ? Charge.paid(amount, result.value().transactionId())
-                : Charge.failure(result.detail());
-    }
-
-    private static void rollbackCharge(ServerPlayer player, Charge charge) {
-        if (!charge.successful() || charge.amount() == 0L) {
-            return;
-        }
-        EconomyProvider provider = KernelServices.economy().requireProvider();
-        ActionResult<EconomyProvider.Transaction> refund = provider.deposit(
-                new EconomyProvider.MutationRequest(
-                        "sign.refund." + charge.transactionId(),
-                        player.getUUID(),
-                        player.getUUID(),
-                        "economy sign rollback",
-                        provider.currency(),
-                        charge.amount(),
-                        Map.of("route", "economy_sign", "charge", charge.transactionId().toString()),
-                        true));
-        if (!refund.successful()) {
-            ServerEssentialsForge.LOGGER.error(
-                    "[SEF] Economy sign compensation failed for player {} and transaction {}. {}",
-                    player.getUUID(),
-                    charge.transactionId(),
-                    refund.detail());
-            throw new IllegalStateException("Economy sign compensation failed. Contact an administrator.");
-        }
+        BigDecimal major = EconomyMoney.toMajorUnits(amount, provider.minorUnits());
+        return KernelServices.costs().reserve(player.getUUID(), reason, major, operationId);
     }
 
     private static long amount(String input) {
@@ -668,17 +736,4 @@ public final class EconomySignHandler {
     private record PlacementClaim(UUID creatorId, long expiresAtEpochMillis) {
     }
 
-    private record Charge(boolean successful, long amount, UUID transactionId, String detail) {
-        static Charge free() {
-            return new Charge(true, 0L, new UUID(0L, 0L), "");
-        }
-
-        static Charge paid(long amount, UUID transactionId) {
-            return new Charge(true, amount, transactionId, "");
-        }
-
-        static Charge failure(String detail) {
-            return new Charge(false, 0L, new UUID(0L, 0L), Objects.requireNonNullElse(detail, ""));
-        }
-    }
 }

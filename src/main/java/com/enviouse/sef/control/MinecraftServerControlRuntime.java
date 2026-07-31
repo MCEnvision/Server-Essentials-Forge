@@ -1,5 +1,6 @@
 package com.enviouse.sef.control;
 
+import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.gui.protocol.SefPayloads;
@@ -10,6 +11,7 @@ import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.player.PlayerStateService;
 import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.authlib.GameProfile;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
@@ -62,14 +64,38 @@ public final class MinecraftServerControlRuntime {
     private static final Map<UUID, QuarantineAnchor> QUARANTINE_ANCHORS = new LinkedHashMap<>();
     private static final Map<UUID, Set<Long>> RESTART_WARNINGS = new LinkedHashMap<>();
     private static final Map<UUID, Long> LAST_GUARDRAIL_WARNING = new LinkedHashMap<>();
+    private static final Map<UUID, Long> LAST_PERFORMANCE_QUERY = new LinkedHashMap<>();
     private static final Deque<Long> JOIN_WINDOW = new ArrayDeque<>();
     private static final Deque<AdmissionQueueEntry> ADMISSION_QUEUE = new ArrayDeque<>();
     private static final Map<UUID, Instant> RELEASED_ADMISSIONS = new LinkedHashMap<>();
     private static GuardrailSnapshot guardrailSnapshot;
+    private static PerformanceSnapshot performanceSnapshot;
+    private static long lastGlobalPerformanceQuery;
     private static long cachedRevision = -1L;
     private static Map<String, List<ServerControlRepository.ControlRecord>> active = Map.of();
+    private static final Set<String> UNAVAILABLE_RUNTIME_FEATURES = Set.of(
+            "resource_governor",
+            "chat_channels",
+            "afk_zones",
+            "resource_worlds",
+            "admin_journal",
+            "rollouts",
+            "waypoints",
+            "portal_policy",
+            "staff_duty",
+            "approvals",
+            "capability_leases",
+            "server_presentation",
+            "spawn_ecology",
+            "display_profiles",
+            "display_ownership",
+            "player_warp_review");
 
     private MinecraftServerControlRuntime() {
+    }
+
+    public static List<String> unavailableRuntimeFeatures() {
+        return UNAVAILABLE_RUNTIME_FEATURES.stream().sorted().toList();
     }
 
     public static void registerHandlers(ServerControlExecutionService executions) {
@@ -114,7 +140,13 @@ public final class MinecraftServerControlRuntime {
                 "knowledge",
                 "display_profiles",
                 "display_ownership")) {
-            executions.register(feature, MinecraftServerControlRuntime::activatePolicy);
+            if (UNAVAILABLE_RUNTIME_FEATURES.contains(feature)) {
+                executions.registerUnavailable(
+                        feature,
+                        feature + " runtime behavior is unavailable, the record cannot be activated");
+            } else {
+                executions.register(feature, MinecraftServerControlRuntime::activatePolicy);
+            }
         }
         for (String feature : List.of(
                 "reports",
@@ -126,7 +158,13 @@ public final class MinecraftServerControlRuntime {
                 "discipline",
                 "access_applications",
                 "privacy")) {
-            executions.register(feature, MinecraftServerControlRuntime::resolveReview);
+            if (UNAVAILABLE_RUNTIME_FEATURES.contains(feature)) {
+                executions.registerUnavailable(
+                        feature,
+                        feature + " runtime behavior is unavailable, the record cannot be resolved");
+            } else {
+                executions.register(feature, MinecraftServerControlRuntime::resolveReview);
+            }
         }
         executions.register("policy_lab", MinecraftServerControlRuntime::policyLab);
         executions.register("config_drift", MinecraftServerControlRuntime::configDrift);
@@ -368,8 +406,25 @@ public final class MinecraftServerControlRuntime {
                 return;
             }
             ADMISSION_QUEUE.addLast(queued);
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Queued login for {} at admission position {}",
+                    event.getProfile().getId(),
+                    ADMISSION_QUEUE.size());
         }
         event.enqueueWork(gate);
+    }
+
+    public static boolean allowsFullServerNegotiation(UUID playerId) {
+        if (playerId == null) {
+            return false;
+        }
+        if (exempt(playerId, "admission") || exempt(playerId, "queue")) {
+            return true;
+        }
+        ServerControlRepository.ControlRecord queuePolicy =
+                latestEffective("queue").orElse(null);
+        return queuePolicy != null
+                && field(queuePolicy, "mode", "deny_retry").equals("native_wait");
     }
 
     public static void login(ServerPlayer player) {
@@ -433,6 +488,7 @@ public final class MinecraftServerControlRuntime {
         if (server.getTickCount() % 20 != 0) {
             return;
         }
+        refreshPerformanceSnapshot(server);
         maintenanceTick(server);
         cleanupTick(server);
         quarantineTick(server);
@@ -448,6 +504,7 @@ public final class MinecraftServerControlRuntime {
         COMMAND_WINDOWS.clear();
         QUARANTINE_ANCHORS.clear();
         RESTART_WARNINGS.clear();
+        LAST_PERFORMANCE_QUERY.clear();
         JOIN_WINDOW.clear();
         ADMISSION_QUEUE.forEach(entry -> {
             entry.connection().disconnect(Component.literal(
@@ -456,6 +513,8 @@ public final class MinecraftServerControlRuntime {
         });
         ADMISSION_QUEUE.clear();
         RELEASED_ADMISSIONS.clear();
+        performanceSnapshot = null;
+        lastGlobalPerformanceQuery = 0L;
         cachedRevision = -1L;
         active = Map.of();
     }
@@ -486,13 +545,15 @@ public final class MinecraftServerControlRuntime {
                 }
                 if (!activeQueue) {
                     entry.connection().disconnect(Component.literal(
-                            "The admission queue is no longer active."));
+                            entry.status() + " The admission queue is no longer active."));
                     entry.gate().complete(null);
                     return true;
                 }
                 if (!entry.expiresAt().isAfter(now)) {
+                    int position = queuePosition(entry.profile().getId());
                     entry.connection().disconnect(Component.literal(
-                            "The admission queue wait expired. Please reconnect."));
+                            entry.status() + " The wait expired at position "
+                                    + position + ". Please reconnect."));
                     entry.gate().complete(null);
                     return true;
                 }
@@ -516,6 +577,17 @@ public final class MinecraftServerControlRuntime {
                 available--;
             }
         }
+    }
+
+    private static int queuePosition(UUID playerId) {
+        int position = 1;
+        for (AdmissionQueueEntry entry : ADMISSION_QUEUE) {
+            if (entry.profile().getId().equals(playerId)) {
+                return position;
+            }
+            position++;
+        }
+        return 0;
     }
 
     private static synchronized int releasedAdmissionCount() {
@@ -1334,19 +1406,90 @@ public final class MinecraftServerControlRuntime {
         if (server == null) {
             return ActionResult.failure(ActionResult.ReasonCode.SOURCE_NOT_ALLOWED, "server source is unavailable");
         }
-        long entities = 0L;
-        long chunks = 0L;
-        for (ServerLevel level : server.getAllLevels()) {
-            for (Entity ignored : level.getEntities().getAll()) {
-                entities++;
-            }
-            chunks += level.getChunkSource().getLoadedChunksCount();
+        UUID actorId = performanceActor(context);
+        long now = System.currentTimeMillis();
+        if (!performanceAllowed(actorId, now)) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.COOLDOWN_ACTIVE,
+                    "performance snapshot requests are rate limited");
         }
+        PerformanceSnapshot snapshot;
+        synchronized (MinecraftServerControlRuntime.class) {
+            snapshot = performanceSnapshot;
+        }
+        if (snapshot == null) {
+            refreshPerformanceSnapshot(server);
+            synchronized (MinecraftServerControlRuntime.class) {
+                snapshot = performanceSnapshot;
+            }
+        }
+        long entities = snapshot == null ? 0L : snapshot.entities();
+        long chunks = snapshot == null ? 0L : snapshot.loadedChunks();
+        long age = snapshot == null
+                ? 0L
+                : Math.max(0L, now - snapshot.createdAtEpochMillis());
         return ActionResult.success("average tick " + String.format(
                 Locale.ROOT,
                 "%.2f",
                 server.getAverageTickTimeNanos() / 1_000_000.0D)
-                + " ms, entities " + entities + ", loaded chunks " + chunks);
+                + " ms, entities " + entities
+                + ", loaded chunks " + chunks
+                + ", snapshot age " + age + " ms"
+                + (snapshot != null && snapshot.incompleteLevels() > 0
+                ? ", entity counters unavailable for " + snapshot.incompleteLevels() + " levels"
+                : ""));
+    }
+
+    static void refreshPerformanceSnapshot(MinecraftServer server) {
+        long entities = 0L;
+        long chunks = 0L;
+        int levels = 0;
+        int incompleteLevels = 0;
+        for (ServerLevel level : server.getAllLevels()) {
+            long exactEntityCount = level.getEntities().getAll()
+                    .spliterator()
+                    .getExactSizeIfKnown();
+            if (exactEntityCount >= 0L) {
+                entities += exactEntityCount;
+            } else {
+                incompleteLevels++;
+            }
+            chunks += level.getChunkSource().getLoadedChunksCount();
+            levels++;
+        }
+        synchronized (MinecraftServerControlRuntime.class) {
+            performanceSnapshot = new PerformanceSnapshot(
+                    entities,
+                    chunks,
+                    levels,
+                    incompleteLevels,
+                    System.currentTimeMillis());
+        }
+    }
+
+    static synchronized boolean performanceAllowed(UUID actorId, long nowEpochMillis) {
+        Objects.requireNonNull(actorId, "actorId");
+        if (nowEpochMillis < lastGlobalPerformanceQuery + 1_000L
+                || nowEpochMillis < LAST_PERFORMANCE_QUERY.getOrDefault(actorId, 0L) + 5_000L) {
+            return false;
+        }
+        lastGlobalPerformanceQuery = nowEpochMillis;
+        boundedPut(LAST_PERFORMANCE_QUERY, actorId, nowEpochMillis, 4_096);
+        return true;
+    }
+
+    private static UUID performanceActor(ServerControlExecutionService.ExecutionContext context) {
+        if (context.source() instanceof CommandSourceStack source) {
+            if (source.getEntity() != null) {
+                return source.getEntity().getUUID();
+            }
+            return UUID.nameUUIDFromBytes(
+                    ("sef:performance:" + source.getTextName()).getBytes(StandardCharsets.UTF_8));
+        }
+        Object source = context.source();
+        return UUID.nameUUIDFromBytes(
+                ("sef:performance:" + (source == null ? "unknown" : source.getClass().getName()))
+                        .getBytes(StandardCharsets.UTF_8));
     }
 
     private static ActionResult<String> queue(
@@ -1650,6 +1793,15 @@ public final class MinecraftServerControlRuntime {
             long usedMemory,
             long entities,
             double averageTickMillis
+    ) {
+    }
+
+    record PerformanceSnapshot(
+            long entities,
+            long loadedChunks,
+            int levels,
+            int incompleteLevels,
+            long createdAtEpochMillis
     ) {
     }
 

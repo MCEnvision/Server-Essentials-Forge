@@ -2,7 +2,7 @@
 
 This file is generated from the sealed command, shortcut, and GUI descriptor registries. Change registry metadata and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
+Catalog entries: 694. Shortcut entries: 315. GUI descriptors: 25.
 
 ## Commands
 
@@ -673,6 +673,144 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
+### `sef:announcement.bulletin`
+
+* Description: Executes the `/opbulletin` action through the shared policy pipeline.
+* Usage: `/opbulletin`.
+* Canonical route: `opbulletin`.
+* Example: `/opbulletin`.
+* Convenience roots: `opbulletin`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.opbulletin.manage`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:announcement.bulletin`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:announcement.command`
+
+* Description: Executes the `/commandannouncement` action through the shared policy pipeline.
+* Usage: `/commandannouncement`.
+* Canonical route: `commandannouncement`.
+* Example: `/commandannouncement`.
+* Convenience roots: `commandannouncement`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.announcements.command.manage`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:announcement.command`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:announcement.countdown`
+
+* Description: Executes the `/countdown` action through the shared policy pipeline.
+* Usage: `/countdown`.
+* Canonical route: `countdown`.
+* Example: `/countdown`.
+* Convenience roots: `countdown`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.countdown`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:announcement.countdown`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:announcement.text`
+
+* Description: Executes the `/textannouncement` action through the shared policy pipeline.
+* Usage: `/textannouncement`.
+* Canonical route: `textannouncement`.
+* Example: `/textannouncement`.
+* Convenience roots: `textannouncement`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.announcements.manage`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:announcement.text`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:announcement.title`
+
+* Description: Executes the `/titleannouncement` action through the shared policy pipeline.
+* Usage: `/titleannouncement`.
+* Canonical route: `titleannouncement`.
+* Example: `/titleannouncement`.
+* Convenience roots: `titleannouncement`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.announcements.title`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `bounded_players`.
+* Cooldown policy: `sef:announcement.title`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:announcement.toggle`
+
+* Description: Executes the `/toggle` action through the shared policy pipeline.
+* Usage: `/toggle`.
+* Canonical route: `toggle`.
+* Example: `/toggle`.
+* Convenience roots: `toggle`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.announcements.toggle`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:announcement.toggle`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:core`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
 ### `sef:approval.approve`
 
 * Description: Executes the `/approval approve` action through the shared policy pipeline.
@@ -693,6 +831,29 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:approval.list`
+
+* Description: Executes the `/approval` action through the shared policy pipeline.
+* Usage: `/approval`.
+* Canonical route: `approval`.
+* Example: `/approval`.
+* Convenience roots: `approvals`.
+* Category: `control`.
+* Feature gate: `sef.control`.
+* Permissions: `sef.commands.approval.list`.
+* Access class: `owner`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:approval.list`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:control`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
 * Player facing: true.
 * Shared pipeline: required.
 
@@ -739,6 +900,29 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.list`
+
+* Description: Executes the `/banned` action through the shared policy pipeline.
+* Usage: `/banned`.
+* Canonical route: `banned`.
+* Example: `/banned`.
+* Convenience roots: `banned`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.banned.view`.
+* Access class: `player`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.list`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
 * Player facing: true.
 * Shared pipeline: required.
 
@@ -1015,6 +1199,121 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:chat.admin`
+
+* Description: Executes the `/ac` action through the shared policy pipeline.
+* Usage: `/ac`.
+* Canonical route: `ac`.
+* Example: `/ac`.
+* Convenience roots: `ac`, `chat`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.adminchat.use`.
+* Access class: `staff`.
+* Sources: `player`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:chat.admin`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:social`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:chat.clear`
+
+* Description: Executes the `/clearchat` action through the shared policy pipeline.
+* Usage: `/clearchat`.
+* Canonical route: `clearchat`.
+* Example: `/clearchat`.
+* Convenience roots: `cc`, `clearchat`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.clearchat`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `server`.
+* Cooldown policy: `sef:chat.clear`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:chat.helpop`
+
+* Description: Executes the `/helpop` action through the shared policy pipeline.
+* Usage: `/helpop`.
+* Canonical route: `helpop`.
+* Example: `/helpop`.
+* Convenience roots: `helpop`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.helpop.send`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:chat.helpop`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:social`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:chat.helpop.reply`
+
+* Description: Executes the `/helpopop` action through the shared policy pipeline.
+* Usage: `/helpopop`.
+* Canonical route: `helpopop`.
+* Example: `/helpopop`.
+* Convenience roots: `helpopop`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.helpop.reply`.
+* Access class: `staff`.
+* Sources: `player`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:chat.helpop.reply`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:social`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:chat.reply`
+
+* Description: Executes the `/ans` action through the shared policy pipeline.
+* Usage: `/ans`.
+* Canonical route: `ans`.
+* Example: `/ans`.
+* Convenience roots: `ans`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.ans`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:chat.reply`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:social`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
 * Player facing: true.
 * Shared pipeline: required.
 
@@ -7533,7 +7832,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Usage: `/disguise ability`.
 * Canonical route: `disguise ability`.
 * Example: `/disguise ability`.
-* Convenience roots: none.
+* Convenience roots: `dability`.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
 * Permissions: `sef.commands.disguise.ability`.
@@ -7556,7 +7855,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Usage: `/disguise clear`.
 * Canonical route: `disguise clear`.
 * Example: `/disguise clear`.
-* Convenience roots: none.
+* Convenience roots: `undisguise`.
 * Category: `disguise`.
 * Feature gate: `sef.disguise`.
 * Permissions: `sef.commands.disguise.clear`.
@@ -8122,7 +8421,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.buy`
@@ -8145,7 +8444,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.balance`
@@ -8168,7 +8467,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.buy`
@@ -8191,7 +8490,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.disposal`
@@ -8214,7 +8513,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.free`
@@ -8237,7 +8536,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.heal`
@@ -8260,7 +8559,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.kit`
@@ -8283,7 +8582,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.repair`
@@ -8306,7 +8605,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.sell`
@@ -8329,7 +8628,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.time`
@@ -8352,7 +8651,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.trade`
@@ -8375,7 +8674,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.warp`
@@ -8398,7 +8697,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.create.weather`
@@ -8421,7 +8720,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.disposal`
@@ -8444,7 +8743,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.free`
@@ -8467,7 +8766,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.heal`
@@ -8490,7 +8789,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.kit`
@@ -8513,7 +8812,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.manage`
@@ -8559,7 +8858,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.sell`
@@ -8582,7 +8881,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.time`
@@ -8605,7 +8904,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.trade`
@@ -8628,7 +8927,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.warp`
@@ -8651,7 +8950,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.sign.weather`
@@ -8674,7 +8973,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:economy.top`
@@ -9484,10 +9783,10 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ### `sef:guis.disable`
 
-* Description: Executes the `/sef guis disable` action through the shared policy pipeline.
-* Usage: `/sef guis disable`.
-* Canonical route: `sef guis disable`.
-* Example: `/sef guis disable`.
+* Description: Executes the `/sef guis off` action through the shared policy pipeline.
+* Usage: `/sef guis off`.
+* Canonical route: `sef guis off`.
+* Example: `/sef guis off`.
 * Convenience roots: none.
 * Category: `gui.policy`.
 * Feature gate: `sef.gui.policy`.
@@ -9530,10 +9829,10 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ### `sef:guis.enable`
 
-* Description: Executes the `/sef guis enable` action through the shared policy pipeline.
-* Usage: `/sef guis enable`.
-* Canonical route: `sef guis enable`.
-* Example: `/sef guis enable`.
+* Description: Executes the `/sef guis on` action through the shared policy pipeline.
+* Usage: `/sef guis on`.
+* Canonical route: `sef guis on`.
+* Example: `/sef guis on`.
 * Convenience roots: none.
 * Category: `gui.policy`.
 * Feature gate: `sef.gui.policy`.
@@ -9666,6 +9965,98 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
+### `sef:identity.alts`
+
+* Description: Executes the `/checkalts` action through the shared policy pipeline.
+* Usage: `/checkalts`.
+* Canonical route: `checkalts`.
+* Example: `/checkalts`.
+* Convenience roots: `checkalts`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.checkalts`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `optional_player`.
+* Cooldown policy: `sef:identity.alts`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:identity`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:identity.nick`
+
+* Description: Executes the `/nick` action through the shared policy pipeline.
+* Usage: `/nick`.
+* Canonical route: `nick`.
+* Example: `/nick`.
+* Convenience roots: `nick`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.nick`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:identity.nick`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:identity`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:identity.nick.others`
+
+* Description: Executes the `/nickfor` action through the shared policy pipeline.
+* Usage: `/nickfor`.
+* Canonical route: `nickfor`.
+* Example: `/nickfor`.
+* Convenience roots: `nickfor`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.nick.others`.
+* Access class: `staff`.
+* Sources: `player`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:identity.nick.others`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:identity`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:identity.whois`
+
+* Description: Executes the `/whois` action through the shared policy pipeline.
+* Usage: `/whois`.
+* Canonical route: `whois`.
+* Example: `/whois`.
+* Convenience roots: `whois`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.whois`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:identity.whois`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:identity`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
 ### `sef:inventory.book`
 
 * Description: Executes the `/book` action through the shared policy pipeline.
@@ -9677,7 +10068,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.book`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.book`.
 * Confirmation: not required.
@@ -9723,7 +10114,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.condense`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.condense`.
 * Confirmation: not required.
@@ -9746,7 +10137,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.disposal`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.disposal`.
 * Confirmation: not required.
@@ -9792,7 +10183,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.hat`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.hat`.
 * Confirmation: not required.
@@ -9815,7 +10206,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.itemdb`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.itemdb`.
 * Confirmation: not required.
@@ -9838,7 +10229,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.itemlore`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.itemlore`.
 * Confirmation: not required.
@@ -9861,7 +10252,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.itemname`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.itemname`.
 * Confirmation: not required.
@@ -9884,7 +10275,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.more`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.more`.
 * Confirmation: not required.
@@ -10022,7 +10413,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.kits`.
 * Permissions: `sef.commands.createkit`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:kit.create`.
 * Confirmation: not required.
@@ -10114,7 +10505,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.kits`.
 * Permissions: `sef.commands.kits`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:kit.list`.
 * Confirmation: not required.
@@ -10160,7 +10551,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.kits`.
 * Permissions: `sef.commands.showkit`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:kit.show`.
 * Confirmation: not required.
@@ -11287,7 +11678,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.moderation.jails`.
 * Permissions: `sef.commands.setjail`.
 * Access class: `administrator`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `server`.
 * Cooldown policy: `sef:moderation.setjail`.
 * Confirmation: not required.
@@ -12518,29 +12909,6 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
-### `sef:tags.assign.bulk`
-
-* Description: Executes the `/sef tags assign bulk` action through the shared policy pipeline.
-* Usage: `/sef tags assign bulk`.
-* Canonical route: `sef tags assign bulk`.
-* Example: `/sef tags assign bulk`.
-* Convenience roots: none.
-* Category: `fancy_tags`.
-* Feature gate: `sef.fancy_tags`.
-* Permissions: `sef.commands.tags.assign.bulk`.
-* Access class: `administrator`.
-* Sources: `console`, `player`, `rcon`.
-* Target behavior: `optional_player`.
-* Cooldown policy: `sef:tags.assign.bulk`.
-* Confirmation: not required.
-* Audit class: `admin_action`.
-* GUI descriptor: `sef:tags`.
-* HUD contract: state is shown through immediate command feedback.
-* Quota contract: domain collections and projections have finite hard bounds.
-* Conflict policy: `canonical_only`.
-* Player facing: true.
-* Shared pipeline: required.
-
 ### `sef:tags.assign.default`
 
 * Description: Executes the `/sef tags assign default` action through the shared policy pipeline.
@@ -13325,10 +13693,10 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ### `sef:tags.lease.override`
 
-* Description: Executes the `/sef tags lease override` action through the shared policy pipeline.
-* Usage: `/sef tags lease override`.
-* Canonical route: `sef tags lease override`.
-* Example: `/sef tags lease override`.
+* Description: Executes the `/sef tags lease release` action through the shared policy pipeline.
+* Usage: `/sef tags lease release`.
+* Canonical route: `sef tags lease release`.
+* Example: `/sef tags lease release`.
 * Convenience roots: none.
 * Category: `fancy_tags`.
 * Feature gate: `sef.fancy_tags`.
@@ -13348,10 +13716,10 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ### `sef:tags.lease.view`
 
-* Description: Executes the `/sef tags lease view` action through the shared policy pipeline.
-* Usage: `/sef tags lease view`.
-* Canonical route: `sef tags lease view`.
-* Example: `/sef tags lease view`.
+* Description: Executes the `/sef tags lease status` action through the shared policy pipeline.
+* Usage: `/sef tags lease status`.
+* Canonical route: `sef tags lease status`.
+* Example: `/sef tags lease status`.
 * Convenience roots: none.
 * Category: `fancy_tags`.
 * Feature gate: `sef.fancy_tags`.
@@ -13720,7 +14088,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Usage: `/sef tags status`.
 * Canonical route: `sef tags status`.
 * Example: `/sef tags status`.
-* Convenience roots: none.
+* Convenience roots: `fancytags`.
 * Category: `fancy_tags`.
 * Feature gate: `sef.fancy_tags`.
 * Permissions: `sef.commands.tags.status`.
@@ -14291,23 +14659,23 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 ### `sef:teleport.player_warp.manage`
 
-* Description: Executes the `/pwarp manage` action through the shared policy pipeline.
-* Usage: `/pwarp manage`.
-* Canonical route: `pwarp manage`.
-* Example: `/pwarp manage`.
+* Description: Executes the `/pwarp info` action through the shared policy pipeline.
+* Usage: `/pwarp info`.
+* Canonical route: `pwarp info`.
+* Example: `/pwarp info`.
 * Convenience roots: none.
-* Category: `teleports`.
+* Category: `teleport.player_warps`.
 * Feature gate: `sef.teleport.player_warps`.
 * Permissions: `sef.playerwarps.edit`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `self`.
 * Cooldown policy: `sef:teleport.player_warp.manage`.
 * Confirmation: not required.
 * Audit class: `metadata_only`.
 * GUI descriptor: `sef:teleports`.
-* HUD contract: teleport state is shown through immediate command feedback.
-* Quota contract: teleport collections and target fan out have bounded configuration limits.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
 * Player facing: true.
 * Shared pipeline: required.
@@ -14515,6 +14883,29 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * GUI descriptor: `sef:teleports`.
 * HUD contract: teleport state is shown through immediate command feedback.
 * Quota contract: teleport collections and target fan out have bounded configuration limits.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:teleport.request.blocked`
+
+* Description: Executes the `/tpblocked` action through the shared policy pipeline.
+* Usage: `/tpblocked`.
+* Canonical route: `tpblocked`.
+* Example: `/tpblocked`.
+* Convenience roots: `tpblocked`.
+* Category: `teleport.requests`.
+* Feature gate: `sef.teleport.requests`.
+* Permissions: `sef.commands.tpblock`.
+* Access class: `player`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:teleport.request.blocked`.
+* Confirmation: not required.
+* Audit class: `metadata_only`.
+* GUI descriptor: `sef:teleports`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
 * Player facing: true.
 * Shared pipeline: required.
@@ -14875,7 +15266,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.afk`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.afk`.
 * Confirmation: not required.
@@ -14898,7 +15289,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.bottom`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.bottom`.
 * Confirmation: not required.
@@ -14921,7 +15312,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.compass`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.compass`.
 * Confirmation: not required.
@@ -14944,7 +15335,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.depth`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.depth`.
 * Confirmation: not required.
@@ -15105,7 +15496,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.jump`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.jump`.
 * Confirmation: not required.
@@ -15128,7 +15519,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.near`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.near`.
 * Confirmation: not required.
@@ -15266,12 +15657,35 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * Feature gate: `sef.utilities`.
 * Permissions: `sef.commands.top`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:utility.top`.
 * Confirmation: not required.
 * Audit class: `metadata_only`.
 * GUI descriptor: `sef:utilities`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:vanish.manage`
+
+* Description: Executes the `/vanish` action through the shared policy pipeline.
+* Usage: `/vanish`.
+* Canonical route: `vanish`.
+* Example: `/vanish`.
+* Convenience roots: `v`, `vanish`.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.vanish.3`.
+* Access class: `trusted_player`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `optional_player`.
+* Cooldown policy: `sef:vanish.manage`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:identity`.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
@@ -15528,7 +15942,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `canonical_only`.
-* Player facing: true.
+* Player facing: false.
 * Shared pipeline: required.
 
 ### `sef:workstation.workbench`
@@ -15558,6 +15972,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 
 | Root | Action | Adapter | Additional permission | Collision policy | Structural revision |
 | --- | --- | --- | --- | --- | ---: |
+| `ac` | `sef:chat.admin` | `none` | none | `prefer_sef` | 1 |
 | `access` | `sef:control.access_applications.view` | `none` | none | `canonical_only` | 1 |
 | `activityprofile` | `sef:control.block_activity.view` | `none` | none | `canonical_only` | 1 |
 | `adminjournal` | `sef:control.admin_journal.view` | `none` | none | `canonical_only` | 1 |
@@ -15565,10 +15980,12 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `afk` | `sef:utility.afk` | `none` | none | `prefer_sef` | 1 |
 | `afkzone` | `sef:control.afk_zones.view` | `none` | none | `canonical_only` | 1 |
 | `anomaly` | `sef:control.command_anomaly.view` | `none` | none | `canonical_only` | 1 |
+| `ans` | `sef:chat.reply` | `none` | none | `prefer_sef` | 1 |
 | `anvil` | `sef:workstation.anvil` | `none` | none | `prefer_sef` | 1 |
 | `appeal` | `sef:control.appeals.view` | `none` | none | `canonical_only` | 1 |
 | `appeals` | `sef:control.appeals.view` | `none` | none | `canonical_only` | 1 |
 | `applications` | `sef:control.access_applications.view` | `none` | none | `canonical_only` | 1 |
+| `approvals` | `sef:approval.list` | `none` | none | `prefer_sef` | 1 |
 | `auction` | `sef:control.auctions.view` | `none` | none | `canonical_only` | 1 |
 | `auctionadmin` | `sef:control.auctions.view` | `none` | none | `canonical_only` | 1 |
 | `auctions` | `sef:control.auctions.view` | `none` | none | `canonical_only` | 1 |
@@ -15583,6 +16000,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `ban` | `sef:moderation.ban` | `none` | none | `prefer_sef` | 1 |
 | `ban-ip` | `sef:moderation.ban_ip` | `none` | none | `prefer_sef` | 1 |
 | `banip` | `sef:moderation.ban_ip` | `none` | none | `prefer_sef` | 1 |
+| `banned` | `sef:banned.list` | `none` | none | `prefer_sef` | 1 |
 | `block` | `sef:control.interaction_blocks.view` | `none` | none | `canonical_only` | 1 |
 | `blocks` | `sef:control.interaction_blocks.view` | `none` | none | `canonical_only` | 1 |
 | `book` | `sef:inventory.book` | `none` | none | `prefer_sef` | 1 |
@@ -15593,22 +16011,29 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `c` | `sef:workstation.craft` | `none` | none | `prefer_sef` | 1 |
 | `calendar` | `sef:control.server_calendar.view` | `none` | none | `canonical_only` | 1 |
 | `cartographytable` | `sef:workstation.cartographytable` | `none` | none | `prefer_sef` | 1 |
+| `cc` | `sef:chat.clear` | `none` | none | `prefer_sef` | 1 |
 | `changewindow` | `sef:control.change_windows.view` | `none` | none | `canonical_only` | 1 |
 | `channel` | `sef:control.chat_channels.view` | `none` | none | `canonical_only` | 1 |
 | `channels` | `sef:control.chat_channels.view` | `none` | none | `canonical_only` | 1 |
+| `chat` | `sef:chat.admin` | `none` | none | `prefer_sef` | 1 |
 | `chatcontrol` | `sef:control.chat_control.view` | `none` | none | `canonical_only` | 1 |
+| `checkalts` | `sef:identity.alts` | `none` | none | `prefer_sef` | 1 |
 | `chunktickets` | `sef:control.chunk_tickets.view` | `none` | none | `canonical_only` | 1 |
 | `ci` | `sef:inventory.clear` | `none` | none | `prefer_sef` | 1 |
 | `cleanup` | `sef:control.cleanup.view` | `none` | none | `canonical_only` | 1 |
+| `clearchat` | `sef:chat.clear` | `none` | none | `prefer_sef` | 1 |
 | `clearinventory` | `sef:inventory.clear` | `none` | none | `prefer_sef` | 1 |
 | `clearwarnings` | `sef:moderation.clearwarnings` | `none` | none | `prefer_sef` | 1 |
 | `colors` | `sef:core.colors` | `none` | `sef.commands.colors` | `canonical_only` | 1 |
+| `commandannouncement` | `sef:announcement.command` | `none` | none | `prefer_sef` | 1 |
 | `commandspy` | `sef:commandspy.toggle` | `none` | none | `prefer_sef` | 1 |
 | `compass` | `sef:utility.compass` | `none` | none | `prefer_sef` | 1 |
 | `condense` | `sef:inventory.condense` | `none` | none | `prefer_sef` | 1 |
+| `countdown` | `sef:announcement.countdown` | `none` | none | `prefer_sef` | 1 |
 | `craft` | `sef:workstation.craft` | `none` | none | `prefer_sef` | 1 |
 | `createkit` | `sef:kit.create` | `none` | none | `prefer_sef` | 1 |
 | `customtext` | `sef:social.text` | `none` | none | `prefer_sef` | 1 |
+| `dability` | `sef:disguise.ability` | `none` | none | `prefer_sef` | 1 |
 | `daily` | `sef:control.daily_rewards.view` | `none` | none | `canonical_only` | 1 |
 | `datapacks` | `sef:control.datapacks.view` | `none` | none | `canonical_only` | 1 |
 | `db` | `sef:moderation.disablebuilding` | `none` | none | `prefer_sef` | 1 |
@@ -15640,6 +16065,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `fakeleave` | `sef:fake.leave` | `none` | none | `prefer_sef` | 1 |
 | `fakemessage` | `sef:fake.message` | `none` | none | `prefer_sef` | 1 |
 | `fakerankmessage` | `sef:fake.rank_message` | `none` | none | `prefer_sef` | 1 |
+| `fancytags` | `sef:tags.status` | `none` | none | `canonical_only` | 1 |
 | `featuregraph` | `sef:control.dependency_graph.view` | `none` | none | `canonical_only` | 1 |
 | `feed` | `sef:utility.feed` | `none` | none | `prefer_sef` | 1 |
 | `fly` | `sef:utility.fly` | `none` | none | `prefer_sef` | 1 |
@@ -15664,6 +16090,8 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `guideadmin` | `sef:control.knowledge.view` | `none` | none | `canonical_only` | 1 |
 | `hat` | `sef:inventory.hat` | `none` | none | `prefer_sef` | 1 |
 | `heal` | `sef:utility.heal` | `none` | none | `prefer_sef` | 1 |
+| `helpop` | `sef:chat.helpop` | `none` | none | `prefer_sef` | 1 |
+| `helpopop` | `sef:chat.helpop.reply` | `none` | none | `prefer_sef` | 1 |
 | `home` | `sef:teleport.home.use` | `none` | none | `prefer_sef` | 1 |
 | `homeadmin` | `sef:teleport.home.admin` | `none` | none | `prefer_sef` | 1 |
 | `homes` | `sef:teleport.home.list` | `none` | none | `prefer_sef` | 1 |
@@ -15712,7 +16140,10 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `mutelist` | `sef:moderation.mutelist` | `none` | none | `prefer_sef` | 1 |
 | `mydata` | `sef:control.privacy.view` | `none` | none | `canonical_only` | 1 |
 | `near` | `sef:utility.near` | `none` | none | `prefer_sef` | 1 |
+| `nick` | `sef:identity.nick` | `none` | none | `prefer_sef` | 1 |
+| `nickfor` | `sef:identity.nick.others` | `none` | none | `prefer_sef` | 1 |
 | `onboarding` | `sef:control.onboarding.view` | `none` | none | `canonical_only` | 1 |
+| `opbulletin` | `sef:announcement.bulletin` | `none` | none | `prefer_sef` | 1 |
 | `parcel` | `sef:control.parcels.view` | `none` | none | `canonical_only` | 1 |
 | `parceladmin` | `sef:control.parcels.view` | `none` | none | `canonical_only` | 1 |
 | `parcels` | `sef:control.parcels.view` | `none` | none | `canonical_only` | 1 |
@@ -15799,8 +16230,11 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `tempban` | `sef:moderation.tempban` | `none` | none | `prefer_sef` | 1 |
 | `tempban-ip` | `sef:moderation.tempban_ip` | `none` | none | `prefer_sef` | 1 |
 | `tempbanip` | `sef:moderation.tempban_ip` | `none` | none | `prefer_sef` | 1 |
+| `textannouncement` | `sef:announcement.text` | `none` | none | `prefer_sef` | 1 |
 | `ticket` | `sef:control.tickets.view` | `none` | none | `canonical_only` | 1 |
 | `tickets` | `sef:control.tickets.view` | `none` | none | `canonical_only` | 1 |
+| `titleannouncement` | `sef:announcement.title` | `none` | none | `prefer_sef` | 1 |
+| `toggle` | `sef:announcement.toggle` | `none` | none | `prefer_sef` | 1 |
 | `top` | `sef:utility.top` | `none` | none | `prefer_sef` | 1 |
 | `tp` | `sef:teleport.direct` | `none` | none | `prefer_sef` | 1 |
 | `tpa` | `sef:teleport.request.to` | `none` | none | `prefer_sef` | 1 |
@@ -15810,6 +16244,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `tpall` | `sef:teleport.direct.all` | `none` | none | `prefer_sef` | 1 |
 | `tpautoaccept` | `sef:teleport.request.auto` | `none` | none | `prefer_sef` | 1 |
 | `tpblock` | `sef:teleport.request.block` | `none` | none | `prefer_sef` | 1 |
+| `tpblocked` | `sef:teleport.request.blocked` | `none` | none | `prefer_sef` | 1 |
 | `tpcancel` | `sef:teleport.request.cancel` | `none` | none | `prefer_sef` | 1 |
 | `tpdeny` | `sef:teleport.request.deny` | `none` | none | `prefer_sef` | 1 |
 | `tphere` | `sef:teleport.direct.here` | `none` | none | `prefer_sef` | 1 |
@@ -15829,10 +16264,13 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `unban-ip` | `sef:moderation.pardon_ip` | `none` | none | `prefer_sef` | 1 |
 | `unbanip` | `sef:moderation.pardon_ip` | `none` | none | `prefer_sef` | 1 |
 | `unblock` | `sef:control.interaction_blocks.view` | `none` | none | `canonical_only` | 1 |
+| `undisguise` | `sef:disguise.clear` | `none` | none | `prefer_sef` | 1 |
 | `unfreeze` | `sef:moderation.unfreeze` | `none` | none | `prefer_sef` | 1 |
 | `unjail` | `sef:moderation.unjail` | `none` | none | `prefer_sef` | 1 |
 | `unmute` | `sef:moderation.unmute` | `none` | none | `prefer_sef` | 1 |
 | `untrust` | `sef:control.friends.view` | `none` | none | `canonical_only` | 1 |
+| `v` | `sef:vanish.manage` | `none` | none | `prefer_sef` | 1 |
+| `vanish` | `sef:vanish.manage` | `none` | none | `prefer_sef` | 1 |
 | `w` | `sef:social.message` | `none` | none | `prefer_sef` | 1 |
 | `warn` | `sef:moderation.warn` | `none` | none | `prefer_sef` | 1 |
 | `warns` | `sef:moderation.warns` | `none` | none | `prefer_sef` | 1 |
@@ -15845,6 +16283,7 @@ Catalog entries: 676. Shortcut entries: 290. GUI descriptors: 25.
 | `weekly` | `sef:control.weekly_rewards.view` | `none` | none | `canonical_only` | 1 |
 | `welcome` | `sef:social.reminder` | `none` | none | `prefer_sef` | 1 |
 | `whisper` | `sef:social.message` | `none` | none | `prefer_sef` | 1 |
+| `whois` | `sef:identity.whois` | `none` | none | `prefer_sef` | 1 |
 | `workbench` | `sef:workstation.workbench` | `none` | none | `prefer_sef` | 1 |
 | `worldpolicy` | `sef:control.world_policy.view` | `none` | none | `canonical_only` | 1 |
 | `worth` | `sef:economy.worth` | `none` | none | `prefer_sef` | 1 |

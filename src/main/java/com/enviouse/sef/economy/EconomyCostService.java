@@ -23,9 +23,20 @@ public final class EconomyCostService implements CostService {
 
     @Override
     public ActionResult<Reservation> reserve(UUID actorId, String actionId, BigDecimal amount) {
+        return reserve(actorId, actionId, amount, UUID.randomUUID());
+    }
+
+    @Override
+    public ActionResult<Reservation> reserve(
+            UUID actorId,
+            String actionId,
+            BigDecimal amount,
+            UUID operationId
+    ) {
         Objects.requireNonNull(actorId, "actorId");
         Objects.requireNonNull(actionId, "actionId");
         Objects.requireNonNull(amount, "amount");
+        Objects.requireNonNull(operationId, "operationId");
         if (amount.signum() < 0) {
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "cost cannot be negative");
         }
@@ -54,7 +65,7 @@ public final class EconomyCostService implements CostService {
             }
             ActionResult<EconomyProvider.EconomyCostReservation> external =
                     reservations.reserveCost(new EconomyProvider.CostRequest(
-                            "command.cost." + UUID.randomUUID(),
+                            "command.cost." + operationId,
                             actorId,
                             actionId,
                             provider.currency(),
@@ -80,7 +91,11 @@ public final class EconomyCostService implements CostService {
                     provider.minorUnits()));
         }
         try {
-            EconomyRepository.CostHold hold = repository.reserveCost(actorId, actionId, minor);
+            EconomyRepository.CostHold hold = repository.reserveCost(
+                    operationId,
+                    actorId,
+                    actionId,
+                    minor);
             try {
                 repository.flush();
             } catch (IOException exception) {

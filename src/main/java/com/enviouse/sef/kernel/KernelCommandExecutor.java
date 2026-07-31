@@ -88,7 +88,15 @@ public final class KernelCommandExecutor {
         boolean effectiveCooldownBypass = cooldownBypass || KernelServices.cooldownBypass(source, actionId);
         boolean effectiveCostBypass = KernelServices.costBypass(source);
         CommandDefinition.SourceType sourceType = sourceType(source);
-        UUID actorId = actorId(source, sourceType);
+        ExecutionOperationScope.Context operation =
+                ExecutionOperationScope.current().orElse(null);
+        UUID actorId = operation == null
+                ? actorId(source, sourceType)
+                : operation.actorId();
+        Map<String, String> effectiveParameters = new LinkedHashMap<>(normalizedParameters);
+        if (operation != null) {
+            effectiveParameters.put("operation_id", operation.operationId().toString());
+        }
         String dimensionId = dimensionId(source);
         KernelServices.commandJournal().attachOrBegin(source, actionId);
         ActionResult<Void> controlAuthorization =
@@ -117,6 +125,11 @@ public final class KernelCommandExecutor {
         Map<String, String> providerContext = new LinkedHashMap<>(permission.providerContext());
         providerContext.put("source_class", sourceType.name().toLowerCase(Locale.ROOT));
         providerContext.put("cost_bypass", Boolean.toString(effectiveCostBypass));
+        if (operation != null) {
+            providerContext.put("operation_id", operation.operationId().toString());
+            providerContext.put("idempotency_key", operation.idempotencyKey());
+            providerContext.put("authorization", "queue_time");
+        }
         try {
             providerContext.put(
                     "quoted_cost",
@@ -147,7 +160,7 @@ public final class KernelCommandExecutor {
                         null,
                         null,
                         Set.of(),
-                        normalizedParameters,
+                        effectiveParameters,
                         targetIds,
                         1L,
                         providerContext,

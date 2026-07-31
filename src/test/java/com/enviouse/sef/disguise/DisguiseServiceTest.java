@@ -39,7 +39,7 @@ class DisguiseServiceTest {
 
     @Test
     void mobWithoutAbilitiesReportsUnavailableSlotInsteadOfGlobalDisable() {
-        DisguiseService service = new DisguiseService(settings(true, true, true));
+        DisguiseService service = new DisguiseService(settings(true, true, false));
         service.load(directory);
         UUID player = UUID.randomUUID();
         assertTrue(service.setMob(
@@ -199,6 +199,14 @@ class DisguiseServiceTest {
                 true,
                 false,
                 null).successful());
+    }
+
+    @Test
+    void everyCuratedTraitHasAStablePermissionNode() {
+        for (DisguiseService.Trait trait : DisguiseService.Trait.values()) {
+            String permission = "sef." + DisguiseRuntime.traitPermission(trait);
+            assertNotNull(com.enviouse.sef.config.PermissionsHandler.phasePermission(permission));
+        }
     }
 
     @Test

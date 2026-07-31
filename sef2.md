@@ -25,9 +25,9 @@ The document is intentionally detailed. It consolidates:
 
 This document is the authoritative product and architecture blueprint. The phase status and acceptance ledger identify implementation completion when a feature appears in more than one section.
 
-## Implementation status update, 2026-07-27
+## Implementation status update, 2026-07-28
 
-Phases 0 through 14, global verification, and final product acceptance are complete on the current phase branch. The final matrix passes 390 unit tests, 29 required GameTests, Java 21 build, fallback-runtime compilation, generated-reference drift, configuration migration and recovery fixtures, security review, dedicated-server startup and clean shutdown, enhanced-client negotiation, no-SEF command fallback, and JAR inspection. The dedicated tick profile held `20.04` TPS across `480` ticks. The authoritative phase-by-phase record is `docs/SEF2_ACCEPTANCE.md`.
+Final product acceptance is incomplete on the current phase branch. The current worktree passes 487 unit tests, 39 required GameTests, complete registration checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated-reference drift, dedicated-server startup, headless client startup, security scans, and JAR inspection. All twenty confirmed findings in `audit.md` are repaired. Sixteen Phase 13 runtime families remain explicitly unavailable. The renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are also still open. The authoritative phase-by-phase record is `docs/SEF2_ACCEPTANCE.md`.
 
 Completed security and authorization work:
 
@@ -63,10 +63,10 @@ Current verification evidence:
 - Twenty-nine required GameTests cover teleport safety, exact condensation totals, incomplete condensation nonmutation, persistent enforcement, repository mirrors, delegated sudo, GUI workflows, administrative enchanting, server controls, escrow, duplicate source rejection, interaction blocks, and auction watch state.
 - The dedicated NeoForge server reaches ready state with no optional integrations and shuts down through normal `stop` with all dimensions saved.
 - `README.md` and `DOCUMENTATION.md` describe current behavior, recovery, privacy, permissions, integration boundaries, verification, and release operation.
-- Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack.
+- Dedicated startup passed with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`, both as isolated integration families and as one combined stack. This is startup evidence only. LuckPerms NeoForge `5.4.140` fails real player login inside its own capability listener on NeoForge `21.1.233`, so the compatible LuckPerms multiplayer matrix remains open.
 - Enhanced and no-SEF clients join the same GUI-enabled server. Provider refresh, metadata, ownership, inventory adapter, cooldown persistence, filesystem failure, crash recovery, packet bounds, session invalidation, and performance behavior have deterministic or runtime verification.
 
-The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. The completed implementation includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, all, online, and offline player filtering, bounded give multi-selection, creative-style item browsing with icon-only slots and one tooltip, deferred per-target offline give execution, Fancy Tags, namespaced disguise selection, stable animated disguise projection, alias publication, bundle execution, administrative panels, bounded native admission waiting, 70 server-control systems, escrow, permission-derived cooldowns, and the 62-module configuration platform.
+The shared command and policy kernel owns catalog, shortcut, alias compiler, bundle compiler, wrapper, feature, permission, quota, hierarchy, cooldown, warmup, confirmation, cost, audit, observation, identity, message, and diagnostic contracts. Every executable catalog action enters the shared runtime policy and audit pipeline. Twenty-seven managed repositories use bounded persistence and recovery contracts, including the reviewed UUID-bound offline action queue. Implemented behavior includes native economy and signs, hardened sudo, offline inventory, universal enhanced GUIs with command fallback, all, online, and offline player filtering, bounded give multi-selection, creative-style item browsing with icon-only slots and one tooltip, deferred per-target offline give execution, Fancy Tags, namespaced disguise selection, animated disguise projection, alias publication, bundle execution, administrative panels, bounded native admission waiting, 59 executable server-control families, escrow, permission-derived cooldowns, and the 62-module configuration platform. The remaining 16 server-control schemas are visible but truthfully unavailable.
 
 ## Source-of-truth order
 
@@ -90,7 +90,7 @@ Unfinished work must be tracked here. Completed work must update its status here
 |---|---|
 | Minecraft | 1.21.1 |
 | Loader | NeoForge |
-| NeoForge | 21.1.233 |
+| NeoForge | 21.1.235 |
 | Java | 21 |
 | Gradle | Checked-in Gradle Wrapper, currently Gradle 8.8 |
 | Build plugin | ModDevGradle 2.0.141 |
@@ -3260,6 +3260,21 @@ Planned commands:
 /bottom
 /jump
 ```
+
+### `/feed [player]`
+
+Behavior:
+
+- Set the target food level to the vanilla maximum of `20`.
+- Set saturation to exactly `0.0F`. `/feed` must not grant a hidden saturation reserve.
+- Do not change health, active effects, fire state, exhaustion, or any other player state.
+- Do not call a healing operation directly. Normal vanilla hunger-based regeneration remains available after the command according to the server gamerules and ordinary game ticks.
+- Apply the same food-state mutation to self and eligible other-player forms through the canonical `sef:utility.feed` action.
+
+Intentional difference from `/heal`:
+
+- `/heal` remains the explicit health-restoration action and may restore health, hunger, saturation, effects, and fire state according to its documented contract.
+- `/feed` only restores the visible hunger bar. It is not an alias or partial route to `/heal`.
 
 Rules:
 
@@ -16522,6 +16537,46 @@ The server-side Phase 7 implementation is present on `envy/phase-7`.
 - Super enchanting revalidates registry, permission, configuration revision, target compatibility, and bounded level policy before mutation.
 - Brigadier, amount bounds, kit persistence, menu revocation, authenticated transactions, missing registries, optional inventories, offline inventory, client presentation, shortcut collisions, administrative enchanting, server enforcement, and performance gates pass.
 
+### Follow-up defect correction: `/feed` regeneration separation
+
+Status: implemented and locally verified on the current phase branch. Merge remains pending.
+
+Current evidence:
+
+- The current `/feed` executor sets the food level to `20` and saturation to `20.0F`.
+- The saturation grant creates the fast natural-regeneration burst reported by players even though `/feed` does not call `heal` directly.
+- Existing dispatcher tests prove route registration and permission gating, but no focused test verifies the resulting hunger, saturation, and health state.
+
+Scope and design:
+
+- Change only the canonical `/feed` mutation so it sets food to `20` and saturation to `0.0F`.
+- Preserve health, exhaustion, effects, fire state, the self and other-player grammar, permissions, hierarchy, feature gates, cooldowns, audit behavior, GUI action id, and command feedback.
+- Keep `/heal` unchanged. This correction must not weaken or merge the distinct `/feed` and `/heal` contracts.
+- Preserve save and network compatibility because no command id, permission id, configuration key, payload, or persistent schema changes.
+- Bump the development artifact from `1.0-SNAPSHOT` to `1.0.1-SNAPSHOT` for this bug-fix request.
+
+Ordered work:
+
+1. Add a focused GameTest that creates a damaged, hungry player with nonzero saturation, executes the public `/feed <player>` route from the server command source, and proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
+2. Correct the canonical mutation in `PlayerUtilityCommands`.
+3. Update the root README, maintainer documentation, Phase 7 test procedure, release notes, acceptance evidence, and current artifact references.
+4. Run the unit suite, full GameTest suite, build, dedicated-server smoke test, headless client smoke test, generated-reference checks, JAR metadata inspection, and final diff and secret scans.
+
+Acceptance criteria:
+
+- Both `/feed` and `/feed <eligible player>` converge on the same zero-saturation mutation.
+- Immediately after successful execution, the target has food level `20`, saturation `0.0F`, and exactly the pre-command health value.
+- `/feed` performs no direct or hidden healing mutation. Later vanilla regeneration is governed only by normal game rules, ticks, food level, exhaustion, and the zero saturation state.
+- `/heal` retains its existing explicit recovery behavior.
+- The focused public-route GameTest and all existing automated, startup, packaging, and documentation gates pass.
+
+Verification result:
+
+- All 487 unit tests and all 39 required GameTests pass.
+- The focused live-dispatcher GameTest proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
+- The build, fallback runtime compilation, generated references, performance report, dedicated server, headless client, ZIP integrity, packaged NeoForge `21.1.235` metadata, and artifact filename safety checks pass.
+- The current artifact is `build/libs/sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`.
+
 ### Deliverables
 
 - Remaining vanilla workstation commands.
@@ -16553,7 +16608,7 @@ All player and administrative command roots are registered with separate permiss
 
 All twelve planned economy sign types use strict normalized parsing, UUID ownership, side-specific location keys, text fingerprints, separate create and use permissions, enabled-type policy, value and quantity caps, atomic inventory compensation, edit invalidation, removal cleanup, and audited creation and use. `/eco sign` provides paged inspection, confirmed removal, and hierarchy-aware ownership adoption.
 
-The final suite passes all 390 unit tests and all 29 required GameTests. Build, JAR integrity, dedicated-server, enhanced-client, fallback-client, provider failure, crash recovery, filesystem failure, exact transaction, and performance gates pass.
+The Phase 8 acceptance baseline passed the then-current 390 unit tests and all 29 required GameTests. Its build, JAR integrity, dedicated-server, enhanced-client, fallback-client, provider failure, crash recovery, filesystem failure, exact transaction, and performance gates passed at that revision.
 
 ### Deliverables
 
@@ -16581,7 +16636,7 @@ The final suite passes all 390 unit tests and all 29 required GameTests. Build, 
 
 Implemented on `envy/sef2_complete`.
 
-Final verified artifact SHA-256: `a1d8e926bd65972ad40b282a341871b743d745da7484c45aef3d5667b6a5169f`.
+Phase 9 baseline artifact SHA-256: `a1d8e926bd65972ad40b282a341871b743d745da7484c45aef3d5667b6a5169f`.
 
 - Added an optional configuration phase hello and acknowledgement handshake. Vanilla, non-SEF, and protocol incompatible connections remain on command fallback without receiving play payloads.
 - Added protocol major and minor versions, negotiated feature masks, connection bound pending negotiations, UUID session identifiers, monotonic client sequences, session revisions, permission refresh, expiry, replay rejection, rate limiting, and bounded active state.
@@ -16785,7 +16840,7 @@ The boolean sudo permission-mode syntax and one-execution delegated grant added 
 
 ## Phase 12. Fancy Tags, disguise, and advanced identity projection
 
-Status: complete. Fancy Tags and disguise deliver server-authoritative definitions, persistence, recovery, secure import, bounded transfer, client editing and projection, command fallback, mixed-client behavior, privacy, accessibility, and performance coverage.
+Status: in progress. The implementation contains the server-authoritative definitions, persistence, recovery, secure import, bounded transfer, client editing and projection, command fallback, privacy, and bounded proxy behavior. The latest disguise animation and interpolation corrections still require the multiplayer visual matrix in `test.md` before this phase can return to complete.
 
 This phase is delivered as two separately reviewable subphases. Phase 12B does not block completion and testing of Phase 12A, and neither subsystem may share unsafe renderer or authority shortcuts.
 
@@ -16857,7 +16912,7 @@ This phase is delivered as two separately reviewable subphases. Phase 12B does n
 
 ## Phase 13. Remaining parity, server control, integrations, and dangerous modules
 
-Status: complete. All Phase 13A through Phase 13O systems are registered with typed schemas, canonical policy, permissions, persistence, runtime behavior, command fallback, enhanced workflows, HUD decisions, recovery, and verification.
+Status: in progress. All Phase 13A through Phase 13O systems have typed schemas, permissions, records, command fallback, and editor descriptors, but schema presence is not runtime completion. Fifty-nine control families currently have executable handlers. `admin_journal`, `afk_zones`, `approvals`, `capability_leases`, `chat_channels`, `display_ownership`, `display_profiles`, `player_warp_review`, `portal_policy`, `resource_governor`, `resource_worlds`, `rollouts`, `server_presentation`, `spawn_ecology`, `staff_duty`, and `waypoints` are explicitly unavailable. They fail preview and cannot be marked active or resolved through a manual state transition. Phase 13 cannot return to complete until each has real behavior and passes its `test.md` matrix.
 
 ### Required subphases
 
@@ -19480,7 +19535,7 @@ SEF 2 is complete only when all of the following are true.
 
 ## Compatibility
 
-- NeoForge 21.1.233 and Minecraft 1.21.1 remain the verified target.
+- NeoForge 21.1.235 and Minecraft 1.21.1 are the verified target.
 - LuckPerms, FTB Essentials, and Curios work in supported configurations.
 - Optional integrations remain optional.
 - Vanilla, non-SEF, compatible SEF, and GUI-incompatible clients coexist while enhanced GUIs are enabled.

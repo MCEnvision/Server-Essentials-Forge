@@ -309,7 +309,7 @@ public final class SefItemPickerScreen extends SefScreen {
                 ItemStack stack,
                 Consumer<ItemButton> press
         ) {
-            super(x, y, 22, 22, stack.getHoverName());
+            super(x, y, 22, 22, Component.empty());
             this.stack = stack;
             this.press = press;
         }
@@ -336,6 +336,11 @@ public final class SefItemPickerScreen extends SefScreen {
                 net.minecraft.client.gui.Font font,
                 int color
         ) {
+        }
+
+        @Override
+        protected net.minecraft.network.chat.MutableComponent createNarrationMessage() {
+            return wrapDefaultNarrationMessage(stack.getHoverName());
         }
 
         @Override

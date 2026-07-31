@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 class PermissionServiceTest {
     @Test
@@ -71,6 +72,140 @@ class PermissionServiceTest {
             assertEquals(PermissionService.Evaluation.NOT_EVALUATED, decision.hierarchyResult());
             assertEquals(PermissionService.Evaluation.NOT_EVALUATED, decision.exemptionResult());
             assertEquals(PermissionService.DenialReason.NONE, decision.denialReason());
+        }
+    }
+
+    @Test
+    void directLuckPermsGrantSurvivesTransientNeoForgeBridgeFailure() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        UUID playerId = UUID.randomUUID();
+        when(player.getUUID()).thenReturn(playerId);
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenThrow(new IllegalStateException("capability is not initialized"));
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.GRANTED);
+
+            PermissionService.Decision decision =
+                    PermissionService.decide(player, PermissionsHandler.nickCommand);
+
+            assertTrue(decision.granted());
+            assertEquals("luckperms:direct", decision.provider());
+            assertEquals(PermissionService.DenialReason.NONE, decision.denialReason());
+        }
+    }
+
+    @Test
+    void providerFailureWithoutDirectGrantFailsClosed() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenThrow(new IllegalStateException("capability is not initialized"));
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.UNAVAILABLE);
+
+            PermissionService.Decision decision =
+                    PermissionService.decide(player, PermissionsHandler.nickCommand);
+
+            assertFalse(decision.granted());
+            assertEquals(PermissionService.DenialReason.PROVIDER_UNAVAILABLE, decision.denialReason());
+        }
+    }
+
+    @Test
+    void explicitDirectLuckPermsDenyOverridesNeoForgeGrant() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenReturn(true);
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.DENIED);
+
+            PermissionService.Decision decision =
+                    PermissionService.decide(player, PermissionsHandler.nickCommand);
+
+            assertFalse(decision.granted());
+            assertEquals("luckperms:direct", decision.provider());
+            assertEquals(PermissionService.DenialReason.PERMISSION_DENIED, decision.denialReason());
+        }
+    }
+
+    @Test
+    void providerOnlyCheckUsesDirectLuckPermsGrantWhenNeoForgeBridgeFails() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenThrow(new IllegalStateException("capability is not initialized"));
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.GRANTED);
+
+            assertTrue(PermissionService.hasProviderOnly(player, PermissionsHandler.nickCommand));
+        }
+    }
+
+    @Test
+    void providerOnlyCheckHonorsDirectLuckPermsDenyOverNeoForgeGrant() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenReturn(true);
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.DENIED);
+
+            assertFalse(PermissionService.hasProviderOnly(player, PermissionsHandler.nickCommand));
+        }
+    }
+
+    @Test
+    void providerOnlyCheckFallsBackToNeoForgeWhenDirectProviderIsUnavailable() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenReturn(true);
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.UNAVAILABLE);
+
+            assertTrue(PermissionService.hasProviderOnly(player, PermissionsHandler.nickCommand));
+        }
+    }
+
+    @Test
+    void providerOnlyCheckFailsClosedWhenBothProvidersAreUnavailable() {
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.randomUUID());
+        try (MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class);
+             MockedStatic<DynamicPermissionService> dynamic = mockStatic(DynamicPermissionService.class)) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.nickCommand))
+                    .thenThrow(new IllegalStateException("capability is not initialized"));
+            dynamic.when(() -> DynamicPermissionService.decision(
+                            player,
+                            PermissionsHandler.nickCommand.getNodeName()))
+                    .thenReturn(DynamicPermissionService.Decision.UNAVAILABLE);
+
+            assertFalse(PermissionService.hasProviderOnly(player, PermissionsHandler.nickCommand));
         }
     }
 

@@ -52,4 +52,30 @@ class AltTrackerTest {
 
         assertArrayEquals(corrupt, Files.readAllBytes(salt));
     }
+
+    @Test
+    void malformedReloadPreservesLiveSnapshotAndRejectsCollection() throws Exception {
+        AltTracker tracker = new AltTracker();
+        tracker.load(temporaryDirectory);
+        try {
+            tracker.recordLogin(UUID.randomUUID(), "player", "1.1.1.1", false);
+            tracker.flush();
+            Files.writeString(
+                    temporaryDirectory.resolve("alt_data.json"),
+                    """
+                            {"domain":"alternate account correlations","schemaVersion":1,
+                            "data":{"1.1.1.1":[{"uuid":"bad","name":"attacker","lastSeen":"2026-01-01T00:00:00Z"}]}}
+                            """);
+
+            tracker.load(temporaryDirectory);
+            tracker.recordLogin(UUID.randomUUID(), "other", "2.2.2.2", false);
+
+            assertEquals(
+                    com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY,
+                    tracker.state());
+            assertEquals(1, tracker.addressCount());
+        } finally {
+            tracker.shutdown();
+        }
+    }
 }

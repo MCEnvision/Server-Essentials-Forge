@@ -315,7 +315,7 @@ public final class ApprovalRepository implements StorageRepository {
                 .normalize();
         requests.clear();
         history.clear();
-        boolean existed = Files.exists(path);
+        boolean existed = Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS);
         document = StorageService.read(path, domain(), SCHEMA_VERSION).orElse(null);
         if (document == null) {
             state = existed ? RepositoryState.RECOVERY : RepositoryState.MISSING;
