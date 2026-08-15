@@ -50,7 +50,7 @@ enable_random_teleport = true
 random_teleport_allowed_dimensions = "minecraft:overworld"
 # Maximum random candidates inspected per request 1 through 256 Apply class live.
 random_teleport_maximum_attempts = 32
-# Maximum random teleport radius from the configured center 1 through 30000000 Apply class live.
+# Maximum random teleport radius from the configured center 1 through 20000 Apply class live.
 random_teleport_maximum_radius = 5000
-# Minimum random teleport radius from the configured center 0 through 30000000 Apply class live.
+# Minimum random teleport radius from the configured center 0 through 20000 Apply class live.
 random_teleport_minimum_radius = 256

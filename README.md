@@ -15,9 +15,9 @@ Current project metadata:
 3. Java `21`.
 4. Parchment mappings `2024.11.17`.
 5. Mod id `sef`.
-6. Artifact version `1.0.1-SNAPSHOT`.
+6. Artifact version `1.0.2-SNAPSHOT`.
 
-Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 487 unit tests, 39 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
+Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 491 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
 
 ## Current features
 
@@ -45,8 +45,8 @@ The current implementation includes:
 20. Versioned `location-history.json` and `cooldowns.json` repositories with bounded records, atomic writes, recovery mode, and shutdown flushing.
 21. A UUID authoritative player profile repository that imports existing nickname data, retains authenticated usernames separately from display nicknames, coalesces background persistence, and drains through a bounded shutdown flush.
 22. Versioned homes with total and per-dimension quotas, overwrite confirmation, soft deletion, recovery, administrative inspection, and FTB Essentials ownership modes.
-23. UUID based teleport requests with nickname aware, vanish safe targets, ambiguity safe acceptance, blocking, request toggles, auto accept relationships, expiry, warmups, movement and damage cancellation, logout invalidation, and one canonical execution for bounded `/tpaall` fan out.
-24. Safe `/back`, layered spawn, server warp, player warp, RTP, and optional direct teleport commands with permissions, feature gates, cooldowns, warmups, costs, shared LuckPerms aware hierarchy, exemptions, destination revisions, world border checks, hazard checks, loaded chunk budgets, and bounded history.
+23. UUID based teleport requests with nickname aware, vanish safe targets, ambiguity safe acceptance, blocking, request toggles, auto accept relationships, expiry, warmups, movement and damage cancellation, logout invalidation, and one canonical execution for bounded `/tpaall` fan out. Request creation and acceptance use action specific permission controlled cooldowns.
+24. Safe `/back`, layered spawn, server warp, player warp, RTP, and optional direct teleport commands with permissions, feature gates, cooldowns, warmups, costs, shared LuckPerms aware hierarchy, exemptions, destination revisions, world border checks, hazard checks, loaded chunk budgets, and bounded history. RTP is capped at 20,000 blocks, never selects water, and requires a surface position.
 25. Player hosted warps with stable ids, `owner:name` lookup, private, shared, unlisted, and public access, favorites, reports, transfer offers, publication, moderation state, visit counts, home conversion, deletion recovery, and canonical kernel execution for every command mutation.
 26. Hardened `/msg`, `/tell`, `/w`, `/whisper`, `/r`, and `/reply` routes with literal message bodies, nickname aware vanish safe targets, message and reply toggles, UUID ignore state, bounded input, existing configurable presentation, and metadata only ordinary audit records.
 27. Permission gated `/socialspy` with everyone or selected player audiences, sender, recipient, or either matching, route filters, metadata and content scopes, exemption, hierarchy, and vanish checks at selection and delivery, per event permission revalidation, bounded recent state, duplicate suppression, delivery rate limits, auditable observer identity and redaction state, and a typed format preview.
@@ -171,7 +171,7 @@ Primary configuration:
 
 `/sef storage status` reports every managed document. `/sef storage export` queues a bounded snapshot under `<world>/serverconfig/sef/exports`. Alternate account data is excluded unless the issuer has both its export and raw address permissions.
 
-The `commandKernel` section sets hard limits for aliases, bundle steps, nested bundle depth, targets, expanded target steps, per player location history, and the minimum cooldown duration persisted across restarts. See [DOCUMENTATION.md](DOCUMENTATION.md) for exact defaults and quota metadata.
+The `commandKernel` section sets hard limits for aliases, bundle steps, nested bundle depth, targets, expanded target steps, per player location history, and the minimum cooldown duration persisted across restarts. Teleport settings keep the default RTP radius at 5,000 blocks and allow operators to raise it to 20,000. See [DOCUMENTATION.md](DOCUMENTATION.md) for exact defaults, permission controlled cooldowns, and quota metadata.
 
 Generated references:
 

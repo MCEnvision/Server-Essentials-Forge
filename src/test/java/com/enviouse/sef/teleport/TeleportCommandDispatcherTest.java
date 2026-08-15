@@ -75,6 +75,25 @@ class TeleportCommandDispatcherTest {
         }
     }
 
+    @Test
+    void teleportRequestAndRandomRootsRemainIndependentlyPermissionGated() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.tpaCommand))
+                    .thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+
+            assertTrue(dispatcher.getRoot().getChild("tpa").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("tpahere").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("tpaccept").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("tpdeny").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("tpcancel").canUse(source));
+            assertFalse(dispatcher.getRoot().getChild("rtp").canUse(source));
+        }
+    }
+
     private static CommandDispatcher<CommandSourceStack> dispatcher() {
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
         HomeCommands.register(dispatcher);

@@ -52,8 +52,8 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 The current worktree has the following verified evidence:
 
-- All 487 unit tests pass.
-- All 39 required GameTests pass.
+- All 491 unit tests pass.
+- All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
 - NeoForge `21.1.235` resolves through ModDevGradle, passes compilation, the unit suite, all GameTests, the clean build, dedicated server startup and shutdown, headless client startup, and exact packaged dependency metadata inspection.
@@ -64,7 +64,7 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`.
+- The current JAR is `sef-1.0.2-SNAPSHOT.jar`, 3,368,398 bytes, with SHA-256 `c92fd83cf628dd4eacd3d6cebc894bb4cc86b35d35808dbc73768662b23d6a74`.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
 

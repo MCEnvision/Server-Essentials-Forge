@@ -768,8 +768,8 @@ public class ConfigHandler {
 			teleportRequestExpirySeconds = builder.comment("  Lifetime of a pending teleport request").defineInRange("requestExpirySeconds", 60, 1, 3600);
 			teleportMaximumPendingRequests = builder.comment("  Maximum incoming or outgoing requests per player").defineInRange("maximumPendingRequests", 10, 1, 100);
 			playerWarpTransferExpirySeconds = builder.comment("  Lifetime of a two party player warp transfer offer").defineInRange("playerWarpTransferExpirySeconds", 300, 10, 3600);
-			randomTeleportMinimumRadius = builder.comment("  Minimum random teleport radius from the configured center").defineInRange("randomTeleportMinimumRadius", 256, 0, 30000000);
-			randomTeleportMaximumRadius = builder.comment("  Maximum random teleport radius from the configured center").defineInRange("randomTeleportMaximumRadius", 5000, 1, 30000000);
+			randomTeleportMinimumRadius = builder.comment("  Minimum random teleport radius from the configured center").defineInRange("randomTeleportMinimumRadius", 256, 0, 20000);
+			randomTeleportMaximumRadius = builder.comment("  Maximum random teleport radius from the configured center").defineInRange("randomTeleportMaximumRadius", 5000, 1, 20000);
 			randomTeleportMaximumAttempts = builder.comment("  Maximum random candidates inspected per request").defineInRange("randomTeleportMaximumAttempts", 32, 1, 256);
 			randomTeleportAllowedDimensions = builder.comment("  Comma separated dimension identifiers allowed for random teleport").define("randomTeleportAllowedDimensions", "minecraft:overworld");
 			teleportOwnershipMode = builder.comment("  Ownership mode for homes and server warps. Values are sef, external, coexist, or import_once").define("ownershipMode", "sef");

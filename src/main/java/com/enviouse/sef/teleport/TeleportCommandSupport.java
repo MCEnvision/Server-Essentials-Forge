@@ -90,7 +90,35 @@ final class TeleportCommandSupport {
                 policy,
                 destinationGuard,
                 ignored -> {
-                });
+                },
+                false);
+    }
+
+    static int teleport(
+            CommandSourceStack source,
+            ServerPlayer actor,
+            ServerPlayer target,
+            SavedLocation destination,
+            String actionId,
+            String reason,
+            PermissionNode<Boolean> actionPermission,
+            SafeTeleportService.Policy policy,
+            SafeTeleportService.DestinationGuard destinationGuard,
+            boolean surfaceOnly
+    ) {
+        return teleport(
+                source,
+                actor,
+                target,
+                destination,
+                actionId,
+                reason,
+                actionPermission,
+                policy,
+                destinationGuard,
+                ignored -> {
+                },
+                surfaceOnly);
     }
 
     static int teleport(
@@ -104,6 +132,33 @@ final class TeleportCommandSupport {
             SafeTeleportService.Policy policy,
             SafeTeleportService.DestinationGuard destinationGuard,
             IntConsumer asynchronousCompletion
+    ) {
+        return teleport(
+                source,
+                actor,
+                target,
+                destination,
+                actionId,
+                reason,
+                actionPermission,
+                policy,
+                destinationGuard,
+                asynchronousCompletion,
+                false);
+    }
+
+    static int teleport(
+            CommandSourceStack source,
+            ServerPlayer actor,
+            ServerPlayer target,
+            SavedLocation destination,
+            String actionId,
+            String reason,
+            PermissionNode<Boolean> actionPermission,
+            SafeTeleportService.Policy policy,
+            SafeTeleportService.DestinationGuard destinationGuard,
+            IntConsumer asynchronousCompletion,
+            boolean surfaceOnly
     ) {
         PermissionService.Decision permission = PermissionService.decide(actor, actionPermission);
         String dimension = actor.serverLevel().dimension().location().toString();
@@ -177,7 +232,8 @@ final class TeleportCommandSupport {
                             actionPermission,
                             policy,
                             destinationGuard,
-                            asynchronousCompletion);
+                            asynchronousCompletion,
+                            surfaceOnly);
                     if (result != ASYNC_PENDING) {
                         asynchronousCompletion.accept(result);
                     }
@@ -200,7 +256,8 @@ final class TeleportCommandSupport {
                     destination,
                     reason,
                     policy,
-                    guard);
+                    guard,
+                    surfaceOnly);
             if (!result.successful()) {
                 lease.complete(false, reason(result.code()));
                 fail(source, describe(result));

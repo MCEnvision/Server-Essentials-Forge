@@ -43,6 +43,17 @@ public final class SafeTeleportService {
             SavedLocation candidate,
             Policy policy
     ) {
+        return validate(server, actor, target, candidate, policy, false);
+    }
+
+    public Validation validate(
+            MinecraftServer server,
+            Player actor,
+            Player target,
+            SavedLocation candidate,
+            Policy policy,
+            boolean surfaceOnly
+    ) {
         Objects.requireNonNull(server, "server");
         Objects.requireNonNull(target, "target");
         Objects.requireNonNull(candidate, "candidate");
@@ -74,7 +85,7 @@ public final class SafeTeleportService {
             if (!level.hasChunkAt(position)) {
                 continue;
             }
-            ResultCode result = inspect(level, actor, target, position, policy);
+            ResultCode result = inspect(level, actor, target, position, policy, surfaceOnly);
             if (result == ResultCode.SUCCESS) {
                 SavedLocation resolved = new SavedLocation(
                         candidate.dimensionId(),
@@ -101,13 +112,26 @@ public final class SafeTeleportService {
             Policy policy,
             DestinationGuard guard
     ) {
+        return teleport(server, actor, target, candidate, reason, policy, guard, false);
+    }
+
+    public TeleportResult teleport(
+            MinecraftServer server,
+            ServerPlayer actor,
+            ServerPlayer target,
+            SavedLocation candidate,
+            String reason,
+            Policy policy,
+            DestinationGuard guard,
+            boolean surfaceOnly
+    ) {
         if (target == null || target.hasDisconnected()) {
             return TeleportResult.failure(ResultCode.TARGET_OFFLINE, "target is offline");
         }
         if (!Objects.requireNonNull(guard, "guard").stillValid()) {
             return TeleportResult.failure(ResultCode.STATE_CHANGED, "destination changed before validation");
         }
-        Validation validation = validate(server, actor, target, candidate, policy);
+        Validation validation = validate(server, actor, target, candidate, policy, surfaceOnly);
         if (!validation.successful()) {
             return TeleportResult.failure(validation.code(), validation.detail());
         }
@@ -154,7 +178,8 @@ public final class SafeTeleportService {
             Player actor,
             Player target,
             BlockPos feet,
-            Policy policy
+            Policy policy,
+            boolean surfaceOnly
     ) {
         if (!level.getWorldBorder().isWithinBounds(feet)) {
             return ResultCode.OUTSIDE_BORDER;
@@ -176,6 +201,18 @@ public final class SafeTeleportService {
         BlockState feetState = level.getBlockState(feet);
         BlockState headState = level.getBlockState(head);
         BlockState supportState = level.getBlockState(support);
+        if (feetState.getFluidState().is(FluidTags.WATER)
+                || headState.getFluidState().is(FluidTags.WATER)
+                || supportState.getFluidState().is(FluidTags.WATER)) {
+            return ResultCode.HAZARD;
+        }
+        if (surfaceOnly
+                && level.getHeight(
+                net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
+                feet.getX(),
+                feet.getZ()) != feet.getY()) {
+            return ResultCode.HAZARD;
+        }
         if (!feetState.getCollisionShape(level, feet).isEmpty()
                 || !headState.getCollisionShape(level, head).isEmpty()) {
             return ResultCode.NO_SAFE_SPACE;
@@ -191,7 +228,8 @@ public final class SafeTeleportService {
     }
 
     private static boolean dangerous(BlockState state) {
-        return state.getFluidState().is(FluidTags.LAVA)
+        return state.getFluidState().is(FluidTags.WATER)
+                || state.getFluidState().is(FluidTags.LAVA)
                 || state.is(Blocks.FIRE)
                 || state.is(Blocks.SOUL_FIRE)
                 || state.is(Blocks.CACTUS)

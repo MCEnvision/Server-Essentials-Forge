@@ -1438,8 +1438,8 @@ Inspect permission: `sef.commands.config.inspect`. Edit permission: `sef.command
 | `runtime.enable_random_teleport` | Random teleport commands | boolean | `true` | `true` or `false` | boolean flag | restart_required | public | `runtime.enable_random_teleport = true` |
 | `runtime.random_teleport_allowed_dimensions` | Comma separated dimension identifiers allowed for random teleport | string | `minecraft:overworld` | 0 through 8192 characters | text | live | public | `runtime.random_teleport_allowed_dimensions = "minecraft:overworld"` |
 | `runtime.random_teleport_maximum_attempts` | Maximum random candidates inspected per request | integer | `32` | 1 through 256 | count | live | public | `runtime.random_teleport_maximum_attempts = 32` |
-| `runtime.random_teleport_maximum_radius` | Maximum random teleport radius from the configured center | integer | `5000` | 1 through 30000000 | count | live | public | `runtime.random_teleport_maximum_radius = 5000` |
-| `runtime.random_teleport_minimum_radius` | Minimum random teleport radius from the configured center | integer | `256` | 0 through 30000000 | count | live | public | `runtime.random_teleport_minimum_radius = 256` |
+| `runtime.random_teleport_maximum_radius` | Maximum random teleport radius from the configured center | integer | `5000` | 1 through 20000 | count | live | public | `runtime.random_teleport_maximum_radius = 5000` |
+| `runtime.random_teleport_minimum_radius` | Minimum random teleport radius from the configured center | integer | `256` | 0 through 20000 | count | live | public | `runtime.random_teleport_minimum_radius = 256` |
 
 ## reminders
 

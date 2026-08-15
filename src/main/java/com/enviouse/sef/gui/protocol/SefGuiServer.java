@@ -158,7 +158,7 @@ public final class SefGuiServer {
             player.server.getCommands().performPrefixedCommand(
                     player.createCommandSourceStack(),
                     allowed.value());
-            openProgress(player, panel.panelId(), "The server processed the selected action.");
+            open(player, panel.panelId(), panel.page(), panel.query());
         }
     }
 
@@ -2269,30 +2269,36 @@ public final class SefGuiServer {
 
     private static SnapshotData teleportRequests(ServerPlayer player) {
         List<EntryAction> entries = new ArrayList<>();
-        if (KernelCommandExecutor.canUse(
+        boolean canAccept = KernelCommandExecutor.canUse(
                 player.createCommandSourceStack(),
-                "sef:teleport.request.accept")) {
+                "sef:teleport.request.accept");
+        boolean canDeny = KernelCommandExecutor.canUse(
+                player.createCommandSourceStack(),
+                "sef:teleport.request.deny");
+        if (canAccept || canDeny) {
             for (TeleportRequestService.Request request :
                     KernelServices.teleportRequests().incoming(player.getUUID())) {
                 ServerPlayer sender = player.server.getPlayerList().getPlayer(request.senderId());
                 if (sender == null) {
                     continue;
                 }
-                entries.add(requestEntry(
-                        request,
-                        "accept",
-                        "Accept from " + sender.getGameProfile().getName(),
-                        "tpaccept " + sender.getGameProfile().getName(),
-                        player.getUUID(),
-                        request.senderId()));
-                if (KernelCommandExecutor.canUse(
-                        player.createCommandSourceStack(),
-                        "sef:teleport.request.deny")) {
+                if (canAccept) {
+                    entries.add(requestEntry(
+                            request,
+                            "accept",
+                            "Accept from " + sender.getGameProfile().getName(),
+                            "tpaccept " + sender.getGameProfile().getName(),
+                            "sef:teleport.request.accept",
+                            player.getUUID(),
+                            request.senderId()));
+                }
+                if (canDeny) {
                     entries.add(requestEntry(
                             request,
                             "deny",
                             "Deny from " + sender.getGameProfile().getName(),
                             "tpdeny " + sender.getGameProfile().getName(),
+                            "sef:teleport.request.deny",
                             player.getUUID(),
                             request.senderId()));
                 }
@@ -2312,6 +2318,7 @@ public final class SefGuiServer {
                         "cancel",
                         "Cancel to " + target.getGameProfile().getName(),
                         "tpcancel " + target.getGameProfile().getName(),
+                        "sef:teleport.request.cancel",
                         request.targetId(),
                         player.getUUID()));
             }
@@ -2327,6 +2334,7 @@ public final class SefGuiServer {
             String control,
             String title,
             String command,
+            String actionId,
             UUID expectedTarget,
             UUID expectedSender
     ) {
@@ -2345,11 +2353,14 @@ public final class SefGuiServer {
                         control,
                         request.revision(),
                         command,
-                        player -> KernelServices.teleportRequests().request(request.id())
+                        current -> KernelServices.teleportRequests().request(request.id())
                                 .map(latest -> latest.revision() == request.revision()
                                         && latest.state() == TeleportRequestService.State.PENDING
                                         && latest.targetId().equals(expectedTarget)
-                                        && latest.senderId().equals(expectedSender))
+                                        && latest.senderId().equals(expectedSender)
+                                        && KernelCommandExecutor.canUse(
+                                        current.createCommandSourceStack(),
+                                        actionId))
                                 .orElse(false)));
     }
 

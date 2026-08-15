@@ -1145,12 +1145,23 @@ public class PermissionsHandler {
 			}
 
 			quotaTierNodes.put("sef.homes.3", ezyPermission("homes.3", false, "Three homes", "Sets the finite home quota tier to three"));
-		quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
-		quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
-		quotaTierNodes.put("sef.playerwarps.10", ezyPermission("playerwarps.10", false, "Ten player warps", "Sets the finite player warp quota tier to ten"));
-		quotaTierNodes.put("sef.playerwarps.25", ezyPermission("playerwarps.25", false, "Twenty five player warps", "Sets the finite player warp quota tier to twenty five"));
-		quotaTierNodes.put("sef.targets.10", ezyPermission("targets.10", false, "Ten targets", "Sets the finite command target quota tier to ten"));
-		quotaTierNodes.put("sef.targets.100", ezyPermission("targets.100", false, "One hundred targets", "Sets the finite command target quota tier to one hundred"));
+			quotaTierNodes.put("sef.homes.5", ezyPermission("homes.5", false, "Five homes", "Sets the finite home quota tier to five"));
+			quotaTierNodes.put("sef.homes.10", ezyPermission("homes.10", false, "Ten homes", "Sets the finite home quota tier to ten"));
+			quotaTierNodes.put("sef.homes.25", ezyPermission("homes.25", false, "Twenty five homes", "Sets the finite home quota tier to twenty five"));
+			quotaTierNodes.put("sef.homes.50", ezyPermission("homes.50", false, "Fifty homes", "Sets the finite home quota tier to fifty"));
+			quotaTierNodes.put("sef.homes.100", ezyPermission("homes.100", false, "One hundred homes", "Sets the finite home quota tier to one hundred"));
+			quotaTierNodes.put("sef.homes.250", ezyPermission("homes.250", false, "Two hundred fifty homes", "Sets the finite home quota tier to two hundred fifty"));
+			quotaTierNodes.put("sef.homes.500", ezyPermission("homes.500", false, "Five hundred homes", "Sets the finite home quota tier to five hundred"));
+			quotaTierNodes.put("sef.homes.1000", ezyPermission("homes.1000", false, "One thousand homes", "Sets the finite home quota tier to one thousand"));
+			quotaTierNodes.put("sef.playerwarps.10", ezyPermission("playerwarps.10", false, "Ten player warps", "Sets the finite player warp quota tier to ten"));
+			quotaTierNodes.put("sef.playerwarps.25", ezyPermission("playerwarps.25", false, "Twenty five player warps", "Sets the finite player warp quota tier to twenty five"));
+			quotaTierNodes.put("sef.playerwarps.50", ezyPermission("playerwarps.50", false, "Fifty player warps", "Sets the finite player warp quota tier to fifty"));
+			quotaTierNodes.put("sef.playerwarps.100", ezyPermission("playerwarps.100", false, "One hundred player warps", "Sets the finite player warp quota tier to one hundred"));
+			quotaTierNodes.put("sef.playerwarps.250", ezyPermission("playerwarps.250", false, "Two hundred fifty player warps", "Sets the finite player warp quota tier to two hundred fifty"));
+			quotaTierNodes.put("sef.playerwarps.500", ezyPermission("playerwarps.500", false, "Five hundred player warps", "Sets the finite player warp quota tier to five hundred"));
+			quotaTierNodes.put("sef.playerwarps.1000", ezyPermission("playerwarps.1000", false, "One thousand player warps", "Sets the finite player warp quota tier to one thousand"));
+			quotaTierNodes.put("sef.targets.10", ezyPermission("targets.10", false, "Ten targets", "Sets the finite command target quota tier to ten"));
+			quotaTierNodes.put("sef.targets.100", ezyPermission("targets.100", false, "One hundred targets", "Sets the finite command target quota tier to one hundred"));
 		quotaTierNodes.put("sef.mail.500", ezyPermission("mail.500", false, "Five hundred mail records", "Sets the finite mail quota tier to five hundred"));
 		quotaTierNodes.put("sef.mail.1000", ezyPermission("mail.1000", false, "One thousand mail records", "Sets the finite mail quota tier to one thousand"));
 		quotaTierNodes.put("sef.definitions.256", ezyPermission("definitions.256", false, "Two hundred fifty six definitions", "Sets the finite definition quota tier to two hundred fifty six"));

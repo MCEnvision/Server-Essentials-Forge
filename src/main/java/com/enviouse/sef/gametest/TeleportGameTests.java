@@ -71,6 +71,60 @@ public final class TeleportGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void waterDestinationIsRejected(GameTestHelper helper) {
+        BlockPos feet = new BlockPos(1, 3, 1);
+        helper.setBlock(feet.below(), Blocks.STONE);
+        helper.setBlock(feet, Blocks.WATER);
+        helper.setBlock(feet.above(), Blocks.AIR);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos absolute = helper.absolutePos(feet);
+        SafeTeleportService.Validation result = new SafeTeleportService(
+                new LocationHistoryRepository(10)).validate(
+                helper.getLevel().getServer(),
+                player,
+                player,
+                new SavedLocation(
+                        helper.getLevel().dimension().location().toString(),
+                        absolute.getX() + 0.5D,
+                        absolute.getY(),
+                        absolute.getZ() + 0.5D,
+                        0,
+                        0),
+                policy());
+
+        helper.assertTrue(!result.successful(), "water destination was accepted");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void surfaceOnlyValidationRejectsCoveredPosition(GameTestHelper helper) {
+        BlockPos feet = new BlockPos(1, 3, 1);
+        helper.setBlock(feet.below(), Blocks.STONE);
+        helper.setBlock(feet, Blocks.AIR);
+        helper.setBlock(feet.above(), Blocks.AIR);
+        helper.setBlock(feet.above(2), Blocks.STONE);
+        Player player = helper.makeMockPlayer(GameType.SURVIVAL);
+        BlockPos absolute = helper.absolutePos(feet);
+        SafeTeleportService.Validation result = new SafeTeleportService(
+                new LocationHistoryRepository(10)).validate(
+                helper.getLevel().getServer(),
+                player,
+                player,
+                new SavedLocation(
+                        helper.getLevel().dimension().location().toString(),
+                        absolute.getX() + 0.5D,
+                        absolute.getY(),
+                        absolute.getZ() + 0.5D,
+                        0,
+                        0),
+                policy(),
+                true);
+
+        helper.assertTrue(!result.successful(), "covered position passed surface validation");
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void missingDimensionFailsWithoutGeneratingChunks(GameTestHelper helper) {
         Player player = helper.makeMockPlayer(GameType.SURVIVAL);
         SafeTeleportService service = new SafeTeleportService(new LocationHistoryRepository(10));

@@ -124,6 +124,16 @@ class PermissionCooldownResolverTest {
         assertNull(PermissionCooldownResolver.parseSeconds("999999999999999999999"));
     }
 
+    @Test
+    void teleportRequestAndRandomActionsHavePermissionControlledDefaults() {
+        assertEquals(Duration.ofSeconds(5),
+                PermissionCooldownResolver.internalDefault("sef:teleport.request.to"));
+        assertEquals(Duration.ofSeconds(5),
+                PermissionCooldownResolver.internalDefault("sef:teleport.request.accept"));
+        assertEquals(Duration.ofSeconds(5),
+                PermissionCooldownResolver.internalDefault("sef:teleport.random"));
+    }
+
     private static PermissionCooldownResolver resolver(SnapshotFactory factory) {
         return new PermissionCooldownResolver(
                 List.of(CRAFT),

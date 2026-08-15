@@ -29,6 +29,10 @@ This document is the authoritative product and architecture blueprint. The phase
 
 Final product acceptance is incomplete on the current phase branch. The current worktree passes 487 unit tests, 39 required GameTests, complete registration checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated-reference drift, dedicated-server startup, headless client startup, security scans, and JAR inspection. All twenty confirmed findings in `audit.md` are repaired. Sixteen Phase 13 runtime families remain explicitly unavailable. The renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are also still open. The authoritative phase-by-phase record is `docs/SEF2_ACCEPTANCE.md`.
 
+## Implementation status update, 2026-08-14
+
+The maintenance follow up hardens the secondary GUI, teleport request permissions, home and player-warp quota tiers, and random teleport safety. The current worktree passes 491 unit tests and 41 required GameTests. Random teleport is bounded at 20,000 blocks, rejects water, and requires a surface position. GUI request entries independently gate accept and deny actions and revalidate command permission before execution. Homes and player warps expose finite permission tiers through 1000 entries, with LuckPerms per-dimension metadata and the older per-world alias supported without widening the hard ceiling. The current artifact is `sef-1.0.2-SNAPSHOT.jar`. Interactive multiplayer, LuckPerms, and visual GUI matrices remain open as recorded in `docs/SEF2_ACCEPTANCE.md`.
+
 Completed security and authorization work:
 
 - `SEF2-SEC-001` action-level `/sef` authorization. `info`, `colors`, `test`, `reload`, `filter`, and storage diagnostics use Brigadier literal children with execution and suggestion permissions. Root access does not imply mutation access.
@@ -19590,6 +19594,35 @@ SEF 2 is complete only when all of the following are true.
 - Every approved server-control or additional essential system passes its domain-specific recovery and abuse tests.
 - JAR inspection passes.
 - Complete diff inspection passes.
+
+## Maintenance follow up, 2026-08-14
+
+The owner requested a focused hardening pass after the secondary GUI build. This work is a maintenance extension of the homes, teleports, GUI, and command policy phases. It does not replace completed implementation history or change the pinned Minecraft and NeoForge baseline.
+
+### Objective and current evidence
+
+The enhanced GUI currently uses server issued panel entries, session and revision checks, and command revalidation. Direct GUI command entries still dispatch through the server command dispatcher, so the underlying command policy remains authoritative. The remaining release risks are the absence of dedicated coverage for GUI action families, water and surface validation in random teleportation, an RTP radius ceiling that is larger than the requested operational boundary, and inconsistent evidence that every teleport and request action exposes a permission controlled cooldown.
+
+### Scope
+
+1. Keep every secondary GUI entry server authoritative. Revalidate the panel session, panel and entry revision, feature state, action permission, target ownership or visibility, current object revision, and command policy immediately before mutation. A client payload must never supply an authority, command source, target set, cooldown, quota, or bypass.
+2. Keep homes and personal warps finite and permission controlled. Preserve the hard implementation ceiling, default limits, replacement semantics, LuckPerms metadata support, and documented finite permission tiers. Make per dimension metadata naming compatible with the existing quota id and retain a migration alias for the planned per world spelling.
+3. Keep `/tpa`, `/tpahere`, `/tpaccept`, `/tpdeny`, `/tpcancel`, and related request controls on the shared command execution and teleport policy. Every registered command action must have a stable cooldown definition, with permission controlled native tiers and LuckPerms dynamic values. Read only actions may retain a zero internal default, but no action may bypass an explicitly granted cooldown policy.
+4. Add `/rtp` safety hardening. The configured maximum radius must be at most 20,000 blocks. The existing default remains 5,000 blocks for compatibility, while operators may raise it to 20,000. Random destinations must use a surface position, reject water and other hazards, respect world borders, claims, combat policy, and safe teleport budgets, and never synchronously generate arbitrary unloaded chunks.
+5. Add deterministic unit, dispatcher, GUI policy, and GameTest coverage for permission revocation, cooldown resolution, home and player warp quota limits, TPA request gates, RTP radius bounds, surface selection, water rejection, and stale panel actions.
+
+### Compatibility and migration
+
+The existing command, action, permission, quota, configuration, and serialized identifiers remain stable. The random teleport configuration maximum changes from 30,000,000 to 20,000. Existing values above 20,000 fail closed during configuration validation and must be lowered by the operator. The default value remains 5,000. LuckPerms quota resolution accepts the canonical per dimension metadata key and the older planned per world alias without widening limits. The mod version advances from `1.0.1-SNAPSHOT` to `1.0.2-SNAPSHOT` for this bug fix release.
+
+### Acceptance criteria
+
+- No GUI action can execute after session, revision, permission, feature, ownership, target, or cooldown state changes.
+- Every teleport and teleport request mutation reaches the shared execution lease and records the action specific cooldown result.
+- `/rtp` accepts a configured maximum radius of 20,000, rejects larger values, and never selects a water or non surface destination when hazards are disabled.
+- Homes and personal warps enforce default, finite permission tier, metadata, hard ceiling, replacement, and concurrent reservation behavior.
+- Focused tests pass, followed by formatting or static checks when present, the full unit suite, GameTests, build, dedicated server smoke, client smoke, artifact inspection, and final diff review.
+- README, DOCUMENTATION, generated references, and the acceptance record describe the verified behavior and any remaining unavailable runtime matrices.
 
 # Appendix A. Required decisions before their implementation phase
 

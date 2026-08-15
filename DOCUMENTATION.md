@@ -215,7 +215,7 @@ Administrative defaults:
 33. `commands.sef.conflicts`, denied.
 34. `commands.sef.doctor`, denied.
 35. `kernel.gui.use`, `kernel.hud.use`, `kernel.panel.use`, `kernel.target.others`, `kernel.audience.broad`, `kernel.editor.use`, `kernel.alias.use`, `kernel.bundle.use`, `kernel.profile.use`, `kernel.bypass.use`, and `kernel.sensitive.view`, denied.
-36. Finite quota tier nodes under `sef.homes.*`, `sef.playerwarps.*`, `sef.targets.*`, `sef.mail.*`, and `sef.definitions.*`, denied.
+36. Finite quota tier nodes under `sef.homes.*`, `sef.playerwarps.*`, `sef.targets.*`, `sef.mail.*`, and `sef.definitions.*`, denied. Homes and player warps expose finite tiers through `1000`, while LuckPerms metadata supports arbitrary nonnegative values up to the hard ceiling.
 37. Every `commands.socialspy.*` management, audience, scope, route, recent, status, and format-preview node, denied.
 38. `socialspy.view.metadata`, `socialspy.view.content`, `socialspy.view.vanished`, `socialspy.view.exempt`, `socialspy.hierarchy.bypass`, and `socialspy.exempt`, denied.
 39. Every `commands.joinmessage.*`, `commands.leavemessage.*`, and `commands.connectionmessage.inspect` node is denied. `connectionmessage.hierarchy.bypass`, `connectionmessage.exempt`, and `connectionmessage.bypass.exempt` are also denied.
@@ -279,8 +279,9 @@ Current quota contracts:
 
 | Quota | Default | Hard ceiling | Permission tiers | LuckPerms metadata |
 | --- | ---: | ---: | --- | --- |
-| `sef:homes` | 1 | 1000 | `sef.homes.3`, `sef.homes.5`, `sef.homes.10` | `sef.limit.homes.total` |
-| `sef:player_warps` | 5 | 1000 | `sef.playerwarps.10`, `sef.playerwarps.25` | `sef.limit.player_warps.total` |
+| `sef:homes` | 1 | 1000 | `sef.homes.3`, `.5`, `.10`, `.25`, `.50`, `.100`, `.250`, `.500`, `.1000` | `sef.limit.homes.total` |
+| `sef:homes_per_dimension` | 1000 | 1000 | none | `sef.limit.homes.per.dimension`, with `sef.limit.homes.per.world` migration alias |
+| `sef:player_warps` | 5 | 1000 | `sef.playerwarps.10`, `.25`, `.50`, `.100`, `.250`, `.500`, `.1000` | `sef.limit.player_warps.total` |
 | `sef:targets` | 1 | 1000 | `sef.targets.10`, `sef.targets.100` | `sef.limit.targets` |
 | `sef:mail` | 100 | 10000 | `sef.mail.500`, `sef.mail.1000` | `sef.limit.mail` |
 | `sef:definitions` | 64 | 1024 | `sef.definitions.256`, `sef.definitions.512` | `sef.limit.definitions` |
@@ -296,6 +297,10 @@ Phase 4 command mutations enter the canonical kernel action before changing repo
 All migrated single player arguments use the shared SEF identity argument. It accepts authenticated usernames and unambiguous quoted display nicknames, obtains suggestions from the active nickname provider, and removes a vanished online player from both online and known profile resolution when the viewer cannot see that player. Direct private messages, private chat selection, home administration, warp sharing, teleport requests, offline teleport targets, social selection, connection message management, manual welcome delivery, inventory inspection, player inventory clearing, alternate account inspection, freezing, inventory locking, building control, muting, warnings, banned item actions, and every single target vanish action use this route.
 
 `/tpaccept` uses the teleport action lease as its single canonical execution. It does not wrap that action in a second lease with the same cooldown identity. `/tpaall` resolves at most 100 visible targets first, then runs the bounded fan out through one `sef:teleport.request.all` action. Empty `/tprequests` output is a successful read rather than a provider failure.
+
+Teleport cooldowns are permission controlled by the stable action key. Grant a native tier such as `sef.cooldown.teleport.request.to.10` or `sef.cooldown.teleport.random.30` to select a duration in seconds. LuckPerms may grant `sef.cooldown.teleport.request.to.<seconds>` for a bounded whole number up to one year. The lowest valid inherited duration wins, and an exact direct assignment takes precedence. `0` disables the cooldown for that action. The dedicated teleport bypass permission remains separate and does not grant the action itself.
+
+RTP uses the configured center and radius without synchronously generating arbitrary chunks. Its maximum radius is 20,000 blocks and its default is 5,000. A selected position must be the motion blocking surface, have two clear blocks for the player, remain inside the world border, pass claim and combat policy, and contain no water or configured hazard. If no safe loaded candidate is found within the configured attempt and chunk budgets, the command fails without moving the player.
 
 Shared player target decisions use the selected metadata provider. A LuckPerms primary group weight is authoritative when present. Operators use the maximum bounded weight, known group names fall back to the configured hierarchy snapshot, console bypasses hierarchy and target exemption, and player bypasses require their explicit hierarchy or exemption permission. `/homes <player>` now uses the same target policy as home administration.
 
@@ -989,7 +994,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
-The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 487-test unit suite, 39 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
+The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 491-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
 ## 17. Operations and recovery
 

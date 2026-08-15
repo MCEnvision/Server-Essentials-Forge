@@ -400,7 +400,8 @@ public final class CoreTeleportCommands {
                     player,
                     player,
                     candidate,
-                    settings.userPolicy()).successful()) {
+                    settings.userPolicy(),
+                    true).successful()) {
                 destination = candidate;
                 break;
             }
@@ -420,7 +421,8 @@ public final class CoreTeleportCommands {
                 "random_teleport",
                 PermissionsHandler.randomTeleportCommand,
                 settings.userPolicy(),
-                SafeTeleportService.DestinationGuard.ALWAYS);
+                SafeTeleportService.DestinationGuard.ALWAYS,
+                true);
     }
 
     private static int directToPlayer(

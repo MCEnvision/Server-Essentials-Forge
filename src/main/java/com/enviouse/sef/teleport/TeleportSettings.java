@@ -48,7 +48,7 @@ public record TeleportSettings(
                 || randomMinimumRadius < 0
                 || randomMaximumRadius < 1
                 || randomMinimumRadius > randomMaximumRadius
-                || randomMaximumRadius > 30_000_000
+                || randomMaximumRadius > 20_000
                 || randomMaximumAttempts < 1
                 || randomMaximumAttempts > 256
                 || randomAllowedDimensions.isEmpty()

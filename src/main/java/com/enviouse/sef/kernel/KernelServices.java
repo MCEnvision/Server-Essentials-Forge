@@ -3288,7 +3288,16 @@ public final class KernelServices {
                 ConfigHandler.config.defaultHomeLimit.get(),
                 1000,
                 true,
-                Map.of("sef.homes.3", 3L, "sef.homes.5", 5L, "sef.homes.10", 10L)));
+                Map.ofEntries(
+                        Map.entry("sef.homes.3", 3L),
+                        Map.entry("sef.homes.5", 5L),
+                        Map.entry("sef.homes.10", 10L),
+                        Map.entry("sef.homes.25", 25L),
+                        Map.entry("sef.homes.50", 50L),
+                        Map.entry("sef.homes.100", 100L),
+                        Map.entry("sef.homes.250", 250L),
+                        Map.entry("sef.homes.500", 500L),
+                        Map.entry("sef.homes.1000", 1000L))));
         quotas.register(new QuotaService.Definition(
                 "sef:homes_per_dimension",
                 QuotaService.QuotaKind.COUNT,
@@ -3302,7 +3311,14 @@ public final class KernelServices {
                 ConfigHandler.config.defaultPlayerWarpLimit.get(),
                 1000,
                 true,
-                Map.of("sef.playerwarps.10", 10L, "sef.playerwarps.25", 25L)));
+                Map.ofEntries(
+                        Map.entry("sef.playerwarps.10", 10L),
+                        Map.entry("sef.playerwarps.25", 25L),
+                        Map.entry("sef.playerwarps.50", 50L),
+                        Map.entry("sef.playerwarps.100", 100L),
+                        Map.entry("sef.playerwarps.250", 250L),
+                        Map.entry("sef.playerwarps.500", 500L),
+                        Map.entry("sef.playerwarps.1000", 1000L))));
         quotas.register(new QuotaService.Definition(
                 "sef:targets",
                 QuotaService.QuotaKind.TARGET_CAP,

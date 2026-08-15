@@ -1,6 +1,6 @@
 # SEF 2 Unreleased Engineering Preview
 
-Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` working tree. Version metadata is `1.0.1-SNAPSHOT`. These notes are not a public release declaration.
+Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` working tree. Version metadata is `1.0.2-SNAPSHOT`. These notes are not a public release declaration.
 
 ## Added
 
@@ -44,6 +44,9 @@ Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` workin
 19. Fixed command catalog, shortcut, GUI workflow, source-policy, and live-dispatcher disagreement across the complete registered command surface.
 20. Fixed `/setworth` parsing for namespaced item identifiers and narrowed NeoForge metadata to the verified `21.1.235` version.
 21. Fixed `/feed` granting saturation and causing a fast natural-regeneration burst. It now fills hunger with zero saturation, leaves health unchanged, and has live-dispatcher GameTest coverage.
+22. Fixed secondary GUI request entries so accept and deny actions are independently permission gated and stale entries revalidate the current command permission.
+23. Fixed random teleport safety to enforce a 20,000 block maximum, surface destinations, and unconditional water rejection.
+24. Added expanded permission tiers for homes and player warps and preserved the LuckPerms per-dimension metadata alias during migration.
 
 ## Migration
 
@@ -62,4 +65,4 @@ The target is Minecraft `1.21.1`, NeoForge `21.1.235`, and Java `21`. LuckPerms,
 
 ## Verification state
 
-All 487 unit tests, all 39 required GameTests, registration checks for all 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated references, dedicated-server startup, headless client startup, security scans, and current artifact inspection pass. The current artifact is `build/libs/sef-1.0.1-SNAPSHOT.jar`, 3,366,275 bytes, with SHA-256 `eabaad3e55ca1e8baf6bf657433fc01206e631c32db0fe99e89b2172bfa5dd12`. All twenty confirmed findings in `audit.md` are repaired. Release acceptance does not pass yet. Sixteen Phase 13 runtime families remain unavailable, and the renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are still open. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).
+All 491 unit tests, all 41 required GameTests, registration checks for all 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated references, dedicated-server startup, headless client startup, security scans, and current artifact inspection pass. The current artifact is `build/libs/sef-1.0.2-SNAPSHOT.jar`, 3,368,398 bytes, with SHA-256 `c92fd83cf628dd4eacd3d6cebc894bb4cc86b35d35808dbc73768662b23d6a74`. All twenty confirmed findings in `audit.md` are repaired. Release acceptance does not pass yet. Sixteen Phase 13 runtime families remain unavailable, and the renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are still open. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).

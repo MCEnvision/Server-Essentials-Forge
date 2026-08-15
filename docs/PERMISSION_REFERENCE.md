@@ -2,7 +2,7 @@
 
 This file is generated from the permission manifest and sealed command registry. Change permission definitions and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Permission entries: 11937. Defaults are fail closed unless a row explicitly states `true`.
+Permission entries: 11948. Defaults are fail closed unless a row explicitly states `true`.
 
 | Permission | Default | Name | Description | Catalog commands |
 | --- | --- | --- | --- | --- |
@@ -11828,8 +11828,14 @@ Permission entries: 11937. Defaults are fail closed unless a row explicitly stat
 | `sef.home.admin.set` | `false` | Home administration set | Allows setting another player's home | none |
 | `sef.home.admin.teleport` | `false` | Home administration teleport | Allows teleporting to another player's home | none |
 | `sef.homes.10` | `false` | Ten homes | Sets the finite home quota tier to ten | none |
+| `sef.homes.100` | `false` | One hundred homes | Sets the finite home quota tier to one hundred | none |
+| `sef.homes.1000` | `false` | One thousand homes | Sets the finite home quota tier to one thousand | none |
+| `sef.homes.25` | `false` | Twenty five homes | Sets the finite home quota tier to twenty five | none |
+| `sef.homes.250` | `false` | Two hundred fifty homes | Sets the finite home quota tier to two hundred fifty | none |
 | `sef.homes.3` | `false` | Three homes | Sets the finite home quota tier to three | none |
 | `sef.homes.5` | `false` | Five homes | Sets the finite home quota tier to five | none |
+| `sef.homes.50` | `false` | Fifty homes | Sets the finite home quota tier to fifty | none |
+| `sef.homes.500` | `false` | Five hundred homes | Sets the finite home quota tier to five hundred | none |
 | `sef.homes.coordinates` | `false` | Home coordinates | Allows viewing stored home coordinates | none |
 | `sef.inventory.bypass.exempt` | `false` | Inventory exemption bypass | Allows inventory actions against exempt players | none |
 | `sef.inventory.cooldown.bypass` | `false` | Inventory cooldown bypass | Allows bypassing inventory utility cooldowns | none |
@@ -11871,7 +11877,12 @@ Permission entries: 11937. Defaults are fail closed unless a row explicitly stat
 | `sef.opbulletin.manage` | `false` | Manage operator bulletins | Allows managing operator bulletins | `sef:announcement.bulletin` |
 | `sef.opbulletin.receive` | `false` | Receive operator bulletins | Shows operator bulletins on login | none |
 | `sef.playerwarps.10` | `false` | Ten player warps | Sets the finite player warp quota tier to ten | none |
+| `sef.playerwarps.100` | `false` | One hundred player warps | Sets the finite player warp quota tier to one hundred | none |
+| `sef.playerwarps.1000` | `false` | One thousand player warps | Sets the finite player warp quota tier to one thousand | none |
 | `sef.playerwarps.25` | `false` | Twenty five player warps | Sets the finite player warp quota tier to twenty five | none |
+| `sef.playerwarps.250` | `false` | Two hundred fifty player warps | Sets the finite player warp quota tier to two hundred fifty | none |
+| `sef.playerwarps.50` | `false` | Fifty player warps | Sets the finite player warp quota tier to fifty | none |
+| `sef.playerwarps.500` | `false` | Five hundred player warps | Sets the finite player warp quota tier to five hundred | none |
 | `sef.playerwarps.access` | `true` | Player warp access lists | Allows managing owned player warp access lists | none |
 | `sef.playerwarps.edit` | `true` | Edit player warps | Allows editing owned player warps | `sef:teleport.player_warp.manage` |
 | `sef.playerwarps.favorite` | `true` | Favorite player warps | Allows managing favorite player warps | none |
