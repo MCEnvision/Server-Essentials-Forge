@@ -52,7 +52,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 The current worktree has the following verified evidence:
 
-- All 491 unit tests pass.
+- All 493 unit tests pass.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
@@ -64,7 +64,8 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-1.0.2-SNAPSHOT.jar`, 3,368,398 bytes, with SHA-256 `c92fd83cf628dd4eacd3d6cebc894bb4cc86b35d35808dbc73768662b23d6a74`.
+- The current JAR is `sef-1.0.2-SNAPSHOT.jar`, 3,368,454 bytes, with SHA-256 `15ec0f089db889e864f544a46c47452ab9391d1621f7e6daa8b74471a583f6a7`.
+- The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
 

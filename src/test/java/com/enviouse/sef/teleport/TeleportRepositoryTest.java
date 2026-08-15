@@ -65,6 +65,30 @@ class TeleportRepositoryTest {
     }
 
     @Test
+    void replacingHomeCannotMoveIntoAFullDestinationDimension() {
+        TeleportRepository repository = loaded();
+        UUID owner = UUID.randomUUID();
+        SavedLocation overworld = location(1);
+        SavedLocation nether = new SavedLocation("minecraft:the_nether", 1, 64, 1, 0, 0);
+
+        assertTrue(repository.setHome(owner, "overworld", overworld, 5, 1, false).successful());
+        assertTrue(repository.setHome(owner, "nether", nether, 5, 1, false).successful());
+
+        ActionResult<HomeRecord> result = repository.setHome(
+                owner,
+                "overworld",
+                new SavedLocation("minecraft:the_nether", 2, 64, 2, 0, 0),
+                5,
+                1,
+                true);
+
+        assertEquals(ActionResult.ReasonCode.QUOTA_EXCEEDED, result.reason());
+        assertEquals(
+                "minecraft:overworld",
+                repository.home(owner, "overworld").orElseThrow().location().dimensionId());
+    }
+
+    @Test
     void playerWarpPublicationAccessTransferAndHomeConversionAreIndependent() {
         TeleportRepository repository = loaded();
         UUID owner = UUID.randomUUID();

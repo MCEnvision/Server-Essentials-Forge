@@ -151,6 +151,16 @@ public final class TeleportRepository implements StorageRepository {
             if (!overwrite) {
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, existing.id().toString());
             }
+            if (!existing.location().dimensionId().equals(location.dimensionId())) {
+                long inDestinationDimension = homes(ownerId).stream()
+                        .filter(home -> home.location().dimensionId().equals(location.dimensionId()))
+                        .count();
+                if (maximumHomesInDimension < 0 || inDestinationDimension >= maximumHomesInDimension) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.QUOTA_EXCEEDED,
+                            "dimension:" + maximumHomesInDimension);
+                }
+            }
             HomeRecord replacement = existing.relocated(location, now);
             homesById.put(replacement.id(), replacement);
             changed();

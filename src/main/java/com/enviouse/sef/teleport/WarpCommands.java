@@ -539,8 +539,9 @@ public final class WarpCommands {
                 .executes(context -> listPlayerWarps(context.getSource(), null));
         if (management) {
             node.then(Commands.literal("info")
-                    .requires(source -> TeleportCommandSupport.actionEnabled(
+                    .requires(source -> TeleportCommandSupport.has(
                             source,
+                            PermissionsHandler.playerWarpEdit,
                             "sef:teleport.player_warp.manage"))
                     .then(Commands.argument("reference", StringArgumentType.word())
                             .executes(context -> playerWarpInfo(
@@ -586,8 +587,9 @@ public final class WarpCommands {
                                             StringArgumentType.getString(context, "reference"),
                                             StringArgumentType.getString(context, "reason"))))));
             node.then(Commands.literal("visits")
-                    .requires(source -> TeleportCommandSupport.actionEnabled(
+                    .requires(source -> TeleportCommandSupport.has(
                             source,
+                            PermissionsHandler.playerWarpEdit,
                             "sef:teleport.player_warp.manage"))
                     .then(Commands.argument("reference", StringArgumentType.word())
                             .executes(context -> playerWarpVisits(

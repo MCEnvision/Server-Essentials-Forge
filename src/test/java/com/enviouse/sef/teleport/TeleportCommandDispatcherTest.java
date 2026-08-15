@@ -52,6 +52,27 @@ class TeleportCommandDispatcherTest {
     }
 
     @Test
+    void playerWarpInspectionBranchesDoNotBypassManagementPermission() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.playerWarpCommand))
+                    .thenReturn(true);
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+            var root = dispatcher.getRoot().getChild("pwarp");
+
+            assertFalse(root.getChild("info").canUse(source));
+            assertFalse(root.getChild("visits").canUse(source));
+
+            permissions.when(() -> PermissionAPI.getPermission(player, PermissionsHandler.playerWarpEdit))
+                    .thenReturn(true);
+            assertTrue(root.getChild("info").canUse(source));
+            assertTrue(root.getChild("visits").canUse(source));
+        }
+    }
+
+    @Test
     void vanillaTeleportRootIsNotOwnedByDefault() {
         CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
         assertNull(dispatcher.getRoot().getChild("tp"));

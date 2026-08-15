@@ -173,7 +173,7 @@ env JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH=/usr/lib/jvm/java-21-openj
 
 Expected:
 
-- 491 unit tests pass.
+- 493 unit tests pass.
 - 41 required GameTests pass.
 - The command GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only live routes.
 - The build, fallback runtime, command reference, permission reference, configuration reference, and performance report complete.
@@ -192,7 +192,7 @@ git diff --check
 For the current audited worktree, the expected JAR SHA-256 is:
 
 ```text
-c92fd83cf628dd4eacd3d6cebc894bb4cc86b35d35808dbc73768662b23d6a74
+15ec0f089db889e864f544a46c47452ab9391d1621f7e6daa8b74471a583f6a7
 ```
 
 A different hash is not automatically a bug after any source or resource change. It requires a new artifact inspection and recorded expected hash.
