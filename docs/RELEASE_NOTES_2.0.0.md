@@ -22,4 +22,4 @@ Back up the world, `config/sef`, and world SEF storage. Review `/sef config migr
 
 ## Verification status
 
-The automated unit, GameTest, build, dedicated server startup, headless client startup, generated reference, security, and artifact checks pass on the current source revision. The Phase 14 ledger still has interactive multiplayer, optional integration, GUI visual, upgrade, and rollback rows open. Public publication must wait for those gates and a verified broker preview for both platforms.
+The automated unit, GameTest, build, dedicated server startup, headless client startup, generated reference, security, and artifact checks pass on the current source revision. The artifact is `build/libs/sef-2.0.0.jar`, 3,368,441 bytes, with SHA-256 `7acac17497166c5870180521d95fe47cbd1c41a45e33c2dd88b175314d7e2fd4` and SHA-512 `ffd68e24345008c888d80d9b8fcef96eae5d27972b3654b3d1cd1027ee2572536fb779fcd77cf09ecc3e4e57fae3959d0204ef1a7e76dcfc24159e0c0be80e41`. The Phase 14 ledger still has interactive multiplayer, optional integration, GUI visual, upgrade, and rollback rows open. Public publication must wait for those gates and a verified broker preview for both platforms.

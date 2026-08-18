@@ -15,7 +15,7 @@ Current project metadata:
 3. Java `21`.
 4. Parchment mappings `2024.11.17`.
 5. Mod id `sef`.
-6. Artifact version `1.0.2-SNAPSHOT`.
+6. Artifact version `2.0.0`.
 
 Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 493 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
 
