@@ -1,0 +1,98 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: semantic version to package, for example 2.0.0
+        required: true
+        default: 2.0.0
+        type: string
+      ref:
+        description: branch, tag, or commit to release
+        required: true
+        default: envy/sef2_complete
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: set up java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: validate wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: make wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: validate release metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          test "${RELEASE_VERSION}" = "${RELEASE_VERSION#v}"
+          printf '%s\n' "${RELEASE_VERSION}" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'
+          grep -Eq '^minecraft_version=1\.21\.1$' gradle.properties
+          grep -Eq '^neo_version=21\.1\.235$' gradle.properties
+
+      - name: run unit tests
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./gradlew clean test -Pmod_version="${RELEASE_VERSION}" --no-daemon
+
+      - name: run gametests
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./gradlew runGameTestServer -Pmod_version="${RELEASE_VERSION}" --no-daemon
+
+      - name: build release jar
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: ./gradlew build -Pmod_version="${RELEASE_VERSION}" --no-daemon
+
+      - name: inspect and hash artifact
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          artifact="build/libs/sef-${RELEASE_VERSION}.jar"
+          test -f "${artifact}"
+          unzip -p "${artifact}" META-INF/neoforge.mods.toml | grep -Fq "version = \"${RELEASE_VERSION}\""
+          unzip -l "${artifact}" | grep -Eq 'META-INF/neoforge.mods.toml|sef.mixins.json|META-INF/accesstransformer.cfg'
+          ! unzip -l "${artifact}" | grep -Eq '(^|/)(run|logs|crash-reports|\.gradle|\.idea)(/|$)'
+          sha256sum "${artifact}" | tee "build/sef-${RELEASE_VERSION}.jar.sha256"
+          sha512sum "${artifact}" | tee "build/sef-${RELEASE_VERSION}.jar.sha512"
+          {
+            printf 'version=%s\n' "${RELEASE_VERSION}"
+            printf 'minecraft_version=1.21.1\n'
+            printf 'neoforge_version=21.1.235\n'
+            printf 'loader=neoforge\n'
+            printf 'artifact=sef-%s.jar\n' "${RELEASE_VERSION}"
+            printf 'commit=%s\n' "${GITHUB_SHA}"
+            cat "build/sef-${RELEASE_VERSION}.jar.sha256"
+            cat "build/sef-${RELEASE_VERSION}.jar.sha512"
+          } > "build/sef-${RELEASE_VERSION}.release-manifest"
+
+      - name: upload release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: sef-${{ inputs.version }}-release-evidence
+          if-no-files-found: error
+          path: |
+            build/libs/sef-${{ inputs.version }}.jar
+            build/sef-${{ inputs.version }}.jar.sha256
+            build/sef-${{ inputs.version }}.jar.sha512
+            build/sef-${{ inputs.version }}.release-manifest

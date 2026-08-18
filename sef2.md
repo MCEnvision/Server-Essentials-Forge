@@ -18068,6 +18068,7 @@ Status: implemented on the current phase branch. Automated gates and generated r
 - Performance report.
 - Security review.
 - Release notes.
+- A manually gated release workflow that builds the exact versioned universal JAR, records checksums and metadata, and prepares the verified artifact for both Modrinth and CurseForge publication through the release broker.
 
 ### Exit criteria
 
@@ -18076,6 +18077,7 @@ Status: implemented on the current phase branch. Automated gates and generated r
 - JAR contents inspected.
 - No dev files, run directories, secrets, or caches.
 - Upgrade and rollback tested.
+- The release workflow completes its automated checks, records the artifact manifest, and produces a broker preview for every mapped target. Publication remains blocked until all required acceptance rows pass and the owner confirms the exact preview.
 - Main is advanced only after explicit approval.
 
 # Part XXI. Verification strategy
