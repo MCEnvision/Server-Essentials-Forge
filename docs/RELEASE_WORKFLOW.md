@@ -6,6 +6,15 @@ This procedure prepares the SEF 2.0 universal JAR for Minecraft 1.21.1 and NeoFo
 
 Use semantic version `2.0.0`, Java 21, the checked in Gradle wrapper, Minecraft `1.21.1`, loader `neoforge`, and NeoForge `21.1.235`. Release from the approved phase commit only. Do not release from a dirty worktree or an unapproved branch.
 
+## Project mappings
+
+The verified platform mappings are:
+
+- CurseForge project `1484800`: https://www.curseforge.com/minecraft/mc-mods/server-essentials-forge
+- Modrinth project `ZYRnLzkm`: https://modrinth.com/mod/server-essentials-forge
+
+The Modrinth project is currently a draft with no release file. Project creation and release upload are separate approvals.
+
 ## Automated preparation
 
 Run the manual GitHub Actions workflow named `release` with:
