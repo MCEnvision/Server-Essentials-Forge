@@ -1,0 +1,590 @@
+{
+  "schemaVersion": 2,
+  "planId": "PLAN-MASTER",
+  "planSetSha256": "cf980400819fce2dad52b2844273479488eb988395b8519d6f04cb290fddd504",
+  "planningSubject": {
+    "name": "Server Essentials Forge 2 final security, administrator-command, UI, persistence, backend-handling, and integration audit with mandatory remediation closure",
+    "requestedArtifact": "authoritative_plan",
+    "planProfile": "software_product",
+    "sources": [
+      {
+        "id": "SRC-001",
+        "role": "owner_request",
+        "subject": "the final SEF 2 audit and remediation endpoint",
+        "source": "EnVy's direct Plan Creator request dated 2026-09-01",
+        "use": "authoritative mandatory scope, audit priorities, and requested plan artifact"
+      },
+      {
+        "id": "SRC-002",
+        "role": "requirements",
+        "subject": "SEF 2 product, architecture, command, persistence, GUI, integration, security, and delivery contract",
+        "source": "/mnt/hermes/projects/SEFPORTED/sef2.md",
+        "use": "current intended behavior and compatibility boundaries for audit expectations"
+      },
+      {
+        "id": "SRC-003",
+        "role": "audit_evidence",
+        "subject": "prior full-codebase SEF audit findings, repairs, limitations, and release blockers",
+        "source": "/mnt/hermes/projects/SEFPORTED/audit.md",
+        "use": "historical findings and evidence gaps that must be independently revalidated"
+      },
+      {
+        "id": "SRC-004",
+        "role": "requirements",
+        "subject": "SEF 2 manual, multiplayer, integration, GUI, persistence, and release verification matrix",
+        "source": "/mnt/hermes/projects/SEFPORTED/test.md",
+        "use": "existing highest-fidelity runtime workflows and unresolved manual evidence"
+      },
+      {
+        "id": "SRC-005",
+        "role": "status",
+        "subject": "current documented implementation, security, acceptance, compatibility, and release state",
+        "source": "/mnt/hermes/projects/SEFPORTED/README.md, /mnt/hermes/projects/SEFPORTED/DOCUMENTATION.md, and /mnt/hermes/projects/SEFPORTED/docs",
+        "use": "evidence-based current state only, never authority over the owner request or intended contract"
+      },
+      {
+        "id": "SRC-006",
+        "role": "repository_evidence",
+        "subject": "current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows",
+        "source": "/mnt/hermes/projects/SEFPORTED at 0c75bf25c58622096dfa7cc65a5f4b32e6d60ac4 with current CodeGraph index",
+        "use": "observed architecture, ownership, trust boundaries, test inventory, and planning constraints"
+      },
+      {
+        "id": "SRC-007",
+        "role": "audit_evidence",
+        "subject": "GitHub repository, branch, pull request, Actions, ruleset, dependency-alert, and security-scanning state",
+        "source": "read-only GitHub preflight for MCEnvision/Server-Essentials-Forge on 2026-09-01",
+        "use": "remote identity, current dependency and verification risk, and branch evidence"
+      },
+      {
+        "id": "SRC-008",
+        "role": "reference",
+        "subject": "historical Forge-to-NeoForge porting audit and inventories",
+        "source": "/mnt/hermes/projects/SEFPORTED/SEFAudit.md",
+        "use": "legacy risk history and completeness cross-check only"
+      }
+    ]
+  },
+  "profileContract": [
+    {
+      "area": "Component architecture",
+      "status": "covered",
+      "source": "SRC-006",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "Current source establishes common, client, server, command, GUI, storage, audit, control, integration, and release component ownership."
+    },
+    {
+      "area": "Determinism",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Determinism and Evidence Reproducibility",
+      "rationale": "Inventories, generated references, normalized persistence, audit matrices, clean-checkout commands, and artifact digests must reproduce at the frozen revision."
+    },
+    {
+      "area": "Failure taxonomy",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Failure Taxonomy and Recovery",
+      "rationale": "Prior findings and current result and repository states identify invalid input, authorization, provider, storage, recovery, concurrency, and partial-success failures."
+    },
+    {
+      "area": "Generalization",
+      "status": "covered",
+      "source": "SRC-002",
+      "plan_section": "Supported Environments and Generalization",
+      "rationale": "Evidence must cover dedicated server, enhanced and fallback clients, mixed multiplayer, console and other supported sources, and optional integrations present and absent."
+    },
+    {
+      "area": "Inputs and outputs",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Inputs, Outputs, and Observable Endpoint",
+      "rationale": "The owner request and existing command, GUI, storage, integration, evidence, and artifact surfaces define observable audit inputs and outputs."
+    },
+    {
+      "area": "Release lifecycle",
+      "status": "covered",
+      "source": "SRC-005",
+      "plan_section": "Documentation, Operations, and Release Gates",
+      "rationale": "Build, packaging, evidence, compatibility, documentation, rollback, and release-readiness gates are in scope, while public publication is excluded."
+    },
+    {
+      "area": "Security",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Security, Privacy, and Supply Chain Contract",
+      "rationale": "Leak, backdoor-like bypass, trust-boundary, privacy, dependency, redaction, permission, and artifact inspection are mandatory."
+    },
+    {
+      "area": "State and persistence",
+      "status": "covered",
+      "source": "SRC-002",
+      "plan_section": "State and Persistence Contract",
+      "rationale": "The product requirements and repository evidence define durable stores, schemas, migrations, recovery, concurrency, and compatibility."
+    },
+    {
+      "area": "Test system",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Verification Strategy",
+      "rationale": "The repository has layered unit, GameTest, server, client, multiplayer, provider, failure-injection, performance, and artifact workflows that the plan extends and closes."
+    },
+    {
+      "area": "Versioning",
+      "status": "covered",
+      "source": "SRC-006",
+      "plan_section": "Compatibility and Versioning",
+      "rationale": "Pinned platform, protocol, configuration, schema, mod, and artifact versions are present in build metadata and current contracts."
+    }
+  ],
+  "mandatoryRequirements": [
+    {
+      "id": "SEFAUD-REQ-001",
+      "summary": "Freeze the authoritative audit baseline and complete traceable inventories for all security, command, UI, persistence, backend, integration, dependency, test, documentation, and evidence surfaces.",
+      "source": "SRC-001",
+      "owner": "Repository audit contract",
+      "contributors": "All source domains, build system, documentation, and remote security evidence",
+      "dependencies": [
+        "DEC-002",
+        "DEC-003",
+        "DEC-004",
+        "DEC-005",
+        "DEC-006",
+        "DEC-007",
+        "DEC-008"
+      ],
+      "lifecycleStage": "readiness",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-000"
+    },
+    {
+      "id": "SEFAUD-REQ-002",
+      "summary": "Threat-model, audit, repair, and adversarially verify every security, privacy, sensitive-data, authority, command-execution, payload, filesystem, integration, log, export, and packaged-artifact boundary.",
+      "source": "SRC-001",
+      "owner": "Security audit boundary",
+      "contributors": "Command kernel, GUI protocol, persistence, configuration, optional integrations, domain services, packaging",
+      "dependencies": [
+        "DEC-001",
+        "DEC-003",
+        "DEC-005",
+        "SEFAUD-REQ-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-001"
+    },
+    {
+      "id": "SEFAUD-REQ-003",
+      "summary": "Triage every current dependency alert against the release-candidate graph and artifact, repair applicable findings within pinned platform constraints, and prove no applicable critical or high exploitable dependency vulnerability remains.",
+      "source": "SRC-007",
+      "owner": "Dependency graph",
+      "contributors": "NeoForge platform, optional integration declarations, CI, packaging, remote security state",
+      "dependencies": [
+        "DEC-003",
+        "DEC-004",
+        "SEFAUD-REQ-001"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-001"
+    },
+    {
+      "id": "SEFAUD-REQ-004",
+      "summary": "Verify every executable administrator action across registration, authorization, sources, targets, arguments, effects, failures, persistence, equivalent routes, feedback, audit, and redaction, and repair every confirmed defect.",
+      "source": "SRC-001",
+      "owner": "Command policy kernel",
+      "contributors": "Permission service, domain command owners, GUI protocol, aliases, bundles, sudo, server controls, audit service, persistence",
+      "dependencies": [
+        "DEC-002",
+        "DEC-008",
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-006"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-003"
+    },
+    {
+      "id": "SEFAUD-REQ-005",
+      "summary": "Polish and verify all in-scope graphical, HUD, workflow, fallback, and administrator-feedback UI for layout, responsiveness, accessibility, state clarity, safe projection, and server-side authorization.",
+      "source": "SRC-001",
+      "owner": "GUI presentation",
+      "contributors": "GUI protocol, command and message services, domain workflow owners, client caches, accessibility and test harness",
+      "dependencies": [
+        "DEC-008",
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-004"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-004"
+    },
+    {
+      "id": "SEFAUD-REQ-006",
+      "summary": "Audit and repair every durable store and cross-store invariant for schema, bounds, atomicity, durability, concurrency, idempotency, lifecycle flush, corruption, recovery, migration, rollback, path safety, retention, and privacy.",
+      "source": "SRC-001",
+      "owner": "Persistence layer",
+      "contributors": "Every domain with durable state, configuration service, audit and logging, offline adapters, lifecycle coordination",
+      "dependencies": [
+        "DEC-005",
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-002"
+    },
+    {
+      "id": "SEFAUD-REQ-007",
+      "summary": "Verify and repair backend handling and cross-channel integration across lifecycle, reloads, revisions, commands, GUI, persistence, providers, reconnects, dimensions, shutdown, retries, partial failure, audit correlation, and logical-side boundaries.",
+      "source": "SRC-001",
+      "owner": "Lifecycle integration boundary",
+      "contributors": "Mod lifecycle, command kernel, GUI network, persistence, configuration, optional integrations, all stateful domain services",
+      "dependencies": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006"
+      ],
+      "lifecycleStage": "change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-005"
+    },
+    {
+      "id": "SEFAUD-REQ-008",
+      "summary": "Pass the clean-checkout post-change static, unit, generated-reference, GameTest, build, server, client, mixed-multiplayer, provider, UI, packet-abuse, recovery, performance, artifact, secret, and diff verification matrix.",
+      "source": "SRC-004",
+      "owner": "Release verification system",
+      "contributors": "All mandatory requirement owners, Gradle build, CI, staging harness, documentation evidence",
+      "dependencies": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-006"
+    },
+    {
+      "id": "SEFAUD-REQ-009",
+      "summary": "Reconcile all affected documentation and sanitized evidence, then close the final cross-matrix audit only when every mandatory row and disallowed-defect endpoint condition passes.",
+      "source": "SRC-001",
+      "owner": "Documentation evidence",
+      "contributors": "All mandatory requirement owners, user and operator documentation, test and security records, release workflow",
+      "dependencies": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008"
+      ],
+      "lifecycleStage": "post_change",
+      "productionVerification": "none",
+      "releaseImpact": "stable release",
+      "canonicalPhase": "SEFAUD-PHASE-007"
+    }
+  ],
+  "optionalFutureScope": [
+    {
+      "id": "FUT-001",
+      "summary": "Implement and activate the sixteen intentionally unavailable Phase 13 runtime families.",
+      "source": "SRC-005",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "Add unrelated commands, UI features, integrations, control families, or gameplay capabilities.",
+      "source": "SRC-001",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "Perform broad architecture modernization or class decomposition beyond confirmed-defect remediation or mandatory evidence enablement.",
+      "source": "SRC-003",
+      "disposition": "excluded"
+    }
+  ],
+  "nonGoals": [
+    {
+      "id": "NG-001",
+      "summary": "Do not implement new features, including intentionally unavailable control-family runtimes.",
+      "source": "DEC-002"
+    },
+    {
+      "id": "NG-002",
+      "summary": "Do not upgrade or expand Minecraft, NeoForge, mappings, Java, Gradle, loader, or protocol boundaries.",
+      "source": "DEC-004"
+    },
+    {
+      "id": "NG-003",
+      "summary": "Do not publish a release, deploy to production, or run destructive production tests.",
+      "source": "DEC-005"
+    },
+    {
+      "id": "NG-004",
+      "summary": "Do not weaken tests, permissions, redaction, recovery, compatibility, or acceptance gates or mark blocked or unexecuted evidence as passed.",
+      "source": "SRC-001"
+    },
+    {
+      "id": "NG-005",
+      "summary": "Do not use real credentials, private messages, personal addresses, production worlds, or unrelated user data in fixtures or evidence.",
+      "source": "DEC-005"
+    },
+    {
+      "id": "NG-006",
+      "summary": "Do not claim mathematical absence of defects; completion means the exhaustive declared matrices and adversarial evidence reveal no known disallowed finding at the frozen revision.",
+      "source": "DEC-003"
+    }
+  ],
+  "ownerDecisions": [
+    {
+      "id": "DEC-001",
+      "question": "Is this pass report-only or must it remediate confirmed in-scope defects?",
+      "selectedChoice": "Audit plus mandatory in-scope remediation and regression proof.",
+      "rationale": "A verified endpoint cannot close while the audit has confirmed an in scope defect.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-002",
+      "question": "Does administrator-command success require implementing the sixteen intentionally unavailable Phase 13 runtime families?",
+      "selectedChoice": "No. Their implementation is feature expansion. They must remain clearly unavailable, unreachable, permission-safe, side-effect-free, and negatively tested.",
+      "rationale": "Their runtime implementation is feature expansion, while current repository evidence defines explicit unavailability as the safe contract. They cannot be represented as working commands or release functionality.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-003",
+      "question": "What exact defect boundary closes the audit?",
+      "selectedChoice": "No known applicable critical or high exploitable vulnerability and no authorization bypass, sensitive-data leak, executable admin-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend-integration defect at the frozen revision.",
+      "rationale": "This converts the owner's audit goal into an observable closure gate without claiming impossible mathematical certainty.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-004",
+      "question": "May the audit change pinned platform and compatibility boundaries?",
+      "selectedChoice": "No. Preserve Minecraft 1.21.1, NeoForge 21.1.235, Java 21, the checked-in Gradle wrapper, Parchment 2024.11.17, the optional enhanced protocol, fallback clients, and current optional-integration contracts.",
+      "rationale": "The request is an audit and remediation program, not a platform migration.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-005",
+      "question": "What environments and data may destructive or privacy-sensitive verification use?",
+      "selectedChoice": "Disposable synthetic staging fixtures only. Production mutation, production credentials, personal data, and production worlds are excluded.",
+      "rationale": "Existing workflows intentionally corrupt files, interrupt processes, and exercise destructive administration. These operations need isolation, not weakened evidence.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-006",
+      "question": "Which repository lineage is the audit subject?",
+      "selectedChoice": "The SEF 2 current candidate lineage beginning on envy/sef2_complete at 0c75bf25c58622096dfa7cc65a5f4b32e6d60ac4. The older default branch is identity and remote-security evidence only.",
+      "rationale": "The current branch contains the SEF 2 implementation described by the owner request. Branch divergence is recorded rather than silently reconciled.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-007",
+      "question": "How is optional and future scope handled?",
+      "selectedChoice": "All optional and future work is excluded unless the owner later promotes it.",
+      "rationale": "Completion must remain measurable and cannot absorb unrelated expansion.",
+      "affectedRequirements": [],
+      "supersedes": []
+    },
+    {
+      "id": "DEC-008",
+      "question": "What does UI include for this audit?",
+      "selectedChoice": "All in-scope graphical screens and HUDs plus administrator command feedback, because both are operator-facing product UI.",
+      "rationale": "An administrator must receive usable, accurate, accessible state and failure information regardless of enhanced client availability.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
+    }
+  ],
+  "externalPrerequisites": [],
+  "phases": [
+    {
+      "id": "SEFAUD-PHASE-000",
+      "owner": "Repository audit contract",
+      "dependencies": [
+        "DEC-002",
+        "DEC-003",
+        "DEC-004",
+        "DEC-005",
+        "DEC-006",
+        "DEC-007",
+        "DEC-008"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-001"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-001",
+      "owner": "Security audit boundary",
+      "dependencies": [
+        "SEFAUD-PHASE-000",
+        "SEFAUD-REQ-001"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-002",
+      "owner": "Persistence layer",
+      "dependencies": [
+        "SEFAUD-PHASE-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-006"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-003",
+      "owner": "Command policy kernel",
+      "dependencies": [
+        "SEFAUD-PHASE-002",
+        "SEFAUD-REQ-006"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-004"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-004",
+      "owner": "GUI presentation",
+      "dependencies": [
+        "SEFAUD-PHASE-003",
+        "SEFAUD-REQ-004"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-005"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-005",
+      "owner": "Lifecycle integration boundary",
+      "dependencies": [
+        "SEFAUD-PHASE-004",
+        "SEFAUD-REQ-005"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-007"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-006",
+      "owner": "Release verification system",
+      "dependencies": [
+        "SEFAUD-PHASE-005",
+        "SEFAUD-REQ-007"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-008"
+      ]
+    },
+    {
+      "id": "SEFAUD-PHASE-007",
+      "owner": "Documentation evidence",
+      "dependencies": [
+        "SEFAUD-PHASE-006",
+        "SEFAUD-REQ-008"
+      ],
+      "canonicalRequirements": [
+        "SEFAUD-REQ-009"
+      ]
+    }
+  ],
+  "completionEndpoint": "At one frozen SEF 2 candidate revision, every mandatory audit and remediation matrix is complete, all confirmed in-scope defects are repaired, highest-fidelity clean-checkout and runtime verification passes, documentation and evidence match the built artifact, and no known critical or high exploitable vulnerability, authorization bypass, sensitive-data leak, executable administrator-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend-integration defect remains.",
+  "goalCreator": {
+    "mandatoryBoundary": "SEFAUD-REQ-001 through SEFAUD-REQ-009, including remediation and regression proof for every confirmed in-scope defect.",
+    "optionalFutureDisposition": "excluded",
+    "lockedOwnerDecisions": "DEC-001 through DEC-008.",
+    "activePhase": "SEFAUD-PHASE-000",
+    "nextExecutableAction": "P000-TASK-001 must freeze the execution revision and produce the authoritative baseline manifest before any audit remediation begins.",
+    "knownFailingChecks": "conflicting historical test and catalog counts; incomplete multiplayer, current LuckPerms, GUI, InvSee, admission, disguise, reconnect, and recovery rows; absent maintained formatter, warning, static-analysis, and risk-based coverage gates; open repository dependency alerts whose candidate applicability is unresolved.",
+    "knownExternalBlockers": "none",
+    "requiredEvidenceGates": "complete inventories, security and dependency closure, administrator command matrix, UI and accessibility matrix, persistence fault and recovery matrix, backend integration matrix, clean-checkout automated and runtime matrix, final artifact inspection, documentation parity, and final cross-matrix audit."
+  }
+}
