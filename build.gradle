@@ -210,6 +210,10 @@ tasks.register('generateProjectReferences') {
     dependsOn test
 }
 
+tasks.register('generateAuditInventory') {
+    dependsOn test
+}
+
 tasks.register('generatePerformanceReport') {
     dependsOn test
 }
