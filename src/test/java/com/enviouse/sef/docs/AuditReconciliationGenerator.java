@@ -33,15 +33,24 @@ public final class AuditReconciliationGenerator {
         inventories.put("lifecycle", LifecycleInventoryGenerator.generate(repositoryRoot));
         inventories.put("build", BuildInventoryGenerator.generate(repositoryRoot));
         inventories.put("test", TestInventoryGenerator.generate(repositoryRoot));
+        inventories.put("baseline", Phase000BaselineGenerator.generate(repositoryRoot));
+        inventories.put("boundary", BoundaryInventoryGenerator.generate(repositoryRoot));
 
         List<JsonObject> reconciled = new ArrayList<>();
         for (Map.Entry<String, JsonObject> entry : inventories.entrySet()) {
             for (JsonElement element : inventoryRows(entry.getValue())) {
                 JsonObject row = element.getAsJsonObject().deepCopy();
+                if (entry.getKey().equals("baseline")
+                        && !Set.of("operating-system", "external-prerequisite", "remote-ref")
+                        .contains(row.get("category").getAsString())) {
+                    continue;
+                }
                 String category = row.get("category").getAsString();
                 row.addProperty("canonicalOwner", row.get("owner").getAsString());
                 row.addProperty("requirement", REQUIREMENT);
-                row.addProperty("laterPhase", laterPhase(category));
+                row.addProperty("laterPhase", row.has("laterPhase")
+                        ? row.get("laterPhase").getAsString()
+                        : laterPhase(category));
                 row.addProperty("traceabilityId", REQUIREMENT + ":" + row.get("rowId").getAsString());
                 reconciled.add(row);
             }
@@ -105,6 +114,19 @@ public final class AuditReconciliationGenerator {
             summary.addProperty("task", source.get("task").getAsString());
             sourceSummaries.add(summary);
         }
+        JsonObject baseline = inventories.get("baseline");
+        JsonObject baselineSummary = new JsonObject();
+        baselineSummary.addProperty("inventoryId", baseline.get("inventoryId").getAsString());
+        baselineSummary.addProperty("source", "baseline");
+        baselineSummary.addProperty("rowCount", inventoryRows(baseline).size());
+        baselineSummary.addProperty("task", baseline.get("task").getAsString());
+        sourceSummaries.add(baselineSummary);
+        JsonObject boundarySummary = new JsonObject();
+        boundarySummary.addProperty("inventoryId", inventories.get("boundary").get("inventoryId").getAsString());
+        boundarySummary.addProperty("source", "boundary");
+        boundarySummary.addProperty("rowCount", inventoryRows(inventories.get("boundary")).size());
+        boundarySummary.addProperty("task", inventories.get("boundary").get("task").getAsString());
+        sourceSummaries.add(boundarySummary);
 
         JsonObject inventory = new JsonObject();
         inventory.addProperty("schemaVersion", AuditEvidenceContract.SCHEMA_VERSION);
@@ -121,6 +143,7 @@ public final class AuditReconciliationGenerator {
         inventory.addProperty("traceabilityStatus", "complete");
         inventory.add("sourceInventories", sourceSummaries);
         inventory.add("rows", rows);
+        AuditDriftValidator.requireTraceability(rows);
         return inventory;
     }
 
@@ -197,7 +220,11 @@ public final class AuditReconciliationGenerator {
                 "configuration-module", "configuration-field", "resource-boundary").contains(category)) {
             return "SEFAUD-PHASE-005";
         }
-        if (Set.of("remote-security").contains(category)) {
+        if (Set.of("remote-security", "security-sensitive-writer", "platform-dependency-gate", "platform-dependency")
+                .contains(category)) {
+            return "SEFAUD-PHASE-001";
+        }
+        if (Set.of("operating-system", "external-prerequisite").contains(category)) {
             return "SEFAUD-PHASE-001";
         }
         return PHASE;

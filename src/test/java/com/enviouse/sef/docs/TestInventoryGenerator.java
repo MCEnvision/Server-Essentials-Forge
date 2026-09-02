@@ -19,8 +19,8 @@ import java.util.regex.Pattern;
 public final class TestInventoryGenerator {
     private static final Pattern JUNIT_ANNOTATION = Pattern.compile(
             "@(Test|ParameterizedTest|RepeatedTest|TestFactory|TestTemplate)\\b");
-    private static final Pattern GAME_TEST_ANNOTATION = Pattern.compile("@GameTest\\b");
-    private static final Pattern GAME_TEST_HOLDER = Pattern.compile("@GameTestHolder\\b");
+    private static final Pattern GAME_TEST_ANNOTATION = Pattern.compile("(?m)^\\s*@GameTest\\b");
+    private static final Pattern GAME_TEST_HOLDER = Pattern.compile("(?m)^\\s*@GameTestHolder\\b");
     private static final Pattern COMMAND = Pattern.compile(
             "(?:`(\\./gradlew(?:\\.bat)?\\s+[^`]+)`|\\b(\\./gradlew(?:\\.bat)?\\s+[A-Za-z][A-Za-z0-9:_-]*))");
     private static final Pattern NUMERIC_CLAIM = Pattern.compile(

@@ -12,37 +12,35 @@ import java.nio.file.Path;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AuditReconciliationGeneratorTest {
+class BoundaryInventoryGeneratorTest {
     @TempDir
     Path temporaryDirectory;
 
     @Test
-    void reconciliationJoinsAllInventoriesAndForeignKeys() throws Exception {
-        JsonObject inventory = AuditReconciliationGenerator.generate(repositoryRoot());
+    void inventoriesEveryTrustBoundaryWithTraceability() throws Exception {
+        JsonObject inventory = BoundaryInventoryGenerator.generate(repositoryRoot());
         AuditEvidenceContract.validateInventorySet(inventory.getAsJsonArray("rows"));
-        assertEquals(8, inventory.get("sourceInventoryCount").getAsInt());
-        assertTrue(inventory.get("reconciledRowCount").getAsInt() > 0);
-        assertTrue(inventory.get("foreignKeyCheckCount").getAsInt() > 0);
-        assertEquals(0, inventory.get("foreignKeyFailureCount").getAsInt());
-        assertEquals(0, inventory.get("duplicateIdentityCount").getAsInt());
-        assertEquals(0, inventory.get("unownedRowCount").getAsInt());
-        assertEquals("complete", inventory.get("traceabilityStatus").getAsString());
+        AuditDriftValidator.requireTraceability(inventory.getAsJsonArray("rows"));
+        assertEquals(23, inventory.get("boundaryCount").getAsInt());
+        assertEquals(23, inventory.getAsJsonArray("rows").size());
     }
 
     @Test
-    void generationIsDeterministicAndPreservesAllReconciledRows() throws Exception {
-        JsonObject first = AuditReconciliationGenerator.generate(repositoryRoot());
-        JsonObject second = AuditReconciliationGenerator.generate(repositoryRoot());
+    void generationIsDeterministicAndWritesTheCompleteBoundarySet() throws Exception {
+        JsonObject first = BoundaryInventoryGenerator.generate(repositoryRoot());
+        JsonObject second = BoundaryInventoryGenerator.generate(repositoryRoot());
         assertEquals(first.toString(), second.toString());
-        Path output = AuditReconciliationGenerator.write(
-                temporaryDirectory.resolve("inventory"), "reconciliation.json", repositoryRoot());
+        Path output = BoundaryInventoryGenerator.write(
+                temporaryDirectory.resolve("inventory"), "boundary.json", repositoryRoot());
         JsonObject persisted = JsonParser.parseString(
                 Files.readString(output, StandardCharsets.UTF_8)).getAsJsonObject();
-        assertEquals(first.getAsJsonArray("rows").size(), persisted.getAsJsonArray("rows").size());
+        assertEquals(23, persisted.getAsJsonArray("rows").size());
+        assertTrue(persisted.getAsJsonArray("rows").asList().stream()
+                .allMatch(row -> row.getAsJsonObject().has("evidenceRequired")));
 
         String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
         if (!evidenceRoot.isEmpty()) {
-            AuditReconciliationGenerator.write(Path.of(evidenceRoot), "reconciliation.json", repositoryRoot());
+            BoundaryInventoryGenerator.write(Path.of(evidenceRoot), "boundary-inventory.json", repositoryRoot());
         }
     }
 
