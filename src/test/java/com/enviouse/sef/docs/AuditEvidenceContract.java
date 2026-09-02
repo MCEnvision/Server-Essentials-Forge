@@ -117,6 +117,12 @@ public final class AuditEvidenceContract {
                 .contains(record.get("result").getAsString())) {
             throw new IllegalArgumentException("invalid evidence result");
         }
+        boolean invalidated = invalidation.get("state").getAsString().equals("invalidated");
+        boolean hasInvalidationCause = !invalidation.getAsJsonArray("invalidatedBy").isEmpty();
+        boolean resultInvalidated = record.get("result").getAsString().equals("invalidated");
+        if (invalidated != resultInvalidated || (!invalidated && hasInvalidationCause)) {
+            throw new IllegalArgumentException("evidence invalidation and result disagree");
+        }
         requireObject(record, "payload");
     }
 

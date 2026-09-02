@@ -71,6 +71,12 @@ class AuditEvidenceContractTest {
         missingInvalidation.remove("invalidation");
         assertThrows(IllegalArgumentException.class,
                 () -> AuditEvidenceContract.validateEvidenceRecord(missingInvalidation));
+
+        JsonObject inconsistentInvalidation = record();
+        inconsistentInvalidation.getAsJsonObject("invalidation")
+                .getAsJsonArray("invalidatedBy").add("source-change");
+        assertThrows(IllegalArgumentException.class,
+                () -> AuditEvidenceContract.validateEvidenceRecord(inconsistentInvalidation));
     }
 
     @Test
