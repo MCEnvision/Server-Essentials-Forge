@@ -263,7 +263,9 @@ final class NativeAuditFileProvider {
         private static int openAt(int parent, String name, int flags, int mode) throws IOException {
             int descriptor = Holder.INSTANCE.openat(parent, name, flags, mode);
             if (descriptor < 0) {
-                throw new IOException("security audit native file open failed");
+                throw new IOException(
+                        "security audit native file open failed for " + name
+                                + " with errno " + Native.getLastError());
             }
             return descriptor;
         }
