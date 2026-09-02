@@ -36,7 +36,7 @@ Command observation uses redaction before persistence and export. Structured aud
 
 The latest read only remote snapshot contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
 
-The candidate artifact is `build/libs/sef-2.0.0.jar`, 3,370,948 bytes, with SHA 256 `146e843e1193886e00ef74df2938f6286a46b34c864d9c0a4b4e2cb29e7ccd31` and SHA 512 `d2da6c40953d310f5e8dd021784b002f2f816ebf4d85aceb29b4a00730ec070c9e0e7069452843dc3d0a9f3f5ec1a07b62986495547a96b9886146a3d9067323`. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
+The candidate artifact is `build/libs/sef-2.0.0.jar`, 3,383,143 bytes, with SHA 256 `8778dd80c569f82e820d2329b5475b17f36883cad30e6855b02d9eade1b86f32` and SHA 512 `c1bbbef07e04a2bdf15fd575d45bdf29f7d81e6be2d2f0c12902e840a7f3727943b955a449af19899fea2f860c22bcc507394f16c3283ba6abeb47db9cbed5aa`. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
 
 ## Verification result
 
