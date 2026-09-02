@@ -46,7 +46,7 @@ public final class Phase000BaselineGenerator {
 
         String commit = git(root, "rev-parse", "HEAD");
         String tree = git(root, "rev-parse", "HEAD^{tree}");
-        String branch = git(root, "symbolic-ref", "--short", "-q", "HEAD");
+        String branch = git(root, "rev-parse", "--abbrev-ref", "HEAD");
         String origin = git(root, "remote", "get-url", "origin");
         boolean lineagePresent = isAncestor(root, LINEAGE_BASE, commit);
         boolean legacyImported = isAncestor(root, "origin/forge-1.20.1", commit);
@@ -66,7 +66,7 @@ public final class Phase000BaselineGenerator {
         baseline.addProperty("source", "git, pinned build inputs, mandatory platform contract, and prerequisite state");
         baseline.addProperty("commit", commit);
         baseline.addProperty("tree", tree);
-        baseline.addProperty("branch", branch.isBlank() ? "detached" : branch);
+        baseline.addProperty("branch", branch.isBlank() || branch.equals("HEAD") ? "detached" : branch);
         baseline.addProperty("origin", origin);
         baseline.addProperty("lineageBase", LINEAGE_BASE);
         baseline.addProperty("lineageBasePresent", lineagePresent);
