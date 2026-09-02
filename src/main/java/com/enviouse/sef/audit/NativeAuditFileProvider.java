@@ -25,7 +25,7 @@ import java.util.Locale;
 public final class NativeAuditFileProvider {
     private static final int WINDOWS_OPEN_EXISTING = 3;
     private static final int WINDOWS_OPEN_ALWAYS = 4;
-    private static final int WINDOWS_FILE_STANDARD_INFORMATION = 4;
+    private static final int WINDOWS_FILE_STANDARD_INFORMATION = 1;
     private static final int WINDOWS_FILE_ATTRIBUTE_TAG_INFORMATION = 9;
     private static final int WINDOWS_FILE_ID_INFORMATION = 18;
 
