@@ -176,6 +176,14 @@ class AuditServiceTest {
     }
 
     @Test
+    void nativeProviderRejectsPathOutsideOwnedDirectory() throws Exception {
+        Files.createDirectories(temporaryDirectory.resolve("audit"));
+        NativeAuditFileProvider provider = NativeAuditFileProvider.open(temporaryDirectory.resolve("audit"));
+
+        assertThrows(IOException.class, () -> provider.validate(temporaryDirectory.resolve("outside.jsonl")));
+    }
+
+    @Test
     void auditFieldsNormalizeControlAndFormatCharacters() {
         SecurityAuditService.AuditEvent event = SecurityAuditService.AuditEvent.create(
                 "test",
