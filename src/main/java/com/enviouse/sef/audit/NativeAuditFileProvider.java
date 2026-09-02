@@ -45,10 +45,11 @@ final class NativeAuditFileProvider {
     }
 
     void validate(Path file) throws IOException {
+        String fileName = childName(file);
         if (platform == Platform.WINDOWS) {
             Windows.validate(file);
         } else {
-            Posix.validate(directory, file.getFileName().toString());
+            Posix.validate(directory, fileName);
         }
     }
 
@@ -56,11 +57,20 @@ final class NativeAuditFileProvider {
         if (bytes.length == 0) {
             return;
         }
+        String fileName = childName(file);
         if (platform == Platform.WINDOWS) {
             Windows.append(file, bytes);
         } else {
-            Posix.append(directory, file.getFileName().toString(), bytes);
+            Posix.append(directory, fileName, bytes);
         }
+    }
+
+    private String childName(Path file) throws IOException {
+        Path normalized = file.toAbsolutePath().normalize();
+        if (!directory.equals(normalized.getParent())) {
+            throw new IOException("security audit provider received a path outside its directory");
+        }
+        return normalized.getFileName().toString();
     }
 
     private void verifyDirectory() throws IOException {
