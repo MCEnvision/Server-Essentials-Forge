@@ -106,6 +106,17 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        // This run config exercises a packaged candidate from the game directory mods folder.
+        // It deliberately omits the local source mod so the packaged jar is the loaded mod.
+        candidateGameTestServer {
+            type = "gameTestServer"
+            loadedMods = []
+            sourceSet = sourceSets.fallbackRuntime
+            gameDirectory = file(providers.gradleProperty('sefCandidateGameDirectory').orElse('run-candidate').get())
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
         data {
             data()
 

@@ -872,6 +872,7 @@ Linux and macOS:
 ./gradlew runServer
 ./gradlew runClient
 ./gradlew runGameTestServer
+./gradlew runCandidateGameTestServer -PsefCandidateGameDirectory=/path/to/fresh/candidate-runtime
 ./gradlew runData
 ```
 
@@ -884,6 +885,7 @@ gradlew.bat build
 gradlew.bat runServer
 gradlew.bat runClient
 gradlew.bat runGameTestServer
+gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
 gradlew.bat runData
 ```
 
@@ -894,6 +896,8 @@ There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do 
 `generatePerformanceReport` runs the release metadata workload gates and writes [the measured performance report](docs/PERFORMANCE_REPORT.md). It does not replace live server and client profiling.
 
 `generateAuditInventory` requires `-Dsef.audit.evidenceRoot` and writes the sanitized Phase 000 baseline, command, UI, storage, lifecycle, build, test, and reconciliation inventories to that approved external directory. Use a fresh directory for each capture and include `--rerun-tasks` when renewing evidence. The baseline records Linux, macOS, and Windows as mandatory targets and routes unavailable runtime proof through `EXT-001` and `EXT-002` as blocked evidence. It never treats Windows as unsupported and never reads the unrelated `.playwright-mcp` state.
+
+`runCandidateGameTestServer` uses `sourceSets.fallbackRuntime` with no local source mod loaded. Copy the exact candidate JAR to the supplied game directory `mods` folder before running it. This is the packaged artifact smoke used by the cross platform audit, so the GameTests execute from the candidate JAR on Linux, macOS, and Windows rather than from compiled source output.
 
 The `runServer` task forwards standard input. Use its terminal for `sef doctor`, `sef storage status`, and the literal `stop` command. Signal termination is useful only for an explicitly recorded crash test and does not replace a normal shutdown check.
 

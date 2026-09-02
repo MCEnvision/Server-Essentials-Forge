@@ -87,7 +87,13 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           chmod +x ./gradlew
-          ./gradlew clean test build runGameTestServer --console=plain
+          ./gradlew clean test build --console=plain
+          candidate_game_dir="$RUNNER_TEMP/sef-candidate-runtime"
+          mkdir -p "$candidate_game_dir/mods"
+          cp cross-platform-candidate/sef-2.0.0.jar "$candidate_game_dir/mods/sef-2.0.0.jar"
+          ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
+          grep -F "/mods/sef-2.0.0.jar" build/candidate-runtime.log
+          grep -F "All 41 required tests passed" build/candidate-runtime.log
           ./gradlew dependencies --configuration runtimeClasspath --console=plain
           ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
           ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
@@ -96,7 +102,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          .\gradlew.bat clean test build runGameTestServer --console=plain
+          .\gradlew.bat clean test build --console=plain
+          $candidateGameDir = Join-Path $env:RUNNER_TEMP 'sef-candidate-runtime'
+          New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
+          Copy-Item 'cross-platform-candidate/sef-2.0.0.jar' (Join-Path $candidateGameDir 'mods/sef-2.0.0.jar')
+          .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" 2>&1 | Tee-Object -FilePath build/candidate-runtime.log
+          if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'mods[\\/]sef-2\.0\.0\.jar')) { throw 'candidate jar was not loaded from the mods directory' }
+          if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
@@ -119,6 +131,8 @@ jobs:
             java -version 2>&1 | head -n 1
             git rev-parse HEAD
             echo "artifact=$artifact"
+            echo "candidate_runtime=mods/sef-2.0.0.jar"
+            echo "candidate_runtime_verified=true"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
             echo "host_build_artifact=$host_artifact"
@@ -145,6 +159,8 @@ jobs:
             (java -version 2>&1 | Select-Object -First 1)
             (git rev-parse HEAD)
             "artifact=$artifact"
+            "candidate_runtime=mods/sef-2.0.0.jar"
+            "candidate_runtime_verified=true"
             "sha256=$sha256"
             "sha512=$sha512"
             "host_build_artifact=$hostArtifact"

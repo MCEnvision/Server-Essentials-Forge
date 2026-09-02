@@ -208,6 +208,7 @@ Linux and macOS:
 ./gradlew build
 ./gradlew runServer
 ./gradlew runClient
+./gradlew runCandidateGameTestServer -PsefCandidateGameDirectory=/path/to/fresh/candidate-runtime
 ```
 
 Windows:
@@ -218,6 +219,7 @@ gradlew.bat generateProjectReferences
 gradlew.bat build
 gradlew.bat runServer
 gradlew.bat runClient
+gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
 ```
 
 The built JAR is written to `build/libs/`.
