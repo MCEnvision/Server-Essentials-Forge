@@ -42,6 +42,24 @@ public final class StorageInventoryGenerator {
             new DurableOwner("offline-player-inventory", "OfflinePlayerInventoryAdapter", "nbt", "player data directory", "src/main/java/com/enviouse/sef/invsee/OfflinePlayerInventoryAdapter.java"),
             new DurableOwner("module-configuration", "ModuleConfigService", "toml", "config/sef/modules", "src/main/java/com/enviouse/sef/config/modules/ModuleConfigService.java"),
             new DurableOwner("alternate-account-salt", "AltTracker", "binary", "alternate account data directory", "src/main/java/com/enviouse/sef/alts/AltTracker.java"));
+    private static final List<NativeWriterContract> SECURITY_SENSITIVE_WRITERS = List.of(
+            new NativeWriterContract("audit-jsonl", "SecurityAuditService", "native-audit-descriptor", "jsonl",
+                    "src/main/java/com/enviouse/sef/audit/SecurityAuditService.java"),
+            new NativeWriterContract("file-command-log", "FileLogSink", "atomic-file-store", "jsonl",
+                    "src/main/java/com/enviouse/sef/commandlog/FileLogSink.java"),
+            new NativeWriterContract("player-profile-worker", "PlayerProfileRepository", "atomic-file-store", "json",
+                    "src/main/java/com/enviouse/sef/identity/PlayerProfileRepository.java"),
+            new NativeWriterContract("fancy-tag-projects", "FancyTagProjectStore", "atomic-file-store", "archive",
+                    "src/main/java/com/enviouse/sef/gui/client/FancyTagProjectStore.java"),
+            new NativeWriterContract("fancy-tag-client-cache", "FancyTagClientCache", "atomic-file-store", "binary-cache",
+                    "src/main/java/com/enviouse/sef/gui/client/FancyTagClientCache.java"),
+            new NativeWriterContract("offline-player-inventory", "OfflinePlayerInventoryAdapter", "atomic-file-store", "nbt",
+                    "src/main/java/com/enviouse/sef/invsee/OfflinePlayerInventoryAdapter.java"),
+            new NativeWriterContract("module-configuration", "ModuleConfigService", "atomic-file-store", "toml",
+                    "src/main/java/com/enviouse/sef/config/modules/ModuleConfigService.java"),
+            new NativeWriterContract("alternate-account-salt", "AltTracker", "atomic-file-store", "binary",
+                    "src/main/java/com/enviouse/sef/alts/AltTracker.java"));
+    private static final List<String> MANDATORY_PLATFORMS = List.of("linux", "macos", "windows");
 
     private StorageInventoryGenerator() {
     }
@@ -99,6 +117,30 @@ public final class StorageInventoryGenerator {
             row.addProperty("writerApi", "owner-specific writer");
             rows.add(row);
         }
+        for (NativeWriterContract writer : SECURITY_SENSITIVE_WRITERS) {
+            if (!Files.isRegularFile(repositoryRoot.resolve(writer.sourceLocation()))) {
+                throw new IllegalStateException("security-sensitive writer source is missing " + writer.sourceLocation());
+            }
+            for (String platform : MANDATORY_PLATFORMS) {
+                JsonObject writerRow = row(
+                        "security-sensitive-writer",
+                        writer.id() + ":" + platform,
+                        "runtime",
+                        writer.sourceLocation());
+                writerRow.addProperty("ownerId", writer.id());
+                writerRow.addProperty("ownerType", writer.ownerType());
+                writerRow.addProperty("format", writer.format());
+                writerRow.addProperty("platform", platform);
+                writerRow.addProperty("provider", writer.provider());
+                writerRow.addProperty("openedObjectIdentity", "required");
+                writerRow.addProperty("safeTypeAndLinkState", "required");
+                writerRow.addProperty("mutationAndFlushBinding", "same-opened-object");
+                writerRow.addProperty("failureBehavior", "fail-closed-preserve-prior-state");
+                writerRow.addProperty("externalPrerequisite", "EXT-001");
+                writerRow.addProperty("runtimeEvidence", "blocked-until-disposable-host-proof");
+                rows.add(writerRow);
+            }
+        }
 
         int writerCount = 0;
         Path sourceRoot = repositoryRoot.resolve("src/main/java/com/enviouse/sef");
@@ -130,6 +172,7 @@ public final class StorageInventoryGenerator {
         inventory.addProperty("runtimeRegisteredCount", diagnostics.size());
         inventory.addProperty("nonRepositoryOwnerCount", NON_REPOSITORY_OWNERS.size());
         inventory.addProperty("durableWriterCount", writerCount);
+        inventory.addProperty("securitySensitiveWriterCount", SECURITY_SENSITIVE_WRITERS.size() * MANDATORY_PLATFORMS.size());
         inventory.addProperty("recoveryCoordinator", "StorageCoordinator");
         inventory.addProperty("rows", rows.size());
         inventory.add("inventoryRows", rows);
@@ -179,7 +222,9 @@ public final class StorageInventoryGenerator {
         row.addProperty("category", category);
         row.addProperty("semanticKey", semanticKey);
         row.addProperty("owner", "repository-audit-contract");
-        row.addProperty("phase", category.startsWith("store") ? "SEFAUD-PHASE-002" : "SEFAUD-PHASE-000");
+        row.addProperty("phase", category.startsWith("store")
+                ? "SEFAUD-PHASE-002"
+                : category.equals("security-sensitive-writer") ? "SEFAUD-PHASE-001" : "SEFAUD-PHASE-000");
         row.addProperty("evidenceRoute", "external restricted evidence root storage inventory");
         row.addProperty("evidenceClass", evidenceClass);
         row.addProperty("disposition", "implemented");
@@ -202,5 +247,13 @@ public final class StorageInventoryGenerator {
     }
 
     private record DurableOwner(String id, String ownerType, String format, String ownedRootClass, String sourceLocation) {
+    }
+
+    private record NativeWriterContract(
+            String id,
+            String ownerType,
+            String provider,
+            String format,
+            String sourceLocation) {
     }
 }

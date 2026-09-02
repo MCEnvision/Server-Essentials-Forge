@@ -29,7 +29,7 @@ Use these files during testing:
 - `sef2.md` defines the required behavior and phase exit criteria.
 - `docs/SEF2_ACCEPTANCE.md` records the currently verified baseline.
 - `docs/COMMAND_REFERENCE.md` lists all 694 catalog actions, routes, source classes, permissions, confirmation rules, GUI descriptors, and cooldown keys.
-- `docs/PERMISSION_REFERENCE.md` lists all 11,937 capabilities.
+- `docs/PERMISSION_REFERENCE.md` lists all 11,948 capabilities.
 - `docs/CONFIGURATION_REFERENCE.md` documents all 62 module schemas and setting bounds.
 - `docs/COMPATIBILITY_MATRIX.md` records supported and tested integration combinations.
 - `docs/SECURITY_REVIEW.md` lists trust boundaries and release findings.
@@ -173,12 +173,35 @@ env JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH=/usr/lib/jvm/java-21-openj
 
 Expected:
 
-- 523 unit tests pass.
+- 528 unit tests pass.
 - 41 required GameTests pass.
 - The command GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only live routes.
 - The build, fallback runtime, command reference, permission reference, configuration reference, and performance report complete.
 - No generated reference changes remain after generation.
 - `build/libs/sef-2.0.0.jar` is a valid ZIP.
+
+### Phase 000 inventory capture
+
+Create a fresh restricted evidence directory outside the repository before capturing the baseline. The command writes sanitized JSON only and fails if the evidence root is not supplied.
+
+Linux and macOS:
+
+```bash
+evidence_root="$(mktemp -d)"
+./gradlew generateAuditInventory --rerun-tasks "-Dsef.audit.evidenceRoot=${evidence_root}"
+find "${evidence_root}" -maxdepth 1 -type f -name '*.json' -print
+```
+
+Windows PowerShell:
+
+```powershell
+$evidenceRoot = Join-Path $env:TEMP "sef-audit-$([guid]::NewGuid().ToString('N'))"
+New-Item -ItemType Directory -Path $evidenceRoot | Out-Null
+.\gradlew.bat generateAuditInventory --rerun-tasks "-Dsef.audit.evidenceRoot=$evidenceRoot"
+Get-ChildItem -Path $evidenceRoot -Filter *.json
+```
+
+Expected files include `phase000-baseline.json`, `boundary-inventory.json`, `command-inventory.json`, `ui-inventory.json`, `storage-inventory.json`, `lifecycle-inventory.json`, `build-inventory.json`, `test-inventory.json`, and `reconciliation.json`. Review the baseline for the current commit and tree, clean tracked state, preserved `.playwright-mcp` state, mandatory Linux, macOS, and Windows rows, and explicit blocked `EXT-001` and `EXT-002` status. A blocked row is incomplete evidence, not an unsupported operating system.
 
 Inspect the result:
 
@@ -221,7 +244,7 @@ Current baseline:
 
 - Server reaches `Done`.
 - Catalog reports 694 entries.
-- Capability manifest reports 11,937 capabilities.
+- Capability manifest reports 11,948 capabilities.
 - Shortcut registry reports 315 shortcuts.
 - Configuration registry reports 62 modules.
 - Storage coordinator reports 27 repositories.
@@ -2931,7 +2954,7 @@ Do not approve the release until every item is `pass`:
 - [ ] No-SEF fallback client remains connected and command complete.
 - [ ] Incompatible protocol falls back without a kick.
 - [ ] All 694 command actions completed the universal command matrix.
-- [ ] All 11,937 capabilities are generated and independently enforceable where applicable.
+- [ ] All 11,948 capabilities are generated and independently enforceable where applicable.
 - [ ] All 315 shortcuts preserve canonical policy.
 - [ ] All 27 repositories pass clean, migration, corruption, crash, and shutdown checks.
 - [ ] All 62 module schemas pass transactional validation and rollback.

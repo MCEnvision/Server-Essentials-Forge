@@ -56,7 +56,7 @@ The legacy phase ledger below remains useful for SEF 2 feature acceptance, but i
 
 The current worktree has the following verified evidence:
 
-- All 523 unit tests pass after the special file nonblocking repair.
+- All 528 unit tests pass after the special file nonblocking repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.
@@ -69,7 +69,7 @@ The current worktree has the following verified evidence:
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
 - The current JAR is `sef-2.0.0.jar`, 3,385,079 bytes, with SHA-256 `6701de81fd6f6d70e3cda6b604db9971fcbb288383979e69ff67f8836126c7b2` and SHA-512 `06f7b0641d066af867c16e3319f292723269c40177e9ad7e18f7784b79cf841313dff77dc51f22d9b25fc31e131b45df2b2f3f9b7baed4255f4f465315db4d60`. The exact candidate digest was inspected on Linux, macOS, and Windows in hosted matrix run `33671017902`, and two independent clean JAR builds produced the same digest after archive reproducibility was enabled.
-- Hosted matrix run `33671017902` passed the candidate build, 523 unit tests, 41 required GameTests, native provider smoke, dependency insight, ZIP validation, and duplicate native runtime scan on Linux, macOS, and Windows. Full `EXT-001` still requires direct client and server workflow, rotation, restart, failure preservation, and fixture trace evidence.
+- Hosted matrix run `33671017902` passed the candidate build, 528 unit tests, 41 required GameTests, native provider smoke, dependency insight, ZIP validation, and duplicate native runtime scan on Linux, macOS, and Windows. Full `EXT-001` still requires direct client and server workflow, rotation, restart, failure preservation, and fixture trace evidence.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.

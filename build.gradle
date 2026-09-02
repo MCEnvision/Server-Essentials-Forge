@@ -221,7 +221,15 @@ tasks.register('generateProjectReferences') {
 }
 
 tasks.register('generateAuditInventory') {
+    description = 'Generate the sanitized Phase 000 audit inventory bundle.'
     dependsOn test
+    outputs.upToDateWhen { false }
+    doFirst {
+        if (System.getProperty('sef.audit.evidenceRoot') == null
+                || System.getProperty('sef.audit.evidenceRoot').trim().isEmpty()) {
+            throw new GradleException('generateAuditInventory requires -Dsef.audit.evidenceRoot=<approved external root>')
+        }
+    }
 }
 
 tasks.register('generatePerformanceReport') {
