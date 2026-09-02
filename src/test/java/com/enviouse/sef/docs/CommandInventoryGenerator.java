@@ -61,12 +61,15 @@ public final class CommandInventoryGenerator {
             row.add("permissionIds", strings(definition.permissionIds()));
             row.add("sourceTypes", strings(definition.sourceTypes().stream()
                     .map(value -> value.name().toLowerCase())
+                    .sorted()
                     .toList()));
             row.add("convenienceRoots", strings(definition.convenienceRoots()));
             rows.add(row);
         }
 
-        for (Map.Entry<String, String> route : KernelServices.catalog().routes().entrySet()) {
+        for (Map.Entry<String, String> route : KernelServices.catalog().routes().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .toList()) {
             if (!actionIds.contains(route.getValue())) {
                 throw new IllegalStateException("orphan live route " + route.getKey());
             }
@@ -178,7 +181,9 @@ public final class CommandInventoryGenerator {
 
     private static JsonArray strings(Iterable<String> values) {
         JsonArray result = new JsonArray();
-        values.forEach(result::add);
+        java.util.stream.StreamSupport.stream(values.spliterator(), false)
+                .sorted()
+                .forEach(result::add);
         return result;
     }
 

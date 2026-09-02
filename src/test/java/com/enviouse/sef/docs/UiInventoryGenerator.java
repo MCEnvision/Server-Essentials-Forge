@@ -76,7 +76,9 @@ public final class UiInventoryGenerator {
             }
         }
 
-        for (PanelContracts.PanelDescriptor panel : KernelServices.descriptors().panels().values()) {
+        for (PanelContracts.PanelDescriptor panel : KernelServices.descriptors().panels().values().stream()
+                .sorted(java.util.Comparator.comparing(PanelContracts.PanelDescriptor::id))
+                .toList()) {
             JsonObject panelRow = row(
                     "descriptor",
                     panel.id(),
@@ -94,7 +96,9 @@ public final class UiInventoryGenerator {
             fallback.addProperty("route", panel.fallback().route());
             fallback.addProperty("owner", "command");
             rows.add(fallback);
-            for (PanelContracts.ControlDescriptor control : panel.controls()) {
+            for (PanelContracts.ControlDescriptor control : panel.controls().stream()
+                    .sorted(java.util.Comparator.comparing(PanelContracts.ControlDescriptor::id))
+                    .toList()) {
                 if (KernelServices.catalog().find(control.actionId()).isEmpty()) {
                     throw new IllegalStateException("orphan panel action " + control.actionId());
                 }
@@ -118,7 +122,9 @@ public final class UiInventoryGenerator {
                     "runtime",
                     "src/main/java/com/enviouse/sef/kernel/KernelServices.java"));
         }
-        for (var hud : com.enviouse.sef.gui.protocol.HudContracts.phaseNineDefaults().descriptors().values()) {
+        for (var hud : com.enviouse.sef.gui.protocol.HudContracts.phaseNineDefaults().descriptors().values().stream()
+                .sorted(java.util.Comparator.comparing(com.enviouse.sef.gui.protocol.HudContracts.Descriptor::id))
+                .toList()) {
             JsonObject hudRow = row(
                     "hud",
                     hud.id(),

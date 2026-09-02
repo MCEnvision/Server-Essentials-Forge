@@ -76,7 +76,7 @@ public final class LifecycleInventoryGenerator {
                     rows.add(row);
                     transientOwners++;
                 }
-                for (String marker : INTEGRATION_MARKERS) {
+                for (String marker : INTEGRATION_MARKERS.stream().sorted().toList()) {
                     if (source.contains(marker)) {
                         JsonObject row = row("integration", relative + ":" + marker, "static", relative);
                         row.addProperty("marker", marker.toLowerCase());
