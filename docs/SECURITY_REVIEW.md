@@ -18,7 +18,7 @@ The review covers command authority, permissions, delegation, aliases, bundles, 
 
 ## Open review blockers
 
-The audit writer now uses a platform native descriptor provider and fails closed when descriptor identity or link metadata is unavailable. Linux and macOS use anchored `openat` traversal with `O_NOFOLLOW`, nonblocking descriptor opens, descriptor `fstat` identity and link checks, and native append writes. Windows walks each existing parent with reparse point checks before validating or appending through `CreateFile`, with delete sharing disabled while the handle is open and `GetFileInformationByHandleEx` identity and link checks. The provider is implemented against the JNA API supplied by the pinned NeoForge runtime and is not embedded in the mod JAR. Hosted matrix run `33677692628` passed the native provider, unit, GameTest, dependency, and artifact smoke on Linux, macOS, and Windows for commit `431ae3956d54ec1792dd086c853501186521370c`. The complete `EXT-001` packet still requires direct server and client workflows, rotation and restart traces, failure preservation, and fixture level opened object evidence before this row closes.
+The audit writer now uses a platform native descriptor provider and fails closed when descriptor identity or link metadata is unavailable. Linux and macOS use anchored `openat` traversal with `O_NOFOLLOW`, nonblocking descriptor opens, descriptor `fstat` identity and link checks, and native append writes. Windows walks each existing parent with reparse point checks before validating or appending through `CreateFile`, with delete sharing disabled while the handle is open and `GetFileInformationByHandleEx` identity and link checks. The provider is implemented against the JNA API supplied by the pinned NeoForge runtime and is not embedded in the mod JAR. Hosted run `33678685476` passed the native provider, unit, GameTest, dependency, and artifact smoke on Linux, macOS, and Windows for the current candidate commit `d37f62716a2e1a20c356d6c888692d06350c8029`. The complete `EXT-001` packet still requires direct server and client workflows, rotation and restart traces, failure preservation, and fixture level opened object evidence before this row closes.
 
 The default Windows NIO provider is no longer used for the security sensitive append. The Windows provider opens the file with native sharing and reparse controls, validates the opened handle identity, and flushes the descriptor before closing. The hosted Windows run verified the provider against Java 21 and the pinned candidate jar. Authoritative NeoForge runtime provenance, advisory applicability, and compatible remediation remain separate `EXT-002` gates.
 
@@ -34,13 +34,46 @@ Command observation uses redaction before persistence and export. Structured aud
 
 ## Dependency and artifact evidence
 
-The latest read only remote snapshot contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
+The latest read only remote snapshot, captured on 2026-09-02, contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
 
-The candidate artifact is `sef-2.0.0.jar`, 3,385,079 bytes, with SHA 256 `894c28c9e4a0f9be1f0f2bc727e84a7f03c9402bbaa679b2035fe83b9702ccf9` and SHA 512 `f837627cf581a9de4130914d2b84d5986f2c9a83c8078dc031a3740b61bf0151982a42671be20be473bbb2c62e20f13d6b87647c618e42cd3a8789a83fb20257`. Two independent clean JAR builds at the current revision produced the same digest after archive reproducibility was enabled. Hosted matrix run `33677692628` inspected the matching candidate on Linux, macOS, and Windows. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
+The alert rows below preserve every current advisory as a separate disposition input. The patched version is the first version reported by GitHub, not a proposed upgrade. The candidate status remains blocked until the platform runtime owner, installed runtime artifact, affected API reachability, authoritative advisory applicability, provenance, and compatible remediation are proven through `EXT-002`.
+
+| Alert | Package | Severity | Advisory | First patched version | Candidate status |
+| ---: | --- | --- | --- | --- | --- |
+| 26 | `org.apache.logging.log4j:log4j-api` | medium | `GHSA-qv9r-c865-cp47` | `2.25.5` | platform runtime, `EXT-002` |
+| 25 | `io.netty:netty-codec` | high | `GHSA-558v-64gr-wgg4` | `4.1.136.Final` | platform runtime, `EXT-002` |
+| 24 | `io.netty:netty-handler` | high | `GHSA-c653-97m9-rcg9` | `4.1.135.Final` | platform runtime, `EXT-002` |
+| 23 | `io.netty:netty-transport-native-epoll` | medium | `GHSA-w573-9ffj-6ff9` | `4.1.135.Final` | platform runtime, `EXT-002` |
+| 22 | `io.netty:netty-handler` | high | `GHSA-x4gw-5cx5-pgmh` | `4.1.135.Final` | platform runtime, `EXT-002` |
+| 21 | `io.netty:netty-handler` | high | `GHSA-3qp7-7mw8-wx86` | `4.1.135.Final` | platform runtime, `EXT-002` |
+| 20 | `io.netty:netty-codec` | high | `GHSA-mj4r-2hfc-f8p6` | `4.1.133.Final` | platform runtime, `EXT-002` |
+| 19 | `org.apache.logging.log4j:log4j-core` | medium | `GHSA-6hg6-v5c8-fphq` | `2.25.4` | platform runtime, `EXT-002` |
+| 18 | `org.apache.logging.log4j:log4j-core` | medium | `GHSA-3pxv-7cmr-fjr4` | `2.25.4` | platform runtime, `EXT-002` |
+| 17 | `org.codehaus.plexus:plexus-utils` | high | `GHSA-6fmv-xxpf-w3cw` | `3.6.1` | build or platform path, `EXT-002` |
+| 16 | `org.apache.logging.log4j:log4j-core` | medium | `GHSA-vc5p-v9hr-52mj` | `2.25.3` | platform runtime, `EXT-002` |
+| 15 | `io.netty:netty-codec` | medium | `GHSA-3p8m-j85q-pgmj` | `4.1.125.Final` | platform runtime, `EXT-002` |
+| 14 | `org.apache.commons:commons-lang3` | medium | `GHSA-j288-q9x7-2f5v` | `3.18.0` | platform runtime, `EXT-002` |
+| 13 | `io.netty:netty-common` | medium | `GHSA-389x-839f-4rhx` | `4.1.118.Final` | platform runtime, `EXT-002` |
+| 12 | `io.netty:netty-common` | medium | `GHSA-xq3w-v528-46rv` | `4.1.115.Final` | platform runtime, `EXT-002` |
+| 11 | `commons-io:commons-io` | high | `GHSA-78wr-2p64-hpwj` | `2.14.0` | platform runtime, `EXT-002` |
+| 10 | `org.apache.commons:commons-compress` | medium | `GHSA-4g9r-vxhx-9pgx` | `1.26.0` | platform runtime, `EXT-002` |
+| 9 | `org.apache.commons:commons-compress` | medium | `GHSA-4265-ccf5-phj5` | `1.26.0` | platform runtime, `EXT-002` |
+| 8 | `com.google.guava:guava` | low | `GHSA-5mg8-w23w-74h3` | `32.0.0-android` | platform runtime, `EXT-002` |
+| 7 | `com.google.guava:guava` | medium | `GHSA-7g45-4rm6-3mm3` | `32.0.0-android` | platform runtime, `EXT-002` |
+| 6 | `io.netty:netty-handler` | medium | `GHSA-6mjq-h674-j845` | `4.1.94.Final` | platform runtime, `EXT-002` |
+| 5 | `org.apache.commons:commons-compress` | high | `GHSA-mc84-pj99-q6hh` | `1.21` | platform runtime, `EXT-002` |
+| 4 | `org.apache.commons:commons-compress` | high | `GHSA-xqfj-vm6h-2x34` | `1.21` | platform runtime, `EXT-002` |
+| 3 | `org.apache.commons:commons-compress` | high | `GHSA-crv7-7245-f45f` | `1.21` | platform runtime, `EXT-002` |
+| 2 | `org.apache.commons:commons-compress` | high | `GHSA-7hfm-57qf-j43q` | `1.21` | platform runtime, `EXT-002` |
+| 1 | `org.apache.commons:commons-compress` | high | `GHSA-53x6-4x5p-rrvv` | `1.19` | platform runtime, `EXT-002` |
+
+The current candidate runtime report resolves JNA `5.14.0` and JNA Platform `5.14.0` through `net.neoforged:minecraft-dependencies:1.21.1`, which is brought by the pinned NeoForge `21.1.235` runtime. The mod declares both coordinates as `compileOnly`, and the candidate JAR contains no JNA, Netty, Log4j, Commons, Guava, or Plexus classes. This establishes the candidate graph and duplicate absence, but it does not by itself establish advisory applicability or a safe platform upgrade.
+
+The candidate artifact is `sef-2.0.0.jar`, 3,385,079 bytes, with SHA 256 `894c28c9e4a0f9be1f0f2bc727e84a7f03c9402bbaa679b2035fe83b9702ccf9` and SHA 512 `f837627cf581a9de4130914d2b84d5986f2c9a83c8078dc031a3740b61bf0151982a42671be20be473bbb2c62e20f13d6b87647c618e42cd3a8789a83fb20257`. Two independent clean JAR builds at the current revision produced the same digest after archive reproducibility was enabled. Hosted matrix run `33678685476` inspected the matching candidate on Linux, macOS, and Windows. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
 
 ## Verification result
 
-The repaired worktree passes all 528 unit tests, the 41 required GameTests, the Gradle build, generated reference checks, headless client startup, and a dedicated server smoke that reached `Done` and saved dimensions before the expected bounded timeout. Hosted matrix run `33677692628` also passed the exact candidate artifact, native audit provider, dependency insight, unit, build, and GameTest checks on Linux, macOS, and Windows. Mixin configuration remains required with `defaultRequire` set to one. Client references are confined to client sources and client mixins. Optional dependencies remain compile only.
+The repaired worktree passes all 528 unit tests, the 41 required GameTests, the Gradle build, generated reference checks, headless client startup, and a dedicated server smoke that reached `Done` and saved dimensions before the expected bounded timeout. Hosted run `33678685480` passed the build and analysis checks, hosted run `33678685461` passed CodeQL, and hosted run `33678685476` passed the exact candidate artifact, native audit provider, dependency insight, unit, build, and GameTest checks on Linux, macOS, and Windows. Mixin configuration remains required with `defaultRequire` set to one. Client references are confined to client sources and client mixins. Optional dependencies remain compile only.
 
 No confirmed command authorization bypass, backdoor like route, or sensitive data leak remains in the reviewed repaired scope. The opened descriptor identity repair is implemented and its basic native runtime smoke passes on all three mandatory operating systems. Full `EXT-001` remains open for the complete host workflow and fixture packet. Dependency closure remains blocked because the current NeoForge platform supplies the affected runtime libraries and the candidate JAR does not replace them. The dependency row requires graph, advisory, and installed runtime verification rather than a development only override.
 
