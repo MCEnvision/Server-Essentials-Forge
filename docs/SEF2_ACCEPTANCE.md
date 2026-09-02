@@ -68,7 +68,7 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-2.0.0.jar`, 3,383,143 bytes, with SHA-256 `8778dd80c569f82e820d2329b5475b17f36883cad30e6855b02d9eade1b86f32` and SHA-512 `c1bbbef07e04a2bdf15fd575d45bdf29f7d81e6be2d2f0c12902e840a7f3727943b955a449af19899fea2f860c22bcc507394f16c3283ba6abeb47db9cbed5aa`.
+- The current JAR is `sef-2.0.0.jar`, 3,383,143 bytes, with SHA-256 `262eb8dff9b7745ac07aa54a603398a0bb0feaa8dc73556f8d0e56b9cf98e9a0` and SHA-512 `dafae0464b3086fd3cf8eacc7e1c3ba4ee612ab296892b0060b0444ce402f58e076d3a3ba944ffede8c96568f51e6e390dcaf23e337031ea9b4cd53ce5f4b407`. Two independent clean JAR builds produced the same digest after archive reproducibility was enabled.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
