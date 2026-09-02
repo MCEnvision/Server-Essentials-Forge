@@ -292,6 +292,9 @@ public final class SecurityAuditService {
         maximumFileBytes = Math.max(1L, maximumFileMiB) * 1024L * 1024L;
         try {
             createSafeDirectories(auditDirectory);
+            try (SecureDirectoryStream<Path> ignored = openSecureDirectory(auditDirectory)) {
+                // Verify the provider before accepting any audit records.
+            }
             validateActiveFile();
             pruneExpiredFiles();
         } catch (IOException | RuntimeException exception) {
