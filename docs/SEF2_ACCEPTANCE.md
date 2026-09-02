@@ -52,7 +52,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 The current worktree has the following verified evidence:
 
-- All 493 unit tests pass.
+- All 516 unit tests pass.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.

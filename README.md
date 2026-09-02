@@ -17,7 +17,7 @@ Current project metadata:
 5. Mod id `sef`.
 6. Artifact version `2.0.0`.
 
-Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 493 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
+Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 516 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
 
 ## Current features
 
@@ -187,6 +187,8 @@ Generated references:
 10. [Full code audit and remediation report](audit.md)
 
 Run `./gradlew generateProjectReferences` after changing a module schema, command catalog entry, shortcut, GUI descriptor, or permission definition. Unit tests fail when tracked references drift from their runtime registries.
+
+Run `./gradlew generateAuditInventory` to execute the complete audit inventory and deterministic drift checks. Supplying `-Dsef.audit.evidenceRoot=/path/to/restricted-evidence` writes sanitized JSON inventories outside the repository. The task does not write product files.
 
 NeoForge owns TOML loading and external reload notifications. `/sef reload` reapplies values already loaded by NeoForge. It does not force an arbitrary disk read.
 

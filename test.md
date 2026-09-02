@@ -173,7 +173,7 @@ env JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 PATH=/usr/lib/jvm/java-21-openj
 
 Expected:
 
-- 493 unit tests pass.
+- 516 unit tests pass.
 - 41 required GameTests pass.
 - The command GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only live routes.
 - The build, fallback runtime, command reference, permission reference, configuration reference, and performance report complete.
