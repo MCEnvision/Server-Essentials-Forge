@@ -79,24 +79,24 @@ No entry-state row is `VERIFIED` for phase closure. Phase execution must bind al
 **Implementation scope**
 
 - Execute all ten acceptance criteria and four required-evidence classes of `SEFAUD-REQ-006` across every Phase 000 row.
-- Repair every confirmed integrity, path, privacy, recovery, migration, ordering, lifecycle, or performance defect without broadening scope or weakening an existing safety gate. This work is governed by `SEFAUD-REQ-001`.
-- Keep logical-server state authoritative. Capture immutable snapshots on the owning thread before asynchronous I/O. Client, cache, export, audit, recovery, and generated representations never become independent authority. This work is governed by `SEFAUD-REQ-001`.
-- Preserve supported data and compatibility. Any necessary schema change uses a versioned, bounded, validated migration with exact recovery material and a tested rollback path. This work is governed by `SEFAUD-REQ-001`.
+- Repair every confirmed integrity, path, privacy, recovery, migration, ordering, lifecycle, or performance defect without broadening scope or weakening an existing safety gate. This fulfills `SEFAUD-REQ-006` acceptance criterion 10.
+- Keep logical-server state authoritative. Capture immutable snapshots on the owning thread before asynchronous I/O. Client, cache, export, audit, recovery, and generated representations never become independent authority. This fulfills `SEFAUD-REQ-006` acceptance criteria 3 and 8.
+- Preserve supported data and compatibility. Any necessary schema change uses a versioned, bounded, validated migration with exact recovery material and a tested rollback path. This fulfills `SEFAUD-REQ-006` acceptance criteria 5 and 6.
 
 **Execution order**
 
-1. `P002-TASK-001` validates entry gates and reconciles the complete durable-owner and cross-store matrix against the integrated Phase 001 revision. This advances `SEFAUD-REQ-001`.
-2. `P002-TASK-002` completes path, data-classification, schema, version, identity, bounds, cardinality, compatibility, retention, and test declarations for every owner. This advances `SEFAUD-REQ-001`.
-3. `P002-TASK-003` audits and adversarially verifies shared filesystem publication, directory durability, path ownership, safe links, backups, quarantine, exports, and fixed object roots. This advances `SEFAUD-REQ-001`.
-4. `P002-TASK-004` executes normal, boundary, malformed, unsupported, duplicate, stale, deeply nested, oversized, and corrupt load and save matrices for each schema family and repository state machine. This advances `SEFAUD-REQ-001`.
-5. `P002-TASK-005` proves snapshot ownership, concurrent mutation, coalesced writes, periodic and explicit flush, worker failure, timeout, shutdown, world reuse, and restart behavior. This advances `SEFAUD-REQ-001`.
-6. `P002-TASK-006` proves idempotency, durable outcome classification, compensation, and cross-store invariants for every multi-component and nonidempotent protocol. This advances `SEFAUD-REQ-001`.
-7. `P002-TASK-007` rehearses every supported migration, backup, restore, and rollback path, including modular configuration and legacy adapters. This advances `SEFAUD-REQ-001`.
-8. `P002-TASK-008` closes durable owners outside `StorageRepository`, including configuration, audit and logging, NBT and offline adapters, object stores, indexes, caches, queues, journals, receipts, exports, and recovery records. This advances `SEFAUD-REQ-001`.
-9. `P002-TASK-009` executes process-interruption, filesystem-fault, restart, retention, export, restore, and operator-recovery workflows on disposable synthetic worlds. This advances `SEFAUD-REQ-001`.
-10. `P002-TASK-010` remediates confirmed defects in smallest-safe dependency order and adds regression proof at each real failure boundary. This advances `SEFAUD-REQ-001`.
-11. `P002-TASK-011` runs performance and scale budgets, reconciles documentation and operations, and prepares sanitized evidence. This advances `SEFAUD-REQ-001`.
-12. `P002-TASK-012` runs phase-wide clean verification, integrates the phase through the repository workflow, verifies the resulting candidate branch, creates the signed phase tag, and assembles the completion packet. This advances `SEFAUD-REQ-001`.
+1. `P002-TASK-001` validates entry gates and reconciles the complete durable-owner and cross-store matrix against the integrated Phase 001 revision. This advances `SEFAUD-REQ-006`.
+2. `P002-TASK-002` completes path, data-classification, schema, version, identity, bounds, cardinality, compatibility, retention, and test declarations for every owner. This advances `SEFAUD-REQ-006`.
+3. `P002-TASK-003` audits and adversarially verifies shared filesystem publication, directory durability, path ownership, safe links, backups, quarantine, exports, and fixed object roots. This advances `SEFAUD-REQ-006`.
+4. `P002-TASK-004` executes normal, boundary, malformed, unsupported, duplicate, stale, deeply nested, oversized, and corrupt load and save matrices for each schema family and repository state machine. This advances `SEFAUD-REQ-006`.
+5. `P002-TASK-005` proves snapshot ownership, concurrent mutation, coalesced writes, periodic and explicit flush, worker failure, timeout, shutdown, world reuse, and restart behavior. This advances `SEFAUD-REQ-006`.
+6. `P002-TASK-006` proves idempotency, durable outcome classification, compensation, and cross-store invariants for every multi-component and nonidempotent protocol. This advances `SEFAUD-REQ-006`.
+7. `P002-TASK-007` rehearses every supported migration, backup, restore, and rollback path, including modular configuration and legacy adapters. This advances `SEFAUD-REQ-006`.
+8. `P002-TASK-008` closes durable owners outside `StorageRepository`, including configuration, audit and logging, NBT and offline adapters, object stores, indexes, caches, queues, journals, receipts, exports, and recovery records. This advances `SEFAUD-REQ-006`.
+9. `P002-TASK-009` executes process-interruption, filesystem-fault, restart, retention, export, restore, and operator-recovery workflows on disposable synthetic worlds. This advances `SEFAUD-REQ-006`.
+10. `P002-TASK-010` remediates confirmed defects in smallest-safe dependency order and adds regression proof at each real failure boundary. This advances `SEFAUD-REQ-006`.
+11. `P002-TASK-011` runs performance and scale budgets, reconciles documentation and operations, and prepares sanitized evidence. This advances `SEFAUD-REQ-006`.
+12. `P002-TASK-012` runs phase-wide clean verification, integrates the phase through the repository workflow, verifies the resulting candidate branch, creates the signed phase tag, and assembles the completion packet. This advances `SEFAUD-REQ-006`.
 
 Tasks 002 through 004 may partition audit rows by independent owner after Task 001 freezes the matrix. Tasks 005 through 009 may prepare independent synthetic fixtures in parallel, but any shared primitive change invalidates all dependent rows and must be integrated before their final rerun. Task 010 repeats until no mandatory defect remains. Tasks 011 and 012 occur only after the last product change.
 

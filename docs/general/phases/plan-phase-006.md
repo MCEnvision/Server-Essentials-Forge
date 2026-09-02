@@ -85,28 +85,28 @@ No historical pass closes a Phase 006 row. Entry evidence is comparison material
 
 **Implementation scope**
 
-- Execute `P006-TASK-001` through `P006-TASK-015` in dependency order. This work is governed by `SEFAUD-REQ-001`.
+- Execute `P006-TASK-001` through `P006-TASK-015` in dependency order. This work is governed by `SEFAUD-REQ-008`.
 - Verification-system implementation may touch `build.gradle`, test sources, GameTest sources, deterministic generators, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `.github/workflows/codeql.yml`, small synthetic fixtures, and ordinary documentation only as needed to satisfy `SEFAUD-REQ-008`.
 - A maintained gate must be reproducible locally and in the applicable CI environment, have explicit inputs and failure output, avoid paid or secret-dependent behavior, and preserve Java 21 and `DEC-004`.
-- Product source changes are not ordinary Phase 006 work. When a runtime row finds a product defect, stop dependent execution, record a stable finding and invalidation set, route it to its canonical phase, and resume Phase 006 only after the repaired phase is reintegrated and the candidate is refrozen. This work is governed by `SEFAUD-REQ-001`.
+- Product source changes are not ordinary Phase 006 work. When a runtime row finds a product defect, stop dependent execution, record a stable finding and invalidation set, route it to its canonical phase, and resume Phase 006 only after the repaired phase is reintegrated and the candidate is refrozen. This work is governed by `SEFAUD-REQ-008` acceptance criterion 11 and `DEC-001`.
 
 **Execution order**
 
-1. `P006-TASK-001` freezes the integrated candidate, environment, fixture, artifact-input, evidence-schema, and invalidation manifests. This advances `SEFAUD-REQ-001`.
-2. `P006-TASK-002` reviews or installs maintained format, warning zero-growth, static-analysis, unit, and risk-based coverage gates under `check` and aligns CI without weakening existing checks. This advances `SEFAUD-REQ-001`.
-3. `P006-TASK-003` runs the clean Java 21 automated build, fallback, generated-reference, performance-generation, and reproducibility sequence. This advances `SEFAUD-REQ-001`.
-4. `P006-TASK-004` discovers, executes, and exactly reconciles all required GameTests and catalog-related counts. This advances `SEFAUD-REQ-001`.
-5. `P006-TASK-005` verifies dedicated-server enhanced-GUI-disabled and enabled startup, operation, diagnostics, save, shutdown, timeout reporting, and restart. This advances `SEFAUD-REQ-001`.
-6. `P006-TASK-006` verifies matching enhanced, no-SEF fallback, incompatible-protocol, and mixed-client compatibility and reconnection. This advances `SEFAUD-REQ-001`.
-7. `P006-TASK-007` verifies LuckPerms and applicable optional integrations in present, absent, outage, refresh, removal, restore, and fallback states. This advances `SEFAUD-REQ-001`.
-8. `P006-TASK-008` completes the full graphical UI, accessibility, administrator-feedback, and InvSee matrix. This advances `SEFAUD-REQ-001`.
-9. `P006-TASK-009` completes admission capacity/FIFO and disguise animation real workflows. This advances `SEFAUD-REQ-001`.
-10. `P006-TASK-010` executes packet-abuse, permission-revocation, reconnect, cross-dimension, stale-state, and mixed-channel adversarial workflows. This advances `SEFAUD-REQ-001`.
-11. `P006-TASK-011` executes persistence interruption, corruption, recovery, migration, rollback, shutdown, and restart drills. This advances `SEFAUD-REQ-001`.
-12. `P006-TASK-012` executes deterministic and live performance, bounded-work, memory, queue, scan, payload, rendering, persistence, and log-spam gates. This advances `SEFAUD-REQ-001`.
-13. `P006-TASK-013` inspects the final JAR, dependencies, resources, licenses, mixins, access transformer, hashes, secrets, host paths, logs, caches, duplicate entries, and complete diff. This advances `SEFAUD-REQ-001`.
-14. `P006-TASK-014` applies the evidence-invalidation graph, resolves only verification-system defects in scope, and reruns the complete matrix after the last change. This advances `SEFAUD-REQ-001`.
-15. `P006-TASK-015` assembles the completion packet, obtains required review and checks, integrates the phase, verifies the merged state, signs and pushes the phase tag, and hands the immutable verified revision and artifact hashes to Phase 007. This advances `SEFAUD-REQ-001`.
+1. `P006-TASK-001` freezes the integrated candidate, environment, fixture, artifact-input, evidence-schema, and invalidation manifests. This advances `SEFAUD-REQ-008`.
+2. `P006-TASK-002` reviews or installs maintained format, warning zero-growth, static-analysis, unit, and risk-based coverage gates under `check` and aligns CI without weakening existing checks. This advances `SEFAUD-REQ-008`.
+3. `P006-TASK-003` runs the clean Java 21 automated build, fallback, generated-reference, performance-generation, and reproducibility sequence. This advances `SEFAUD-REQ-008`.
+4. `P006-TASK-004` discovers, executes, and exactly reconciles all required GameTests and catalog-related counts. This advances `SEFAUD-REQ-008`.
+5. `P006-TASK-005` verifies dedicated-server enhanced-GUI-disabled and enabled startup, operation, diagnostics, save, shutdown, timeout reporting, and restart. This advances `SEFAUD-REQ-008`.
+6. `P006-TASK-006` verifies matching enhanced, no-SEF fallback, incompatible-protocol, and mixed-client compatibility and reconnection. This advances `SEFAUD-REQ-008`.
+7. `P006-TASK-007` verifies LuckPerms and applicable optional integrations in present, absent, outage, refresh, removal, restore, and fallback states. This advances `SEFAUD-REQ-008`.
+8. `P006-TASK-008` completes the full graphical UI, accessibility, administrator-feedback, and InvSee matrix. This advances `SEFAUD-REQ-008`.
+9. `P006-TASK-009` completes admission capacity/FIFO and disguise animation real workflows. This advances `SEFAUD-REQ-008`.
+10. `P006-TASK-010` executes packet-abuse, permission-revocation, reconnect, cross-dimension, stale-state, and mixed-channel adversarial workflows. This advances `SEFAUD-REQ-008`.
+11. `P006-TASK-011` executes persistence interruption, corruption, recovery, migration, rollback, shutdown, and restart drills. This advances `SEFAUD-REQ-008`.
+12. `P006-TASK-012` executes deterministic and live performance, bounded-work, memory, queue, scan, payload, rendering, persistence, and log-spam gates. This advances `SEFAUD-REQ-008`.
+13. `P006-TASK-013` inspects the final JAR, dependencies, resources, licenses, mixins, access transformer, hashes, secrets, host paths, logs, caches, duplicate entries, and complete diff. This advances `SEFAUD-REQ-008`.
+14. `P006-TASK-014` applies the evidence-invalidation graph, resolves only verification-system defects in scope, and reruns the complete matrix after the last change. This advances `SEFAUD-REQ-008`.
+15. `P006-TASK-015` assembles the completion packet, obtains required review and checks, integrates the phase, verifies the merged state, signs and pushes the phase tag, and hands the immutable verified revision and artifact hashes to Phase 007. This advances `SEFAUD-REQ-008`.
 
 Tasks 005 through 012 may use separate isolated environments after Tasks 001 through 004 pass, but each environment must use the identical candidate commit, JAR digest, fixture schema, and evidence rules. State-dependent steps within a workflow remain sequential. Tasks 013 through 015 are strictly sequential. No parallel run may share a mutable world, config tree, provider database, client game directory, network port, evidence file, or shutdown process.
 
