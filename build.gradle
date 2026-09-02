@@ -151,6 +151,11 @@ sourceSets.main.resources {
 
 
 dependencies {
+    // Native audit descriptor checks use the JNA API already supplied by the pinned NeoForge runtime.
+    // Keep this compile only so the mod does not embed a second native runtime.
+    compileOnly 'net.java.dev.jna:jna:5.14.0'
+    compileOnly 'net.java.dev.jna:jna-platform:5.14.0'
+
     // --- Optional integration APIs (compile-time only; each guarded at runtime via ModList.isLoaded) ---
     // LuckPerms platform-agnostic API — unchanged at 5.4 for 1.21.1 (Maven Central)
     compileOnly 'net.luckperms:api:5.4'

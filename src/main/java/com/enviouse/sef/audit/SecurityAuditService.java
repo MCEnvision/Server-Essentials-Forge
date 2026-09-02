@@ -5,18 +5,11 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
-import java.nio.file.SecureDirectoryStream;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.attribute.BasicFileAttributeView;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -29,7 +22,6 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -261,6 +253,7 @@ public final class SecurityAuditService {
     private static volatile String failureDetail = "";
     private static Path auditDirectory;
     private static Path activeFile;
+    private static NativeAuditFileProvider fileProvider;
     private static int retentionDays;
     private static long maximumFileBytes;
 
@@ -292,9 +285,7 @@ public final class SecurityAuditService {
         maximumFileBytes = Math.max(1L, maximumFileMiB) * 1024L * 1024L;
         try {
             createSafeDirectories(auditDirectory);
-            try (SecureDirectoryStream<Path> ignored = openSecureDirectory(auditDirectory)) {
-                // Verify the provider before accepting any audit records.
-            }
+            fileProvider = NativeAuditFileProvider.open(auditDirectory);
             validateActiveFile();
             pruneExpiredFiles();
         } catch (IOException | RuntimeException exception) {
@@ -461,71 +452,11 @@ public final class SecurityAuditService {
     }
 
     private static void appendActiveFile(byte[] bytes) throws IOException {
-        Set<OpenOption> options = Set.of(
-                StandardOpenOption.CREATE,
-                StandardOpenOption.WRITE,
-                StandardOpenOption.APPEND,
-                LinkOption.NOFOLLOW_LINKS);
-        try (SecureDirectoryStream<Path> directory = openSecureDirectory(auditDirectory);
-                SeekableByteChannel channel = directory.newByteChannel(
-                        activeFile.getFileName(),
-                        options)) {
-            validateOpenedActiveFile(directory, activeFile.getFileName(), channel);
-            ByteBuffer buffer = ByteBuffer.wrap(bytes);
-            while (buffer.hasRemaining()) {
-                channel.write(buffer);
-            }
+        NativeAuditFileProvider provider = fileProvider;
+        if (provider == null) {
+            throw new IOException("security audit native provider is unavailable");
         }
-    }
-
-    private static void validateOpenedActiveFile(
-            SecureDirectoryStream<Path> directory,
-            Path fileName,
-            SeekableByteChannel channel
-    ) throws IOException {
-        BasicFileAttributeView view = directory.getFileAttributeView(
-                fileName,
-                BasicFileAttributeView.class,
-                LinkOption.NOFOLLOW_LINKS);
-        if (view == null) {
-            throw new IOException("security audit active file attributes are unavailable");
-        }
-        BasicFileAttributes attributes = view.readAttributes();
-        if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
-            throw new IOException("security audit active file is not a regular file");
-        }
-        rejectHardLink(activeFile);
-        if (channel.size() != attributes.size()) {
-            throw new IOException("security audit active file changed during validation");
-        }
-    }
-
-    private static SecureDirectoryStream<Path> openSecureDirectory(Path directory) throws IOException {
-        Path normalized = directory.toAbsolutePath().normalize();
-        Path root = normalized.getRoot();
-        if (root == null) {
-            throw new IOException("security audit directory has no root");
-        }
-        DirectoryStream<Path> rootStream = Files.newDirectoryStream(root);
-        if (!(rootStream instanceof SecureDirectoryStream<?>)) {
-            rootStream.close();
-            throw new IOException("security audit provider does not support secure directories");
-        }
-        @SuppressWarnings("unchecked")
-        SecureDirectoryStream<Path> current = (SecureDirectoryStream<Path>) rootStream;
-        try {
-            for (Path part : normalized) {
-                SecureDirectoryStream<Path> next = current.newDirectoryStream(
-                        part,
-                        LinkOption.NOFOLLOW_LINKS);
-                current.close();
-                current = next;
-            }
-            return current;
-        } catch (IOException | RuntimeException exception) {
-            current.close();
-            throw exception;
-        }
+        provider.append(activeFile, bytes);
     }
 
     private static void rotateIfRequired(int incomingBytes) throws IOException {
@@ -577,7 +508,7 @@ public final class SecurityAuditService {
                 if (attributes.isRegularFile()
                         && !attributes.isSymbolicLink()
                         && attributes.lastModifiedTime().toInstant().isBefore(cutoff)) {
-                    rejectHardLink(path);
+                    fileProvider.validate(path);
                     Files.deleteIfExists(path);
                 }
             }
@@ -595,21 +526,7 @@ public final class SecurityAuditService {
         if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
             throw new IOException("security audit active file is not a regular file");
         }
-        rejectHardLink(activeFile);
-    }
-
-    private static void rejectHardLink(Path path) throws IOException {
-        try {
-            Object links = Files.getAttribute(path, "unix:nlink", LinkOption.NOFOLLOW_LINKS);
-            if (!(links instanceof Number count)) {
-                throw new IOException("security audit file link count is unavailable");
-            }
-            if (count.longValue() > 1L) {
-                throw new IOException("security audit file cannot have multiple hard links");
-            }
-        } catch (UnsupportedOperationException | IllegalArgumentException exception) {
-            throw new IOException("security audit file link count cannot be verified", exception);
-        }
+        fileProvider.validate(activeFile);
     }
 
     private static void createSafeDirectories(Path directory) throws IOException {

@@ -6,6 +6,7 @@ import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
@@ -15,6 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuditServiceTest {
@@ -161,6 +163,16 @@ class AuditServiceTest {
         } finally {
             SecurityAuditService.shutdown();
         }
+    }
+
+    @Test
+    void nativeProviderRejectsSymlinkedAuditDirectory() throws Exception {
+        Path target = temporaryDirectory.resolve("real-audit");
+        Files.createDirectories(target);
+        Path link = temporaryDirectory.resolve("audit-link");
+        Files.createSymbolicLink(link, target);
+
+        assertThrows(IOException.class, () -> NativeAuditFileProvider.open(link));
     }
 
     @Test

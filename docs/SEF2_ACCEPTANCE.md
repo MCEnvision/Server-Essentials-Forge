@@ -12,7 +12,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 ## Current audit phase status
 
-The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, and configuration parent path handling are repaired. Open blockers remain for portable opened audit descriptor identity, Windows secure filesystem support, and dependency closure because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and the cross platform native audit descriptor provider are repaired. Open gates remain for macOS and Windows runtime evidence and dependency closure because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
 
 ## Phase ledger
 
