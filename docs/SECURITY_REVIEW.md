@@ -16,6 +16,12 @@ The review covers command authority, permissions, delegation, aliases, bundles, 
 | A configuration root beneath a symbolic link could redirect module state | Module, history, backup, write, and recovery directories use safe directory creation and validation. | Configuration parent symlink test |
 | Candidate dependency resolution did not change the installed platform runtime | A temporary development resolution override was removed after review because the universal JAR does not embed or replace NeoForge supplied libraries. | Unpatched graph comparison, dependency insight, packaged JAR inspection, and independent review |
 
+## Open review blockers
+
+The audit writer now opens the active file relative to a securely held directory handle and fails closed when link metadata is unavailable. Standard Java NIO still does not expose a portable hard link count or file identity for the already opened descriptor. A same size path replacement can therefore not be ruled out by the current portable API alone. This remains a mandatory Phase 001 blocker pending an owner approved native provider or an explicitly narrowed threat model.
+
+The default Windows provider does not implement `SecureDirectoryStream` or the required `unix:nlink` attribute. The writer therefore stops during initialization on that provider rather than running with weaker path guarantees. Windows server compatibility remains blocked pending a provider specific implementation or an explicit supported platform decision.
+
 ## Authority and backdoor review
 
 The command catalog rejects duplicate canonical routes, validates permission and audit metadata, and requires the shared execution pipeline before sealing. `KernelCommandExecutor` performs source classification, delegation scope, permission, control authorization, cost, quota, cooldown, lease, journal, and audit checks immediately before the action. The administrative GUI does not accept client command text. It constructs an action from a server projected catalog definition and fixed server side arguments, then rechecks panel revision, panel permission, control context, and current action permission before invoking the normal Brigadier route.
@@ -30,13 +36,13 @@ Command observation uses redaction before persistence and export. Structured aud
 
 The latest read only remote snapshot contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
 
-The candidate artifact is `build/libs/sef-2.0.0.jar`, 3,370,092 bytes, with SHA 256 `4971ac1036ce1b89495cc851b0d7c8720eb2dc04aa20b6b42026fcb3b94195e8` and SHA 512 `be26595f0e2b1c6c1e3fb2ae52d33706012d307d88876383a8e1ed59ba24649ea97ea107cf3787622da7241075d843693e257896b00706f77122c0e3a4747105`. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
+The candidate artifact is `build/libs/sef-2.0.0.jar`, 3,370,913 bytes, with SHA 256 `92b838c094ff94dd7757614eed5a0fdcab6eec163c4dc7e0aae665547ad89775` and SHA 512 `0f3c728ef36a3be4b7c106b51b457d9707c9273e04247d3955cf87f9dac4d7adb812e2b38aee6807d3a19c15b818e3d883d955f08db94d1df533a1f9d0cc123c`. The JAR does not embed Netty, Log4j, Commons, Guava, or Plexus libraries, so a Gradle resolution override cannot remediate the libraries supplied by an installed NeoForge runtime.
 
 ## Verification result
 
 The repaired worktree passes all 520 unit tests, the 41 required GameTests, the Gradle build, generated reference checks, headless client startup, and a dedicated server smoke that reached `Done` and saved dimensions before the expected bounded timeout. Mixin configuration remains required with `defaultRequire` set to one. Client references are confined to client sources and client mixins. Optional dependencies remain compile only.
 
-No confirmed Phase 001 authorization bypass, backdoor like route, or sensitive data leak remains in the reviewed repaired scope. Dependency closure is blocked because the current NeoForge platform supplies the affected runtime libraries and the candidate JAR does not replace them. The plan requires an owner decision to permit a compatible platform update or an explicitly reviewed runtime packaging strategy.
+No confirmed command authorization bypass, backdoor like route, or sensitive data leak remains in the reviewed repaired scope. The audit file descriptor identity and Windows provider blockers above remain open. Dependency closure is also blocked because the current NeoForge platform supplies the affected runtime libraries and the candidate JAR does not replace them. The plan requires owner decisions for the audit provider strategy and the compatible dependency strategy.
 
 ## Bounded limitations and downstream work
 

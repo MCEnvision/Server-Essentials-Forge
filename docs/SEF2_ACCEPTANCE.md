@@ -12,7 +12,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 ## Current audit phase status
 
-The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, and configuration parent path handling are repaired. Dependency closure is blocked because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, and configuration parent path handling are repaired. Open blockers remain for portable opened audit descriptor identity, Windows secure filesystem support, and dependency closure because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
 
 ## Phase ledger
 
@@ -59,7 +59,7 @@ The current worktree has the following verified evidence:
 - All 520 unit tests pass after the hard link repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
-- All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
+- All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.
 - NeoForge `21.1.235` resolves through ModDevGradle, passes compilation, the unit suite, all GameTests, the clean build, dedicated server startup and shutdown, headless client startup, and exact packaged dependency metadata inspection.
 - `./gradlew build compileFallbackRuntimeJava generateProjectReferences generatePerformanceReport` passes.
 - The dedicated server reaches `Done` with the admission mixin loaded, then stops and saves every dimension through the timeout shutdown path.
@@ -68,7 +68,7 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-2.0.0.jar`, 3,370,092 bytes, with SHA-256 `4971ac1036ce1b89495cc851b0d7c8720eb2dc04aa20b6b42026fcb3b94195e8` and SHA-512 `be26595f0e2b1c6c1e3fb2ae52d33706012d307d88876383a8e1ed59ba24649ea97ea107cf3787622da7241075d843693e257896b00706f77122c0e3a4747105`.
+- The current JAR is `sef-2.0.0.jar`, 3,370,913 bytes, with SHA-256 `92b838c094ff94dd7757614eed5a0fdcab6eec163c4dc7e0aae665547ad89775` and SHA-512 `0f3c728ef36a3be4b7c106b51b457d9707c9273e04247d3955cf87f9dac4d7adb812e2b38aee6807d3a19c15b818e3d883d955f08db94d1df533a1f9d0cc123c`.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
