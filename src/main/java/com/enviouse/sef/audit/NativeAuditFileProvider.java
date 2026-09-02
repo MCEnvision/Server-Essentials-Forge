@@ -37,7 +37,7 @@ final class NativeAuditFileProvider {
     }
 
     static NativeAuditFileProvider open(Path directory) throws IOException {
-        Path normalized = directory.toAbsolutePath().normalize();
+        Path normalized = normalizePlatformAliases(directory);
         Platform platform = Platform.detect();
         NativeAuditFileProvider provider = new NativeAuditFileProvider(platform, normalized);
         provider.verifyDirectory();
@@ -66,11 +66,46 @@ final class NativeAuditFileProvider {
     }
 
     private String childName(Path file) throws IOException {
-        Path normalized = file.toAbsolutePath().normalize();
+        Path normalized = normalizePlatformAliases(file);
         if (!directory.equals(normalized.getParent())) {
             throw new IOException("security audit provider received a path outside its directory");
         }
         return normalized.getFileName().toString();
+    }
+
+    private static Path normalizePlatformAliases(Path path) throws IOException {
+        Path normalized = path.toAbsolutePath().normalize();
+        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            return normalized;
+        }
+        Path root = normalized.getRoot();
+        if (root == null) {
+            throw new IOException("security audit path has no root");
+        }
+        Path current = root;
+        for (Path part : normalized) {
+            Path next = current.resolve(part);
+            if (Files.isSymbolicLink(next) && isTrustedMacSystemAlias(next)) {
+                current = next.toRealPath();
+            } else {
+                current = next;
+            }
+        }
+        return current;
+    }
+
+    private static boolean isTrustedMacSystemAlias(Path path) {
+        Path root = path.getRoot();
+        if (root == null || !root.equals(path.getParent())) {
+            return false;
+        }
+        try {
+            Path resolved = path.toRealPath();
+            return resolved.startsWith(root.resolve("private"))
+                    && Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     private void verifyDirectory() throws IOException {
