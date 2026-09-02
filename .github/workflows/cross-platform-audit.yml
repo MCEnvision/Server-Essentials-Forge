@@ -9,9 +9,48 @@ permissions:
   contents: read
 
 jobs:
+  build-candidate:
+    name: build candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: set up java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: validate wrapper
+        uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3
+
+      - name: build candidate
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean test build runGameTestServer --console=plain
+          mkdir -p build/candidate
+          cp build/libs/sef-2.0.0.jar build/candidate/sef-2.0.0.jar
+          sha256sum build/candidate/sef-2.0.0.jar > build/candidate/sha256.txt
+          sha512sum build/candidate/sef-2.0.0.jar > build/candidate/sha512.txt
+          printf '%s\n' "commit=$(git rev-parse HEAD)" > build/candidate/manifest.txt
+          cat build/candidate/sha256.txt >> build/candidate/manifest.txt
+          cat build/candidate/sha512.txt >> build/candidate/manifest.txt
+
+      - name: upload candidate artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cross-platform-candidate
+          if-no-files-found: error
+          path: build/candidate
+
   runtime:
     name: runtime ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    needs: build-candidate
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -31,6 +70,12 @@ jobs:
 
       - name: validate wrapper
         uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3
+
+      - name: download candidate artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cross-platform-candidate
+          path: cross-platform-candidate
 
       - name: run linux or macos audit
         if: runner.os != 'Windows'
@@ -53,11 +98,14 @@ jobs:
       - name: inspect linux or macos artifact
         if: runner.os != 'Windows'
         run: |
-          artifact=build/libs/sef-2.0.0.jar
+          artifact=cross-platform-candidate/sef-2.0.0.jar
+          host_artifact=build/libs/sef-2.0.0.jar
           unzip -t "$artifact"
           ! jar tf "$artifact" | grep -Eiq '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)'
           sha256sum "$artifact" | tee build/cross-platform-audit.sha256
           sha512sum "$artifact" | tee build/cross-platform-audit.sha512
+          sha256sum "$host_artifact" | tee build/cross-platform-host-build.sha256
+          sha512sum "$host_artifact" | tee build/cross-platform-host-build.sha512
           {
             echo "runner_os=$RUNNER_OS"
             echo "runner_arch=$RUNNER_ARCH"
@@ -67,17 +115,23 @@ jobs:
             echo "artifact=$artifact"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
+            echo "host_build_artifact=$host_artifact"
+            cat build/cross-platform-host-build.sha256
+            cat build/cross-platform-host-build.sha512
           } > build/cross-platform-audit-manifest.txt
 
       - name: inspect windows artifact
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $artifact = 'build/libs/sef-2.0.0.jar'
+          $artifact = 'cross-platform-candidate/sef-2.0.0.jar'
+          $hostArtifact = 'build/libs/sef-2.0.0.jar'
           jar tf $artifact | Out-Null
           if (jar tf $artifact | Select-String -CaseSensitive:$false -Pattern '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)') { throw 'duplicate native runtime entries found' }
           $sha256 = (Get-FileHash $artifact -Algorithm SHA256).Hash.ToLower()
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
+          $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
+          $hostSha512 = (Get-FileHash $hostArtifact -Algorithm SHA512).Hash.ToLower()
           @(
             "runner_os=$env:RUNNER_OS"
             "runner_arch=$env:RUNNER_ARCH"
@@ -87,6 +141,9 @@ jobs:
             "artifact=$artifact"
             "sha256=$sha256"
             "sha512=$sha512"
+            "host_build_artifact=$hostArtifact"
+            "host_build_sha256=$hostSha256"
+            "host_build_sha512=$hostSha512"
           ) | Set-Content build/cross-platform-audit-manifest.txt
 
       - name: upload sanitized audit manifest
