@@ -168,10 +168,10 @@ public final class AuditEvidenceContract {
             String rowId = row.get("rowId").getAsString();
             String semanticKey = row.get("category").getAsString() + "\u0000" + row.get("semanticKey").getAsString();
             if (!rowIds.add(rowId)) {
-                throw new IllegalArgumentException("duplicate inventory row id");
+                throw new IllegalArgumentException("duplicate inventory row id " + rowId);
             }
             if (!semanticKeys.add(semanticKey)) {
-                throw new IllegalArgumentException("duplicate inventory semantic key");
+                throw new IllegalArgumentException("duplicate inventory semantic key " + semanticKey);
             }
         }
     }
