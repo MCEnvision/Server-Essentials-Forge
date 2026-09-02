@@ -1,0 +1,97 @@
+name: cross platform audit
+
+on:
+  pull_request:
+  push:
+    branches: [forge-1.20.1, main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: runtime ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: set up java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: validate wrapper
+        uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3
+
+      - name: run linux or macos audit
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean test build runGameTestServer --console=plain
+          ./gradlew dependencies --configuration runtimeClasspath --console=plain
+          ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
+          ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
+
+      - name: run windows audit
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          .\gradlew.bat clean test build runGameTestServer --console=plain
+          .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
+          .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
+          .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
+
+      - name: inspect linux or macos artifact
+        if: runner.os != 'Windows'
+        run: |
+          artifact=build/libs/sef-2.0.0.jar
+          unzip -t "$artifact"
+          ! jar tf "$artifact" | grep -Eiq '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)'
+          sha256sum "$artifact" | tee build/cross-platform-audit.sha256
+          sha512sum "$artifact" | tee build/cross-platform-audit.sha512
+          {
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            uname -srm
+            java -version 2>&1 | head -n 1
+            git rev-parse HEAD
+            echo "artifact=$artifact"
+            cat build/cross-platform-audit.sha256
+            cat build/cross-platform-audit.sha512
+          } > build/cross-platform-audit-manifest.txt
+
+      - name: inspect windows artifact
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $artifact = 'build/libs/sef-2.0.0.jar'
+          jar tf $artifact | Out-Null
+          if (jar tf $artifact | Select-String -CaseSensitive:$false -Pattern '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)') { throw 'duplicate native runtime entries found' }
+          $sha256 = (Get-FileHash $artifact -Algorithm SHA256).Hash.ToLower()
+          $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
+          @(
+            "runner_os=$env:RUNNER_OS"
+            "runner_arch=$env:RUNNER_ARCH"
+            (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
+            (java -version 2>&1 | Select-Object -First 1)
+            (git rev-parse HEAD)
+            "artifact=$artifact"
+            "sha256=$sha256"
+            "sha512=$sha512"
+          ) | Set-Content build/cross-platform-audit-manifest.txt
+
+      - name: upload sanitized audit manifest
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cross-platform-audit-${{ matrix.os }}
+          if-no-files-found: error
+          path: build/cross-platform-audit-manifest.txt
