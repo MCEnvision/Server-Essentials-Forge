@@ -5,7 +5,7 @@
 | Component | Supported value | Required | Current evidence |
 | --- | --- | --- | --- |
 | Minecraft | `1.21.1` | yes | Build and run configurations are pinned |
-| NeoForge | `21.1.235` | yes | ModDevGradle compile, 516 unit tests, 41 GameTests, dedicated server, headless client, and packaged metadata pass |
+| NeoForge | `21.1.235` | yes | ModDevGradle compile, 519 unit tests, 41 GameTests, dedicated server, headless client, and packaged metadata pass |
 | Java | `21` | yes | Toolchain is pinned and current verification uses Java `21.0.11` |
 | Gradle | checked in wrapper, Gradle `8.8` | yes | Build uses `./gradlew` or `gradlew.bat` |
 | Loader | NeoForge only | yes | Fabric and legacy Forge are not supported |
@@ -40,5 +40,9 @@ Fancy Tags and disguise content use bounded negotiated payloads. Missing client 
 ## Storage compatibility
 
 Versioned repositories use UUID ownership and retained recovery data. An unsupported newer schema, corrupt document, failed migration, or missing provider must not be interpreted as an empty successful state.
+
+Phase 001 storage hardening applies bounded no follow reads to content addressed Fancy Tags objects and validates audit, module, history, backup, write, and recovery directory components without following symbolic links. Unsafe parents, active audit links, non regular targets, and oversized existing objects fail closed before external state is read or written.
+
+The current dependency closure resolves Netty `4.1.136.Final`, Log4j `2.25.5`, Commons Lang `3.18.0`, and Plexus Utils `3.6.1` under the pinned Minecraft `1.21.1`, NeoForge `21.1.235`, and Java `21` contract. Optional integrations remain compile only and are not embedded in the universal JAR.
 
 The current compatibility gates and open integration findings are tracked in [the acceptance ledger](SEF2_ACCEPTANCE.md). Final compatibility acceptance is incomplete.

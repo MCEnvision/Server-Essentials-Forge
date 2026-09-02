@@ -7,8 +7,10 @@ import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -273,12 +275,17 @@ public final class SecurityAuditService {
         DROPPED.set(0L);
         FAILURES.set(0L);
         failureDetail = "";
-        auditDirectory = sefDirectory.resolve("audit");
+        auditDirectory = Objects.requireNonNull(sefDirectory, "sefDirectory")
+                .toAbsolutePath()
+                .normalize()
+                .resolve("audit")
+                .normalize();
         activeFile = auditDirectory.resolve("security-audit.jsonl");
         retentionDays = Math.max(1, configuredRetentionDays);
         maximumFileBytes = Math.max(1L, maximumFileMiB) * 1024L * 1024L;
         try {
-            Files.createDirectories(auditDirectory);
+            createSafeDirectories(auditDirectory);
+            validateActiveFile();
             pruneExpiredFiles();
         } catch (IOException | RuntimeException exception) {
             FAILURES.incrementAndGet();
@@ -437,19 +444,26 @@ public final class SecurityAuditService {
             output.append(GSON.toJson(event)).append(System.lineSeparator());
         }
         byte[] bytes = output.toString().getBytes(StandardCharsets.UTF_8);
+        createSafeDirectories(auditDirectory);
+        validateActiveFile();
         rotateIfRequired(bytes.length);
         Files.write(
                 activeFile,
                 bytes,
                 StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND);
+                StandardOpenOption.APPEND,
+                LinkOption.NOFOLLOW_LINKS);
     }
 
     private static void rotateIfRequired(int incomingBytes) throws IOException {
-        if (!Files.exists(activeFile)) {
+        if (!Files.exists(activeFile, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        long size = Files.size(activeFile);
+        validateActiveFile();
+        long size = Files.readAttributes(
+                activeFile,
+                BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS).size();
         if (size + incomingBytes <= maximumFileBytes) {
             return;
         }
@@ -460,12 +474,12 @@ public final class SecurityAuditService {
     }
 
     private static Path uniqueRotationPath(Path preferred) {
-        if (!Files.exists(preferred)) {
+        if (!Files.exists(preferred, LinkOption.NOFOLLOW_LINKS)) {
             return preferred;
         }
         for (int counter = 1; counter < 10_000; counter++) {
             Path candidate = preferred.resolveSibling(preferred.getFileName() + "." + counter);
-            if (!Files.exists(candidate)) {
+            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
                 return candidate;
             }
         }
@@ -473,18 +487,60 @@ public final class SecurityAuditService {
     }
 
     private static void pruneExpiredFiles() throws IOException {
-        if (!Files.exists(auditDirectory)) {
+        if (!Files.exists(auditDirectory, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
+        createSafeDirectories(auditDirectory);
         Instant cutoff = Instant.now().minus(Duration.ofDays(retentionDays));
         try (var files = Files.list(auditDirectory)) {
             for (Path path : files
                     .filter(candidate -> candidate.getFileName().toString().startsWith("security-audit."))
                     .sorted(Comparator.naturalOrder())
                     .toList()) {
-                if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff)) {
+                BasicFileAttributes attributes = Files.readAttributes(
+                        path,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS);
+                if (attributes.isRegularFile()
+                        && !attributes.isSymbolicLink()
+                        && attributes.lastModifiedTime().toInstant().isBefore(cutoff)) {
                     Files.deleteIfExists(path);
                 }
+            }
+        }
+    }
+
+    private static void validateActiveFile() throws IOException {
+        if (!Files.exists(activeFile, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        BasicFileAttributes attributes = Files.readAttributes(
+                activeFile,
+                BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
+            throw new IOException("security audit active file is not a regular file");
+        }
+    }
+
+    private static void createSafeDirectories(Path directory) throws IOException {
+        Path normalized = directory.toAbsolutePath().normalize();
+        Path current = normalized.getRoot();
+        if (current == null) {
+            throw new IOException("security audit directory has no root");
+        }
+        for (Path part : normalized) {
+            current = current.resolve(part);
+            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
+                BasicFileAttributes attributes = Files.readAttributes(
+                        current,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS);
+                if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
+                    throw new IOException("security audit directory contains an unsafe path entry");
+                }
+            } else {
+                Files.createDirectory(current);
             }
         }
     }

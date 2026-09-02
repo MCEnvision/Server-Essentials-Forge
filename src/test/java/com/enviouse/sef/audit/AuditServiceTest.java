@@ -94,9 +94,9 @@ class AuditServiceTest {
     @Test
     void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
         Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
-        Files.createDirectories(activeFile);
         SecurityAuditService.start(temporaryDirectory, 7, 1);
         try {
+            Files.createDirectories(activeFile);
             assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
                     "test",
                     "writer_failure",
@@ -120,6 +120,26 @@ class AuditServiceTest {
                     "test",
                     "attempted",
                     "test")));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
+    void activeAuditSymlinkIsRejectedWithoutWritingExternalTarget() throws Exception {
+        Path external = temporaryDirectory.resolve("external.jsonl");
+        Files.writeString(external, "sentinel");
+        Path auditDirectory = temporaryDirectory.resolve("audit");
+        Files.createDirectories(auditDirectory);
+        Files.createSymbolicLink(
+                auditDirectory.resolve("security-audit.jsonl"),
+                external);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertFalse(SecurityAuditService.health().running());
+            assertTrue(SecurityAuditService.health().failures() > 0L);
+            assertEquals("sentinel", Files.readString(external));
         } finally {
             SecurityAuditService.shutdown();
         }

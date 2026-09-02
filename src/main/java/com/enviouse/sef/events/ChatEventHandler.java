@@ -176,7 +176,10 @@ public class ChatEventHandler implements IReloadable {
 		// Check if player has admin chat toggled
 		if(ConfigHandler.config.enableAdminChat.get() && AdminChatHandler.isAdminChatToggled(uuid)) {
 			// Execute the /ac command directly
-			ServerEssentialsForge.LOGGER.info("[SEF] Intercepting admin chat from {}: {}", profile.getName(), msg);
+			ServerEssentialsForge.LOGGER.info(
+					"[SEF] Intercepting admin chat from {} with {} characters",
+					profile.getName(),
+					msg.length());
 			player.getServer().getCommands().performPrefixedCommand(
 				player.createCommandSourceStack(),
 				"ac " + msg

@@ -350,6 +350,8 @@ ConnectionAddressService.registerAdapter(new ConnectionAddressService.Adapter() 
 
 `FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths. A writer failure creates an incomplete-session marker. An existing marker keeps the sink degraded across enablement until an operator acknowledges repair.
 
+Phase 001 extends the same ownership rule to the security audit writer and modular configuration roots. Every existing component of an audit, module, history, backup, write, or recovery directory is checked without following symbolic links. Active audit files and rotation targets must be regular non-link files, and bounded content reads reject an oversized existing Fancy Tags object before integrity processing. These checks preserve the previous known good state and do not redirect writes to a host supplied path.
+
 ### 6.6 Phase 7 inventory and player utility enforcement
 
 Phase 7 inventory mutations are server authoritative and transactional where a partial change could lose or duplicate items.
@@ -761,6 +763,8 @@ Required Phase 1 integration verification includes:
 
 The earlier dedicated integration startup matrix passed on NeoForge `21.1.233` with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every startup reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. This historical startup evidence does not prove current compatibility on `21.1.235`. LuckPerms NeoForge `5.4.140` also threw `Capability has not been initialised` from its own login listener on `21.1.233`. Provider absence, direct wildcard and denial precedence, bridge failure, refresh invalidation, finite fallback, metadata parsing, ownership selection, and optional-inventory behavior have deterministic automated coverage. A current real multiplayer integration matrix remains open.
 
+The Phase 001 dependency closure records Netty `4.1.136.Final`, Log4j `2.25.5`, Commons Lang `3.18.0`, and Plexus Utils `3.6.1` as the resolved compatible versions under the pinned platform. These versions are forced at resolution time because NeoForge supplies strict older requests. They are not embedded in the universal JAR, and optional integration declarations remain compile only. A clean graph capture, build, required GameTests, dedicated server smoke, and artifact inspection are required again after any dependency declaration or platform change.
+
 ### 14.1 Optional enhanced client protocol
 
 `ConfigHandler.config.guiEnabled` selects the startup mode. This option is restart required because payload registration occurs during NeoForge network registration.
@@ -994,7 +998,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
-The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 516-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
+The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 519-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
 Run `./gradlew generateAuditInventory` to execute the complete audit inventory and deterministic drift checks. Supplying `-Dsef.audit.evidenceRoot=/path/to/restricted-evidence` writes sanitized JSON inventories outside the repository. The task does not write product files.
 

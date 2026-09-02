@@ -172,7 +172,7 @@ public final class AtomicFileStore {
         return normalized;
     }
 
-    static void createSafeDirectories(Path directory) throws IOException {
+    public static void createSafeDirectories(Path directory) throws IOException {
         Path normalized = normalized(directory);
         Path current = normalized.getRoot();
         if (current == null) {

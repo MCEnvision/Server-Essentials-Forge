@@ -10,6 +10,10 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 | In progress | The scope is actively being completed, but its exit criteria do not all pass. |
 | Complete | Every requirement and exit criterion passes on the current source revision. |
 
+## Current audit phase status
+
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. The repaired worktree passes 519 unit tests, 41 required GameTests, the Gradle build, and bounded dedicated server startup. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and applicable dependency paths are repaired. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+
 ## Phase ledger
 
 | Scope | Requirement bullets | Status | Current evidence |
@@ -52,7 +56,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 The current worktree has the following verified evidence:
 
-- All 516 unit tests pass.
+- All 519 unit tests pass.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
