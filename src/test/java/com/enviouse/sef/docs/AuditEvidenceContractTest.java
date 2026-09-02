@@ -56,6 +56,23 @@ class AuditEvidenceContractTest {
     }
 
     @Test
+    void sanitizerPreservesArrayCardinalityAndOrder() {
+        JsonObject raw = record();
+        JsonArray values = new JsonArray();
+        values.add("first");
+        values.add("second");
+        raw.getAsJsonObject("payload").add("values", values);
+
+        JsonArray sanitized = AuditEvidenceContract.sanitize(raw)
+                .getAsJsonObject("payload")
+                .getAsJsonArray("values");
+
+        assertEquals(2, sanitized.size());
+        assertEquals("first", sanitized.get(0).getAsString());
+        assertEquals("second", sanitized.get(1).getAsString());
+    }
+
+    @Test
     void schemaRejectsMissingFieldsAndUnknownVersions() {
         JsonObject missingRevision = record();
         missingRevision.remove("revision");
