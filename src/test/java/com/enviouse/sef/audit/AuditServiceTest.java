@@ -146,6 +146,24 @@ class AuditServiceTest {
     }
 
     @Test
+    void activeAuditHardLinkIsRejectedWithoutWritingExternalTarget() throws Exception {
+        Path external = temporaryDirectory.resolve("external-hard-link.jsonl");
+        Files.writeString(external, "sentinel");
+        Path auditDirectory = temporaryDirectory.resolve("audit");
+        Files.createDirectories(auditDirectory);
+        Files.createLink(auditDirectory.resolve("security-audit.jsonl"), external);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertFalse(SecurityAuditService.health().running());
+            assertTrue(SecurityAuditService.health().failures() > 0L);
+            assertEquals("sentinel", Files.readString(external));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
     void auditFieldsNormalizeControlAndFormatCharacters() {
         SecurityAuditService.AuditEvent event = SecurityAuditService.AuditEvent.create(
                 "test",

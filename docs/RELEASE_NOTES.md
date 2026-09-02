@@ -1,6 +1,6 @@
 # SEF 2 Unreleased Engineering Preview
 
-Evidence range: commit `81a2e5a` through the current `envy/sef2_complete` working tree. Version metadata is `2.0.0`. These notes are not a public release declaration.
+Evidence range: commit `81a2e5a` through the current `envy/phase-001-security` working tree. Version metadata is `2.0.0`. These notes are not a public release declaration.
 
 ## Added
 
@@ -67,4 +67,4 @@ The target is Minecraft `1.21.1`, NeoForge `21.1.235`, and Java `21`. LuckPerms,
 
 ## Verification state
 
-All 493 unit tests, all 41 required GameTests, registration checks for all 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated references, dedicated-server startup, headless client startup, security scans, and current artifact inspection pass. The current artifact is `build/libs/sef-2.0.0.jar`, 3,368,441 bytes, with SHA-256 `7acac17497166c5870180521d95fe47cbd1c41a45e33c2dd88b175314d7e2fd4` and SHA-512 `ffd68e24345008c888d80d9b8fcef96eae5d27972b3654b3d1cd1027ee2572536fb779fcd77cf09ecc3e4e57fae3959d0204ef1a7e76dcfc24159e0c0be80e41`. All twenty confirmed findings in `audit.md` are repaired. Release acceptance does not pass yet. Sixteen Phase 13 runtime families remain unavailable, and the renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are still open. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).
+All 520 unit tests, all 41 required GameTests, registration checks for all 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, 358 safe read only live routes, the Java 21 build, fallback-runtime compilation, generated references, dedicated-server startup, headless client startup, security scans, and current artifact inspection pass. The current artifact is `build/libs/sef-2.0.0.jar`, 3,370,092 bytes, with SHA-256 `4971ac1036ce1b89495cc851b0d7c8720eb2dc04aa20b6b42026fcb3b94195e8` and SHA-512 `be26595f0e2b1c6c1e3fb2ae52d33706012d307d88876383a8e1ed59ba24649ea97ea107cf3787622da7241075d843693e257896b00706f77122c0e3a4747105`. All twenty confirmed findings in `audit.md` are repaired. Dependency closure remains blocked pending an owner approved runtime decision. Release acceptance does not pass yet. Sixteen Phase 13 runtime families remain unavailable, and the renewed multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, and disguise-animation matrices are still open. The authoritative phase record is [the acceptance ledger](SEF2_ACCEPTANCE.md).

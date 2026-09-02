@@ -26,7 +26,7 @@ ref: envy/sef2_complete
 
 The workflow runs unit tests, all registered GameTests, the Gradle build, metadata checks, JAR inspection, and SHA-256 and SHA-512 hashing. It uploads the JAR and release manifest as workflow evidence. It never reads platform tokens and never uploads to either platform.
 
-The Phase 001 security gate also requires the resolved dependency graphs and remote alert snapshot to be captured at the release commit. The patched candidate currently passes 519 unit tests and 41 required GameTests. Do not treat an open remote alert as dismissed. Record candidate configuration, packaged reachability, and the compatible resolution in the release evidence.
+The Phase 001 security gate also requires the resolved dependency graphs and remote alert snapshot to be captured at the release commit. Do not treat an open remote alert as dismissed. Record candidate configuration, packaged reachability, and the installed runtime provider in the release evidence. A development resolution override is not release remediation when the universal JAR does not embed or replace the platform library. Release preparation remains blocked until the dependency runtime decision is approved and verified.
 
 The equivalent local checks are:
 

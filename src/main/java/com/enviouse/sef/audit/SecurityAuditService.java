@@ -5,9 +5,12 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -23,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -363,13 +367,13 @@ public final class SecurityAuditService {
         if (thread == null) {
             return;
         }
-        thread.interrupt();
         try {
             thread.join(5000L);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
         if (thread.isAlive()) {
+            thread.interrupt();
             FAILURES.incrementAndGet();
             failureDetail = "security audit writer did not stop within the shutdown timeout";
             ServerEssentialsForge.LOGGER.error("[SEF] {}", failureDetail);
@@ -447,12 +451,36 @@ public final class SecurityAuditService {
         createSafeDirectories(auditDirectory);
         validateActiveFile();
         rotateIfRequired(bytes.length);
-        Files.write(
-                activeFile,
-                bytes,
+        appendActiveFile(bytes);
+    }
+
+    private static void appendActiveFile(byte[] bytes) throws IOException {
+        Set<OpenOption> options = Set.of(
                 StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE,
                 StandardOpenOption.APPEND,
                 LinkOption.NOFOLLOW_LINKS);
+        try (FileChannel channel = FileChannel.open(activeFile, options)) {
+            validateOpenedActiveFile(channel);
+            ByteBuffer buffer = ByteBuffer.wrap(bytes);
+            while (buffer.hasRemaining()) {
+                channel.write(buffer);
+            }
+        }
+    }
+
+    private static void validateOpenedActiveFile(FileChannel channel) throws IOException {
+        BasicFileAttributes attributes = Files.readAttributes(
+                activeFile,
+                BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
+            throw new IOException("security audit active file is not a regular file");
+        }
+        rejectHardLink(activeFile);
+        if (channel.size() != attributes.size()) {
+            throw new IOException("security audit active file changed during validation");
+        }
     }
 
     private static void rotateIfRequired(int incomingBytes) throws IOException {
@@ -504,6 +532,7 @@ public final class SecurityAuditService {
                 if (attributes.isRegularFile()
                         && !attributes.isSymbolicLink()
                         && attributes.lastModifiedTime().toInstant().isBefore(cutoff)) {
+                    rejectHardLink(path);
                     Files.deleteIfExists(path);
                 }
             }
@@ -520,6 +549,18 @@ public final class SecurityAuditService {
                 LinkOption.NOFOLLOW_LINKS);
         if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
             throw new IOException("security audit active file is not a regular file");
+        }
+        rejectHardLink(activeFile);
+    }
+
+    private static void rejectHardLink(Path path) throws IOException {
+        try {
+            Object links = Files.getAttribute(path, "unix:nlink", LinkOption.NOFOLLOW_LINKS);
+            if (links instanceof Number count && count.longValue() > 1L) {
+                throw new IOException("security audit file cannot have multiple hard links");
+            }
+        } catch (UnsupportedOperationException ignored) {
+            // The provider does not expose link counts. Symbolic links and file type are still checked.
         }
     }
 

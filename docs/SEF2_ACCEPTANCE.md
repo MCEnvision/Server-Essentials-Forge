@@ -12,7 +12,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 ## Current audit phase status
 
-The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. The repaired worktree passes 519 unit tests, 41 required GameTests, the Gradle build, and bounded dedicated server startup. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and applicable dependency paths are repaired. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, and configuration parent path handling are repaired. Dependency closure is blocked because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
 
 ## Phase ledger
 
@@ -56,7 +56,7 @@ The legacy phase ledger below remains useful for SEF 2 feature acceptance, but i
 
 The current worktree has the following verified evidence:
 
-- All 519 unit tests pass.
+- All 520 unit tests pass after the hard link repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
@@ -68,7 +68,7 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-2.0.0.jar`, 3,368,441 bytes, with SHA-256 `bae28cfe7fe1adba8b9dc5c174713d5fcbf3e28dfa48ff168d7ea530dd9ace78` and SHA-512 `510057da06788c5d5398e43463a19d2decda7078c6fb25fca06df7b30b06b89515a4bb487c9a27c506daf9fb13daab50b8912506ac1801567238b012620b6fd5`.
+- The current JAR is `sef-2.0.0.jar`, 3,370,092 bytes, with SHA-256 `4971ac1036ce1b89495cc851b0d7c8720eb2dc04aa20b6b42026fcb3b94195e8` and SHA-512 `be26595f0e2b1c6c1e3fb2ae52d33706012d307d88876383a8e1ed59ba24649ea97ea107cf3787622da7241075d843693e257896b00706f77122c0e3a4747105`.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
