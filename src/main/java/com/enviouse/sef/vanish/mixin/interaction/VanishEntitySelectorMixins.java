@@ -28,23 +28,28 @@ public class VanishEntitySelectorMixins {
 	// Prevent minecart collision with vanished players
 	@Mixin(AbstractMinecart.class)
 	public abstract static class AbstractMinecartMixin {
-		@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
-		private List<Entity> vanishmod$preventMinecartCollision(Level level, Entity entity, AABB aabb, Operation<List<Entity>> original) {
-			if (VanishConfig.CONFIG.preventEntityCollisions.get())
-				return level.getEntities(entity, aabb, VanishUtil.NO_SPECTATORS_AND_NO_VANISH);
-			return original.call(level, entity, aabb);
-		}
+			@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
+			private List<Entity> vanishmod$preventMinecartCollision(Level level, Entity entity, AABB aabb, Operation<List<Entity>> original) {
+				List<Entity> entities = original.call(level, entity, aabb);
+				if (!VanishConfig.CONFIG.preventEntityCollisions.get())
+					return entities;
+				return entities.stream()
+						.filter(VanishUtil.NO_SPECTATORS_AND_NO_VANISH)
+						.collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+			}
 	}
 
 	// Prevent bees from angering at vanished players
 	@Mixin(BeehiveBlock.class)
 	public abstract static class BeehiveBlockMixin {
-		@WrapOperation(method = "angerNearbyBees", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntitiesOfClass(Ljava/lang/Class;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
-		private List<LivingEntity> vanishmod$preventBeeAnger(Level level, Class<LivingEntity> entityClass, AABB aabb, Operation<List<LivingEntity>> original) {
-			if (VanishConfig.CONFIG.hidePlayersFromWorld.get())
-				return level.getEntitiesOfClass(entityClass, aabb, VanishUtil.NO_SPECTATORS_AND_NO_VANISH);
-			return original.call(level, entityClass, aabb);
-		}
+			@WrapOperation(method = "angerNearbyBees", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntitiesOfClass(Ljava/lang/Class;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
+			private List<LivingEntity> vanishmod$preventBeeAnger(Level level, Class<LivingEntity> entityClass, AABB aabb, Operation<List<LivingEntity>> original) {
+				List<LivingEntity> entities = original.call(level, entityClass, aabb);
+				if (!VanishConfig.CONFIG.hidePlayersFromWorld.get())
+					return entities;
+				return entities.stream()
+						.filter(VanishUtil.NO_SPECTATORS_AND_NO_VANISH)
+						.collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+			}
 	}
 }
-

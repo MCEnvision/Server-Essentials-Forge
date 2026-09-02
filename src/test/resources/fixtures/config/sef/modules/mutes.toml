@@ -1,0 +1,82 @@
+# Controls mutes behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "mutes"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 100000 Apply class live.
+maximum_records = 1000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 90
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "sensitive"
+
+[runtime]
+# Enable checking FTB Essentials mute status to block muted players from chatting `true` or `false` Apply class restart_required.
+enable_ftb_mute_integration = true
+# Persistent mute system (/mute, /unmute, /mutelist) `true` or `false` Apply class restart_required.
+enable_mute_system = true
+# Notification sent to admins when a player is muted. Placeholders: $player, $admin, $reason, $duration 0 through 8192 characters Apply class live.
+mute_admin_notify_format = "&e$admin &7has muted &e$player &7for &e$duration&7. Reason: &f$reason"
+# Message when trying to mute an already muted player. Placeholder: $player 0 through 8192 characters Apply class live.
+mute_already_muted_msg = "&c$player is already muted."
+# Confirmation message to the admin who muted. Placeholders: $player, $admin, $reason, $duration 0 through 8192 characters Apply class live.
+mute_confirm_format = "&aMuted &e$player &afor &e$duration&a. Reason: &7$reason"
+# Message when no one is currently muted 0 through 8192 characters Apply class live.
+mute_list_empty_msg = "&7No players are currently muted."
+# Format for each muted player entry. Placeholders: $player, $admin, $reason, $remaining, $duration 0 through 8192 characters Apply class live.
+mute_list_entry_format = "&7- &e$player &7by &e$admin &7| Reason: &f$reason &7| Remaining: &e$remaining &7/ &e$duration"
+# Header for /mutelist. No placeholders. 0 through 8192 characters Apply class live.
+mute_list_header_format = "&6━━━━ Currently Muted Players ━━━━"
+# Message when trying to unmute a player who isn't muted. Placeholder: $player 0 through 8192 characters Apply class live.
+mute_not_muted_msg = "&c$player is not muted."
+# Message sent to the player when muted. Placeholders: $admin, $reason, $duration 0 through 8192 characters Apply class live.
+mute_notify_player_format = "&c&l⚠ YOU HAVE BEEN MUTED ⚠\\n&7Reason: &f$reason\\n&7Muted by: &e$admin\\n&7Duration: &e$duration"
+# Format for relaying muted messages to operators. Placeholders: $username, $message 0 through 8192 characters Apply class live.
+muted_message_op_format = "&c&lMuted Message &7From $username:&r $message"
+# Message shown to a muted player when they try to chat (permanent mute). No placeholders. 0 through 8192 characters Apply class live.
+muted_player_chat_msg = "&cYou are muted and cannot send messages."
+# Message shown to a muted player when they try to chat (timed mute). Placeholder: $remaining 0 through 8192 characters Apply class live.
+muted_player_chat_msg_with_remaining = "&cYou are muted and cannot send messages. &7Time remaining: &e$remaining"
+# Message shown to the muted player when they try to chat 0 through 8192 characters Apply class live.
+muted_player_message = "&cYou are muted and cannot send messages."
+# When true, muted messages are relayed to online operators so they can see what the muted player tried to say `true` or `false` Apply class live.
+send_muted_message_to_ops = true
+# Notification sent to admins when a player is unmuted. Placeholders: $player, $admin 0 through 8192 characters Apply class live.
+unmute_admin_notify_format = "&e$admin &7has unmuted &e$player&7."
+# Confirmation message to the admin who unmuted. Placeholders: $player, $admin 0 through 8192 characters Apply class live.
+unmute_confirm_format = "&aUnmuted &e$player&a."
+# Message sent to the player when unmuted. Placeholder: $admin 0 through 8192 characters Apply class live.
+unmute_notify_player_format = "&a&lYou have been unmuted by &e$admin&a&l."

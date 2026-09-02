@@ -9,6 +9,8 @@ import com.enviouse.sef.utils.moddeps.LuckPermsProvider;
 import com.enviouse.sef.permissions.PermissionRefreshBridge;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.utils.moddeps.LuckPermsQuotaProvider;
+import com.enviouse.sef.utils.moddeps.LuckPermsFancyTagGroupProvider;
+import com.enviouse.sef.fancytags.FancyTagGroupResolver;
 
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -22,12 +24,24 @@ public class ExternalModLoadingEvent {
 		permissionRefreshCleanup.run();
 		permissionRefreshCleanup = () -> {};
 		KernelServices.resetQuotaProviders();
+		FancyTagGroupResolver.clear();
 	}
 
 	@SubscribeEvent public void onServerStarted(ServerStartedEvent e) {
 		loadLuckPerms();
 		loadFtbEssentials();
 		loadIntegratedNicknameProvider();
+		if (KernelServices.teleportSettings().ownershipMode()
+				== com.enviouse.sef.teleport.TeleportSettings.OwnershipMode.IMPORT_ONCE
+				&& ModList.get().isLoaded("ftbessentials")) {
+			try {
+				com.enviouse.sef.teleport.compat.FTBTeleportImportService.importOnce(e.getServer());
+			} catch (RuntimeException | LinkageError exception) {
+				ServerEssentialsForge.LOGGER.error(
+						"[SEF] FTB Essentials teleport import failed and will be retried",
+						exception);
+			}
+		}
 	}
 
 	private void loadIntegratedNicknameProvider() {
@@ -50,7 +64,8 @@ public class ExternalModLoadingEvent {
 				try {
 						net.luckperms.api.LuckPerms api = net.luckperms.api.LuckPermsProvider.get();
 						ServerEssentialsForge.instance.metadataProvider = new LuckPermsProvider();
-						KernelServices.installQuotaProvider(new LuckPermsQuotaProvider(api));
+							KernelServices.installQuotaProvider(new LuckPermsQuotaProvider(api));
+							FancyTagGroupResolver.install(new LuckPermsFancyTagGroupProvider(api));
 						PermissionRefreshBridge.start(api);
 						permissionRefreshCleanup = PermissionRefreshBridge::stop;
 					ServerEssentialsForge.LOGGER.info("LuckPerms API found and integrated successfully!");

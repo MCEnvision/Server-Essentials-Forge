@@ -7,10 +7,12 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StorageServiceTest {
@@ -103,5 +105,106 @@ class StorageServiceTest {
                         .findFirst()
                         .orElseThrow()
                         .state());
+    }
+
+    @Test
+    void maximumJsonDepthLoadsAndTheNextLevelIsQuarantined() throws Exception {
+        Path accepted = temporaryDirectory.resolve("accepted.json");
+        Files.writeString(accepted, nestedArray(StorageService.MAX_JSON_DEPTH));
+
+        assertTrue(StorageService.read(accepted, "depth accepted", 1).isPresent());
+
+        Path rejected = temporaryDirectory.resolve("rejected.json");
+        Files.writeString(rejected, nestedArray(StorageService.MAX_JSON_DEPTH + 1));
+
+        assertTrue(StorageService.read(rejected, "depth rejected", 1).isEmpty());
+        assertFalse(Files.exists(rejected));
+        assertEquals("quarantined", status(rejected));
+    }
+
+    @Test
+    void deeplyNestedJsonCannotExhaustTheStack() throws Exception {
+        Path path = temporaryDirectory.resolve("deep.json");
+        Files.writeString(path, nestedArray(5_000));
+
+        assertTrue(StorageService.read(path, "deep test", 1).isEmpty());
+        assertEquals("quarantined", status(path));
+    }
+
+    @Test
+    void malformedUtf8AndNonregularPathsAreRejectedSafely() throws Exception {
+        Path malformed = temporaryDirectory.resolve("malformed.json");
+        Files.write(malformed, new byte[] {(byte) 0xC3, (byte) 0x28});
+        assertTrue(StorageService.read(malformed, "utf8 test", 1).isEmpty());
+        assertEquals("quarantined", status(malformed));
+
+        Path directory = temporaryDirectory.resolve("directory.json");
+        Files.createDirectory(directory);
+        assertTrue(StorageService.read(directory, "directory test", 1).isEmpty());
+        assertEquals("rejected", status(directory));
+        assertTrue(Files.isDirectory(directory));
+    }
+
+    @Test
+    void symbolicLinkStorageAndExportsCannotReadExternalFiles() throws Exception {
+        Path external = temporaryDirectory.resolve("external.txt");
+        Files.writeString(external, "external secret");
+        Path managed = temporaryDirectory.resolve("managed.json");
+        Files.createSymbolicLink(managed, external);
+
+        assertTrue(StorageService.read(managed, "link test", 1).isEmpty());
+        assertEquals("rejected", status(managed));
+        assertEquals("external secret", Files.readString(external));
+
+        Files.delete(managed);
+        JsonObject data = new JsonObject();
+        data.addProperty("value", "safe");
+        StorageService.write(managed, "export test", 1, data, null);
+        StorageService.read(managed, "export test", 1);
+        Files.delete(managed);
+        Files.createSymbolicLink(managed, external);
+
+        Path exportRoot = temporaryDirectory.resolve("exports");
+        assertThrows(
+                AtomicFileStore.UnsafeStoragePathException.class,
+                () -> StorageService.exportManagedSnapshot(
+                        List.of(temporaryDirectory),
+                        exportRoot,
+                        status -> status.domain().equals("export test")));
+        assertFalse(Files.exists(exportRoot.resolve("external.txt")));
+    }
+
+    @Test
+    void missingCanonicalFileRecoversThePreviousCompleteGeneration() throws Exception {
+        Path path = temporaryDirectory.resolve("recover.json");
+        JsonObject first = new JsonObject();
+        first.addProperty("value", "first");
+        StorageService.write(path, "recovery test", 1, first, null);
+        AtomicFileStore.write(
+                path,
+                "{\"domain\":\"recovery test\",\"schemaVersion\":1,\"data\":{\"value\":\"second\"}}"
+                        .getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                true);
+        Files.delete(path);
+
+        JsonObject recovered = StorageService.read(path, "recovery test", 1)
+                .orElseThrow()
+                .data()
+                .getAsJsonObject();
+
+        assertEquals("first", recovered.get("value").getAsString());
+    }
+
+    private String status(Path path) {
+        Path normalized = path.toAbsolutePath().normalize();
+        return StorageService.statuses().stream()
+                .filter(storeStatus -> storeStatus.path().equals(normalized))
+                .findFirst()
+                .orElseThrow()
+                .state();
+    }
+
+    private static String nestedArray(int depth) {
+        return "[".repeat(depth) + "0" + "]".repeat(depth);
     }
 }

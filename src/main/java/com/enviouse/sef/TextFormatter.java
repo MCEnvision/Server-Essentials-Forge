@@ -55,7 +55,6 @@ public final class TextFormatter {
         String DefaultColor;
         try { DefaultColor = ConfigHandler.config.chatMessageColor.get(); }
         catch (IllegalStateException notLoadedYet) { DefaultColor = ""; } // config not loaded yet (e.g. permission-node static init)
-        ServerEssentialsForge.LOGGER.debug("default Color: {}", DefaultColor);
         if (!DefaultColor.isEmpty()) {
             ChatFormatting cfg = ChatFormatting.getByName(DefaultColor);
             if(cfg != null) defaultStyle = defaultStyle.withColor(TextColor.fromLegacyFormat(cfg));

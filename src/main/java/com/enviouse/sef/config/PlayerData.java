@@ -210,20 +210,21 @@ public final class PlayerData {
         state = StorageRepository.RepositoryState.NEW;
         stateDetail = "loading";
 
-        if (Files.exists(dataFile)) {
+        if (Files.exists(dataFile, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             loadJson();
             return;
         }
 
         Path legacy = directory.resolve(legacyPlayerDataFileName);
-        if (!Files.exists(legacy)) {
+        if (!Files.exists(legacy, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             state = StorageRepository.RepositoryState.MISSING;
             stateDetail = "new repository";
             return;
         }
         try {
             StorageService.recordExternalMigration(legacy, "integrated player identities", 1);
-            parseLegacy(Files.readString(legacy, StandardCharsets.UTF_8));
+            ArrayList<PlayerData> parsed = parseLegacy(Files.readString(legacy, StandardCharsets.UTF_8));
+            parsed.forEach(data -> map.put(data.uuid, data));
             boolean saved = saveCurrent();
             ImportDiagnostics.record(
                     "integrated player identities",
@@ -266,25 +267,27 @@ public final class PlayerData {
     }
 
     private static void loadJson() {
-        document = StorageService.read(dataFile, "integrated player identities", 1).orElse(null);
-        if (document == null) {
+        StorageService.Document candidate =
+                StorageService.read(dataFile, "integrated player identities", 1).orElse(null);
+        if (candidate == null) {
             state = stateFromStorageStatus(dataFile);
             stateDetail = "storage unavailable";
             return;
         }
-        if (!document.data().isJsonObject()) {
+        if (!candidate.data().isJsonObject()) {
             state = StorageRepository.RepositoryState.RECOVERY;
             stateDetail = "player profile data is not an object";
             return;
         }
         try {
-            JsonObject players = document.data().getAsJsonObject().getAsJsonObject("players");
+            JsonObject players = candidate.data().getAsJsonObject().getAsJsonObject("players");
             if (players == null) {
                 throw new IllegalStateException("Integrated player profiles collection is missing");
             }
             if (players.size() > MAXIMUM_PROFILES) {
                 throw new IllegalStateException("Integrated player profile limit exceeded");
             }
+            Map<UUID, PlayerData> loaded = new LinkedHashMap<>();
             for (Map.Entry<String, JsonElement> entry : players.entrySet()) {
                 UUID uuid = UUID.fromString(entry.getKey());
                 if (!entry.getValue().isJsonObject()) {
@@ -299,9 +302,14 @@ public final class PlayerData {
                     Instant.parse(updated);
                     data.updatedAt = updated;
                 }
-                map.put(uuid, data);
+                if (loaded.put(uuid, data) != null) {
+                    throw new IllegalStateException("Integrated player profile is duplicated");
+                }
             }
-            if (document.migrated()) {
+            map.clear();
+            map.putAll(loaded);
+            document = candidate;
+            if (candidate.migrated()) {
                 boolean saved = saveCurrent();
                 ImportDiagnostics.record(
                         "integrated player identities",
@@ -316,7 +324,6 @@ public final class PlayerData {
             state = StorageRepository.RepositoryState.READY;
             stateDetail = "loaded " + map.size() + " player profiles";
         } catch (RuntimeException exception) {
-            map.clear();
             state = StorageRepository.RepositoryState.RECOVERY;
             stateDetail = exception.getClass().getSimpleName();
             ImportDiagnostics.record(
@@ -397,9 +404,13 @@ public final class PlayerData {
 
     static ArrayList<PlayerData> parseLegacy(String input) {
         ArrayList<PlayerData> parsed = new ArrayList<>();
+        java.util.HashSet<UUID> playerIds = new java.util.HashSet<>();
         for (LegacyNicknameCodec.Entry entry : LegacyNicknameCodec.parse(input)) {
             if (parsed.size() >= MAXIMUM_PROFILES) {
                 throw new IllegalStateException("Legacy player profile limit exceeded");
+            }
+            if (!playerIds.add(entry.uuid())) {
+                throw new IllegalStateException("Legacy player profile is duplicated");
             }
             PlayerData data = new PlayerData(entry.uuid());
             if (entry.nickname() != null && entry.nickname().length() > 1_024) {
@@ -407,7 +418,6 @@ public final class PlayerData {
             }
             data.nickname = entry.nickname();
             parsed.add(data);
-            map.put(entry.uuid(), data);
         }
         return parsed;
     }
@@ -460,7 +470,8 @@ public final class PlayerData {
                 .map(status -> switch (status.state()) {
                     case "missing" -> StorageRepository.RepositoryState.MISSING;
                     case "unsupported" -> StorageRepository.RepositoryState.UNSUPPORTED;
-                    case "quarantined", "quarantine failed" -> StorageRepository.RepositoryState.RECOVERY;
+                    case "quarantined", "quarantine failed", "rejected" ->
+                            StorageRepository.RepositoryState.RECOVERY;
                     default -> StorageRepository.RepositoryState.ERROR;
                 })
                 .orElse(StorageRepository.RepositoryState.ERROR);

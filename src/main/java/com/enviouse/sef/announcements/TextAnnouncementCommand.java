@@ -91,10 +91,14 @@ public class TextAnnouncementCommand {
 
         TextAnnouncement announcement = new TextAnnouncement(
             id, message, seconds, toggleable, target, true, 0);
-        if (!manager.add(announcement)) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cAn announcement with id &e" + id + "&c already exists."));
-            return 0;
+        try {
+            if (!manager.add(announcement)) {
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cAnnouncement data is invalid or id &e" + id + "&c already exists."));
+                return 0;
+            }
+        } catch (IllegalStateException exception) {
+            return storageFailure(ctx, exception);
         }
 
         String confirm = ConfigHandler.config.announcementConfirmFormat.get()
@@ -139,10 +143,14 @@ public class TextAnnouncementCommand {
         }
         boolean toggleable = "toggle".equals(toggleStr);
 
-        if (!manager.modifyText(id, seconds, toggleable, target, message)) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cNo text announcement with id &e" + id));
-            return 0;
+        try {
+            if (!manager.modifyText(id, seconds, toggleable, target, message)) {
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cNo valid text announcement with id &e" + id));
+                return 0;
+            }
+        } catch (IllegalStateException exception) {
+            return storageFailure(ctx, exception);
         }
         ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
             "&aModified announcement: &e" + id + " &7(every " + DurationParser.humanReadable(seconds) + ")"), false);
@@ -157,10 +165,14 @@ public class TextAnnouncementCommand {
                 "&cNo text announcement with id &e" + id));
             return 0;
         }
-        if (!manager.removeText(id)) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cNo text announcement with id &e" + id));
-            return 0;
+        try {
+            if (!manager.removeText(id)) {
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cNo text announcement with id &e" + id));
+                return 0;
+            }
+        } catch (IllegalStateException exception) {
+            return storageFailure(ctx, exception);
         }
         ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aRemoved announcement: &e" + id), false);
         return 1;
@@ -188,5 +200,14 @@ public class TextAnnouncementCommand {
             ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
         }
         return 1;
+    }
+
+    private static int storageFailure(
+            CommandContext<CommandSourceStack> context,
+            IllegalStateException exception
+    ) {
+        context.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                "&cAnnouncement change could not be saved. &7" + exception.getMessage()));
+        return 0;
     }
 }

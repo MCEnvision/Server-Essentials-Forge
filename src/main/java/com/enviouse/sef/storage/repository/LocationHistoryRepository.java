@@ -222,7 +222,7 @@ public final class LocationHistoryRepository implements StorageRepository {
                 .map(status -> switch (status.state()) {
                     case "missing" -> RepositoryState.MISSING;
                     case "unsupported" -> RepositoryState.UNSUPPORTED;
-                    case "quarantined", "quarantine failed" -> RepositoryState.RECOVERY;
+                    case "quarantined", "quarantine failed", "rejected" -> RepositoryState.RECOVERY;
                     default -> RepositoryState.ERROR;
                 })
                 .orElse(RepositoryState.MISSING);

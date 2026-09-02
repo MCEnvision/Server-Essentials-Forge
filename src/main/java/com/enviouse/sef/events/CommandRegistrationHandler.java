@@ -15,24 +15,55 @@ import com.enviouse.sef.chat.OpBulletinHandler;
 import com.enviouse.sef.clearchat.ClearChatCommand;
 import com.enviouse.sef.commands.BfcCommands;
 import com.enviouse.sef.commands.MsgCommands;
+import com.enviouse.sef.commandlog.CommandSpyCommands;
+import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.countdown.CountdownCommand;
 import com.enviouse.sef.disablebuilding.DisableBuildingCommand;
+import com.enviouse.sef.economy.EconomyCommands;
 import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.freeze.FreezeCommand;
 import com.enviouse.sef.invlock.InvLockCommand;
+import com.enviouse.sef.inventory.InventoryUtilityCommands;
 import com.enviouse.sef.invsee.InvSeeCommand;
+import com.enviouse.sef.gui.protocol.GuiWorkflowCommandHooks;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kits.KitCommands;
 import com.enviouse.sef.motd.MotdManager;
+import com.enviouse.sef.moderation.ModerationCommands;
+import com.enviouse.sef.player.PlayerUtilityCommands;
+import com.enviouse.sef.player.GamemodeCommands;
 import com.enviouse.sef.mute.MuteCommand;
 import com.enviouse.sef.mute.MuteManager;
+import com.enviouse.sef.social.MailCommands;
+import com.enviouse.sef.social.SocialCommands;
+import com.enviouse.sef.social.ConnectionCommands;
+import com.enviouse.sef.social.CustomTextCommands;
+import com.enviouse.sef.social.ReminderCommands;
+import com.enviouse.sef.social.IdentityCommands;
 import com.enviouse.sef.warn.WarnCommand;
 import com.enviouse.sef.warn.WarnManager;
 import com.enviouse.sef.workstations.VirtualWorkstationCommands;
+import com.enviouse.sef.workstations.AdministrativeEnchantCommands;
+import com.enviouse.sef.teleport.CoreTeleportCommands;
+import com.enviouse.sef.teleport.HomeCommands;
+import com.enviouse.sef.teleport.TeleportRequestCommands;
+import com.enviouse.sef.teleport.WarpCommands;
+import com.enviouse.sef.automation.AutomationCommands;
+import com.enviouse.sef.fancytags.FancyTagCommands;
+import com.enviouse.sef.disguise.DisguiseCommands;
+import com.enviouse.sef.control.ServerControlCommands;
+import com.enviouse.sef.control.CommunityCommands;
+import com.enviouse.sef.control.AccessGrantCommands;
+import com.enviouse.sef.control.AdminLockCommands;
+import com.enviouse.sef.control.ApprovalCommands;
+import com.enviouse.sef.recovery.GraveCommands;
+import com.enviouse.sef.recovery.RecoveryCommands;
 
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
 
 public class CommandRegistrationHandler {
     private static final AnnouncementManager ANNOUNCEMENT_MANAGER = new AnnouncementManager();
@@ -62,10 +93,34 @@ public class CommandRegistrationHandler {
         KernelServices.shortcuts().captureExistingRoots(e.getDispatcher().getRoot().getChildren().stream()
                 .map(node -> node.getName().toLowerCase(java.util.Locale.ROOT))
                 .collect(java.util.stream.Collectors.toSet()));
+        var currentServer = ServerLifecycleHooks.getCurrentServer();
+        if (currentServer != null) {
+            KernelServices.preloadAutomationDefinitions(currentServer.getServerDirectory()
+                    .resolve("serverconfig")
+                    .resolve("sef"));
+        }
         // Always register base commands
         BfcCommands.register(e.getDispatcher());
 
         VirtualWorkstationCommands.register(e.getDispatcher());
+        CommandSpyCommands.register(e.getDispatcher());
+        LoggingCommands.registerAlias(e.getDispatcher());
+        ModerationCommands.register(e.getDispatcher());
+        KitCommands.register(e.getDispatcher());
+        InventoryUtilityCommands.register(e.getDispatcher());
+        PlayerUtilityCommands.register(e.getDispatcher());
+        GamemodeCommands.register(e.getDispatcher());
+        EconomyCommands.register(e.getDispatcher());
+        FancyTagCommands.registerDirect(e.getDispatcher());
+        DisguiseCommands.register(e.getDispatcher());
+        AdministrativeEnchantCommands.register(e.getDispatcher(), e.getBuildContext());
+        CommunityCommands.register(e.getDispatcher());
+        GraveCommands.register(e.getDispatcher());
+        AccessGrantCommands.register(e.getDispatcher());
+        AdminLockCommands.register(e.getDispatcher());
+        ApprovalCommands.register(e.getDispatcher());
+        RecoveryCommands.register(e.getDispatcher());
+        ServerControlCommands.registerDirect(e.getDispatcher());
 
         // Register filter commands if enabled
         if(ConfigHandler.config.enableFilterSystem.get()) {
@@ -101,7 +156,8 @@ public class CommandRegistrationHandler {
         }
 
         // Register /freeze and /unfreeze commands if enabled
-        if(ConfigHandler.config.enableFreezeSystem.get()) {
+        if(ConfigHandler.config.enableFreezeSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             FreezeCommand.register(e.getDispatcher());
         }
 
@@ -110,19 +166,17 @@ public class CommandRegistrationHandler {
             ClearChatCommand.register(e.getDispatcher());
         }
 
-        // Sudo remains unavailable until the later secured sudo phase.
-        if(ConfigHandler.config.enableSudo.get()) {
-            com.enviouse.sef.ServerEssentialsForge.LOGGER.warn(
-                    "[SEF] modules.sudo is enabled, but sudo remains temporarily unavailable during stabilization");
-        }
+        AutomationCommands.registerDirect(e.getDispatcher());
 
         // Register /invlock command if enabled
-        if(ConfigHandler.config.enableInvLock.get()) {
+        if(ConfigHandler.config.enableInvLock.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             InvLockCommand.register(e.getDispatcher());
         }
 
         // Register /disablebuilding and /db commands if enabled
-        if(ConfigHandler.config.enableDisableBuilding.get()) {
+        if(ConfigHandler.config.enableDisableBuilding.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             DisableBuildingCommand.register(e.getDispatcher());
         }
 
@@ -132,12 +186,14 @@ public class CommandRegistrationHandler {
         }
 
         // Register /warn and /warns commands if enabled
-        if(ConfigHandler.config.enableWarnSystem.get()) {
+        if(ConfigHandler.config.enableWarnSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             WarnCommand.register(e.getDispatcher());
         }
 
         // Register /mute, /unmute, /mutelist commands if enabled
-        if(ConfigHandler.config.enableMuteSystem.get()) {
+        if(ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
             MuteCommand.register(e.getDispatcher());
         }
 
@@ -153,13 +209,25 @@ public class CommandRegistrationHandler {
      */
     @SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOW)
     public void registerLowPriorityCommands(RegisterCommandsEvent e) {
-        // Register custom /invsee command if enabled
-        if(ConfigHandler.config.enableInvSee.get()) {
-            InvSeeCommand.register(e.getDispatcher());
-        }
+        HomeCommands.register(e.getDispatcher());
+        TeleportRequestCommands.register(e.getDispatcher());
+        CoreTeleportCommands.register(e.getDispatcher());
+        WarpCommands.register(e.getDispatcher());
+        SocialCommands.register(e.getDispatcher());
+        MailCommands.register(e.getDispatcher());
+        ConnectionCommands.register(e.getDispatcher());
+        ReminderCommands.register(e.getDispatcher());
+        CustomTextCommands.register(e.getDispatcher());
+        IdentityCommands.register(e.getDispatcher());
+        InvSeeCommand.register(e.getDispatcher());
+        GuiWorkflowCommandHooks.register(e.getDispatcher());
         // Register messaging commands at LOW priority to override vanilla /msg, /tell, /w
         if(ConfigHandler.config.enableMessagingSystem.get()) {
             MsgCommands.register(e.getDispatcher());
         }
+        AutomationCommands.registerPublishedAliases(e.getDispatcher());
+        KernelServices.shortcuts().captureRegisteredRoots(e.getDispatcher().getRoot().getChildren().stream()
+                .map(node -> node.getName().toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet()));
     }
 }

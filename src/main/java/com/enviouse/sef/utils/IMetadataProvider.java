@@ -7,7 +7,9 @@ import com.mojang.authlib.GameProfile;
 public interface IMetadataProvider {
 	@NonNull public String getProviderName();
 	@NonNull public default String getPlayerPrefix(@NonNull GameProfile player) { return getPlayerPrefixAndSuffix(player)[0]; }
-		@NonNull public default String getPlayerSuffix(@NonNull GameProfile player) { return getPlayerPrefixAndSuffix(player)[1]; }
-		@NonNull public String[] getPlayerPrefixAndSuffix(@NonNull GameProfile player);
-		public default void invalidateCache() {}
+	@NonNull public default String getPlayerSuffix(@NonNull GameProfile player) { return getPlayerPrefixAndSuffix(player)[1]; }
+	@NonNull public String[] getPlayerPrefixAndSuffix(@NonNull GameProfile player);
+	@NonNull public default String getPrimaryGroup(@NonNull GameProfile player) { return ""; }
+	public default Integer getHierarchyWeight(@NonNull GameProfile player) { return null; }
+	public default void invalidateCache() {}
 	}

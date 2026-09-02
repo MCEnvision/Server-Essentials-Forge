@@ -1,5 +1,9 @@
 package com.enviouse.sef.disablebuilding;
 
+import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.moderation.ModerationRepository;
+
 import java.util.Collections;
 import java.util.Set;
 import java.util.UUID;
@@ -13,7 +17,11 @@ public class DisableBuildingManager {
     private static final Set<UUID> disabledPlayers = ConcurrentHashMap.newKeySet();
 
     public static boolean isDisabled(UUID uuid) {
-        return disabledPlayers.contains(uuid);
+        return disabledPlayers.contains(uuid)
+                || ConfigHandler.config.enableModerationEssentials.get()
+                && KernelServices.moderation()
+                .control(uuid, ModerationRepository.ControlType.BUILD_LOCK)
+                .isPresent();
     }
 
     public static boolean toggle(UUID uuid) {
@@ -34,4 +42,3 @@ public class DisableBuildingManager {
         disabledPlayers.clear();
     }
 }
-

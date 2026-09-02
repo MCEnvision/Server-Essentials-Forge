@@ -22,6 +22,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.inventory.AnvilMenu;
+import net.minecraft.world.inventory.CartographyTableMenu;
+import net.minecraft.world.inventory.GrindstoneMenu;
+import net.minecraft.world.inventory.LoomMenu;
+import net.minecraft.world.inventory.SmithingMenu;
+import net.minecraft.world.inventory.StonecutterMenu;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.server.permission.nodes.PermissionNode;
 import com.enviouse.sef.permissions.PermissionService;
@@ -32,11 +37,14 @@ public final class VirtualWorkstationCommands {
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         if (ConfigHandler.config.enableCraftingTableCommand.get()) {
-            registerMenuCommand(dispatcher, "craft", PermissionsHandler.craftingTableCommand,
-                    PermissionsHandler.craftingTableCooldownBypass,
-                    "sef:workstation.craft",
-                    VirtualWorkstationCommands::openCraftingTable);
-            if (ConfigHandler.config.enableCraftAlias.get()) {
+            if (KernelServices.shortcuts().isActive("craft")) {
+                registerMenuCommand(dispatcher, "craft", PermissionsHandler.craftingTableCommand,
+                        PermissionsHandler.craftingTableCooldownBypass,
+                        "sef:workstation.craft",
+                        VirtualWorkstationCommands::openCraftingTable);
+            }
+            if (ConfigHandler.config.enableCraftAlias.get()
+                    && KernelServices.shortcuts().isActive("c")) {
                 registerMenuCommand(dispatcher, "c", PermissionsHandler.craftingTableCommand,
                         PermissionsHandler.craftingTableCooldownBypass,
                         "sef:workstation.craft",
@@ -45,11 +53,14 @@ public final class VirtualWorkstationCommands {
         }
 
         if (ConfigHandler.config.enableAnvilCommand.get()) {
-            registerMenuCommand(dispatcher, "anvil", PermissionsHandler.anvilCommand,
-                    PermissionsHandler.anvilCooldownBypass,
-                    "sef:workstation.anvil",
-                    VirtualWorkstationCommands::openAnvil);
-            if (ConfigHandler.config.enableAnvilAlias.get()) {
+            if (KernelServices.shortcuts().isActive("anvil")) {
+                registerMenuCommand(dispatcher, "anvil", PermissionsHandler.anvilCommand,
+                        PermissionsHandler.anvilCooldownBypass,
+                        "sef:workstation.anvil",
+                        VirtualWorkstationCommands::openAnvil);
+            }
+            if (ConfigHandler.config.enableAnvilAlias.get()
+                    && KernelServices.shortcuts().isActive("av")) {
                 registerMenuCommand(dispatcher, "av", PermissionsHandler.anvilCommand,
                         PermissionsHandler.anvilCooldownBypass,
                         "sef:workstation.anvil",
@@ -58,11 +69,14 @@ public final class VirtualWorkstationCommands {
         }
 
         if (ConfigHandler.config.enableEnchantingTableCommand.get()) {
-            registerMenuCommand(dispatcher, "enchantingtable", PermissionsHandler.enchantingTableCommand,
-                    PermissionsHandler.enchantingTableCooldownBypass,
-                    "sef:workstation.enchant",
-                    VirtualWorkstationCommands::openEnchantingTable);
-            if (ConfigHandler.config.enableEnchantingTableAlias.get()) {
+            if (KernelServices.shortcuts().isActive("enchantingtable")) {
+                registerMenuCommand(dispatcher, "enchantingtable", PermissionsHandler.enchantingTableCommand,
+                        PermissionsHandler.enchantingTableCooldownBypass,
+                        "sef:workstation.enchant",
+                        VirtualWorkstationCommands::openEnchantingTable);
+            }
+            if (ConfigHandler.config.enableEnchantingTableAlias.get()
+                    && KernelServices.shortcuts().isActive("et")) {
                 registerMenuCommand(dispatcher, "et", PermissionsHandler.enchantingTableCommand,
                         PermissionsHandler.enchantingTableCooldownBypass,
                         "sef:workstation.enchant",
@@ -72,13 +86,18 @@ public final class VirtualWorkstationCommands {
 
         if (ConfigHandler.config.enableSuperEnchantingTableCommand.get()) {
             registerSuperEnchantingCommand(dispatcher, "superenchantingtable");
-            if (ConfigHandler.config.enableSuperEnchantingTableAlias.get()) {
+            if (ConfigHandler.config.enableSuperEnchantingTableAlias.get()
+                    && KernelServices.shortcuts().isActive("set")) {
                 registerSuperEnchantingCommand(dispatcher, "set");
             }
         }
 
-        if (ConfigHandler.config.enableRepairCommand.get()) {
+        if (ConfigHandler.config.enableRepairCommand.get()
+                && KernelServices.shortcuts().isActive("repair")) {
             dispatcher.register(repairNode("repair"));
+        }
+        if (ConfigHandler.config.enableAdditionalWorkstations.get()) {
+            registerAdditionalWorkstations(dispatcher);
         }
     }
 
@@ -113,6 +132,9 @@ public final class VirtualWorkstationCommands {
         }
         if (ConfigHandler.config.enableRepairCommand.get()) {
             workstations.then(repairNode("repair"));
+        }
+        if (ConfigHandler.config.enableAdditionalWorkstations.get()) {
+            attachAdditionalWorkstations(workstations);
         }
         sefRoot.then(workstations);
     }
@@ -177,7 +199,7 @@ public final class VirtualWorkstationCommands {
                             ignored -> {
                                 if (!SuperEnchantingMenu.canOpen(player)) {
                                     player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                                            "&cHold one enchantable item in your main hand first."));
+                                            "&cHold an item in your main hand first."));
                                     return 0;
                                 }
                                 return openSuperEnchantingTable(player);
@@ -254,6 +276,119 @@ public final class VirtualWorkstationCommands {
         return 1;
     }
 
+    private static void registerAdditionalWorkstations(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (ConfigHandler.config.enableCartographyTableCommand.get()) {
+            registerAdditional(dispatcher, "cartographytable", "cartographytable",
+                    VirtualWorkstationCommands::openCartographyTable);
+        }
+        if (ConfigHandler.config.enableGrindstoneCommand.get()) {
+            registerAdditional(dispatcher, "grindstone", "grindstone",
+                    VirtualWorkstationCommands::openGrindstone);
+        }
+        if (ConfigHandler.config.enableLoomCommand.get()) {
+            registerAdditional(dispatcher, "loom", "loom", VirtualWorkstationCommands::openLoom);
+        }
+        if (ConfigHandler.config.enableSmithingTableCommand.get()) {
+            registerAdditional(dispatcher, "smithingtable", "smithingtable",
+                    VirtualWorkstationCommands::openSmithingTable);
+        }
+        if (ConfigHandler.config.enableStonecutterCommand.get()) {
+            registerAdditional(dispatcher, "stonecutter", "stonecutter",
+                    VirtualWorkstationCommands::openStonecutter);
+        }
+        if (ConfigHandler.config.enableCraftingTableCommand.get()) {
+            registerAdditional(dispatcher, "workbench", "workbench",
+                    VirtualWorkstationCommands::openCraftingTable);
+            registerAdditional(dispatcher, "wb", "workbench",
+                    VirtualWorkstationCommands::openCraftingTable);
+        }
+    }
+
+    private static void attachAdditionalWorkstations(
+            LiteralArgumentBuilder<CommandSourceStack> workstations
+    ) {
+        if (ConfigHandler.config.enableCartographyTableCommand.get()) {
+            workstations.then(additionalNode("cartographytable", "cartographytable",
+                    VirtualWorkstationCommands::openCartographyTable));
+        }
+        if (ConfigHandler.config.enableGrindstoneCommand.get()) {
+            workstations.then(additionalNode("grindstone", "grindstone",
+                    VirtualWorkstationCommands::openGrindstone));
+        }
+        if (ConfigHandler.config.enableLoomCommand.get()) {
+            workstations.then(additionalNode("loom", "loom", VirtualWorkstationCommands::openLoom));
+        }
+        if (ConfigHandler.config.enableSmithingTableCommand.get()) {
+            workstations.then(additionalNode("smithingtable", "smithingtable",
+                    VirtualWorkstationCommands::openSmithingTable));
+        }
+        if (ConfigHandler.config.enableStonecutterCommand.get()) {
+            workstations.then(additionalNode("stonecutter", "stonecutter",
+                    VirtualWorkstationCommands::openStonecutter));
+        }
+        if (ConfigHandler.config.enableCraftingTableCommand.get()) {
+            workstations.then(additionalNode("workbench", "workbench",
+                    VirtualWorkstationCommands::openCraftingTable));
+        }
+    }
+
+    private static void registerAdditional(
+            CommandDispatcher<CommandSourceStack> dispatcher,
+            String literal,
+            String permission,
+            ToIntFunction<ServerPlayer> action
+    ) {
+        if (KernelServices.shortcuts().isActive(literal)) {
+            dispatcher.register(additionalNode(literal, permission, action));
+        }
+    }
+
+    private static LiteralArgumentBuilder<CommandSourceStack> additionalNode(
+            String literal,
+            String permission,
+            ToIntFunction<ServerPlayer> action
+    ) {
+        PermissionNode<Boolean> use = PermissionsHandler.phasePermission("commands." + permission);
+        PermissionNode<Boolean> bypass =
+                PermissionsHandler.phasePermission("commands.workstation.cooldown.bypass");
+        return menuNode(literal, use, bypass, "sef:workstation." + permission, action);
+    }
+
+    private static int openCartographyTable(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
+                (containerId, inventory, ignored) -> new CartographyTableMenu(containerId, inventory),
+                Component.translatable("container.cartography_table")));
+        return 1;
+    }
+
+    private static int openGrindstone(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
+                (containerId, inventory, ignored) -> new GrindstoneMenu(containerId, inventory),
+                Component.translatable("container.grindstone_title")));
+        return 1;
+    }
+
+    private static int openLoom(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
+                (containerId, inventory, ignored) -> new LoomMenu(containerId, inventory),
+                Component.translatable("container.loom")));
+        return 1;
+    }
+
+    private static int openSmithingTable(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
+                (containerId, inventory, ignored) -> new SmithingMenu(containerId, inventory),
+                Component.translatable("container.upgrade")));
+        return 1;
+    }
+
+    private static int openStonecutter(ServerPlayer player) {
+        player.openMenu(new SimpleMenuProvider(
+                (containerId, inventory, ignored) -> new StonecutterMenu(containerId, inventory),
+                Component.translatable("container.stonecutter")));
+        return 1;
+    }
+
     private static int executeKernelAction(
             CommandSourceStack source,
             ServerPlayer player,
@@ -264,6 +399,14 @@ public final class VirtualWorkstationCommands {
     ) {
         String dimension = player.serverLevel().dimension().location().toString();
         PermissionService.Decision permissionDecision = PermissionService.decide(player, permission);
+        final String quotedCost;
+        try {
+            quotedCost = KernelServices.quoteCommandCost(actionId, Map.of(), List.of()).toPlainString();
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe configured command cost could not be calculated."));
+            return 0;
+        }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
                         SecurityAuditService.currentSessionId(),
@@ -275,6 +418,8 @@ public final class VirtualWorkstationCommands {
                         dimension,
                         permissionDecision.granted(),
                         hasPlayerPermission(player, bypassPermission),
+                        KernelServices.costBypass(source),
+                        false,
                         "",
                         null,
                         null,
@@ -284,7 +429,8 @@ public final class VirtualWorkstationCommands {
                         1L,
                         Map.of(
                                 "permission_provider", permissionDecision.provider(),
-                                "permission_default_use", permissionDecision.defaultUse().name()),
+                                "permission_default_use", permissionDecision.defaultUse().name(),
+                                "quoted_cost", quotedCost),
                         "command"));
         if (!started.successful()) {
             if (started.reason() == ActionResult.ReasonCode.COOLDOWN_ACTIVE) {

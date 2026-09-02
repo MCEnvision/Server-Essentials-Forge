@@ -28,22 +28,45 @@ public final class IdentityService {
     }
 
     public ActionResult<Identity> resolve(String input, ServerPlayer viewer) {
+        return resolve(input, viewer, false);
+    }
+
+    public ActionResult<Identity> resolve(String input, ServerPlayer viewer, boolean includeHidden) {
         String normalized = NicknamePolicy.normalizeIdentity(input);
         if (normalized.isBlank()) {
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "identity is empty");
         }
 
         MinecraftServer server = serverSupplier.get();
+        UUID exactId = uuid(input);
+        if (exactId != null) {
+            ServerPlayer online = server == null ? null : server.getPlayerList().getPlayer(exactId);
+            if (online != null) {
+                if (!includeHidden && viewer != null && VanishUtil.isVanished(online, viewer)) {
+                    return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "identity not found");
+                }
+                return ActionResult.success(fromOnline(
+                        online,
+                        online.getGameProfile().getName(),
+                        nickname(online)));
+            }
+            return profiles.find(exactId)
+                    .<ActionResult<Identity>>map(profile ->
+                            ActionResult.success(fromProfile(profile)))
+                    .orElseGet(() -> ActionResult.failure(
+                            ActionResult.ReasonCode.NOT_FOUND,
+                            "identity not found"));
+        }
         List<Identity> matches = new ArrayList<>();
         java.util.Set<UUID> hiddenOnlinePlayers = new java.util.HashSet<>();
         if (server != null) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                if (viewer != null && VanishUtil.isVanished(player, viewer)) {
+                if (!includeHidden && viewer != null && VanishUtil.isVanished(player, viewer)) {
                     hiddenOnlinePlayers.add(player.getUUID());
                     continue;
                 }
                 String username = player.getGameProfile().getName();
-                String nickname = profiles.find(player.getUUID()).map(PlayerProfileRepository.Profile::nickname).orElse(null);
+                String nickname = nickname(player);
                 if (matches(normalized, username) || matches(normalized, nickname)) {
                     matches.add(fromOnline(player, username, nickname));
                 }
@@ -73,6 +96,44 @@ public final class IdentityService {
             return ActionResult.failure(ActionResult.ReasonCode.AMBIGUOUS, "identity is ambiguous");
         }
         return ActionResult.success(distinct.getFirst());
+    }
+
+    private static UUID uuid(String input) {
+        try {
+            return UUID.fromString(Objects.requireNonNullElse(input, "").trim());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    public List<String> suggestions(ServerPlayer viewer, boolean onlineOnly) {
+        return suggestions(viewer, onlineOnly, false);
+    }
+
+    public List<String> suggestions(ServerPlayer viewer, boolean onlineOnly, boolean includeHidden) {
+        MinecraftServer server = serverSupplier.get();
+        java.util.Set<UUID> hiddenOnlinePlayers = new java.util.HashSet<>();
+        java.util.Set<String> suggestions = new java.util.TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        if (server != null) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (!includeHidden && viewer != null && VanishUtil.isVanished(player, viewer)) {
+                    hiddenOnlinePlayers.add(player.getUUID());
+                    continue;
+                }
+                suggestions.add(player.getGameProfile().getName());
+                addSuggestion(suggestions, nickname(player));
+            }
+        }
+        if (!onlineOnly) {
+            for (PlayerProfileRepository.Profile profile : profiles.snapshot()) {
+                if (hiddenOnlinePlayers.contains(profile.playerId())) {
+                    continue;
+                }
+                addSuggestion(suggestions, profile.authenticatedUsername());
+                addSuggestion(suggestions, profile.nickname());
+            }
+        }
+        return suggestions.stream().limit(1_000).toList();
     }
 
     public Identity synthetic(String username, String prefix, String suffix, String nickname) {
@@ -105,6 +166,21 @@ public final class IdentityService {
                 true);
     }
 
+    private String nickname(ServerPlayer player) {
+        try {
+            if (ServerEssentialsForge.instance != null
+                    && ServerEssentialsForge.instance.nicknameProvider != null) {
+                return ServerEssentialsForge.instance.nicknameProvider.getPlayerNickname(player.getGameProfile());
+            }
+        } catch (RuntimeException | LinkageError exception) {
+            ServerEssentialsForge.LOGGER.warn(
+                    "Could not resolve the active nickname for {}",
+                    player.getGameProfile().getName(),
+                    exception);
+        }
+        return profiles.find(player.getUUID()).map(PlayerProfileRepository.Profile::nickname).orElse(null);
+    }
+
     private Identity fromProfile(PlayerProfileRepository.Profile profile) {
         String visible = profile.nickname() == null || profile.nickname().isBlank()
                 ? profile.authenticatedUsername()
@@ -122,6 +198,13 @@ public final class IdentityService {
 
     private static boolean matches(String normalized, String value) {
         return normalized.equals(NicknamePolicy.normalizeIdentity(NicknamePolicy.stripFormatting(value)));
+    }
+
+    private static void addSuggestion(java.util.Set<String> suggestions, String value) {
+        String stripped = NicknamePolicy.stripFormatting(value);
+        if (stripped != null && !stripped.isBlank()) {
+            suggestions.add(stripped);
+        }
     }
 
     private static String bounded(String value, int maximumLength) {

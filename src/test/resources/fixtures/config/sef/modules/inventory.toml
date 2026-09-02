@@ -1,0 +1,76 @@
+# Controls inventory behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "inventory"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Inventory viewer (/invsee) `true` or `false` Apply class restart_required.
+enable_inv_see = true
+# Inventory, ender chest, disposal, and safe item utility commands `true` or `false` Apply class restart_required.
+enable_inventory_utilities = true
+# Name shown on the glass pane separator for armor section 0 through 8192 characters Apply class live.
+inv_see_armor_label = "&9Armor"
+# Write inventory modification metadata to the structured security audit `true` or `false` Apply class live.
+inv_see_audit_modifications = true
+# Name shown on the glass pane separator for curios section 0 through 8192 characters Apply class live.
+inv_see_curios_label = "&dCurios"
+# Register the SEF route when another mod already owns invsee `true` or `false` Apply class restart_required.
+inv_see_disable_ftb_invsee = true
+# Name shown on the glass pane separator for main inventory section 0 through 8192 characters Apply class live.
+inv_see_main_inv_label = "&aInventory"
+# Name shown on the next page arrow item 0 through 8192 characters Apply class live.
+inv_see_next_page_label = "&eNext Page >>>"
+# Name shown on the glass pane separator for offhand section 0 through 8192 characters Apply class live.
+inv_see_offhand_label = "&6Offhand"
+# Enable the versioned offline player inventory adapter `true` or `false` Apply class live.
+inv_see_offline_enabled = false
+# Maximum retained offline inventory recovery backups per player 1 through 128 Apply class live.
+inv_see_offline_maximum_backups = 16
+# Maximum compressed offline player data file size 64 through 16384 Apply class live.
+inv_see_offline_maximum_file_ki_b = 4096
+# Name shown on the previous page arrow item 0 through 8192 characters Apply class live.
+inv_see_prev_page_label = "&e<<< Previous Page"
+# When true, players cannot move items in the InvSee GUI (view-only mode) `true` or `false` Apply class live.
+inv_see_read_only = false
+# Title of the InvSee GUI. Placeholder: $player 0 through 8192 characters Apply class live.
+inv_see_title = "&e$player's Inventory"

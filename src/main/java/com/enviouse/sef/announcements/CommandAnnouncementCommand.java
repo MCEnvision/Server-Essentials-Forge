@@ -83,10 +83,14 @@ public class CommandAnnouncementCommand {
             CommandSourcePolicy.SERVER,
             ctx.getSource().getTextName(),
             Instant.now().toString());
-        if (!manager.add(announcement)) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cAn announcement with id &e" + id + "&c already exists."));
-            return 0;
+        try {
+            if (!manager.add(announcement)) {
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cAnnouncement data is invalid or id &e" + id + "&c already exists."));
+                return 0;
+            }
+        } catch (IllegalStateException exception) {
+            return storageFailure(ctx, exception);
         }
         String confirm = ConfigHandler.config.announcementConfirmFormat.get()
             .replace("$id", id)
@@ -104,10 +108,14 @@ public class CommandAnnouncementCommand {
                 "&cNo command announcement with id &e" + id));
             return 0;
         }
-        if (!manager.removeCommand(id)) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cNo command announcement with id &e" + id));
-            return 0;
+        try {
+            if (!manager.removeCommand(id)) {
+                ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cNo command announcement with id &e" + id));
+                return 0;
+            }
+        } catch (IllegalStateException exception) {
+            return storageFailure(ctx, exception);
         }
         ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aRemoved announcement: &e" + id), false);
         return 1;
@@ -134,5 +142,14 @@ public class CommandAnnouncementCommand {
             ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
         }
         return 1;
+    }
+
+    private static int storageFailure(
+            CommandContext<CommandSourceStack> context,
+            IllegalStateException exception
+    ) {
+        context.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                "&cAnnouncement change could not be saved. &7" + exception.getMessage()));
+        return 0;
     }
 }

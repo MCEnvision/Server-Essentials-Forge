@@ -118,6 +118,7 @@ public class VanishingHandler {
 
 		updateVanishedPlayerList(player, vanished, level);
 		NeoForge.EVENT_BUS.post(new PlayerVanishEvent(player, vanished, vanished ? level : 0));
+		com.enviouse.sef.gui.protocol.SefGuiRuntime.refreshIdentityProjections(player.server);
 
 		// Playtime integration: pause/resume tracking
 		if (ServerEssentialsForge.playtimeDetected) {

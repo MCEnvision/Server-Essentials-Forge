@@ -1,259 +1,458 @@
 package com.enviouse.sef.config;
 
+import com.enviouse.sef.config.modules.ModuleConfigService;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-public class ConfigHandler {
-	private static final ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
-	public static final ConfigBuilder config = new ConfigBuilder(builder);
-	public static ModConfigSpec spec = builder.build();
+import java.util.List;
 
-    // NOTE (NeoForge 1.21.1 port): the Forge-era reloadFromDisk() forced an on-demand re-read of
-    // config/sef/common.toml via ModConfigSpec#setConfig(CommentedFileConfig). That method does NOT
-    // exist on NeoForge's ModConfigSpec (its only acceptor is acceptConfig(ILoadedConfig), and
-    // ILoadedConfig is a sealed type a mod cannot construct), so an on-demand disk re-read is no
-    // longer supported. NeoForge's FML owns config loading: it watches the file and fires
-    // ModConfigEvent.Reloading on external edits, and the ConfigValue getters always reflect the
-    // currently-loaded config. Reload is therefore driven by ConfigurationEventHandler (which listens
-    // for ModConfigEvent.Loading/Reloading) and /sef reload re-applies the loaded values via
-    // ConfigurationEventHandler.reloadConfigOptions(). See PORTING_NOTES.md (behavior change).
+public class ConfigHandler {
+    private static final ModConfigSpec.Builder bootstrapBuilder = new ModConfigSpec.Builder();
+    public static final ModConfigSpec.BooleanValue modularConfigurationEnabled = bootstrapBuilder
+            .comment("Enables the owned modular configuration platform.")
+            .define("modular_configuration_enabled", true);
+    public static final ModConfigSpec.ConfigValue<String> compatibilityMode = bootstrapBuilder
+            .comment("Selects strict or legacy_read compatibility during migration.")
+            .define(
+                    "compatibility_mode",
+                    "legacy_read",
+                    value -> value instanceof String mode
+                            && List.of("strict", "legacy_read").contains(mode));
+    public static final ModConfigSpec.IntValue maximumModuleFileKiB = bootstrapBuilder
+            .comment("Sets a restart required ceiling below the code hard limit.")
+            .defineInRange("maximum_module_file_kib", 1024, 64, 1024);
+    public static final ModConfigSpec spec = bootstrapBuilder.build();
+
+    private static final RuntimeConfigBuilder runtimeBuilder = new RuntimeConfigBuilder();
+    public static final ConfigBuilder config = new ConfigBuilder(runtimeBuilder);
+    private static final List<RuntimeConfigBindings.Binding> runtimeBindings =
+            RuntimeConfigBindings.inspect(config);
+
+    public static List<RuntimeConfigBindings.Binding> runtimeBindings() {
+        return runtimeBindings;
+    }
+
+    public static void publish(ModuleConfigService service) {
+        RuntimeConfigBindings.publish(runtimeBindings, service);
+        config.enableFancyTags.apply(Boolean.toString(service.enabled("fancy_tags")));
+        config.enableDisguises.apply(Boolean.toString(service.enabled("disguise")));
+    }
 
 	public static class ConfigBuilder {
-		public final ModConfigSpec.ConfigValue<String> playerNameFormat;
-		public final ModConfigSpec.ConfigValue<String> chatMessageFormat;
-		public final ModConfigSpec.ConfigValue<String> chatMessageColor;
-		public final ModConfigSpec.ConfigValue<String> timestampFormat;
-		public final ModConfigSpec.ConfigValue<String> discordBotToken;
+		public final RuntimeConfigValue<String> playerNameFormat;
+		public final RuntimeConfigValue<String> chatMessageFormat;
+		public final RuntimeConfigValue<String> chatMessageColor;
+		public final RuntimeConfigValue<String> timestampFormat;
+		public final RuntimeConfigValue<String> discordBotToken;
 
-		public final ModConfigSpec.ConfigValue<Integer> maximumNicknameLength;
-		public final ModConfigSpec.ConfigValue<Integer> minimumNicknameLength;
-		public final ModConfigSpec.ConfigValue<String> metaJoinSeparator;
-		public final ModConfigSpec.ConfigValue<Integer> maxPrefixesDisplayed;
-		public final ModConfigSpec.ConfigValue<Integer> maxSuffixesDisplayed;
+		public final RuntimeConfigValue<Integer> maximumNicknameLength;
+		public final RuntimeConfigValue<Integer> minimumNicknameLength;
+		public final RuntimeConfigValue<String> metaJoinSeparator;
+		public final RuntimeConfigValue<Integer> maxPrefixesDisplayed;
+		public final RuntimeConfigValue<Integer> maxSuffixesDisplayed;
 
 		// Master module toggles — defined in the [modules] section (see constructor)
-		public final ModConfigSpec.ConfigValue<Boolean> enableVanishSystem;
-		public final ModConfigSpec.ConfigValue<Boolean> enableChatFormatting;
-		public final ModConfigSpec.ConfigValue<Boolean> enableOpBulletin;
+		public final RuntimeConfigValue<Boolean> enableVanishSystem;
+		public final RuntimeConfigValue<Boolean> enableChatFormatting;
+		public final RuntimeConfigValue<Boolean> enableOpBulletin;
 
-		public final ModConfigSpec.ConfigValue<Boolean> enableTimestamp;
-		public final ModConfigSpec.ConfigValue<Boolean> enableFtbEssentials;
-		public final ModConfigSpec.ConfigValue<Boolean> enableLuckPerms;
-		public final ModConfigSpec.ConfigValue<Boolean> enableMarkdown;
-		public final ModConfigSpec.ConfigValue<Boolean> enableColorsCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableTabListIntegration;
-		public final ModConfigSpec.ConfigValue<Boolean> enableMetadataInTabList;
-		public final ModConfigSpec.ConfigValue<Boolean> enableNicknamesInTabList;
-		public final ModConfigSpec.ConfigValue<Boolean> enableWhoisCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableChatNicknameCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> autoEnableChatNicknameCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableDiscordBotIntegration;
-		public final ModConfigSpec.ConfigValue<Boolean> enableCustomTabHeaderFooter;
-		public final ModConfigSpec.ConfigValue<String> tabHeaderFormat;
-		public final ModConfigSpec.ConfigValue<String> tabFooterFormat;
-		public final ModConfigSpec.ConfigValue<Boolean> enableCraftingTableCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableAnvilCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableEnchantingTableCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableSuperEnchantingTableCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableRepairCommand;
-		public final ModConfigSpec.ConfigValue<Boolean> enableCraftAlias;
-		public final ModConfigSpec.ConfigValue<Boolean> enableAnvilAlias;
-		public final ModConfigSpec.ConfigValue<Boolean> enableEnchantingTableAlias;
-		public final ModConfigSpec.ConfigValue<Boolean> enableSuperEnchantingTableAlias;
-		public final ModConfigSpec.ConfigValue<Integer> craftingTableCooldownSeconds;
-		public final ModConfigSpec.ConfigValue<Integer> anvilCooldownSeconds;
-		public final ModConfigSpec.ConfigValue<Integer> enchantingTableCooldownSeconds;
-		public final ModConfigSpec.ConfigValue<Integer> superEnchantingTableCooldownSeconds;
-		public final ModConfigSpec.ConfigValue<Integer> repairCooldownSeconds;
-		public final ModConfigSpec.ConfigValue<Integer> superEnchantingMaxLevel;
-		public final ModConfigSpec.ConfigValue<Boolean> superEnchantingAllowUnsafe;
-		public final ModConfigSpec.ConfigValue<String> workstationCooldownMessage;
-		public final ModConfigSpec.ConfigValue<String> repairSuccessMessage;
-		public final ModConfigSpec.ConfigValue<String> repairNotHeldMessage;
-		public final ModConfigSpec.ConfigValue<String> repairNotNeededMessage;
-		public final ModConfigSpec.ConfigValue<Boolean> enableAnnouncements;
-		public final ModConfigSpec.ConfigValue<Integer> announcementIntervalSeconds;
-		public final ModConfigSpec.ConfigValue<Boolean> announcementUseRandomOrder;
-		public final ModConfigSpec.ConfigValue<Boolean> enableCommandAnnouncements;
-		public final ModConfigSpec.ConfigValue<String> commandAnnouncementAllowedCommands;
-		public final ModConfigSpec.ConfigValue<String> commandAnnouncementDeniedCommands;
-		public final ModConfigSpec.ConfigValue<Integer> commandAnnouncementMaximumCommandLength;
-		public final ModConfigSpec.ConfigValue<Boolean> commandAnnouncementAllowLeadingSlash;
-		public final ModConfigSpec.ConfigValue<Boolean> commandAnnouncementAllowSelectors;
-		public final ModConfigSpec.ConfigValue<Boolean> enableFilterSystem;
-		public final ModConfigSpec.ConfigValue<Boolean> enableMessagingSystem;
-		public final ModConfigSpec.ConfigValue<Boolean> enableChatReplies;
-		public final ModConfigSpec.ConfigValue<Integer> replySummaryLength;
-		public final ModConfigSpec.ConfigValue<Boolean> enableHelpOp;
-		public final ModConfigSpec.ConfigValue<Boolean> enableAdminChat;
-		public final ModConfigSpec.ConfigValue<Boolean> enableBannedItems;
-		public final ModConfigSpec.ConfigValue<Boolean> enableBannedBlockScanning;
-		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanRadius;
-		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanInterval;
-		public final ModConfigSpec.ConfigValue<Integer> bannedInventoryScanInterval;
-		public final ModConfigSpec.ConfigValue<Integer> bannedBlockScanBudget;
-		public final ModConfigSpec.ConfigValue<String> bannedItemRemovedMsg;
-		public final ModConfigSpec.ConfigValue<String> bannedAnnounceFormat;
-		public final ModConfigSpec.ConfigValue<Boolean> enableCountdown;
-		public final ModConfigSpec.ConfigValue<String> countdownTitleFormat;
-		public final ModConfigSpec.ConfigValue<String> countdownSubtitleFormat;
-		public final ModConfigSpec.ConfigValue<String> countdownChatFormat;
-		public final ModConfigSpec.ConfigValue<Boolean> enableMotdSystem;
-		public final ModConfigSpec.ConfigValue<Boolean> applyMotdOnStartup;
+		public final RuntimeConfigValue<Boolean> enableTimestamp;
+		public final RuntimeConfigValue<Boolean> enableFtbEssentials;
+		public final RuntimeConfigValue<Boolean> enableLuckPerms;
+		public final RuntimeConfigValue<Boolean> enableMarkdown;
+		public final RuntimeConfigValue<Boolean> enableColorsCommand;
+		public final RuntimeConfigValue<Boolean> enableTabListIntegration;
+		public final RuntimeConfigValue<Boolean> enableMetadataInTabList;
+		public final RuntimeConfigValue<Boolean> enableNicknamesInTabList;
+		public final RuntimeConfigValue<Boolean> enableWhoisCommand;
+		public final RuntimeConfigValue<Boolean> enableChatNicknameCommand;
+		public final RuntimeConfigValue<Boolean> autoEnableChatNicknameCommand;
+		public final RuntimeConfigValue<Boolean> enableDiscordBotIntegration;
+		public final RuntimeConfigValue<Boolean> enableCustomTabHeaderFooter;
+		public final RuntimeConfigValue<String> tabHeaderFormat;
+		public final RuntimeConfigValue<String> tabFooterFormat;
+		public final RuntimeConfigValue<Boolean> enableCraftingTableCommand;
+		public final RuntimeConfigValue<Boolean> enableAnvilCommand;
+		public final RuntimeConfigValue<Boolean> enableEnchantingTableCommand;
+		public final RuntimeConfigValue<Boolean> enableSuperEnchantingTableCommand;
+		public final RuntimeConfigValue<Boolean> enableRepairCommand;
+		public final RuntimeConfigValue<Boolean> enableCraftAlias;
+		public final RuntimeConfigValue<Boolean> enableAnvilAlias;
+		public final RuntimeConfigValue<Boolean> enableEnchantingTableAlias;
+		public final RuntimeConfigValue<Boolean> enableSuperEnchantingTableAlias;
+		public final RuntimeConfigValue<Integer> superEnchantingMaxLevel;
+		public final RuntimeConfigValue<Integer> superEnchantingMinLevel;
+		public final RuntimeConfigValue<Boolean> superEnchantingAllowUnsafe;
+		public final RuntimeConfigValue<Boolean> enableAdministrativeEnchanting;
+		public final RuntimeConfigValue<String> workstationCooldownMessage;
+		public final RuntimeConfigValue<String> repairSuccessMessage;
+		public final RuntimeConfigValue<String> repairNotHeldMessage;
+		public final RuntimeConfigValue<String> repairNotNeededMessage;
+		public final RuntimeConfigValue<Boolean> enableAnnouncements;
+		public final RuntimeConfigValue<Integer> announcementIntervalSeconds;
+		public final RuntimeConfigValue<Boolean> announcementUseRandomOrder;
+		public final RuntimeConfigValue<Boolean> enableCommandAnnouncements;
+		public final RuntimeConfigValue<String> commandAnnouncementAllowedCommands;
+		public final RuntimeConfigValue<String> commandAnnouncementDeniedCommands;
+		public final RuntimeConfigValue<Integer> commandAnnouncementMaximumCommandLength;
+		public final RuntimeConfigValue<Boolean> commandAnnouncementAllowLeadingSlash;
+		public final RuntimeConfigValue<Boolean> commandAnnouncementAllowSelectors;
+		public final RuntimeConfigValue<Boolean> enableFilterSystem;
+		public final RuntimeConfigValue<Boolean> enableMessagingSystem;
+		public final RuntimeConfigValue<Boolean> enableChatReplies;
+		public final RuntimeConfigValue<Integer> replySummaryLength;
+		public final RuntimeConfigValue<Boolean> enableHelpOp;
+		public final RuntimeConfigValue<Boolean> enableAdminChat;
+		public final RuntimeConfigValue<Boolean> enableBannedItems;
+		public final RuntimeConfigValue<Boolean> enableBannedBlockScanning;
+		public final RuntimeConfigValue<Integer> bannedBlockScanRadius;
+		public final RuntimeConfigValue<Integer> bannedBlockScanInterval;
+		public final RuntimeConfigValue<Integer> bannedInventoryScanInterval;
+		public final RuntimeConfigValue<Integer> bannedBlockScanBudget;
+		public final RuntimeConfigValue<String> bannedItemRemovedMsg;
+		public final RuntimeConfigValue<String> bannedAnnounceFormat;
+		public final RuntimeConfigValue<Boolean> enableCountdown;
+		public final RuntimeConfigValue<String> countdownTitleFormat;
+		public final RuntimeConfigValue<String> countdownSubtitleFormat;
+		public final RuntimeConfigValue<String> countdownChatFormat;
+		public final RuntimeConfigValue<Boolean> enableMotdSystem;
+		public final RuntimeConfigValue<Boolean> applyMotdOnStartup;
 
 		// FTB Mute Integration
-		public final ModConfigSpec.ConfigValue<Boolean> enableFtbMuteIntegration;
-		public final ModConfigSpec.ConfigValue<String> mutedPlayerMessage;
-		public final ModConfigSpec.ConfigValue<String> mutedMessageOpFormat;
-		public final ModConfigSpec.ConfigValue<Boolean> sendMutedMessageToOps;
+		public final RuntimeConfigValue<Boolean> enableFtbMuteIntegration;
+		public final RuntimeConfigValue<String> mutedPlayerMessage;
+		public final RuntimeConfigValue<String> mutedMessageOpFormat;
+		public final RuntimeConfigValue<Boolean> sendMutedMessageToOps;
 
 		// Persistent Mute System
-		public final ModConfigSpec.ConfigValue<Boolean> enableMuteSystem;
-		public final ModConfigSpec.ConfigValue<String> muteNotifyPlayerFormat;
-		public final ModConfigSpec.ConfigValue<String> muteAdminNotifyFormat;
-		public final ModConfigSpec.ConfigValue<String> unmuteNotifyPlayerFormat;
-		public final ModConfigSpec.ConfigValue<String> unmuteAdminNotifyFormat;
-		public final ModConfigSpec.ConfigValue<String> muteConfirmFormat;
-		public final ModConfigSpec.ConfigValue<String> unmuteConfirmFormat;
-		public final ModConfigSpec.ConfigValue<String> muteAlreadyMutedMsg;
-		public final ModConfigSpec.ConfigValue<String> muteNotMutedMsg;
-		public final ModConfigSpec.ConfigValue<String> muteListHeaderFormat;
-		public final ModConfigSpec.ConfigValue<String> muteListEntryFormat;
-		public final ModConfigSpec.ConfigValue<String> muteListEmptyMsg;
-		public final ModConfigSpec.ConfigValue<String> mutedPlayerChatMsg;
-		public final ModConfigSpec.ConfigValue<String> mutedPlayerChatMsgWithRemaining;
+		public final RuntimeConfigValue<Boolean> enableMuteSystem;
+		public final RuntimeConfigValue<String> muteNotifyPlayerFormat;
+		public final RuntimeConfigValue<String> muteAdminNotifyFormat;
+		public final RuntimeConfigValue<String> unmuteNotifyPlayerFormat;
+		public final RuntimeConfigValue<String> unmuteAdminNotifyFormat;
+		public final RuntimeConfigValue<String> muteConfirmFormat;
+		public final RuntimeConfigValue<String> unmuteConfirmFormat;
+		public final RuntimeConfigValue<String> muteAlreadyMutedMsg;
+		public final RuntimeConfigValue<String> muteNotMutedMsg;
+		public final RuntimeConfigValue<String> muteListHeaderFormat;
+		public final RuntimeConfigValue<String> muteListEntryFormat;
+		public final RuntimeConfigValue<String> muteListEmptyMsg;
+		public final RuntimeConfigValue<String> mutedPlayerChatMsg;
+		public final RuntimeConfigValue<String> mutedPlayerChatMsgWithRemaining;
 
 		// InvSee System
-		public final ModConfigSpec.ConfigValue<Boolean> enableInvSee;
-		public final ModConfigSpec.ConfigValue<Boolean> invSeeDisableFtbInvsee;
-		public final ModConfigSpec.ConfigValue<String> invSeeTitle;
-		public final ModConfigSpec.ConfigValue<String> invSeeArmorLabel;
-		public final ModConfigSpec.ConfigValue<String> invSeeOffhandLabel;
-		public final ModConfigSpec.ConfigValue<String> invSeeCuriosLabel;
-		public final ModConfigSpec.ConfigValue<String> invSeeMainInvLabel;
-		public final ModConfigSpec.ConfigValue<String> invSeeNextPageLabel;
-		public final ModConfigSpec.ConfigValue<String> invSeePrevPageLabel;
-		public final ModConfigSpec.ConfigValue<Boolean> invSeeReadOnly;
-		public final ModConfigSpec.ConfigValue<Boolean> invSeeAuditModifications;
+		public final RuntimeConfigValue<Boolean> enableInvSee;
+		public final RuntimeConfigValue<Boolean> invSeeDisableFtbInvsee;
+		public final RuntimeConfigValue<String> invSeeTitle;
+		public final RuntimeConfigValue<String> invSeeArmorLabel;
+		public final RuntimeConfigValue<String> invSeeOffhandLabel;
+		public final RuntimeConfigValue<String> invSeeCuriosLabel;
+		public final RuntimeConfigValue<String> invSeeMainInvLabel;
+		public final RuntimeConfigValue<String> invSeeNextPageLabel;
+		public final RuntimeConfigValue<String> invSeePrevPageLabel;
+		public final RuntimeConfigValue<Boolean> invSeeReadOnly;
+		public final RuntimeConfigValue<Boolean> invSeeAuditModifications;
+		public final RuntimeConfigValue<Boolean> invSeeOfflineEnabled;
+		public final RuntimeConfigValue<Integer> invSeeOfflineMaximumFileKiB;
+		public final RuntimeConfigValue<Integer> invSeeOfflineMaximumBackups;
 
 		// Clear Chat System
-		public final ModConfigSpec.ConfigValue<Boolean> enableClearChat;
-		public final ModConfigSpec.ConfigValue<Integer> clearChatLineCount;
-		public final ModConfigSpec.ConfigValue<String> clearChatSuccessMsg;
-		public final ModConfigSpec.ConfigValue<String> clearChatAllSuccessMsg;
-		public final ModConfigSpec.ConfigValue<String> clearChatSelfMsg;
+		public final RuntimeConfigValue<Boolean> enableClearChat;
+		public final RuntimeConfigValue<Integer> clearChatLineCount;
+		public final RuntimeConfigValue<String> clearChatSuccessMsg;
+		public final RuntimeConfigValue<String> clearChatAllSuccessMsg;
+		public final RuntimeConfigValue<String> clearChatSelfMsg;
 
 		// Sudo System
-		public final ModConfigSpec.ConfigValue<Boolean> enableSudo;
-		public final ModConfigSpec.ConfigValue<String> sudoExecutedMsg;
-		public final ModConfigSpec.ConfigValue<String> sudoNotifyMsg;
-		public final ModConfigSpec.ConfigValue<String> sudoAllowedCommands;
-		public final ModConfigSpec.ConfigValue<String> sudoDeniedCommands;
-		public final ModConfigSpec.ConfigValue<Boolean> sudoNotifyTarget;
-		public final ModConfigSpec.ConfigValue<Integer> sudoMaximumCommandLength;
+		public final RuntimeConfigValue<Boolean> enableSudo;
+		public final RuntimeConfigValue<String> sudoExecutedMsg;
+		public final RuntimeConfigValue<String> sudoNotifyMsg;
+		public final RuntimeConfigValue<String> sudoAllowedCommands;
+		public final RuntimeConfigValue<String> sudoDeniedCommands;
+		public final RuntimeConfigValue<Boolean> sudoNotifyTarget;
+		public final RuntimeConfigValue<Integer> sudoMaximumCommandLength;
+		public final RuntimeConfigValue<String> runAllowedCommands;
+		public final RuntimeConfigValue<String> runDeniedCommands;
+		public final RuntimeConfigValue<String> silentActorAllowedCommands;
+		public final RuntimeConfigValue<String> silentActorDeniedCommands;
+		public final RuntimeConfigValue<String> fakeChatFormat;
+		public final RuntimeConfigValue<String> fakeJoinFormat;
+		public final RuntimeConfigValue<String> fakeLeaveFormat;
+		public final RuntimeConfigValue<Integer> fakeMaximumMessageLength;
 
 		// Inventory Lock System
-		public final ModConfigSpec.ConfigValue<Boolean> enableInvLock;
-		public final ModConfigSpec.ConfigValue<String> invLockLockedMsg;
-		public final ModConfigSpec.ConfigValue<String> invLockUnlockedMsg;
-		public final ModConfigSpec.ConfigValue<String> invLockAdminLockMsg;
-		public final ModConfigSpec.ConfigValue<String> invLockAdminUnlockMsg;
-		public final ModConfigSpec.ConfigValue<String> invLockBlockedMsg;
+		public final RuntimeConfigValue<Boolean> enableInvLock;
+		public final RuntimeConfigValue<String> invLockLockedMsg;
+		public final RuntimeConfigValue<String> invLockUnlockedMsg;
+		public final RuntimeConfigValue<String> invLockAdminLockMsg;
+		public final RuntimeConfigValue<String> invLockAdminUnlockMsg;
+		public final RuntimeConfigValue<String> invLockBlockedMsg;
 
 		// Disable Building System
-		public final ModConfigSpec.ConfigValue<Boolean> enableDisableBuilding;
-		public final ModConfigSpec.ConfigValue<String> dbEnabledMsg;
-		public final ModConfigSpec.ConfigValue<String> dbDisabledMsg;
-		public final ModConfigSpec.ConfigValue<String> dbPlayerNotifyMsg;
-		public final ModConfigSpec.ConfigValue<String> dbBlockedMsg;
+		public final RuntimeConfigValue<Boolean> enableDisableBuilding;
+		public final RuntimeConfigValue<String> dbEnabledMsg;
+		public final RuntimeConfigValue<String> dbDisabledMsg;
+		public final RuntimeConfigValue<String> dbPlayerNotifyMsg;
+		public final RuntimeConfigValue<String> dbBlockedMsg;
 
 		// Check Alts System
-		public final ModConfigSpec.ConfigValue<Boolean> enableCheckAlts;
-		public final ModConfigSpec.ConfigValue<String> checkAltsHeaderFormat;
-		public final ModConfigSpec.ConfigValue<String> checkAltsEntryFormat;
-		public final ModConfigSpec.ConfigValue<String> checkAltsNoAltsMsg;
-		public final ModConfigSpec.ConfigValue<Boolean> altTrackingCollectAddresses;
-		public final ModConfigSpec.ConfigValue<Integer> altTrackingRetentionDays;
-		public final ModConfigSpec.ConfigValue<Boolean> altTrackingHashAddresses;
+		public final RuntimeConfigValue<Boolean> enableCheckAlts;
+		public final RuntimeConfigValue<String> checkAltsHeaderFormat;
+		public final RuntimeConfigValue<String> checkAltsEntryFormat;
+		public final RuntimeConfigValue<String> checkAltsNoAltsMsg;
+		public final RuntimeConfigValue<Boolean> altTrackingCollectAddresses;
+		public final RuntimeConfigValue<Integer> altTrackingRetentionDays;
+		public final RuntimeConfigValue<Boolean> altTrackingHashAddresses;
 
-		public final ModConfigSpec.ConfigValue<Boolean> nicknameUniqueOnline;
-		public final ModConfigSpec.ConfigValue<Boolean> nicknameUniqueKnownProfiles;
-		public final ModConfigSpec.ConfigValue<Boolean> nicknameAllowDuplicateWithUsernameHover;
+		public final RuntimeConfigValue<Boolean> nicknameUniqueOnline;
+		public final RuntimeConfigValue<Boolean> nicknameUniqueKnownProfiles;
+		public final RuntimeConfigValue<Boolean> nicknameAllowDuplicateWithUsernameHover;
 
-		public final ModConfigSpec.ConfigValue<Integer> tabUpdateIntervalTicks;
-		public final ModConfigSpec.ConfigValue<Integer> securityAuditRetentionDays;
-		public final ModConfigSpec.ConfigValue<Integer> securityAuditMaximumFileMiB;
-		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumAliases;
-		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumBundleSteps;
-		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumBundleDepth;
-		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargets;
-		public final ModConfigSpec.ConfigValue<Integer> kernelMaximumTargetSteps;
-		public final ModConfigSpec.ConfigValue<Integer> kernelLocationHistoryEntries;
-		public final ModConfigSpec.ConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
+		public final RuntimeConfigValue<Integer> tabUpdateIntervalTicks;
+		public final RuntimeConfigValue<Integer> securityAuditRetentionDays;
+		public final RuntimeConfigValue<Integer> securityAuditMaximumFileMiB;
+		public final RuntimeConfigValue<Integer> kernelMaximumAliases;
+		public final RuntimeConfigValue<Integer> kernelMaximumBundleSteps;
+		public final RuntimeConfigValue<Integer> kernelMaximumBundleDepth;
+		public final RuntimeConfigValue<Integer> kernelMaximumTargets;
+		public final RuntimeConfigValue<Integer> kernelMaximumTargetSteps;
+		public final RuntimeConfigValue<Integer> kernelLocationHistoryEntries;
+		public final RuntimeConfigValue<Integer> kernelPersistentCooldownMinimumSeconds;
+		public final RuntimeConfigValue<Integer> kernelRepositoryFlushSeconds;
+		public final RuntimeConfigValue<Boolean> enableEnhancedGui;
+		public final RuntimeConfigValue<Boolean> guiReminderEnabled;
+		public final RuntimeConfigValue<Integer> guiReminderDelaySeconds;
+		public final RuntimeConfigValue<Integer> guiReminderFrequencyHours;
+		public final RuntimeConfigValue<String> guiReminderAudience;
+		public final RuntimeConfigValue<Integer> guiReminderRevision;
+		public final RuntimeConfigValue<Integer> guiPanelSessionSeconds;
+		public final RuntimeConfigValue<Integer> guiPanelRequestsPerSecond;
+		public final RuntimeConfigValue<Integer> guiMaximumPanelEntries;
+		public final RuntimeConfigValue<Boolean> fancyTagsPrototypeEnabled;
+		public final RuntimeConfigValue<Integer> fancyTagsPrototypeMaximumBytes;
+		public final RuntimeConfigValue<Boolean> enableFancyTags;
+		public final RuntimeConfigValue<Boolean> fancyTagsEnhancedRendering;
+		public final RuntimeConfigValue<Boolean> fancyTagsServerInboxEnabled;
+		public final RuntimeConfigValue<Boolean> fancyTagsAllowLocalOverlaysConnected;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumTags;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumCategories;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumAssignments;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumAssignmentsPerTarget;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumRevisionsPerTag;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumWidth;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumHeight;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumPixels;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumEncodedBytes;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumDecodedBytes;
+		public final RuntimeConfigValue<Long> fancyTagsMaximumStoreBytes;
+		public final RuntimeConfigValue<Integer> fancyTagsImportSettleSeconds;
+		public final RuntimeConfigValue<Integer> fancyTagsMaximumImportCandidates;
+		public final RuntimeConfigValue<Boolean> enableDisguises;
+		public final RuntimeConfigValue<Boolean> disguiseTraitsEnabled;
+		public final RuntimeConfigValue<Boolean> disguiseAbilitiesEnabled;
+		public final RuntimeConfigValue<Boolean> disguiseSoundsEnabled;
+		public final RuntimeConfigValue<Boolean> disguiseVanillaProxyEnabled;
+		public final RuntimeConfigValue<Boolean> disguiseClearOnLogout;
+		public final RuntimeConfigValue<Boolean> disguiseClearOnDeath;
+		public final RuntimeConfigValue<Integer> disguiseMaximumActive;
+		public final RuntimeConfigValue<Double> disguiseBlazeFireballDamage;
+		public final RuntimeConfigValue<Integer> disguiseBlazeFireSeconds;
+		public final RuntimeConfigValue<Boolean> disguiseBlazeAllowPvp;
+		public final RuntimeConfigValue<Integer> disguiseBlazeMaximumRange;
+		public final RuntimeConfigValue<Boolean> enableTeleportEssentials;
+		public final RuntimeConfigValue<Boolean> enableHomes;
+		public final RuntimeConfigValue<Boolean> enableTeleportRequests;
+		public final RuntimeConfigValue<Boolean> enableBack;
+		public final RuntimeConfigValue<Boolean> enableSpawnCommands;
+		public final RuntimeConfigValue<Boolean> enableServerWarps;
+		public final RuntimeConfigValue<Boolean> enablePlayerWarps;
+		public final RuntimeConfigValue<Boolean> enableRandomTeleport;
+		public final RuntimeConfigValue<Boolean> enableDirectTeleport;
+		public final RuntimeConfigValue<Boolean> ownVanillaTeleportRoot;
+		public final RuntimeConfigValue<String> defaultHomeName;
+		public final RuntimeConfigValue<Integer> defaultHomeLimit;
+		public final RuntimeConfigValue<Integer> defaultPlayerWarpLimit;
+		public final RuntimeConfigValue<Integer> defaultHomePerDimensionLimit;
+		public final RuntimeConfigValue<Integer> teleportWarmupSeconds;
+		public final RuntimeConfigValue<Boolean> teleportCancelOnMovement;
+		public final RuntimeConfigValue<Boolean> teleportCancelOnDamage;
+		public final RuntimeConfigValue<Boolean> teleportAllowInCombat;
+		public final RuntimeConfigValue<Boolean> teleportAllowNetherRoof;
+		public final RuntimeConfigValue<Boolean> teleportAllowHazards;
+		public final RuntimeConfigValue<Integer> teleportSafeSearchRadius;
+		public final RuntimeConfigValue<Integer> teleportMaximumSafeChecks;
+		public final RuntimeConfigValue<Integer> teleportMaximumChunks;
+		public final RuntimeConfigValue<Integer> teleportInvulnerabilityTicks;
+		public final RuntimeConfigValue<Integer> teleportRequestExpirySeconds;
+		public final RuntimeConfigValue<Integer> teleportMaximumPendingRequests;
+		public final RuntimeConfigValue<Integer> playerWarpTransferExpirySeconds;
+		public final RuntimeConfigValue<Integer> randomTeleportMinimumRadius;
+		public final RuntimeConfigValue<Integer> randomTeleportMaximumRadius;
+		public final RuntimeConfigValue<Integer> randomTeleportMaximumAttempts;
+		public final RuntimeConfigValue<String> randomTeleportAllowedDimensions;
+		public final RuntimeConfigValue<String> teleportOwnershipMode;
+		public final RuntimeConfigValue<Double> teleportCost;
+		public final RuntimeConfigValue<String> disabledTeleportActions;
+		public final RuntimeConfigValue<Boolean> enableSocialEssentials;
+		public final RuntimeConfigValue<Boolean> enableSocialSpy;
+		public final RuntimeConfigValue<Boolean> enableMail;
+		public final RuntimeConfigValue<Boolean> enableConnectionMessages;
+		public final RuntimeConfigValue<Boolean> enableReminders;
+		public final RuntimeConfigValue<Boolean> enableCustomText;
+		public final RuntimeConfigValue<Boolean> enableModerationEssentials;
+		public final RuntimeConfigValue<Boolean> enableCommandSpy;
+		public final RuntimeConfigValue<Boolean> enableJails;
+		public final RuntimeConfigValue<Boolean> enableAdditionalWorkstations;
+		public final RuntimeConfigValue<Boolean> enableKits;
+		public final RuntimeConfigValue<Boolean> enableInventoryUtilities;
+		public final RuntimeConfigValue<Boolean> enablePlayerUtilities;
+		public final RuntimeConfigValue<Boolean> enableGamemodeShortcuts;
+		public final RuntimeConfigValue<Boolean> enableItemShortcut;
+		public final RuntimeConfigValue<Boolean> enableEconomy;
+		public final RuntimeConfigValue<Boolean> enableEconomySigns;
+		public final RuntimeConfigValue<String> socialSpyFormat;
+		public final RuntimeConfigValue<Integer> socialSpyRecentLimit;
+		public final RuntimeConfigValue<Integer> socialSpyEventsPerSecond;
+		public final RuntimeConfigValue<Integer> privateMessageMaximumLength;
+		public final RuntimeConfigValue<Integer> mailMaximumLength;
+		public final RuntimeConfigValue<Integer> mailRetentionDays;
+		public final RuntimeConfigValue<String> defaultJoinMessage;
+		public final RuntimeConfigValue<String> defaultLeaveMessage;
+		public final RuntimeConfigValue<String> optionalClientReminder;
+
+		// Moderation, observation, and optional file logging
+		public final RuntimeConfigValue<Integer> moderationMaximumReasonLength;
+		public final RuntimeConfigValue<Integer> moderationMaximumMassTargets;
+		public final RuntimeConfigValue<String> moderationDefaultKickReason;
+		public final RuntimeConfigValue<String> moderationAddressProvider;
+		public final RuntimeConfigValue<Boolean> moderationAllowLiteralPlayerAddresses;
+		public final RuntimeConfigValue<Boolean> moderationAllowLiteralConsoleAddresses;
+		public final RuntimeConfigValue<Integer> moderationSharedAddressHardCap;
+		public final RuntimeConfigValue<Integer> moderationConfirmationSeconds;
+		public final RuntimeConfigValue<Boolean> moderationFailOnSharedProxy;
+		public final RuntimeConfigValue<Integer> commandSpyRecentLimit;
+		public final RuntimeConfigValue<Integer> commandSpySelectedLimit;
+		public final RuntimeConfigValue<Integer> commandSpyEventsPerSecond;
+		public final RuntimeConfigValue<Boolean> fileLoggingEnabled;
+		public final RuntimeConfigValue<Boolean> fileLoggingConnectionEvents;
+		public final RuntimeConfigValue<Boolean> fileLoggingTextMirror;
+		public final RuntimeConfigValue<Integer> fileLoggingQueueCapacity;
+		public final RuntimeConfigValue<Integer> fileLoggingBatchRecords;
+		public final RuntimeConfigValue<Integer> fileLoggingFlushIntervalMillis;
+		public final RuntimeConfigValue<Integer> fileLoggingMaximumRecordBytes;
+		public final RuntimeConfigValue<Integer> fileLoggingMaximumFileMiB;
+		public final RuntimeConfigValue<Integer> fileLoggingMaximumFileAgeHours;
+		public final RuntimeConfigValue<Integer> fileLoggingRetentionDays;
+		public final RuntimeConfigValue<Integer> fileLoggingMaximumArchives;
+		public final RuntimeConfigValue<Integer> fileLoggingMaximumTotalMiB;
+		public final RuntimeConfigValue<Integer> fileLoggingShutdownTimeoutSeconds;
+
+		// Phase 7 inventory and player utilities
+		public final RuntimeConfigValue<Boolean> enableCartographyTableCommand;
+		public final RuntimeConfigValue<Boolean> enableGrindstoneCommand;
+		public final RuntimeConfigValue<Boolean> enableLoomCommand;
+		public final RuntimeConfigValue<Boolean> enableSmithingTableCommand;
+		public final RuntimeConfigValue<Boolean> enableStonecutterCommand;
+		public final RuntimeConfigValue<Integer> itemGiveMaximumAmount;
+		public final RuntimeConfigValue<Integer> maximumKits;
+		public final RuntimeConfigValue<Integer> maximumKitItems;
+		public final RuntimeConfigValue<Integer> maximumKitUsesPerPlayer;
+		public final RuntimeConfigValue<Boolean> kitDropOverflow;
+		public final RuntimeConfigValue<Boolean> kitRequirePerKitPermission;
+		public final RuntimeConfigValue<Boolean> enableSuicideCommand;
+		public final RuntimeConfigValue<Double> maximumFlySpeed;
+		public final RuntimeConfigValue<Double> maximumWalkSpeed;
+
+		// Phase 8 economy
+		public final RuntimeConfigValue<String> economyProviderMode;
+		public final RuntimeConfigValue<String> economyExternalProvider;
+		public final RuntimeConfigValue<String> economyCurrency;
+		public final RuntimeConfigValue<String> economyCurrencySymbol;
+		public final RuntimeConfigValue<Integer> economyMinorUnits;
+		public final RuntimeConfigValue<Long> economyDefaultBalance;
+		public final RuntimeConfigValue<Long> economyMinimumBalance;
+		public final RuntimeConfigValue<Long> economyMaximumBalance;
+		public final RuntimeConfigValue<Long> economyMaximumTransaction;
+		public final RuntimeConfigValue<Integer> economyMaximumAccounts;
+		public final RuntimeConfigValue<Integer> economyMaximumLedgerEntries;
+		public final RuntimeConfigValue<Integer> economyMaximumPendingCosts;
+		public final RuntimeConfigValue<Integer> economyMaximumWorthEntries;
+		public final RuntimeConfigValue<Boolean> economyAllowOfflinePayments;
+		public final RuntimeConfigValue<Boolean> economyAllowSelfPayments;
+		public final RuntimeConfigValue<Long> economyConfirmationThreshold;
+		public final RuntimeConfigValue<Integer> economyBalanceTopPageSize;
+		public final RuntimeConfigValue<Integer> economyHistoryPageSize;
+		public final RuntimeConfigValue<Integer> economyMaximumImportAccounts;
+		public final RuntimeConfigValue<Integer> economyMaximumSigns;
+		public final RuntimeConfigValue<Integer> economySignClaimSeconds;
+		public final RuntimeConfigValue<Integer> economySignMaximumQuantity;
+		public final RuntimeConfigValue<Long> economySignMaximumValue;
+		public final RuntimeConfigValue<String> economyEnabledSignTypes;
+		public final RuntimeConfigValue<String> economyCommandCosts;
 
 		// Warn System
-		public final ModConfigSpec.ConfigValue<Boolean> enableWarnSystem;
-		public final ModConfigSpec.ConfigValue<String> warnAddedMsg;
-		public final ModConfigSpec.ConfigValue<String> warnRemovedMsg;
-		public final ModConfigSpec.ConfigValue<String> warnListHeaderFormat;
-		public final ModConfigSpec.ConfigValue<String> warnEntryFormat;
-		public final ModConfigSpec.ConfigValue<String> warnExpiredTag;
-		public final ModConfigSpec.ConfigValue<String> warnNoWarnsMsg;
-		public final ModConfigSpec.ConfigValue<String> warnNotifyPlayerMsg;
-		public final ModConfigSpec.ConfigValue<Boolean> warnPlaySound;
+		public final RuntimeConfigValue<Boolean> enableWarnSystem;
+		public final RuntimeConfigValue<String> warnAddedMsg;
+		public final RuntimeConfigValue<String> warnRemovedMsg;
+		public final RuntimeConfigValue<String> warnListHeaderFormat;
+		public final RuntimeConfigValue<String> warnEntryFormat;
+		public final RuntimeConfigValue<String> warnExpiredTag;
+		public final RuntimeConfigValue<String> warnNoWarnsMsg;
+		public final RuntimeConfigValue<String> warnNotifyPlayerMsg;
+		public final RuntimeConfigValue<Boolean> warnPlaySound;
 
 		// Freeze System
-		public final ModConfigSpec.ConfigValue<Boolean> enableFreezeSystem;
-		public final ModConfigSpec.ConfigValue<String> freezeMessageToPlayer;
-		public final ModConfigSpec.ConfigValue<String> freezeReasonFormat;
-		public final ModConfigSpec.ConfigValue<String> freezeReminderFormat;
-		public final ModConfigSpec.ConfigValue<Integer> freezeReminderIntervalSeconds;
-		public final ModConfigSpec.ConfigValue<String> freezeAdminNotifyFormat;
-		public final ModConfigSpec.ConfigValue<String> unfreezeMessageToPlayer;
-		public final ModConfigSpec.ConfigValue<String> unfreezeAdminNotifyFormat;
-		public final ModConfigSpec.ConfigValue<String> freezeCommandBlockedMsg;
-		public final ModConfigSpec.ConfigValue<String> freezeActionBlockedMsg;
-		public final ModConfigSpec.ConfigValue<Boolean> freezePlaySound;
-		public final ModConfigSpec.ConfigValue<Boolean> freezeAllowChat;
+		public final RuntimeConfigValue<Boolean> enableFreezeSystem;
+		public final RuntimeConfigValue<String> freezeMessageToPlayer;
+		public final RuntimeConfigValue<String> freezeReasonFormat;
+		public final RuntimeConfigValue<String> freezeReminderFormat;
+		public final RuntimeConfigValue<Integer> freezeReminderIntervalSeconds;
+		public final RuntimeConfigValue<String> freezeAdminNotifyFormat;
+		public final RuntimeConfigValue<String> unfreezeMessageToPlayer;
+		public final RuntimeConfigValue<String> unfreezeAdminNotifyFormat;
+		public final RuntimeConfigValue<String> freezeCommandBlockedMsg;
+		public final RuntimeConfigValue<String> freezeActionBlockedMsg;
+		public final RuntimeConfigValue<Boolean> freezePlaySound;
+		public final RuntimeConfigValue<Boolean> freezeAllowChat;
 
 		// Message Format Options
-		public final ModConfigSpec.ConfigValue<String> msgSentFormat;
-		public final ModConfigSpec.ConfigValue<String> msgReceivedFormat;
-		public final ModConfigSpec.ConfigValue<String> replyHeaderFormat;
-		public final ModConfigSpec.ConfigValue<String> replyBodyFormat;
-		public final ModConfigSpec.ConfigValue<String> helpOpRequestFormat;
-		public final ModConfigSpec.ConfigValue<String> helpOpReplyFormat;
-		public final ModConfigSpec.ConfigValue<String> adminChatFormat;
-		public final ModConfigSpec.ConfigValue<String> announcementConfirmFormat;
+		public final RuntimeConfigValue<String> msgSentFormat;
+		public final RuntimeConfigValue<String> msgReceivedFormat;
+		public final RuntimeConfigValue<String> replyHeaderFormat;
+		public final RuntimeConfigValue<String> replyBodyFormat;
+		public final RuntimeConfigValue<String> helpOpRequestFormat;
+		public final RuntimeConfigValue<String> helpOpReplyFormat;
+		public final RuntimeConfigValue<String> adminChatFormat;
+		public final RuntimeConfigValue<String> announcementConfirmFormat;
 
 		// Sound Options
-		public final ModConfigSpec.ConfigValue<Boolean> enableMsgSound;
-		public final ModConfigSpec.ConfigValue<Boolean> enableReplySound;
-		public final ModConfigSpec.ConfigValue<Boolean> enableHelpOpSound;
-		public final ModConfigSpec.ConfigValue<Boolean> enableAdminChatSound;
+		public final RuntimeConfigValue<Boolean> enableMsgSound;
+		public final RuntimeConfigValue<Boolean> enableReplySound;
+		public final RuntimeConfigValue<Boolean> enableHelpOpSound;
+		public final RuntimeConfigValue<Boolean> enableAdminChatSound;
 
 		// Toggle Messages
-		public final ModConfigSpec.ConfigValue<String> adminChatEnabledMsg;
-		public final ModConfigSpec.ConfigValue<String> adminChatDisabledMsg;
-		public final ModConfigSpec.ConfigValue<String> helpOpSentMsg;
-		public final ModConfigSpec.ConfigValue<String> helpOpReplySentMsg;
-		public final ModConfigSpec.ConfigValue<String> noReplyTargetMsg;
-		public final ModConfigSpec.ConfigValue<String> playerOfflineMsg;
-		public final ModConfigSpec.ConfigValue<String> messageNotFoundMsg;
-		public final ModConfigSpec.ConfigValue<String> noPermissionMsg;
+		public final RuntimeConfigValue<String> adminChatEnabledMsg;
+		public final RuntimeConfigValue<String> adminChatDisabledMsg;
+		public final RuntimeConfigValue<String> helpOpSentMsg;
+		public final RuntimeConfigValue<String> helpOpReplySentMsg;
+		public final RuntimeConfigValue<String> noReplyTargetMsg;
+		public final RuntimeConfigValue<String> playerOfflineMsg;
+		public final RuntimeConfigValue<String> messageNotFoundMsg;
+		public final RuntimeConfigValue<String> noPermissionMsg;
 
 		// Hover Text Options
-		public final ModConfigSpec.ConfigValue<String> clickToReplyHover;
-		public final ModConfigSpec.ConfigValue<String> clickToMessageHover;
-		public final ModConfigSpec.ConfigValue<String> helpOpReplyHover;
+		public final RuntimeConfigValue<String> clickToReplyHover;
+		public final RuntimeConfigValue<String> clickToMessageHover;
+		public final RuntimeConfigValue<String> helpOpReplyHover;
 
 		// Announcement Format Options
-		public final ModConfigSpec.ConfigValue<String> announcementListHeaderText;
-		public final ModConfigSpec.ConfigValue<String> announcementListHeaderCmd;
-		public final ModConfigSpec.ConfigValue<String> toggleListHeader;
-		public final ModConfigSpec.ConfigValue<String> toggleOnText;
-		public final ModConfigSpec.ConfigValue<String> toggleOffText;
+		public final RuntimeConfigValue<String> announcementListHeaderText;
+		public final RuntimeConfigValue<String> announcementListHeaderCmd;
+		public final RuntimeConfigValue<String> toggleListHeader;
+		public final RuntimeConfigValue<String> toggleOnText;
+		public final RuntimeConfigValue<String> toggleOffText;
 
-		public ConfigBuilder(ModConfigSpec.Builder builder) {
+		public ConfigBuilder(RuntimeConfigBuilder builder) {
 			builder.push("ServerEssentialsForgeModConfig");
 
 			// ─────────────────────────────────────────────────────────────────────────────
@@ -302,6 +501,32 @@ public class ConfigHandler {
 			enableEnchantingTableCommand = builder.comment("  Virtual enchanting table (/enchantingtable, /et)").define("enchanting_table", true);
 			enableSuperEnchantingTableCommand = builder.comment("  Super enchanting table (/superenchantingtable, /set)").define("super_enchanting_table", true);
 			enableRepairCommand = builder.comment("  Held item repair command (/repair)").define("repair", true);
+			enableTeleportEssentials = builder.comment("  Teleport essentials platform").define("teleport_essentials", true);
+			enableHomes = builder.comment("  Home commands").define("homes", true);
+			enableTeleportRequests = builder.comment("  Teleport request commands").define("teleport_requests", true);
+			enableBack = builder.comment("  Back command and location history").define("back", true);
+			enableSpawnCommands = builder.comment("  Spawn commands").define("spawn", true);
+			enableServerWarps = builder.comment("  Server warp commands").define("server_warps", true);
+			enablePlayerWarps = builder.comment("  Player hosted warp commands").define("player_warps", true);
+			enableRandomTeleport = builder.comment("  Random teleport commands").define("random_teleport", true);
+			enableDirectTeleport = builder.comment("  Staff direct teleport commands").define("direct_teleport", true);
+			enableSocialEssentials = builder.comment("  Social, identity, mail, and connection message platform").define("social_essentials", true);
+			enableSocialSpy = builder.comment("  Permission controlled private message observation").define("social_spy", true);
+			enableMail = builder.comment("  Offline UUID addressed mail").define("mail", true);
+			enableConnectionMessages = builder.comment("  Custom real join and leave messages").define("connection_messages", true);
+			enableReminders = builder.comment("  Welcome, onboarding, and reminder delivery").define("reminders", true);
+			enableCustomText = builder.comment("  Rules, info, and custom text pages").define("custom_text", true);
+			enableModerationEssentials = builder.comment("  Ban, kick, IP moderation, and moderation history").define("moderation_essentials", true);
+			enableCommandSpy = builder.comment("  Permission controlled command observation").define("command_spy", true);
+			enableJails = builder.comment("  Persistent jail definitions and sentences").define("jails", true);
+			enableAdditionalWorkstations = builder.comment("  Cartography, grindstone, loom, smithing, stonecutter, and workbench commands").define("additional_workstations", true);
+			enableKits = builder.comment("  Versioned item kit repository and commands").define("kits", true);
+			enableInventoryUtilities = builder.comment("  Inventory, ender chest, disposal, and safe item utility commands").define("inventory_utilities", true);
+			enablePlayerUtilities = builder.comment("  Player state and position utility commands").define("player_utilities", true);
+			enableGamemodeShortcuts = builder.comment("  Bounded gamemode shortcut family").define("gamemode_shortcuts", true);
+			enableItemShortcut = builder.comment("  Bounded self only item shortcut").define("item_shortcut", true);
+			enableEconomy = builder.comment("  Native or adapter backed economy, worth, sell, and command costs").define("economy", true);
+			enableEconomySigns = builder.comment("  Server authoritative vanilla economy signs").define("economy_signs", true);
 			builder.pop(); // modules
 
 			playerNameFormat = builder
@@ -357,6 +582,212 @@ public class ConfigHandler {
 			kernelMaximumTargetSteps = builder.comment("  Maximum expanded target steps in one bundle").defineInRange("maximumTargetSteps", 2000, 1, 100000);
 			kernelLocationHistoryEntries = builder.comment("  Maximum stored location history entries per player").defineInRange("locationHistoryEntries", 20, 1, 100);
 			kernelPersistentCooldownMinimumSeconds = builder.comment("  Persist cooldowns with at least this many seconds remaining").defineInRange("persistentCooldownMinimumSeconds", 60, 0, 86400);
+			kernelRepositoryFlushSeconds = builder.comment("  Maximum seconds dirty kernel repositories remain only in memory").defineInRange("repositoryFlushSeconds", 30, 1, 600);
+			builder.pop();
+
+			builder.comment("Reviewed command automation",
+					"  Server source command roots are denied unless explicitly listed.",
+					"  Deny lists always win and wrappers cannot invoke wrappers.").push("automation");
+			runAllowedCommands = builder.comment("  Comma separated roots allowed through direct run and silent server execution. Empty denies every root.").define("runAllowedCommands", "");
+			runDeniedCommands = builder.comment("  Comma separated roots denied through direct run and silent server execution.").define("runDeniedCommands", "run,silent,sudo,op,deop,stop,reload");
+			silentActorAllowedCommands = builder.comment("  Comma separated roots allowed through silent actor execution. Empty denies every root.").define("silentActorAllowedCommands", "");
+			silentActorDeniedCommands = builder.comment("  Comma separated roots denied through silent actor execution.").define("silentActorDeniedCommands", "run,silent,sudo");
+			fakeChatFormat = builder.comment("  Unsigned fake chat presentation. Placeholders are prefix, suffix, username, nickname, and message.").define("fakeChatFormat", "{prefix}{nickname}{suffix}&7: &f{message}");
+			fakeJoinFormat = builder.comment("  Fake join presentation. Placeholders are prefix, suffix, username, and nickname.").define("fakeJoinFormat", "&e{nickname} joined the game");
+			fakeLeaveFormat = builder.comment("  Fake leave presentation. Placeholders are prefix, suffix, username, and nickname.").define("fakeLeaveFormat", "&e{nickname} left the game");
+			fakeMaximumMessageLength = builder.comment("  Maximum fake message length before formatting.").defineInRange("fakeMaximumMessageLength", 256, 1, 2048);
+			builder.pop();
+
+			builder.comment("Optional enhanced client protocol and vanilla style GUI",
+					"  Disabled keeps SEF fully server only for connecting players.",
+					"  Vanilla and non SEF clients remain allowed when enabled.",
+					"  Protocol registration and enablement changes require a restart.").push("gui");
+			enableEnhancedGui = builder.comment("  Enable optional client capability negotiation and enhanced screens").define("enabled", false);
+			guiReminderEnabled = builder.comment("  Remind command fallback players that the optional client exists").define("reminderEnabled", true);
+			guiReminderDelaySeconds = builder.comment("  Delay after login before a fallback reminder").defineInRange("reminderDelaySeconds", 5, 0, 3600);
+			guiReminderFrequencyHours = builder.comment("  Minimum hours between reminders. Zero means once per configured revision").defineInRange("reminderFrequencyHours", 0, 0, 8760);
+			guiReminderAudience = builder.comment("  Reminder audience. all, players, or staff").define(
+					"reminderAudience",
+					"all",
+					value -> value instanceof String audience
+							&& java.util.Set.of("all", "players", "staff").contains(
+							audience.trim().toLowerCase(java.util.Locale.ROOT)));
+			guiReminderRevision = builder.comment("  Increment to show a once per revision reminder again").defineInRange("reminderRevision", 1, 1, 1_000_000);
+			guiPanelSessionSeconds = builder.comment("  Lifetime of one server authoritative panel snapshot").defineInRange("panelSessionSeconds", 60, 10, 600);
+			guiPanelRequestsPerSecond = builder.comment("  Maximum accepted GUI requests from one connection each second").defineInRange("panelRequestsPerSecond", 20, 1, 100);
+			guiMaximumPanelEntries = builder.comment("  Maximum entries encoded into one server page").defineInRange("maximumPanelEntries", 45, 1, 100);
+			fancyTagsPrototypeEnabled = builder.comment("  Enable the Phase 9 bounded static Fancy Tags transport prototype").define("fancyTagsPrototype", true);
+			fancyTagsPrototypeMaximumBytes = builder.comment("  Maximum bytes accepted by the prototype tag transfer").defineInRange("fancyTagsPrototypeMaximumBytes", 262144, 1024, 1048576);
+			builder.pop();
+
+			builder.comment("Fancy Tags authoritative registry and content store",
+					"  Published artwork is canonicalized and stored under the SEF owned root.",
+					"  Server inbox imports never accept arbitrary paths.").push("fancyTags");
+			enableFancyTags = builder.comment("  Legacy Fancy Tags enablement mirror. The fancy_tags module.enabled setting is authoritative.").define("enabled", true);
+			fancyTagsEnhancedRendering = builder.comment("  Allow negotiated enhanced clients to receive authorized static artwork").define("enhancedRendering", true);
+			fancyTagsServerInboxEnabled = builder.comment("  Allow the fixed owned import inbox workflow").define("serverInboxEnabled", false);
+			fancyTagsAllowLocalOverlaysConnected = builder.comment("  Allow clearly local only enhanced client tag overlays while connected").define("allowLocalOverlaysConnected", false);
+			fancyTagsMaximumTags = builder.comment("  Maximum tag definitions").defineInRange("maximumTags", 1024, 1, 4096);
+			fancyTagsMaximumCategories = builder.comment("  Maximum tag categories").defineInRange("maximumCategories", 128, 1, 512);
+			fancyTagsMaximumAssignments = builder.comment("  Maximum tag assignments").defineInRange("maximumAssignments", 16384, 1, 65536);
+			fancyTagsMaximumAssignmentsPerTarget = builder.comment("  Maximum enabled assignments for one target").defineInRange("maximumAssignmentsPerTarget", 32, 1, 1024);
+			fancyTagsMaximumRevisionsPerTag = builder.comment("  Maximum retained artwork revisions per tag").defineInRange("maximumRevisionsPerTag", 20, 1, 100);
+			fancyTagsMaximumWidth = builder.comment("  Maximum decoded image width").defineInRange("maximumWidth", 256, 1, 512);
+			fancyTagsMaximumHeight = builder.comment("  Maximum decoded image height").defineInRange("maximumHeight", 64, 1, 256);
+			fancyTagsMaximumPixels = builder.comment("  Maximum decoded image pixels").defineInRange("maximumPixels", 16384, 1, 65536);
+			fancyTagsMaximumEncodedBytes = builder.comment("  Maximum canonical encoded image bytes").defineInRange("maximumEncodedBytes", 262144, 1024, 1048576);
+			fancyTagsMaximumDecodedBytes = builder.comment("  Maximum decoded rgba bytes").defineInRange("maximumDecodedBytes", 1048576, 4096, 4194304);
+			fancyTagsMaximumStoreBytes = builder.comment("  Maximum content addressed object store bytes").defineInRange("maximumStoreBytes", 1073741824L, 1048576L, 8589934592L);
+			fancyTagsImportSettleSeconds = builder.comment("  Required stable file interval before an inbox candidate is reviewable").defineInRange("importSettleSeconds", 2, 0, 300);
+			fancyTagsMaximumImportCandidates = builder.comment("  Maximum bounded import inbox candidates").defineInRange("maximumImportCandidates", 128, 1, 512);
+			builder.pop();
+
+			builder.comment("Server authoritative player disguises",
+					"  Disguises never replace authenticated identity, permissions, or persistence ownership.",
+					"  Gameplay traits and abilities are disabled independently.").push("disguise");
+			enableDisguises = builder.comment("  Legacy disguise enablement mirror. The disguise module.enabled setting is authoritative.").define("enabled", true);
+			disguiseTraitsEnabled = builder.comment("  Enable allowlisted server authoritative disguise traits").define("traitsEnabled", false);
+			disguiseAbilitiesEnabled = builder.comment("  Enable allowlisted server authoritative disguise abilities").define("abilitiesEnabled", false);
+			disguiseSoundsEnabled = builder.comment("  Enable viewer filtered disguise sound profiles").define("soundsEnabled", true);
+			disguiseVanillaProxyEnabled = builder.comment("  Enable bounded vanilla client mob proxy rendering").define("vanillaProxyEnabled", true);
+			disguiseClearOnLogout = builder.comment("  Clear active disguises when the subject disconnects").define("clearOnLogout", true);
+			disguiseClearOnDeath = builder.comment("  Clear active disguises when the subject dies").define("clearOnDeath", true);
+			disguiseMaximumActive = builder.comment("  Maximum simultaneous active disguises").defineInRange("maximumActive", 256, 1, 4096);
+			disguiseBlazeFireballDamage = builder.comment("  Maximum direct damage for the curated Blaze fireball").defineInRange("blazeFireballDamage", 5.0D, 0.0D, 100.0D);
+			disguiseBlazeFireSeconds = builder.comment("  Fire duration applied by the curated Blaze fireball").defineInRange("blazeFireSeconds", 5, 0, 60);
+			disguiseBlazeAllowPvp = builder.comment("  Allow the curated Blaze fireball to damage another player").define("blazeAllowPvp", false);
+			disguiseBlazeMaximumRange = builder.comment("  Maximum travel range of the curated Blaze fireball").defineInRange("blazeMaximumRange", 48, 4, 128);
+			builder.pop();
+
+			builder.comment("Moderation and command observation",
+					"  Address operations use only the configured authoritative provider.",
+					"  Raw addresses never enter normal command feedback or file logs.").push("moderation");
+			moderationMaximumReasonLength = builder.comment("  Maximum stored moderation reason length").defineInRange("maximumReasonLength", 512, 1, 2048);
+			moderationMaximumMassTargets = builder.comment("  Maximum sessions affected by one bounded moderation action").defineInRange("maximumMassTargets", 100, 1, 1000);
+			moderationDefaultKickReason = builder.comment("  Disconnect reason used when no reason is supplied").define("defaultKickReason", "Removed by an administrator.");
+			moderationAddressProvider = builder.comment("  Address provider. direct, trusted_proxy, external, or disabled. Restart required.").define("addressProvider", "direct");
+			moderationAllowLiteralPlayerAddresses = builder.comment("  Permit players with the literal address permission to enter a literal address").define("allowLiteralPlayerAddresses", false);
+			moderationAllowLiteralConsoleAddresses = builder.comment("  Permit console to enter a literal address").define("allowLiteralConsoleAddresses", true);
+			moderationSharedAddressHardCap = builder.comment("  Maximum sessions resolved from one address").defineInRange("sharedAddressHardCap", 10, 1, 100);
+			moderationConfirmationSeconds = builder.comment("  Lifetime of destructive mass action confirmation tokens").defineInRange("confirmationSeconds", 30, 10, 300);
+			moderationFailOnSharedProxy = builder.comment("  Disable shared address actions when a likely unconfigured proxy is detected").define("failOnSharedProxy", true);
+			commandSpyRecentLimit = builder.comment("  Maximum redacted command events retained in memory").defineInRange("commandSpyRecentLimit", 4096, 32, 65536);
+			commandSpySelectedLimit = builder.comment("  Maximum selected UUID filters per observer").defineInRange("commandSpySelectedLimit", 32, 1, 256);
+			commandSpyEventsPerSecond = builder.comment("  Maximum command observations delivered to one viewer per second").defineInRange("commandSpyEventsPerSecond", 100, 1, 1000);
+			builder.pop();
+
+			builder.comment("Optional structured file logging",
+					"  Disabled by default. Output is fixed under logs/sef.",
+					"  Queue, record, rotation, retention, and shutdown values are hard bounded.").push("fileLogging");
+			fileLoggingEnabled = builder.comment("  Start the optional command log writer").define("enabled", false);
+			fileLoggingConnectionEvents = builder.comment(
+					"  Capture redacted player connection events when file logging is active")
+					.define("connectionEvents", false);
+			fileLoggingTextMirror = builder.comment("  Write a stripped human readable mirror beside JSON Lines").define("textMirror", false);
+			fileLoggingQueueCapacity = builder.comment("  Bounded event queue capacity").defineInRange("queueCapacity", 8192, 128, 65536);
+			fileLoggingBatchRecords = builder.comment("  Maximum records written per batch").defineInRange("batchRecords", 128, 1, 1024);
+			fileLoggingFlushIntervalMillis = builder.comment("  Maximum delay before flushing a nonempty batch").defineInRange("flushIntervalMillis", 1000, 50, 60000);
+			fileLoggingMaximumRecordBytes = builder.comment("  Maximum encoded bytes in one record").defineInRange("maximumRecordBytes", 16384, 1024, 1048576);
+			fileLoggingMaximumFileMiB = builder.comment("  Maximum active stream size before rotation").defineInRange("maximumFileMiB", 64, 1, 1024);
+			fileLoggingMaximumFileAgeHours = builder.comment("  Maximum active stream age before rotation").defineInRange("maximumFileAgeHours", 24, 1, 720);
+			fileLoggingRetentionDays = builder.comment("  Maximum archive age").defineInRange("retentionDays", 30, 1, 3650);
+			fileLoggingMaximumArchives = builder.comment("  Maximum retained command archives").defineInRange("maximumArchives", 100, 1, 10000);
+			fileLoggingMaximumTotalMiB = builder.comment("  Maximum retained command archive bytes").defineInRange("maximumTotalMiB", 1024, 1, 1048576);
+			fileLoggingShutdownTimeoutSeconds = builder.comment("  Maximum bounded shutdown drain time").defineInRange("shutdownTimeoutSeconds", 10, 1, 60);
+			builder.pop();
+
+			builder.comment("Inventory, kit, workstation, and player utilities").push("phaseSevenUtilities");
+			enableCartographyTableCommand = builder.comment("  Virtual cartography table command").define("cartographyTable", true);
+			enableGrindstoneCommand = builder.comment("  Virtual grindstone command").define("grindstone", true);
+			enableLoomCommand = builder.comment("  Virtual loom command").define("loom", true);
+			enableSmithingTableCommand = builder.comment("  Virtual smithing table command").define("smithingTable", true);
+			enableStonecutterCommand = builder.comment("  Virtual stonecutter command").define("stonecutter", true);
+			itemGiveMaximumAmount = builder.comment("  Maximum amount accepted by the self only item shortcut").defineInRange("itemGiveMaximumAmount", 64, 1, 6400);
+			maximumKits = builder.comment("  Maximum stored kit definitions").defineInRange("maximumKits", 128, 1, 1024);
+			maximumKitItems = builder.comment("  Maximum item stacks in one kit").defineInRange("maximumKitItems", 256, 1, 1024);
+			maximumKitUsesPerPlayer = builder.comment("  Maximum retained kit use records per player").defineInRange("maximumKitUsesPerPlayer", 256, 1, 1024);
+			kitDropOverflow = builder.comment("  Drop kit overflow into the world. Disabled keeps grants atomic.").define("kitDropOverflow", false);
+			kitRequirePerKitPermission = builder.comment("  Require each kit permission through LuckPerms when available").define("requirePerKitPermission", false);
+			enableSuicideCommand = builder.comment("  Enable the self only suicide command").define("suicide", false);
+			maximumFlySpeed = builder.comment("  Maximum fly speed multiplier accepted by the speed command").defineInRange("maximumFlySpeed", 10.0D, 0.1D, 10.0D);
+			maximumWalkSpeed = builder.comment("  Maximum walk speed multiplier accepted by the speed command").defineInRange("maximumWalkSpeed", 10.0D, 0.1D, 10.0D);
+			builder.pop();
+
+			builder.comment("Native economy and provider ownership",
+					"  Balances use integer minor units only.",
+					"  Provider mode changes require a restart.",
+					"  External mode never mirrors provider balances into SEF storage.",
+					"  Import once requires an explicit in game preview and confirm operation.").push("economy");
+			economyProviderMode = builder.comment("  native, external, disabled, or import_once").define("providerMode", "native");
+			economyExternalProvider = builder.comment("  Registered external provider id. Empty selects the highest priority adapter").define("externalProvider", "");
+			economyCurrency = builder.comment("  Stable currency identifier").define("currency", "coin");
+			economyCurrencySymbol = builder.comment("  Display only currency prefix").define("currencySymbol", "$");
+			economyMinorUnits = builder.comment("  Decimal minor units used when parsing and formatting").defineInRange("minorUnits", 2, 0, 8);
+			economyDefaultBalance = builder.comment("  Opening account balance in minor units").defineInRange("defaultBalance", 0L, -9_000_000_000_000_000L, 9_000_000_000_000_000L);
+			economyMinimumBalance = builder.comment("  Minimum account balance in minor units. Use zero to disallow debt").defineInRange("minimumBalance", 0L, -9_000_000_000_000_000L, 9_000_000_000_000_000L);
+			economyMaximumBalance = builder.comment("  Maximum account balance in minor units").defineInRange("maximumBalance", 1_000_000_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyMaximumTransaction = builder.comment("  Maximum value of one transaction in minor units").defineInRange("maximumTransaction", 1_000_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyMaximumAccounts = builder.comment("  Maximum native accounts").defineInRange("maximumAccounts", 100_000, 1, 1_000_000);
+			economyMaximumLedgerEntries = builder.comment("  Maximum retained native ledger entries").defineInRange("maximumLedgerEntries", 100_000, 100, 1_000_000);
+			economyMaximumPendingCosts = builder.comment("  Maximum crash recoverable pending command costs").defineInRange("maximumPendingCosts", 10_000, 1, 100_000);
+			economyMaximumWorthEntries = builder.comment("  Maximum server defined item worth entries").defineInRange("maximumWorthEntries", 10_000, 1, 100_000);
+			economyAllowOfflinePayments = builder.comment("  Allow payments to unambiguous known offline identities").define("allowOfflinePayments", true);
+			economyAllowSelfPayments = builder.comment("  Allow a player to pay the same account").define("allowSelfPayments", false);
+			economyConfirmationThreshold = builder.comment("  Payments at or above this value require confirmation when the player preference is enabled. Zero disables the threshold").defineInRange("confirmationThreshold", 100_000L, 0L, 9_000_000_000_000_000L);
+			economyBalanceTopPageSize = builder.comment("  Entries shown per balance top page").defineInRange("balanceTopPageSize", 10, 1, 100);
+			economyHistoryPageSize = builder.comment("  Transactions shown per history page").defineInRange("historyPageSize", 10, 1, 100);
+			economyMaximumImportAccounts = builder.comment("  Maximum accounts accepted by one import once operation").defineInRange("maximumImportAccounts", 100_000, 1, 1_000_000);
+			economyMaximumSigns = builder.comment("  Maximum registered economy sign sides").defineInRange("maximumSigns", 100_000, 1, 1_000_000);
+			economySignClaimSeconds = builder.comment("  Seconds a placed sign remains claimable by its placer").defineInRange("signClaimSeconds", 300, 10, 3600);
+			economySignMaximumQuantity = builder.comment("  Maximum items in one economy sign transaction").defineInRange("signMaximumQuantity", 2304, 1, 100_000);
+			economySignMaximumValue = builder.comment("  Maximum economy sign transaction value in minor units").defineInRange("signMaximumValue", 1_000_000_000L, 1L, 9_000_000_000_000_000L);
+			economyEnabledSignTypes = builder.comment("  Comma separated enabled sign types").define("enabledSignTypes", "balance,buy,sell,trade,free,disposal,kit,heal,repair,time,weather,warp");
+			economyCommandCosts = builder.comment("  Comma separated action cost mappings. Components are fixed, use, target, distance, and item. Example sef:teleport.spawn=5.00,sef:teleport.spawn@distance=0.01").define("commandCosts", "");
+			builder.pop();
+
+			builder.comment("Teleport essentials",
+					"  Every destination is validated on the logical server.",
+					"  Unloaded chunks are never generated by teleport commands.",
+					"  The vanilla teleport root remains owned by vanilla unless explicitly enabled.").push("teleportEssentials");
+			ownVanillaTeleportRoot = builder.comment("  Replace the vanilla /tp root with the SEF direct teleport command").define("ownVanillaTeleportRoot", false);
+			defaultHomeName = builder.comment("  Home name used when no name is supplied").define("defaultHomeName", "home");
+			defaultHomeLimit = builder.comment("  Default home quota before permission or metadata tiers").defineInRange("defaultHomeLimit", 1, 0, 1000);
+			defaultHomePerDimensionLimit = builder.comment("  Default home quota in one dimension").defineInRange("defaultHomePerDimensionLimit", 1000, 0, 1000);
+			defaultPlayerWarpLimit = builder.comment("  Default player warp quota before permission or metadata tiers").defineInRange("defaultPlayerWarpLimit", 5, 0, 1000);
+			teleportCost = builder.comment("  Shared economy cost for user teleport actions. A positive value fails closed until an economy provider is installed").defineInRange("cost", 0.0D, 0.0D, 1000000000.0D);
+			teleportWarmupSeconds = builder.comment("  Shared warmup for user teleport actions").defineInRange("warmupSeconds", 0, 0, 3600);
+			teleportCancelOnMovement = builder.comment("  Cancel an active teleport warmup when the player moves").define("cancelOnMovement", true);
+			teleportCancelOnDamage = builder.comment("  Cancel an active teleport warmup when the player takes damage").define("cancelOnDamage", true);
+			teleportAllowInCombat = builder.comment("  Allow normal user teleports while in combat").define("allowInCombat", false);
+			teleportAllowNetherRoof = builder.comment("  Allow destinations on the Nether roof").define("allowNetherRoof", false);
+			teleportAllowHazards = builder.comment("  Allow lava, fire, cactus, magma, and similar destinations").define("allowHazards", false);
+			teleportSafeSearchRadius = builder.comment("  Maximum horizontal and vertical safe destination search radius").defineInRange("safeSearchRadius", 4, 0, 32);
+			teleportMaximumSafeChecks = builder.comment("  Maximum block positions inspected by one teleport").defineInRange("maximumSafeChecks", 512, 1, 100000);
+			teleportMaximumChunks = builder.comment("  Maximum already loaded chunks inspected by one teleport").defineInRange("maximumChunks", 9, 1, 256);
+			teleportInvulnerabilityTicks = builder.comment("  Damage immunity ticks after a successful user teleport").defineInRange("invulnerabilityTicks", 20, 0, 200);
+			teleportRequestExpirySeconds = builder.comment("  Lifetime of a pending teleport request").defineInRange("requestExpirySeconds", 60, 1, 3600);
+			teleportMaximumPendingRequests = builder.comment("  Maximum incoming or outgoing requests per player").defineInRange("maximumPendingRequests", 10, 1, 100);
+			playerWarpTransferExpirySeconds = builder.comment("  Lifetime of a two party player warp transfer offer").defineInRange("playerWarpTransferExpirySeconds", 300, 10, 3600);
+			randomTeleportMinimumRadius = builder.comment("  Minimum random teleport radius from the configured center").defineInRange("randomTeleportMinimumRadius", 256, 0, 20000);
+			randomTeleportMaximumRadius = builder.comment("  Maximum random teleport radius from the configured center").defineInRange("randomTeleportMaximumRadius", 5000, 1, 20000);
+			randomTeleportMaximumAttempts = builder.comment("  Maximum random candidates inspected per request").defineInRange("randomTeleportMaximumAttempts", 32, 1, 256);
+			randomTeleportAllowedDimensions = builder.comment("  Comma separated dimension identifiers allowed for random teleport").define("randomTeleportAllowedDimensions", "minecraft:overworld");
+			teleportOwnershipMode = builder.comment("  Ownership mode for homes and server warps. Values are sef, external, coexist, or import_once").define("ownershipMode", "sef");
+			disabledTeleportActions = builder.comment("  Comma separated canonical action ids to disable without removing their saved data").define("disabledActions", "");
+			builder.pop();
+
+			builder.comment("Social essentials",
+					"  Private message content remains outside ordinary audit and persistent observer state.",
+					"  Social spy revalidates permission and visibility for every delivered event.").push("socialEssentials");
+			socialSpyFormat = builder.comment("  Typed social spy template. Placeholders are {from}, {to}, {message}, {route}, and {timestamp}").define("socialSpyFormat", "&8[&b{from}&8] &7-> &8[&d{to}&8]&7: &f{message}");
+			socialSpyRecentLimit = builder.comment("  Maximum already authorized social spy events retained per observer session").defineInRange("socialSpyRecentLimit", 50, 0, 500);
+			socialSpyEventsPerSecond = builder.comment("  Maximum social spy events delivered to one observer per second").defineInRange("socialSpyEventsPerSecond", 100, 1, 1000);
+			privateMessageMaximumLength = builder.comment("  Maximum private message length").defineInRange("privateMessageMaximumLength", 2048, 1, 16384);
+			mailMaximumLength = builder.comment("  Maximum mail body length").defineInRange("mailMaximumLength", 2048, 1, 16384);
+			mailRetentionDays = builder.comment("  Mail expiry in days").defineInRange("mailRetentionDays", 30, 1, 3650);
+			defaultJoinMessage = builder.comment("  Default real join template").define("defaultJoinMessage", "&e{player} joined the game");
+			defaultLeaveMessage = builder.comment("  Default real leave template").define("defaultLeaveMessage", "&e{player} left the game");
+			optionalClientReminder = builder.comment("  Command fallback reminder for players without an enhanced client").define("optionalClientReminder", "&6This server supports optional SEF enhanced menus. &fEvery feature still works through commands. &eUse /sef commands &ffor available commands.");
 			builder.pop();
 
 			builder.comment("Virtual Workstations",
@@ -367,12 +798,9 @@ public class ConfigHandler {
 			enableAnvilAlias = builder.comment("  Enable the /av alias for /anvil").define("enableAnvilAlias", true);
 			enableEnchantingTableAlias = builder.comment("  Enable the /et alias for /enchantingtable").define("enableEnchantingTableAlias", true);
 			enableSuperEnchantingTableAlias = builder.comment("  Enable the /set alias for /superenchantingtable").define("enableSuperEnchantingTableAlias", true);
-			craftingTableCooldownSeconds = builder.comment("  Cooldown for /craft and /c in seconds").defineInRange("craftingTableCooldownSeconds", 0, 0, 86400);
-			anvilCooldownSeconds = builder.comment("  Cooldown for /anvil and /av in seconds").defineInRange("anvilCooldownSeconds", 0, 0, 86400);
-			enchantingTableCooldownSeconds = builder.comment("  Cooldown for /enchantingtable and /et in seconds").defineInRange("enchantingTableCooldownSeconds", 0, 0, 86400);
-			superEnchantingTableCooldownSeconds = builder.comment("  Cooldown for /superenchantingtable and /set in seconds").defineInRange("superEnchantingTableCooldownSeconds", 0, 0, 86400);
-			repairCooldownSeconds = builder.comment("  Cooldown for /repair in seconds").defineInRange("repairCooldownSeconds", 0, 0, 86400);
-			superEnchantingMaxLevel = builder.comment("  Highest level the super enchanting table can apply. Minecraft stores levels up to 255.").defineInRange("superEnchantingMaxLevel", 10, 1, 255);
+			enableAdministrativeEnchanting = builder.comment("  Enable the permission gated administrative enchant command.").define("enableAdministrativeEnchanting", true);
+			superEnchantingMinLevel = builder.comment("  Lowest nonzero level the super enchanting table can apply.").defineInRange("superEnchantingMinLevel", 1, 1, 1_000_000);
+			superEnchantingMaxLevel = builder.comment("  Highest level the super enchanting table can apply.").defineInRange("superEnchantingMaxLevel", 1000, 1, 1_000_000);
 			superEnchantingAllowUnsafe = builder.comment("  Show enchantments that do not normally support the held item and allow incompatible combinations").define("superEnchantingAllowUnsafe", false);
 			workstationCooldownMessage = builder.comment("  Message shown during a cooldown. Placeholder: $seconds").define("cooldownMessage", "&cYou must wait &e$seconds &cseconds before using that command again.");
 			repairSuccessMessage = builder.comment("  Message shown after repairing the held item. Placeholder: $item").define("repairSuccessMessage", "&aRepaired &e$item&a.");
@@ -468,9 +896,9 @@ public class ConfigHandler {
 			// InvSee System
 			builder.comment("InvSee System",
 					"  Custom /invsee command with Curios mod support.",
-					"  If FTB Essentials is installed and invSeeDisableFtbInvsee is true,",
-					"  this mod's /invsee will override FTB's version.").push("invSee");
-			invSeeDisableFtbInvsee = builder.comment("  When true and FTB Essentials is loaded, override FTB's /invsee with ours").define("invSeeDisableFtbInvsee", true);
+					"  SEF can cooperatively add its route when another mod owns the root.",
+					"  Existing Brigadier nodes are never removed through reflection.").push("invSee");
+			invSeeDisableFtbInvsee = builder.comment("  Register the SEF route when another mod already owns invsee").define("invSeeDisableFtbInvsee", true);
 			invSeeTitle = builder.comment("  Title of the InvSee GUI. Placeholder: $player").define("invSeeTitle", "&e$player's Inventory");
 			invSeeArmorLabel = builder.comment("  Name shown on the glass pane separator for armor section").define("invSeeArmorLabel", "&9Armor");
 			invSeeOffhandLabel = builder.comment("  Name shown on the glass pane separator for offhand section").define("invSeeOffhandLabel", "&6Offhand");
@@ -480,6 +908,9 @@ public class ConfigHandler {
 			invSeePrevPageLabel = builder.comment("  Name shown on the previous page arrow item").define("invSeePrevPageLabel", "&e<<< Previous Page");
 			invSeeReadOnly = builder.comment("  When true, players cannot move items in the InvSee GUI (view-only mode)").define("invSeeReadOnly", false);
 			invSeeAuditModifications = builder.comment("  Write inventory modification metadata to the structured security audit").define("invSeeAuditModifications", true);
+			invSeeOfflineEnabled = builder.comment("  Enable the versioned offline player inventory adapter").define("offlineEnabled", false);
+			invSeeOfflineMaximumFileKiB = builder.comment("  Maximum compressed offline player data file size").defineInRange("offlineMaximumFileKiB", 4096, 64, 16384);
+			invSeeOfflineMaximumBackups = builder.comment("  Maximum retained offline inventory recovery backups per player").defineInRange("offlineMaximumBackups", 16, 1, 128);
 			builder.pop(); // invSee
 
 			// Clear Chat System

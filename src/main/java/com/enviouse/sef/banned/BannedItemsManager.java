@@ -3,8 +3,8 @@ package com.enviouse.sef.banned;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
-import com.enviouse.sef.storage.CoalescedPersistenceWorker;
 import com.enviouse.sef.storage.StorageService;
+import com.enviouse.sef.storage.repository.StorageRepository;
 import com.enviouse.sef.utils.moddeps.CuriosInventoryHelper;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -27,13 +27,19 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.core.registries.BuiltInRegistries;
 
-import java.time.Duration;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,9 +60,16 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *   <li>Auto-purges expired ban entries.</li>
  * </ul>
  */
-public class BannedItemsManager {
+public class BannedItemsManager implements StorageRepository {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(5);
+    private static final String DOMAIN = "banned items";
+    private static final int SCHEMA_VERSION = 2;
+    private static final int MAXIMUM_ENTRIES = 100_000;
+    private static final int MAXIMUM_BYPASSES = 100_000;
+    private static final int MAXIMUM_EXCEPTIONS = 100_000;
+    private static final long MAXIMUM_DURATION_MILLIS = Duration.ofDays(3_650).toMillis();
+    private static final int MAXIMUM_SCAN_RADIUS = 256;
+    private static final int MAXIMUM_SCAN_INTERVAL = 1_200_000;
 
     private final Map<String, BannedEntry> entries = new ConcurrentHashMap<>();
     private final java.util.Set<UUID> bypassed = ConcurrentHashMap.newKeySet();
@@ -69,210 +82,250 @@ public class BannedItemsManager {
     private int intervalOverride = -1;     // -1 = use config
 
     private Path filePath;
+    private Path loadedPath;
     private StorageService.Document document;
-    private CoalescedPersistenceWorker persistenceWorker;
+    private RepositoryState state = RepositoryState.NEW;
+    private long revision;
+    private long flushedRevision;
     private int lastScanTick = 0;
     private final Map<UUID, BlockScanCursor> blockScanCursors = new ConcurrentHashMap<>();
 
     // ── Persistence ─────────────────────────────────────────────────────────
 
     public void load(MinecraftServer server) {
-        save();
-        closePersistenceWorker();
-        Path dir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
-                .resolve("serverconfig").resolve("sef");
-        filePath = dir.resolve("banned_items.json");
-        persistenceWorker = new CoalescedPersistenceWorker(
-                "sef-banned-items",
-                exception -> ServerEssentialsForge.LOGGER.error("[SEF] Failed to save banned items", exception));
-        entries.clear();
-        bypassed.clear();
-        excepted.clear();
-        document = StorageService.read(filePath, "banned items", 1).orElse(null);
-        if (document == null) {
-            save();
+        LoadResult result = load(server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT)
+                .resolve("serverconfig")
+                .resolve("sef"));
+        if (available()) {
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Loaded {} banned entries, {} bypasses, and {} exceptions",
+                    entries.size(),
+                    bypassed.size(),
+                    excepted.size());
+        } else {
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Banned item storage is unavailable in state {}. Item actions are blocked until recovery",
+                    result.state());
+        }
+    }
+
+    @Override
+    public synchronized LoadResult load(Path managedRoot) {
+        Path destination = Objects.requireNonNull(managedRoot, "managedRoot")
+                .resolve("banned_items.json")
+                .toAbsolutePath()
+                .normalize();
+        Path previousPath = loadedPath;
+        RepositoryState previousState = state;
+        filePath = destination;
+        boolean existed = Files.exists(destination, java.nio.file.LinkOption.NOFOLLOW_LINKS);
+        StorageService.Document candidate =
+                StorageService.read(destination, DOMAIN, SCHEMA_VERSION).orElse(null);
+        if (candidate == null) {
+            RepositoryState loadedState = stateFromStorageStatus(destination);
+            if (loadedState == RepositoryState.MISSING) {
+                if (destination.equals(previousPath)
+                        && (previousState == RepositoryState.READY || previousState == RepositoryState.MISSING)) {
+                    state = RepositoryState.RECOVERY;
+                    return new LoadResult(state, "banned item storage disappeared after initialization");
+                }
+                publish(emptySnapshot());
+                loadedPath = destination;
+                document = null;
+                revision = 0L;
+                flushedRevision = 0L;
+                state = RepositoryState.MISSING;
+                return new LoadResult(state, "new repository");
+            }
+            if (!destination.equals(previousPath)) {
+                publish(emptySnapshot());
+                document = null;
+                revision = 0L;
+                flushedRevision = 0L;
+            }
+            state = loadedState;
+            return new LoadResult(state, existed ? "storage unavailable" : "storage missing");
+        }
+
+        try {
+            ParseResult parsed = parse(candidate.data());
+            publish(parsed.snapshot());
+            loadedPath = destination;
+            document = candidate;
+            state = RepositoryState.READY;
+            revision = Math.addExact(revision, 1L);
+            flushedRevision = candidate.migrated() || parsed.normalized()
+                    ? revision - 1L
+                    : revision;
+            if (dirty()) {
+                flush();
+            }
+            return new LoadResult(state, "loaded banned item storage");
+        } catch (IOException | RuntimeException exception) {
+            state = RepositoryState.RECOVERY;
+            ServerEssentialsForge.LOGGER.error("[SEF] Failed to load banned items", exception);
+            return new LoadResult(state, exception.getClass().getSimpleName());
+        }
+    }
+
+    public synchronized void save() {
+        try {
+            flush();
+        } catch (IOException exception) {
+            state = RepositoryState.ERROR;
+            throw new IllegalStateException("Failed to save banned item storage", exception);
+        }
+    }
+
+    @Override
+    public synchronized void flush() throws IOException {
+        if (filePath == null || !dirty()) {
             return;
         }
+        writable();
+        long snapshotRevision = revision;
+        JsonObject root = serialize(capture());
+        StorageService.write(
+                filePath,
+                DOMAIN,
+                SCHEMA_VERSION,
+                root,
+                document,
+                Set.of("/entries"));
+        document = StorageService.read(filePath, DOMAIN, SCHEMA_VERSION).orElse(document);
+        flushedRevision = Math.max(flushedRevision, snapshotRevision);
+        state = RepositoryState.READY;
+    }
+
+    public void reload(MinecraftServer server) {
+        load(server);
+    }
+
+    public synchronized boolean shutdown() {
         try {
-            JsonElement root = document.data();
-            if (root == null || root.isJsonNull()) return;
-            // Legacy: a JSON array of registry-id strings
-            if (root.isJsonArray()) {
-                for (JsonElement e : root.getAsJsonArray()) {
-                    if (e.isJsonPrimitive()) {
-                        String id = e.getAsString();
-                        entries.put(id.toLowerCase(), new BannedEntry(id, "", "Console", -1L, false));
-                    }
-                }
-                save();
-                return;
-            }
-            JsonObject obj = root.getAsJsonObject();
-            if (obj.has("entries") && obj.get("entries").isJsonObject()) {
-                JsonObject ents = obj.getAsJsonObject("entries");
-                for (Map.Entry<String, JsonElement> e : ents.entrySet()) {
-                    BannedEntry be = GSON.fromJson(e.getValue(), BannedEntry.class);
-                    if (be != null && be.pattern != null && !be.pattern.isEmpty()) {
-                        entries.put(e.getKey(), be);
-                    }
-                }
-            }
-            if (obj.has("bypassed") && obj.get("bypassed").isJsonArray()) {
-                for (JsonElement e : obj.getAsJsonArray("bypassed")) {
-                    try { bypassed.add(UUID.fromString(e.getAsString())); }
-                    catch (Exception ignored) {}
-                }
-            }
-            if (obj.has("excepted") && obj.get("excepted").isJsonArray()) {
-                for (JsonElement e : obj.getAsJsonArray("excepted")) {
-                    BannedExceptedBlock b = GSON.fromJson(e, BannedExceptedBlock.class);
-                    if (b != null && b.dimension != null) excepted.add(b);
-                }
-            }
-            if (obj.has("settings") && obj.get("settings").isJsonObject()) {
-                JsonObject s = obj.getAsJsonObject("settings");
-                if (s.has("enabledItems")) enabledItems = s.get("enabledItems").getAsBoolean();
-                if (s.has("enabledBlocks")) enabledBlocks = s.get("enabledBlocks").getAsBoolean();
-                if (s.has("dropOnDestroy")) dropOnDestroy = s.get("dropOnDestroy").getAsBoolean();
-                if (s.has("radiusOverride")) radiusOverride = s.get("radiusOverride").getAsInt();
-                if (s.has("intervalOverride")) intervalOverride = s.get("intervalOverride").getAsInt();
-            }
-            ServerEssentialsForge.LOGGER.info("[SEF] Loaded {} banned entry(ies), {} bypass, {} excepted",
-                    entries.size(), bypassed.size(), excepted.size());
-            if (document.migrated()) save();
-        } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to load banned items", e);
-        }
-    }
-
-    public void save() {
-        if (filePath == null || persistenceWorker == null) return;
-        try {
-            JsonObject root = new JsonObject();
-            JsonObject ents = new JsonObject();
-            for (Map.Entry<String, BannedEntry> e : entries.entrySet()) {
-                ents.add(e.getKey(), GSON.toJsonTree(e.getValue()));
-            }
-            root.add("entries", ents);
-            JsonArray byp = new JsonArray();
-            for (UUID u : bypassed) byp.add(u.toString());
-            root.add("bypassed", byp);
-            JsonArray exc = new JsonArray();
-            for (BannedExceptedBlock b : excepted) exc.add(GSON.toJsonTree(b));
-            root.add("excepted", exc);
-            JsonObject s = new JsonObject();
-            s.addProperty("enabledItems", enabledItems);
-            s.addProperty("enabledBlocks", enabledBlocks);
-            s.addProperty("dropOnDestroy", dropOnDestroy);
-            s.addProperty("radiusOverride", radiusOverride);
-            s.addProperty("intervalOverride", intervalOverride);
-            root.add("settings", s);
-            Path destination = filePath;
-            StorageService.Document previousDocument = document;
-            if (!persistenceWorker.submit(() ->
-                    StorageService.write(
-                            destination,
-                            "banned items",
-                            1,
-                            root,
-                            previousDocument,
-                            Set.of("/entries")))) {
-                ServerEssentialsForge.LOGGER.error("[SEF] Banned item save rejected during shutdown");
-            }
-        } catch (Exception e) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Failed to prepare banned item save", e);
-        }
-    }
-
-    public void reload(MinecraftServer server) { load(server); }
-
-    public boolean shutdown() {
-        save();
-        return closePersistenceWorker();
-    }
-
-    private boolean closePersistenceWorker() {
-        CoalescedPersistenceWorker worker = persistenceWorker;
-        persistenceWorker = null;
-        if (worker == null) {
+            flush();
+            state = RepositoryState.CLOSED;
             return true;
+        } catch (IOException | RuntimeException exception) {
+            state = RepositoryState.ERROR;
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Banned item shutdown flush did not complete",
+                    exception);
+            return false;
         }
-        boolean completed = worker.shutdown(SHUTDOWN_TIMEOUT);
-        if (!completed) {
-            ServerEssentialsForge.LOGGER.error("[SEF] Banned item shutdown flush did not complete");
-        }
-        return completed;
     }
 
     // ── Entry CRUD ──────────────────────────────────────────────────────────
 
-    public Map<String, BannedEntry> getEntries() {
-        return Collections.unmodifiableMap(entries);
+    public synchronized Map<String, BannedEntry> getEntries() {
+        return Collections.unmodifiableMap(new LinkedHashMap<>(entries));
     }
 
-    public java.util.Set<String> getPatterns() {
-        return Collections.unmodifiableSet(entries.keySet());
+    public synchronized java.util.Set<String> getPatterns() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(entries.keySet()));
     }
 
-    public BannedEntry getEntry(String pattern) {
-        return entries.get(pattern.toLowerCase());
+    public synchronized BannedEntry getEntry(String pattern) {
+        return pattern == null ? null : entries.get(pattern.toLowerCase(Locale.ROOT));
     }
 
-    public boolean addBan(String pattern, String reason, long durationMs,
-                          String bannedBy, boolean announce) {
-        if (pattern == null) return false;
-        String key = pattern.toLowerCase();
-        if (entries.containsKey(key)) return false;
-        entries.put(key, new BannedEntry(pattern, reason, bannedBy, durationMs, announce));
-        save();
+    public synchronized boolean addBan(
+            String pattern,
+            String reason,
+            long durationMs,
+            String bannedBy,
+            boolean announce
+    ) {
+        writableForMutation();
+        String normalizedPattern = validatePattern(pattern);
+        String key = normalizedPattern.toLowerCase(Locale.ROOT);
+        if (entries.containsKey(key)) {
+            return false;
+        }
+        validateText(reason == null ? "" : reason, "reason", 1_024, true);
+        validateText(bannedBy == null ? "Console" : bannedBy, "banned by", 128, false);
+        validateDuration(durationMs);
+        mutate(() -> entries.put(
+                key,
+                new BannedEntry(normalizedPattern, reason, bannedBy, durationMs, announce)));
         return true;
     }
 
-    public boolean removeBan(String pattern) {
-        if (pattern == null) return false;
-        boolean removed = entries.remove(pattern.toLowerCase()) != null;
-        if (removed) save();
-        return removed;
+    public synchronized boolean removeBan(String pattern) {
+        writableForMutation();
+        if (pattern == null) {
+            return false;
+        }
+        String key = pattern.toLowerCase(Locale.ROOT);
+        if (!entries.containsKey(key)) {
+            return false;
+        }
+        mutate(() -> entries.remove(key));
+        return true;
     }
 
-    public boolean updateBan(String pattern, String reason, Long durationMs, Boolean announce) {
-        if (pattern == null) return false;
-        BannedEntry e = entries.get(pattern.toLowerCase());
-        if (e == null) return false;
-        if (reason != null) e.reason = reason;
+    public synchronized boolean updateBan(
+            String pattern,
+            String reason,
+            Long durationMs,
+            Boolean announce
+    ) {
+        writableForMutation();
+        if (pattern == null) {
+            return false;
+        }
+        String key = pattern.toLowerCase(Locale.ROOT);
+        BannedEntry entry = entries.get(key);
+        if (entry == null) {
+            return false;
+        }
+        if (reason != null) {
+            validateText(reason, "reason", 1_024, true);
+        }
         if (durationMs != null) {
-            // re-anchor so "1h" means "1h from now" on update
-            e.durationMs = durationMs;
-            e.bannedAtMillis = System.currentTimeMillis();
+            validateDuration(durationMs);
         }
-        if (announce != null) e.announce = announce;
-        save();
+        mutate(() -> {
+            BannedEntry updated = copy(entry);
+            if (reason != null) {
+                updated.reason = reason;
+            }
+            if (durationMs != null) {
+                updated.durationMs = durationMs;
+                updated.bannedAtMillis = System.currentTimeMillis();
+            }
+            if (announce != null) {
+                updated.announce = announce;
+            }
+            entries.put(key, updated);
+        });
         return true;
     }
 
-    public int clearAll() {
-        int n = entries.size();
-        entries.clear();
-        save();
-        return n;
+    public synchronized int clearAll() {
+        writableForMutation();
+        int count = entries.size();
+        if (count > 0) {
+            mutate(entries::clear);
+        }
+        return count;
     }
 
-    /** Removes any ban entries whose duration has expired. Returns how many were dropped. */
-    private int purgeExpired() {
-        int n = 0;
-        for (Map.Entry<String, BannedEntry> e : new java.util.ArrayList<>(entries.entrySet())) {
-            if (e.getValue().isExpired()) {
-                entries.remove(e.getKey());
-                n++;
-            }
+    private synchronized int purgeExpired() {
+        List<String> expired = entries.entrySet().stream()
+                .filter(entry -> entry.getValue().isExpired())
+                .map(Map.Entry::getKey)
+                .toList();
+        if (!expired.isEmpty()) {
+            mutate(() -> expired.forEach(entries::remove));
         }
-        if (n > 0) save();
-        return n;
+        return expired.size();
     }
 
     // ── Matching ────────────────────────────────────────────────────────────
 
-    public BannedEntry matchItem(ItemStack stack) {
+    public synchronized BannedEntry matchItem(ItemStack stack) {
+        requireAvailable();
         if (stack == null || stack.isEmpty()) return null;
         Item item = stack.getItem();
         ResourceLocation rl = BuiltInRegistries.ITEM.getKey(item);
@@ -284,7 +337,8 @@ public class BannedItemsManager {
         return null;
     }
 
-    public BannedEntry matchBlock(BlockState state) {
+    public synchronized BannedEntry matchBlock(BlockState state) {
+        requireAvailable();
         if (state == null || state.isAir()) return null;
         Block block = state.getBlock();
         ResourceLocation rl = BuiltInRegistries.BLOCK.getKey(block);
@@ -304,7 +358,8 @@ public class BannedItemsManager {
 
     // ── Bypass ──────────────────────────────────────────────────────────────
 
-    public boolean isBypassed(ServerPlayer player) {
+    public synchronized boolean isBypassed(ServerPlayer player) {
+        if (!available()) return false;
         if (player == null) return false;
         if (player.gameMode.getGameModeForPlayer() == GameType.CREATIVE) return true;
         if (bypassed.contains(player.getUUID())) return true;
@@ -315,30 +370,52 @@ public class BannedItemsManager {
             if (node != null && com.enviouse.sef.permissions.PermissionService.has(player, node)) {
                 return true;
             }
-        } catch (Throwable ignored) {}
+        } catch (RuntimeException exception) {
+            ServerEssentialsForge.LOGGER.warn(
+                    "[SEF] Failed to evaluate the banned item bypass permission for {}",
+                    player.getUUID(),
+                    exception);
+        }
         return false;
     }
 
-    public boolean setBypass(UUID uuid, boolean on) {
-        boolean changed = on ? bypassed.add(uuid) : bypassed.remove(uuid);
-        if (changed) save();
+    public synchronized boolean setBypass(UUID uuid, boolean on) {
+        writableForMutation();
+        Objects.requireNonNull(uuid, "uuid");
+        boolean changed = on ? !bypassed.contains(uuid) : bypassed.contains(uuid);
+        if (changed) {
+            mutate(() -> {
+                if (on) {
+                    bypassed.add(uuid);
+                } else {
+                    bypassed.remove(uuid);
+                }
+            });
+        }
         return changed;
     }
 
-    public boolean isManualBypass(UUID uuid) { return bypassed.contains(uuid); }
+    public synchronized boolean isManualBypass(UUID uuid) { return bypassed.contains(uuid); }
 
-    public java.util.Set<UUID> getBypassed() { return Collections.unmodifiableSet(bypassed); }
+    public synchronized java.util.Set<UUID> getBypassed() {
+        return Collections.unmodifiableSet(new LinkedHashSet<>(bypassed));
+    }
 
     // ── Exceptions ──────────────────────────────────────────────────────────
 
-    public List<BannedExceptedBlock> getExceptions() { return Collections.unmodifiableList(excepted); }
+    public synchronized List<BannedExceptedBlock> getExceptions() {
+        return Collections.unmodifiableList(new ArrayList<>(excepted));
+    }
 
-    public void addException(ServerLevel level, BlockPos pos, String itemId, String addedBy) {
+    public synchronized void addException(ServerLevel level, BlockPos pos, String itemId, String addedBy) {
+        writableForMutation();
         if (level == null || pos == null) return;
         String dim = level.dimension().location().toString();
         if (isExcepted(dim, pos.getX(), pos.getY(), pos.getZ())) return;
-        excepted.add(new BannedExceptedBlock(dim, pos.getX(), pos.getY(), pos.getZ(), itemId, addedBy));
-        save();
+        BannedExceptedBlock block =
+                new BannedExceptedBlock(dim, pos.getX(), pos.getY(), pos.getZ(), itemId, addedBy);
+        validate(block, System.currentTimeMillis());
+        mutate(() -> excepted.add(block));
     }
 
     public boolean isExcepted(ServerLevel level, BlockPos pos) {
@@ -346,53 +423,92 @@ public class BannedItemsManager {
                 pos.getX(), pos.getY(), pos.getZ());
     }
 
-    public boolean isExcepted(String dim, int x, int y, int z) {
+    public synchronized boolean isExcepted(String dim, int x, int y, int z) {
         for (BannedExceptedBlock b : excepted) {
             if (b.matches(dim, x, y, z)) return true;
         }
         return false;
     }
 
-    public boolean removeExceptionAt(int index) {
+    public synchronized boolean removeExceptionAt(int index) {
+        writableForMutation();
         if (index < 0 || index >= excepted.size()) return false;
-        excepted.remove(index);
-        save();
+        mutate(() -> excepted.remove(index));
         return true;
     }
 
-    public int clearExceptions() {
-        int n = excepted.size();
-        excepted.clear();
-        save();
-        return n;
+    public synchronized int clearExceptions() {
+        writableForMutation();
+        int count = excepted.size();
+        if (count > 0) {
+            mutate(excepted::clear);
+        }
+        return count;
     }
 
     // ── Toggles ─────────────────────────────────────────────────────────────
 
-    public boolean isItemsEnabled() { return enabledItems; }
-    public boolean isBlocksEnabled() { return enabledBlocks; }
-    public boolean isDropOnDestroy() { return dropOnDestroy; }
+    public synchronized boolean isItemsEnabled() { return enabledItems; }
+    public synchronized boolean isBlocksEnabled() { return enabledBlocks; }
+    public synchronized boolean isDropOnDestroy() { return dropOnDestroy; }
 
-    public void setItemsEnabled(boolean v) { enabledItems = v; save(); }
-    public void setBlocksEnabled(boolean v) { enabledBlocks = v; save(); }
-    public void setDropOnDestroy(boolean v) { dropOnDestroy = v; save(); }
+    public synchronized void setItemsEnabled(boolean value) {
+        writableForMutation();
+        if (enabledItems != value) {
+            mutate(() -> enabledItems = value);
+        }
+    }
+
+    public synchronized void setBlocksEnabled(boolean value) {
+        writableForMutation();
+        if (enabledBlocks != value) {
+            mutate(() -> enabledBlocks = value);
+        }
+    }
+
+    public synchronized void setDropOnDestroy(boolean value) {
+        writableForMutation();
+        if (dropOnDestroy != value) {
+            mutate(() -> dropOnDestroy = value);
+        }
+    }
 
     public int getEffectiveRadius() {
         if (radiusOverride > 0) return radiusOverride;
-        return ConfigHandler.config.bannedBlockScanRadius.get();
+        return Math.min(MAXIMUM_SCAN_RADIUS, Math.max(1, ConfigHandler.config.bannedBlockScanRadius.get()));
     }
 
     public int getEffectiveInterval() {
         if (intervalOverride > 0) return intervalOverride;
-        return ConfigHandler.config.bannedBlockScanInterval.get();
+        return Math.min(
+                MAXIMUM_SCAN_INTERVAL,
+                Math.max(1, ConfigHandler.config.bannedBlockScanInterval.get()));
     }
 
-    public void setRadiusOverride(int v) { radiusOverride = Math.max(1, v); save(); }
-    public void setIntervalOverride(int v) { intervalOverride = Math.max(1, v); save(); }
+    public synchronized void setRadiusOverride(int value) {
+        writableForMutation();
+        if (value < 1 || value > MAXIMUM_SCAN_RADIUS) {
+            throw new IllegalArgumentException("Banned block scan radius is outside bounds");
+        }
+        if (radiusOverride != value) {
+            mutate(() -> radiusOverride = value);
+        }
+    }
+
+    public synchronized void setIntervalOverride(int value) {
+        writableForMutation();
+        if (value < 1 || value > MAXIMUM_SCAN_INTERVAL) {
+            throw new IllegalArgumentException("Banned block scan interval is outside bounds");
+        }
+        if (intervalOverride != value) {
+            mutate(() -> intervalOverride = value);
+        }
+    }
 
     // ── Tick ────────────────────────────────────────────────────────────────
 
     public void tick(MinecraftServer server, int tickCount) {
+        if (!available()) return;
         if (entries.isEmpty()) return;
 
         // Drop expired entries every ~5s so /banned list stays accurate.
@@ -537,6 +653,10 @@ public class BannedItemsManager {
 
     /** Cubic radius sweep around the player. Excepted blocks are skipped. */
     public int scanBlocksAround(ServerPlayer player, int radius) {
+        requireAvailable();
+        if (radius < 1 || radius > MAXIMUM_SCAN_RADIUS) {
+            throw new IllegalArgumentException("Banned block scan radius is outside bounds");
+        }
         ServerLevel level = player.serverLevel();
         BlockPos center = player.blockPosition();
         int destroyed = 0;
@@ -615,6 +735,455 @@ public class BannedItemsManager {
                 p.sendSystemMessage(aMsg);
             }
         }
+    }
+
+    public synchronized boolean available() {
+        return state == RepositoryState.READY || state == RepositoryState.MISSING;
+    }
+
+    @Override
+    public String id() {
+        return "sef:banned_items";
+    }
+
+    @Override
+    public String domain() {
+        return DOMAIN;
+    }
+
+    @Override
+    public int schemaVersion() {
+        return SCHEMA_VERSION;
+    }
+
+    @Override
+    public synchronized Path path() {
+        return filePath;
+    }
+
+    @Override
+    public synchronized boolean dirty() {
+        return revision > flushedRevision;
+    }
+
+    @Override
+    public synchronized RepositoryState state() {
+        return state;
+    }
+
+    private synchronized void mutate(Runnable mutation) {
+        Snapshot previous = capture();
+        mutation.run();
+        revision = Math.addExact(revision, 1L);
+        try {
+            save();
+        } catch (RuntimeException exception) {
+            publish(previous);
+            revision = Math.addExact(revision, 1L);
+            throw exception;
+        }
+    }
+
+    private synchronized Snapshot capture() {
+        Map<String, BannedEntry> entrySnapshot = new LinkedHashMap<>();
+        entries.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> entrySnapshot.put(entry.getKey(), copy(entry.getValue())));
+        Set<UUID> bypassSnapshot = new LinkedHashSet<>(bypassed.stream().sorted().toList());
+        List<BannedExceptedBlock> exceptionSnapshot = excepted.stream()
+                .map(BannedItemsManager::copy)
+                .toList();
+        return new Snapshot(
+                entrySnapshot,
+                bypassSnapshot,
+                exceptionSnapshot,
+                enabledItems,
+                enabledBlocks,
+                dropOnDestroy,
+                radiusOverride,
+                intervalOverride);
+    }
+
+    private synchronized void publish(Snapshot snapshot) {
+        entries.clear();
+        snapshot.entries().forEach((key, value) -> entries.put(key, copy(value)));
+        bypassed.clear();
+        bypassed.addAll(snapshot.bypassed());
+        excepted.clear();
+        snapshot.excepted().stream().map(BannedItemsManager::copy).forEach(excepted::add);
+        enabledItems = snapshot.enabledItems();
+        enabledBlocks = snapshot.enabledBlocks();
+        dropOnDestroy = snapshot.dropOnDestroy();
+        radiusOverride = snapshot.radiusOverride();
+        intervalOverride = snapshot.intervalOverride();
+    }
+
+    private static Snapshot emptySnapshot() {
+        return new Snapshot(Map.of(), Set.of(), List.of(), true, true, false, -1, -1);
+    }
+
+    private static JsonObject serialize(Snapshot snapshot) {
+        JsonObject root = new JsonObject();
+        JsonObject serializedEntries = new JsonObject();
+        snapshot.entries().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(entry -> serializedEntries.add(entry.getKey(), GSON.toJsonTree(entry.getValue())));
+        root.add("entries", serializedEntries);
+
+        JsonArray serializedBypasses = new JsonArray();
+        snapshot.bypassed().stream()
+                .sorted()
+                .forEach(uuid -> serializedBypasses.add(uuid.toString()));
+        root.add("bypassed", serializedBypasses);
+
+        JsonArray serializedExceptions = new JsonArray();
+        snapshot.excepted().stream()
+                .sorted(Comparator
+                        .comparing((BannedExceptedBlock block) -> block.dimension)
+                        .thenComparingInt(block -> block.x)
+                        .thenComparingInt(block -> block.y)
+                        .thenComparingInt(block -> block.z))
+                .forEach(block -> serializedExceptions.add(GSON.toJsonTree(block)));
+        root.add("excepted", serializedExceptions);
+
+        JsonObject settings = new JsonObject();
+        settings.addProperty("enabledItems", snapshot.enabledItems());
+        settings.addProperty("enabledBlocks", snapshot.enabledBlocks());
+        settings.addProperty("dropOnDestroy", snapshot.dropOnDestroy());
+        settings.addProperty("radiusOverride", snapshot.radiusOverride());
+        settings.addProperty("intervalOverride", snapshot.intervalOverride());
+        root.add("settings", settings);
+        return root;
+    }
+
+    private static ParseResult parse(JsonElement root) {
+        if (root == null || root.isJsonNull()) {
+            throw new IllegalArgumentException("Banned item data is empty");
+        }
+        long now = System.currentTimeMillis();
+        if (root.isJsonArray()) {
+            if (root.getAsJsonArray().size() > MAXIMUM_ENTRIES) {
+                throw new IllegalArgumentException("Banned item entry limit exceeded");
+            }
+            Map<String, BannedEntry> legacyEntries = new LinkedHashMap<>();
+            for (JsonElement element : root.getAsJsonArray()) {
+                if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+                    throw new IllegalArgumentException("Legacy banned item entry is invalid");
+                }
+                String pattern = validatePattern(element.getAsString());
+                String key = pattern.toLowerCase(Locale.ROOT);
+                if (legacyEntries.putIfAbsent(
+                        key,
+                        new BannedEntry(pattern, "", "Console", -1L, false)) != null) {
+                    throw new IllegalArgumentException("Duplicate banned item pattern");
+                }
+            }
+            return new ParseResult(
+                    new Snapshot(legacyEntries, Set.of(), List.of(), true, true, false, -1, -1),
+                    true);
+        }
+        if (!root.isJsonObject()) {
+            throw new IllegalArgumentException("Banned item data is not an object");
+        }
+
+        JsonObject object = root.getAsJsonObject();
+        JsonObject serializedEntries = requireObject(object, "entries");
+        JsonArray serializedBypasses = requireArray(object, "bypassed");
+        JsonArray serializedExceptions = requireArray(object, "excepted");
+        JsonObject settings = requireObject(object, "settings");
+        if (serializedEntries.size() > MAXIMUM_ENTRIES
+                || serializedBypasses.size() > MAXIMUM_BYPASSES
+                || serializedExceptions.size() > MAXIMUM_EXCEPTIONS) {
+            throw new IllegalArgumentException("Banned item collection limit exceeded");
+        }
+
+        boolean normalized = false;
+        Map<String, BannedEntry> parsedEntries = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> serialized : serializedEntries.entrySet()) {
+            BannedEntry entry = GSON.fromJson(serialized.getValue(), BannedEntry.class);
+            EntryValidation validation = validate(entry, now);
+            String key = validation.entry().pattern.toLowerCase(Locale.ROOT);
+            if (!serialized.getKey().equals(key)) {
+                throw new IllegalArgumentException("Banned item key does not match its pattern");
+            }
+            normalized |= validation.normalized();
+            if (validation.entry().isExpired()) {
+                normalized = true;
+                continue;
+            }
+            if (parsedEntries.putIfAbsent(key, validation.entry()) != null) {
+                throw new IllegalArgumentException("Duplicate banned item pattern");
+            }
+        }
+
+        Set<UUID> parsedBypasses = new LinkedHashSet<>();
+        for (JsonElement serialized : serializedBypasses) {
+            if (!serialized.isJsonPrimitive() || !serialized.getAsJsonPrimitive().isString()) {
+                throw new IllegalArgumentException("Banned item bypass is invalid");
+            }
+            if (!parsedBypasses.add(UUID.fromString(serialized.getAsString()))) {
+                throw new IllegalArgumentException("Duplicate banned item bypass");
+            }
+        }
+
+        List<BannedExceptedBlock> parsedExceptions = new ArrayList<>();
+        for (JsonElement serialized : serializedExceptions) {
+            BannedExceptedBlock block = GSON.fromJson(serialized, BannedExceptedBlock.class);
+            BannedExceptedBlock validated = validate(block, now);
+            normalized |= validated != block;
+            parsedExceptions.add(validated);
+        }
+
+        boolean parsedItemsEnabled = requireBoolean(settings, "enabledItems");
+        boolean parsedBlocksEnabled = requireBoolean(settings, "enabledBlocks");
+        boolean parsedDropOnDestroy = requireBoolean(settings, "dropOnDestroy");
+        int parsedRadius = requireInt(settings, "radiusOverride");
+        int parsedInterval = requireInt(settings, "intervalOverride");
+        validateOverride(parsedRadius, MAXIMUM_SCAN_RADIUS, "radius");
+        validateOverride(parsedInterval, MAXIMUM_SCAN_INTERVAL, "interval");
+
+        return new ParseResult(
+                new Snapshot(
+                        parsedEntries,
+                        parsedBypasses,
+                        parsedExceptions,
+                        parsedItemsEnabled,
+                        parsedBlocksEnabled,
+                        parsedDropOnDestroy,
+                        parsedRadius,
+                        parsedInterval),
+                normalized);
+    }
+
+    private static EntryValidation validate(BannedEntry source, long now) {
+        if (source == null) {
+            throw new IllegalArgumentException("Banned item entry is null");
+        }
+        String pattern = validatePattern(source.pattern);
+        validateText(source.reason, "reason", 1_024, true);
+        validateText(source.bannedBy, "banned by", 128, false);
+        boolean normalized = false;
+        long duration = source.durationMs;
+        if (duration == 0L) {
+            duration = -1L;
+            normalized = true;
+        }
+        validateDuration(duration);
+        long created = source.bannedAtMillis;
+        if (created == 0L) {
+            created = now;
+            normalized = true;
+        }
+        if (created < 0L || created > now + Duration.ofDays(1).toMillis()) {
+            throw new IllegalArgumentException("Banned item timestamp is outside bounds");
+        }
+        if (duration > 0L) {
+            Math.addExact(created, duration);
+        }
+        if (!normalized && pattern.equals(source.pattern)) {
+            return new EntryValidation(source, false);
+        }
+        BannedEntry entry = copy(source);
+        entry.pattern = pattern;
+        entry.durationMs = duration;
+        entry.bannedAtMillis = created;
+        return new EntryValidation(entry, true);
+    }
+
+    private static BannedExceptedBlock validate(BannedExceptedBlock source, long now) {
+        if (source == null || ResourceLocation.tryParse(source.dimension) == null) {
+            throw new IllegalArgumentException("Banned block exception dimension is invalid");
+        }
+        if (Math.abs((long) source.x) > 30_000_000L
+                || source.y < -4_096
+                || source.y > 4_096
+                || Math.abs((long) source.z) > 30_000_000L) {
+            throw new IllegalArgumentException("Banned block exception position is outside bounds");
+        }
+        if (source.itemId != null
+                && !source.itemId.isBlank()
+                && ResourceLocation.tryParse(source.itemId) == null) {
+            throw new IllegalArgumentException("Banned block exception item is invalid");
+        }
+        validateText(source.addedBy, "exception owner", 128, true);
+        if (source.addedAtMillis < 0L || source.addedAtMillis > now + Duration.ofDays(1).toMillis()) {
+            throw new IllegalArgumentException("Banned block exception timestamp is outside bounds");
+        }
+        if (source.addedAtMillis != 0L) {
+            return source;
+        }
+        BannedExceptedBlock normalized = copy(source);
+        normalized.addedAtMillis = now;
+        return normalized;
+    }
+
+    private static String validatePattern(String source) {
+        String pattern = Objects.requireNonNull(source, "pattern").strip();
+        if (pattern.isEmpty() || pattern.length() > 256) {
+            throw new IllegalArgumentException("Banned item pattern is outside bounds");
+        }
+        if (pattern.startsWith("#")) {
+            if (ResourceLocation.tryParse(pattern.substring(1)) == null) {
+                throw new IllegalArgumentException("Banned item tag is invalid");
+            }
+            return pattern;
+        }
+        if (pattern.endsWith(":*")) {
+            String namespace = pattern.substring(0, pattern.length() - 2);
+            if (ResourceLocation.tryParse(namespace + ":placeholder") == null) {
+                throw new IllegalArgumentException("Banned item namespace is invalid");
+            }
+            return pattern;
+        }
+        if (ResourceLocation.tryParse(pattern) == null) {
+            throw new IllegalArgumentException("Banned item identifier is invalid");
+        }
+        return pattern;
+    }
+
+    private static void validateDuration(long durationMillis) {
+        if (durationMillis == -1L) {
+            return;
+        }
+        if (durationMillis <= 0L || durationMillis > MAXIMUM_DURATION_MILLIS) {
+            throw new IllegalArgumentException("Banned item duration is outside bounds");
+        }
+    }
+
+    private static void validateOverride(int value, int maximum, String field) {
+        if (value != -1 && (value < 1 || value > maximum)) {
+            throw new IllegalArgumentException("Banned item " + field + " override is outside bounds");
+        }
+    }
+
+    private static void validateText(
+            String value,
+            String field,
+            int maximumLength,
+            boolean allowBlank
+    ) {
+        String safe = Objects.requireNonNull(value, field);
+        if ((!allowBlank && safe.isBlank()) || safe.length() > maximumLength) {
+            throw new IllegalArgumentException("Banned item " + field + " is outside bounds");
+        }
+        if (safe.chars().anyMatch(character -> Character.isISOControl(character)
+                && character != '\n'
+                && character != '\t')) {
+            throw new IllegalArgumentException("Banned item " + field + " contains control characters");
+        }
+    }
+
+    private static JsonObject requireObject(JsonObject parent, String field) {
+        JsonElement element = parent.get(field);
+        if (element == null || !element.isJsonObject()) {
+            throw new IllegalArgumentException("Banned item " + field + " is not an object");
+        }
+        return element.getAsJsonObject();
+    }
+
+    private static JsonArray requireArray(JsonObject parent, String field) {
+        JsonElement element = parent.get(field);
+        if (element == null || !element.isJsonArray()) {
+            throw new IllegalArgumentException("Banned item " + field + " is not an array");
+        }
+        return element.getAsJsonArray();
+    }
+
+    private static boolean requireBoolean(JsonObject parent, String field) {
+        JsonElement element = parent.get(field);
+        if (element == null
+                || !element.isJsonPrimitive()
+                || !element.getAsJsonPrimitive().isBoolean()) {
+            throw new IllegalArgumentException("Banned item " + field + " is not a boolean");
+        }
+        return element.getAsBoolean();
+    }
+
+    private static int requireInt(JsonObject parent, String field) {
+        JsonElement element = parent.get(field);
+        if (element == null
+                || !element.isJsonPrimitive()
+                || !element.getAsJsonPrimitive().isNumber()) {
+            throw new IllegalArgumentException("Banned item " + field + " is not an integer");
+        }
+        int result = element.getAsInt();
+        if (element.getAsDouble() != result) {
+            throw new IllegalArgumentException("Banned item " + field + " is not an integer");
+        }
+        return result;
+    }
+
+    private static BannedEntry copy(BannedEntry source) {
+        BannedEntry copy = new BannedEntry();
+        copy.pattern = source.pattern;
+        copy.reason = source.reason;
+        copy.bannedBy = source.bannedBy;
+        copy.bannedAtMillis = source.bannedAtMillis;
+        copy.durationMs = source.durationMs;
+        copy.announce = source.announce;
+        return copy;
+    }
+
+    private static BannedExceptedBlock copy(BannedExceptedBlock source) {
+        BannedExceptedBlock copy = new BannedExceptedBlock();
+        copy.dimension = source.dimension;
+        copy.x = source.x;
+        copy.y = source.y;
+        copy.z = source.z;
+        copy.itemId = source.itemId;
+        copy.addedBy = source.addedBy;
+        copy.addedAtMillis = source.addedAtMillis;
+        return copy;
+    }
+
+    private synchronized void writableForMutation() {
+        requireAvailable();
+    }
+
+    private synchronized void requireAvailable() {
+        if (!available()) {
+            throw new IllegalStateException("Banned item storage is unavailable in " + state + " state");
+        }
+    }
+
+    private synchronized void writable() throws IOException {
+        if (state == RepositoryState.RECOVERY
+                || state == RepositoryState.UNSUPPORTED
+                || state == RepositoryState.ERROR
+                || state == RepositoryState.CLOSED) {
+            throw new IOException("Banned item repository is not writable in " + state + " state");
+        }
+    }
+
+    private static RepositoryState stateFromStorageStatus(Path path) {
+        return StorageService.statuses().stream()
+                .filter(status -> status.path().equals(path))
+                .findFirst()
+                .map(status -> switch (status.state()) {
+                    case "missing" -> RepositoryState.MISSING;
+                    case "unsupported" -> RepositoryState.UNSUPPORTED;
+                    case "quarantined", "quarantine failed", "rejected" -> RepositoryState.RECOVERY;
+                    default -> RepositoryState.ERROR;
+                })
+                .orElse(RepositoryState.ERROR);
+    }
+
+    private record Snapshot(
+            Map<String, BannedEntry> entries,
+            Set<UUID> bypassed,
+            List<BannedExceptedBlock> excepted,
+            boolean enabledItems,
+            boolean enabledBlocks,
+            boolean dropOnDestroy,
+            int radiusOverride,
+            int intervalOverride
+    ) {
+    }
+
+    private record ParseResult(Snapshot snapshot, boolean normalized) {
+    }
+
+    private record EntryValidation(BannedEntry entry, boolean normalized) {
     }
 
     // ── Suggestion helpers (used by Brigadier) ──────────────────────────────

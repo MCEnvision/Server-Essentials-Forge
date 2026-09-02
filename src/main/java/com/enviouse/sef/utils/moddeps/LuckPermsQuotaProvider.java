@@ -5,6 +5,7 @@ import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.user.User;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -12,6 +13,7 @@ import java.util.Objects;
 public final class LuckPermsQuotaProvider implements QuotaService.Provider {
     private static final Map<String, String> METADATA_KEYS = Map.of(
             "sef:homes", "sef.limit.homes.total",
+            "sef:homes_per_dimension", "sef.limit.homes.per.dimension",
             "sef:player_warps", "sef.limit.player_warps.total",
             "sef:targets", "sef.limit.targets",
             "sef:mail", "sef.limit.mail",
@@ -43,8 +45,16 @@ public final class LuckPermsQuotaProvider implements QuotaService.Provider {
             return null;
         }
         CachedMetaData metadata = user.getCachedData().getMetaData();
-        String key = METADATA_KEYS.getOrDefault(definition.id(), genericKey(definition.id()));
-        String raw = metadata.getMetaValue(key);
+        String key = null;
+        String raw = null;
+        for (String candidateKey : metadataKeys(definition.id())) {
+            String candidateValue = metadata.getMetaValue(candidateKey);
+            if (candidateValue != null && !candidateValue.isBlank()) {
+                key = candidateKey;
+                raw = candidateValue;
+                break;
+            }
+        }
         if (raw == null || raw.isBlank()) {
             return null;
         }
@@ -65,5 +75,13 @@ public final class LuckPermsQuotaProvider implements QuotaService.Provider {
     static String genericKey(String quotaId) {
         String normalized = quotaId.startsWith("sef:") ? quotaId.substring(4) : quotaId;
         return "sef.limit." + normalized.replace('_', '.').replace(':', '.');
+    }
+
+    static List<String> metadataKeys(String quotaId) {
+        String normalized = quotaId == null ? "" : quotaId.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equals("sef:homes_per_dimension")) {
+            return List.of("sef.limit.homes.per.dimension", "sef.limit.homes.per.world");
+        }
+        return List.of(METADATA_KEYS.getOrDefault(normalized, genericKey(normalized)));
     }
 }

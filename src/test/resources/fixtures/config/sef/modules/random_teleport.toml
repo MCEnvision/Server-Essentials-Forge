@@ -1,0 +1,56 @@
+# Controls random teleport behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "random_teleport"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Random teleport commands `true` or `false` Apply class restart_required.
+enable_random_teleport = true
+# Comma separated dimension identifiers allowed for random teleport 0 through 8192 characters Apply class live.
+random_teleport_allowed_dimensions = "minecraft:overworld"
+# Maximum random candidates inspected per request 1 through 256 Apply class live.
+random_teleport_maximum_attempts = 32
+# Maximum random teleport radius from the configured center 1 through 20000 Apply class live.
+random_teleport_maximum_radius = 5000
+# Minimum random teleport radius from the configured center 0 through 20000 Apply class live.
+random_teleport_minimum_radius = 256

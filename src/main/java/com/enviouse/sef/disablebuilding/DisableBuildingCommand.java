@@ -3,11 +3,11 @@ package com.enviouse.sef.disablebuilding;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 /**
@@ -25,18 +25,18 @@ public class DisableBuildingCommand {
         // /disablebuilding <player>
         dispatcher.register(Commands.literal("disablebuilding")
             .requires(src -> PermissionService.has(src, PermissionsHandler.disableBuildingCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeToggle(ctx.getSource(), target);
                 })));
 
         // /db alias
         dispatcher.register(Commands.literal("db")
             .requires(src -> PermissionService.has(src, PermissionsHandler.disableBuildingCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeToggle(ctx.getSource(), target);
                 })));
     }

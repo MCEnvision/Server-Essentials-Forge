@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "Server Essentials Forge 2",
+    "repository": "https://github.com/MCEnvision/Server-Essentials-Forge.git"
+  },
+  "master": "plan.md",
+  "plans": [
+    {
+      "id": "PLAN-MASTER",
+      "path": "plan.md",
+      "kind": "master",
+      "classification": "mandatory",
+      "requirementPrefix": "SEFAUD",
+      "owner": "Server Essentials Forge 2 repository",
+      "dependsOn": []
+    },
+    {
+      "id": "PLAN-PHASE-000",
+      "path": "phases/plan-phase-000.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P000",
+      "phaseId": "SEFAUD-PHASE-000",
+      "owner": "Repository audit contract",
+      "dependsOn": []
+    },
+    {
+      "id": "PLAN-PHASE-001",
+      "path": "phases/plan-phase-001.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P001",
+      "phaseId": "SEFAUD-PHASE-001",
+      "owner": "Security audit boundary",
+      "dependsOn": [
+        "PLAN-PHASE-000"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-002",
+      "path": "phases/plan-phase-002.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P002",
+      "phaseId": "SEFAUD-PHASE-002",
+      "owner": "Persistence layer",
+      "dependsOn": [
+        "PLAN-PHASE-001"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-003",
+      "path": "phases/plan-phase-003.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P003",
+      "phaseId": "SEFAUD-PHASE-003",
+      "owner": "Command policy kernel",
+      "dependsOn": [
+        "PLAN-PHASE-002"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-004",
+      "path": "phases/plan-phase-004.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P004",
+      "phaseId": "SEFAUD-PHASE-004",
+      "owner": "GUI presentation",
+      "dependsOn": [
+        "PLAN-PHASE-003"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-005",
+      "path": "phases/plan-phase-005.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P005",
+      "phaseId": "SEFAUD-PHASE-005",
+      "owner": "Lifecycle integration boundary",
+      "dependsOn": [
+        "PLAN-PHASE-004"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-006",
+      "path": "phases/plan-phase-006.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P006",
+      "phaseId": "SEFAUD-PHASE-006",
+      "owner": "Release verification system",
+      "dependsOn": [
+        "PLAN-PHASE-005"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-007",
+      "path": "phases/plan-phase-007.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "P007",
+      "phaseId": "SEFAUD-PHASE-007",
+      "owner": "Documentation evidence",
+      "dependsOn": [
+        "PLAN-PHASE-006"
+      ]
+    }
+  ]
+}

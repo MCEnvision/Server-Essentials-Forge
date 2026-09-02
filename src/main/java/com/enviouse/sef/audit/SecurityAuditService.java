@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Comparator;
 import java.util.List;
 import java.util.LinkedHashMap;
@@ -21,6 +22,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -156,13 +158,28 @@ public final class SecurityAuditService {
             if (value == null) {
                 return "";
             }
-            String sanitized = value.codePoints()
-                    .filter(codePoint -> !Character.isISOControl(codePoint))
-                    .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                    .toString();
-            return sanitized.length() <= maximumLength
-                    ? sanitized
-                    : sanitized.substring(0, maximumLength);
+            StringBuilder sanitized = new StringBuilder(Math.min(value.length(), maximumLength));
+            boolean previousWhitespace = false;
+            for (int offset = 0; offset < value.length();) {
+                int codePoint = value.codePointAt(offset);
+                offset += Character.charCount(codePoint);
+                boolean whitespace = Character.isWhitespace(codePoint)
+                        || Character.isISOControl(codePoint)
+                        || Character.getType(codePoint) == Character.FORMAT;
+                if (whitespace) {
+                    if (!previousWhitespace && sanitized.length() < maximumLength) {
+                        sanitized.append(' ');
+                    }
+                    previousWhitespace = true;
+                    continue;
+                }
+                if (sanitized.length() + Character.charCount(codePoint) > maximumLength) {
+                    break;
+                }
+                sanitized.appendCodePoint(codePoint);
+                previousWhitespace = false;
+            }
+            return sanitized.toString();
         }
 
         private static String normalized(String value, int maximumLength) {
@@ -222,13 +239,17 @@ public final class SecurityAuditService {
 
     private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
     private static final int QUEUE_CAPACITY = 4096;
+    private static final int RECENT_CAPACITY = 4096;
     private static final ArrayBlockingQueue<AuditEvent> QUEUE = new ArrayBlockingQueue<>(QUEUE_CAPACITY);
+    private static final ArrayDeque<AuditEvent> RECENT = new ArrayDeque<>(RECENT_CAPACITY);
     private static final AtomicLong DROPPED = new AtomicLong();
+    private static final AtomicLong FAILURES = new AtomicLong();
     private static final DateTimeFormatter ROTATION_TIMESTAMP =
             DateTimeFormatter.ofPattern("uuuuMMddHHmmss").withZone(ZoneOffset.UTC);
     private static volatile boolean running;
     private static volatile Thread writerThread;
     private static volatile UUID sessionId = UUID.randomUUID();
+    private static volatile String failureDetail = "";
     private static Path auditDirectory;
     private static Path activeFile;
     private static int retentionDays;
@@ -239,8 +260,19 @@ public final class SecurityAuditService {
 
     public static synchronized void start(Path sefDirectory, int configuredRetentionDays, int maximumFileMiB) {
         shutdown();
+        if (writerThread != null) {
+            failureDetail = "the previous security audit writer did not stop";
+            ServerEssentialsForge.LOGGER.error("[SEF] {}", failureDetail);
+            return;
+        }
+        QUEUE.clear();
+        synchronized (RECENT) {
+            RECENT.clear();
+        }
         sessionId = UUID.randomUUID();
         DROPPED.set(0L);
+        FAILURES.set(0L);
+        failureDetail = "";
         auditDirectory = sefDirectory.resolve("audit");
         activeFile = auditDirectory.resolve("security-audit.jsonl");
         retentionDays = Math.max(1, configuredRetentionDays);
@@ -248,7 +280,9 @@ public final class SecurityAuditService {
         try {
             Files.createDirectories(auditDirectory);
             pruneExpiredFiles();
-        } catch (IOException exception) {
+        } catch (IOException | RuntimeException exception) {
+            FAILURES.incrementAndGet();
+            failureDetail = "security audit storage initialization failed";
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to initialize security audit storage", exception);
             return;
         }
@@ -264,6 +298,12 @@ public final class SecurityAuditService {
             return false;
         }
         if (QUEUE.offer(event)) {
+            synchronized (RECENT) {
+                while (RECENT.size() >= RECENT_CAPACITY) {
+                    RECENT.removeFirst();
+                }
+                RECENT.addLast(event);
+            }
             return true;
         }
         long dropped = DROPPED.incrementAndGet();
@@ -279,6 +319,37 @@ public final class SecurityAuditService {
         return sessionId;
     }
 
+    public static List<AuditEvent> recent(
+            Predicate<AuditEvent> filter,
+            int maximumRecords
+    ) {
+        Objects.requireNonNull(filter, "filter");
+        int limit = Math.clamp(maximumRecords, 1, 128);
+        List<AuditEvent> result = new ArrayList<>(limit);
+        synchronized (RECENT) {
+            var iterator = RECENT.descendingIterator();
+            while (iterator.hasNext() && result.size() < limit) {
+                AuditEvent event = iterator.next();
+                if (filter.test(event)) {
+                    result.add(event);
+                }
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    public static Health health() {
+        Thread thread = writerThread;
+        return new Health(
+                running,
+                thread != null && thread.isAlive(),
+                QUEUE.size(),
+                DROPPED.get(),
+                FAILURES.get(),
+                failureDetail,
+                sessionId);
+    }
+
     public static synchronized void shutdown() {
         running = false;
         Thread thread = writerThread;
@@ -291,37 +362,73 @@ public final class SecurityAuditService {
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
+        if (thread.isAlive()) {
+            FAILURES.incrementAndGet();
+            failureDetail = "security audit writer did not stop within the shutdown timeout";
+            ServerEssentialsForge.LOGGER.error("[SEF] {}", failureDetail);
+            return;
+        }
         writerThread = null;
         if (!QUEUE.isEmpty()) {
+            DROPPED.addAndGet(QUEUE.size());
             ServerEssentialsForge.LOGGER.error(
                     "[SEF] Security audit shutdown left {} unwritten event or events",
                     QUEUE.size());
+            QUEUE.clear();
         }
     }
 
     private static void writerLoop() {
         List<AuditEvent> batch = new ArrayList<>(128);
-        while (running || !QUEUE.isEmpty()) {
-            try {
-                AuditEvent first = QUEUE.poll(500L, TimeUnit.MILLISECONDS);
-                if (first == null) {
-                    continue;
+        try {
+            while (running || !QUEUE.isEmpty()) {
+                try {
+                    AuditEvent first = QUEUE.poll(500L, TimeUnit.MILLISECONDS);
+                    if (first == null) {
+                        continue;
+                    }
+                    batch.add(first);
+                    QUEUE.drainTo(batch, 127);
+                    writeBatch(batch);
+                    batch.clear();
+                } catch (InterruptedException exception) {
+                    if (!running) {
+                        continue;
+                    }
+                    Thread.currentThread().interrupt();
+                    return;
+                } catch (IOException | RuntimeException exception) {
+                    running = false;
+                    int queued = QUEUE.size();
+                    long lost = batch.size() + queued;
+                    DROPPED.addAndGet(lost);
+                    FAILURES.incrementAndGet();
+                    failureDetail = "security audit writer failed";
+                    batch.clear();
+                    QUEUE.clear();
+                    ServerEssentialsForge.LOGGER.error(
+                            "[SEF] Failed to write security audit batch. {} event or events were lost",
+                            lost,
+                            exception);
+                    return;
                 }
-                batch.add(first);
-                QUEUE.drainTo(batch, 127);
-                writeBatch(batch);
-                batch.clear();
-            } catch (InterruptedException exception) {
-                if (!running) {
-                    continue;
-                }
-                Thread.currentThread().interrupt();
-                return;
-            } catch (IOException exception) {
-                ServerEssentialsForge.LOGGER.error("[SEF] Failed to write security audit batch", exception);
-                batch.clear();
+            }
+        } finally {
+            if (writerThread == Thread.currentThread()) {
+                writerThread = null;
             }
         }
+    }
+
+    public record Health(
+            boolean running,
+            boolean writerAlive,
+            int queued,
+            long dropped,
+            long failures,
+            String detail,
+            UUID sessionId
+    ) {
     }
 
     private static void writeBatch(List<AuditEvent> batch) throws IOException {

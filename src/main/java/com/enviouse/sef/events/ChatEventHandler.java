@@ -8,21 +8,20 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.MarkdownFormatter;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.chat.AdminChatHandler;
-import com.enviouse.sef.chat.ChatMessageManager;
-import com.enviouse.sef.chat.ChatReplyHandler;
 import com.enviouse.sef.commands.MsgCommands;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.IReloadable;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.filter.FilterManager;
 import com.enviouse.sef.utils.SEFUtilities;
 import com.enviouse.sef.utils.moddeps.FTBMuteChecker;
 import com.enviouse.sef.mute.MuteManager;
+import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.moderation.ModerationRepository;
 import com.mojang.authlib.GameProfile;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.network.chat.contents.TranslatableContents;
@@ -76,13 +75,40 @@ public class ChatEventHandler implements IReloadable {
 		if(player == null) return;
         GameProfile profile = player.getGameProfile();
     	UUID uuid = profile.getId();
-        String msg = e.getMessage().getString();
-		if(msg == null || (msg).isEmpty()) return;
+	        String msg = e.getMessage().getString();
+	        if(msg == null || (msg).isEmpty()) return;
+			if (!com.enviouse.sef.control.MinecraftServerControlRuntime.allowChat(e)) return;
+
+		if (ConfigHandler.config.enableModerationEssentials.get()) {
+			var control = KernelServices.moderation()
+					.control(uuid, ModerationRepository.ControlType.MUTE);
+			if (control.isPresent()) {
+				e.setCanceled(true);
+				var active = control.orElseThrow();
+				String remaining = active.expiresAt() == null
+						? "permanent"
+						: java.time.Duration.between(java.time.Instant.now(), active.expiresAt())
+						.toSeconds() + "s";
+				player.sendSystemMessage(TextFormatter.stringToFormattedText(
+						"&cYou are muted. Remaining, &e" + remaining + "&c."));
+				return;
+			}
+		}
 
 		// Check if player is muted via persistent MuteManager (our own system)
-		if(ConfigHandler.config.enableMuteSystem.get()) {
-			MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
-			if(muteManager != null && muteManager.isMuted(uuid)) {
+			if(ConfigHandler.config.enableMuteSystem.get()
+					&& !ConfigHandler.config.enableModerationEssentials.get()) {
+				MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
+				if (muteManager != null && !muteManager.available()) {
+					e.setCanceled(true);
+					player.sendSystemMessage(TextFormatter.stringToFormattedText(
+							"&cChat is temporarily unavailable because moderation storage requires recovery."));
+					ServerEssentialsForge.LOGGER.error(
+							"[SEF] Blocked chat because mute storage is in {} state",
+							muteManager.state());
+					return;
+				}
+				if(muteManager != null && muteManager.isMuted(uuid)) {
 				MuteManager.MuteEntry muteEntry = muteManager.getMuteEntry(uuid);
 				// Show muted message with remaining time if applicable
 				String muteMsg;
@@ -108,7 +134,10 @@ public class ChatEventHandler implements IReloadable {
 				}
 
 				e.setCanceled(true);
-				ServerEssentialsForge.LOGGER.info("[MUTED] {} tried to say: {}", profile.getName(), msg);
+					ServerEssentialsForge.LOGGER.info(
+							"[MUTED] {} attempted a {} character message",
+							uuid,
+							msg.length());
 				return;
 			}
 		}
@@ -133,7 +162,10 @@ public class ChatEventHandler implements IReloadable {
 			}
 
 			e.setCanceled(true);
-			ServerEssentialsForge.LOGGER.info("[MUTED] {} tried to say: {}", profile.getName(), msg);
+				ServerEssentialsForge.LOGGER.info(
+						"[MUTED] {} attempted a {} character message",
+						uuid,
+						msg.length());
 			return;
 		}
 
@@ -159,8 +191,9 @@ public class ChatEventHandler implements IReloadable {
 			if(partnerUUID != null) {
 				ServerPlayer partner = player.getServer().getPlayerList().getPlayer(partnerUUID);
 				if(partner != null) {
-					ServerEssentialsForge.LOGGER.info("[SEF] Intercepting private chat from {} to {}: {}",
-						profile.getName(), partner.getGameProfile().getName(), msg);
+					ServerEssentialsForge.LOGGER.info(
+						"[SEF] Intercepting private chat from {} to {} with {} characters",
+						profile.getName(), partner.getGameProfile().getName(), msg.length());
 					player.getServer().getCommands().performPrefixedCommand(
 						player.createCommandSourceStack(),
 						"msg " + partner.getGameProfile().getName() + " " + msg
@@ -171,11 +204,18 @@ public class ChatEventHandler implements IReloadable {
 			}
 		}
 
-		// Apply word filters if enabled
-		if(ConfigHandler.config.enableFilterSystem.get() && CommandRegistrationHandler.getFilterManager() != null) {
-			msg = CommandRegistrationHandler.getFilterManager().applyFilters(msg);
-		}
-
+			// Apply word filters if enabled
+			if(ConfigHandler.config.enableFilterSystem.get() && CommandRegistrationHandler.getFilterManager() != null) {
+				FilterManager filterManager = CommandRegistrationHandler.getFilterManager();
+				if (!filterManager.available()) {
+					e.setCanceled(true);
+					player.sendSystemMessage(TextFormatter.stringToFormattedText(
+							"&cChat is temporarily unavailable because filter storage requires recovery."));
+					ServerEssentialsForge.LOGGER.error("[SEF] Blocked chat because filter storage is unavailable");
+					return;
+				}
+				msg = filterManager.applyFilters(msg);
+			}
 		// Master toggle: when SEF chat formatting is off, keep the (filtered) message but let vanilla
 		// render the chat line (no prefix/suffix/color/timestamp) instead of cancelling + reformatting.
 		if(!ConfigHandler.config.enableChatFormatting.get()) {
@@ -216,36 +256,28 @@ public class ChatEventHandler implements IReloadable {
 		// Start generating the main TextComponent
 		MutableComponent msgComp = TextFormatter.stringToFormattedText(msg, enableColor, enableStyle, uuid);
 
-		e.setCanceled(true);
-		
-		MutableComponent newMessage = beforeMsg.append(msgComp.append(afterMsg));
-		
-		// Record the message and get its ID for the reply system
-		final String finalMsg = msg;
-		final String formattedName = name; // name already includes prefix/suffix from getRawPreferredPlayerName
-		final String rawName = profile.getName(); // raw username without prefix/suffix
-		player.server.execute(() -> {
-			// Record message for /ans reply system if enabled
-			long messageId = -1;
-			if(ConfigHandler.config.enableChatReplies.get()) {
-				messageId = ChatMessageManager.recordMessage(uuid, rawName, formattedName, finalMsg);
-			}
+			MutableComponent newMessage = beforeMsg.append(msgComp.append(afterMsg));
+			final String finalMsg = msg;
+			com.enviouse.sef.control.MentionService.deliver(player, finalMsg);
+			e.setMessage(newMessage);
+			ServerEssentialsForge.LOGGER.info(
+					"[CHAT] {} sent {} characters",
+					profile.getName(),
+					finalMsg.length());
 
-			// Make message clickable if chat replies are enabled
-			MutableComponent clickableMessage;
-			if(ConfigHandler.config.enableChatReplies.get() && messageId > 0) {
-				final long msgId = messageId;
-				clickableMessage = newMessage.withStyle(style -> style
-					.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/ans " + msgId + " "))
-					.withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-						TextFormatter.stringToFormattedText("&eClick to reply"))));
-			} else {
-				clickableMessage = newMessage;
-			}
+	    }
 
-			ServerEssentialsForge.LOGGER.info("[CHAT] "+clickableMessage.getString());
-			ServerMessageEvent.broadcastMessageVanishAware(player.level(), clickableMessage, player);
-		});
-		
-    }
+	@SubscribeEvent(priority = net.neoforged.bus.api.EventPriority.LOWEST)
+	public void onVanillaServerChatAccepted(ServerChatEvent event) {
+		if (!loaded
+				|| event.isCanceled()
+				|| ConfigHandler.config.enableChatFormatting.get()
+				|| event.getPlayer() == null) {
+			return;
+		}
+		String message = event.getMessage().getString();
+		if (!message.isBlank()) {
+			com.enviouse.sef.control.MentionService.deliver(event.getPlayer(), message);
+		}
+	}
 }

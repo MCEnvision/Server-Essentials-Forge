@@ -5,13 +5,13 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -44,20 +44,20 @@ public class WarnCommand {
         // /warn <player> remove <id>
         dispatcher.register(Commands.literal("warn")
             .requires(src -> PermissionService.has(src, PermissionsHandler.warnCommand))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 // /warn <player> add <duration> <reason>
                 .then(Commands.literal("add")
                     .then(Commands.argument("duration", StringArgumentType.word())
                         .then(Commands.argument("reason", StringArgumentType.greedyString())
                             .executes(ctx -> {
-                                ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                                ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                                 String duration = StringArgumentType.getString(ctx, "duration");
                                 String reason = StringArgumentType.getString(ctx, "reason");
                                 return executeAdd(ctx.getSource(), target, duration, reason);
                             }))
                         // If only one arg after "add", treat it as the reason with permanent duration
                         .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                             String reasonOrDuration = StringArgumentType.getString(ctx, "duration");
                             // Try parsing as duration — if it fails, it's the reason
                             return executeAdd(ctx.getSource(), target, "permanent", reasonOrDuration);
@@ -65,14 +65,14 @@ public class WarnCommand {
                 // /warn <player> check
                 .then(Commands.literal("check")
                     .executes(ctx -> {
-                        ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                        ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                         return executeCheck(ctx.getSource(), target);
                     }))
                 // /warn <player> remove <id>
                 .then(Commands.literal("remove")
                     .then(Commands.argument("id", IntegerArgumentType.integer(1))
                         .executes(ctx -> {
-                            ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                            ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                             int id = IntegerArgumentType.getInteger(ctx, "id");
                             return executeRemove(ctx.getSource(), target, id);
                         })))));
@@ -121,7 +121,14 @@ public class WarnCommand {
                     "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
             return 0;
         }
-        WarnManager.WarnEntry entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
+        WarnManager.WarnEntry entry;
+        try {
+            entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cWarning could not be added. &7" + exception.getMessage()));
+            return 0;
+        }
 
         // Notify admin
         String adminMsg = ConfigHandler.config.warnAddedMsg.get()
@@ -196,7 +203,14 @@ public class WarnCommand {
             return 0;
         }
 
-        boolean removed = manager.removeWarn(target.getUUID(), warnId);
+        boolean removed;
+        try {
+            removed = manager.removeWarn(target.getUUID(), warnId);
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cWarning could not be removed. &7" + exception.getMessage()));
+            return 0;
+        }
         if (!removed) {
             source.sendFailure(TextFormatter.stringToFormattedText(
                 "&cWarning #" + warnId + " not found for " + target.getGameProfile().getName() + "."));

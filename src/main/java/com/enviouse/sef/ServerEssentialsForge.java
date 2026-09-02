@@ -13,6 +13,9 @@ import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.events.ExternalModLoadingEvent;
 import com.enviouse.sef.events.PlayerEventHandler;
 import com.enviouse.sef.freeze.FreezeManager;
+import com.enviouse.sef.gui.protocol.SefGuiServer;
+import com.enviouse.sef.gui.protocol.SefNetwork;
+import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionManifest;
 import com.enviouse.sef.storage.StorageExportService;
@@ -37,8 +40,8 @@ import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import net.minecraft.world.level.storage.LevelResource;
 
-// Server Essentials Forge (SEF) — NeoForge 1.21.1 port.
-// Server-side only (neoforge.mods.toml: displayTest = "IGNORE_SERVER_VERSION").
+// Server Essentials Forge for NeoForge 1.21.1.
+// The enhanced client protocol is optional. Vanilla clients remain supported.
 @Mod(ServerEssentialsForge.MODID)
 public class ServerEssentialsForge {
     public static final String CHAT_ID_STR =
@@ -67,6 +70,8 @@ public class ServerEssentialsForge {
 
     public ServerEssentialsForge(IEventBus modEventBus, ModContainer modContainer) {
         instance = this;
+        modEventBus.addListener(SefNetwork::registerPayloads);
+        modEventBus.addListener(SefNetwork::registerConfigurationTask);
 
         ConfigurationEventHandler.registerReloadable(playerEventHandler);
         ConfigurationEventHandler.registerReloadable(chatHandler);
@@ -80,6 +85,7 @@ public class ServerEssentialsForge {
             var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
             if (server != null) {
                 server.execute(() -> {
+                    KernelServices.fileLogs().reload();
                     com.enviouse.sef.vanish.VanishUtil.recheckAll(server);
                     com.enviouse.sef.vanish.VanishUtil.refreshAllVisibility(server);
                 });
@@ -89,6 +95,12 @@ public class ServerEssentialsForge {
 
         loader.registerConfig(modContainer, "COMMON", ConfigHandler.spec, "sef/common.toml");
         loader.registerConfig(modContainer, "SERVER", VanishConfig.SERVER_SPEC, "sef-vanish-server.toml");
+        var preloadPublication = KernelServices.preloadModuleConfiguration(
+                FMLPaths.CONFIGDIR.get().resolve("sef"));
+        if (!preloadPublication.successful()) {
+            LOGGER.error("[SEF] Modular configuration preload failed. {}", preloadPublication.detail());
+        }
+        KernelServices.prepareManifest();
 
         // Instance registrations on the GAME bus (see field comment above).
         NeoForge.EVENT_BUS.register(this);              // server lifecycle (onServerStarted/Tick/Stopping)
@@ -108,10 +120,17 @@ public class ServerEssentialsForge {
 
     @SubscribeEvent
     public void onServerStarted(ServerStartedEvent ev) {
+        SefNetwork.activateConfiguredState();
         java.nio.file.Path sefDataDirectory = ev.getServer().getServerDirectory()
                 .resolve("serverconfig")
                 .resolve("sef");
         KernelServices.initialize();
+        var modulePublication = KernelServices.startModuleConfiguration(
+                FMLPaths.CONFIGDIR.get().resolve("sef"),
+                ev.getServer()::execute);
+        if (!modulePublication.successful()) {
+            LOGGER.error("[SEF] Modular configuration could not start. {}", modulePublication.detail());
+        }
         KernelServices.startStorage(sefDataDirectory);
         KernelServices.profiles().load(
                 ev.getServer().getWorldPath(LevelResource.PLAYER_DATA_DIR).toFile());
@@ -119,6 +138,9 @@ public class ServerEssentialsForge {
                 sefDataDirectory,
                 ConfigHandler.config.securityAuditRetentionDays.get(),
                 ConfigHandler.config.securityAuditMaximumFileMiB.get());
+        if (!KernelServices.fileLogs().startConfigured(ev.getServer().getServerDirectory())) {
+            LOGGER.error("[SEF] Optional file logging could not be initialized");
+        }
         StorageExportService.start();
         try {
             PermissionManifest.writeRuntimeManifest(sefDataDirectory.resolve("permission-manifest.json"));
@@ -149,9 +171,11 @@ public class ServerEssentialsForge {
         }
         if (ConfigHandler.config.enableCheckAlts.get())
             CommandRegistrationHandler.getAltTracker().load(ev.getServer());
-        if (ConfigHandler.config.enableWarnSystem.get())
+        if (ConfigHandler.config.enableWarnSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getWarnManager().load(ev.getServer());
-        if (ConfigHandler.config.enableMuteSystem.get())
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getMuteManager().load(ev.getServer());
 
         if (ModList.get().isLoaded("mc2discord")) mc2discordDetected = true;
@@ -162,16 +186,31 @@ public class ServerEssentialsForge {
     // ServerTickEvent.Post == the old TickEvent.ServerTickEvent END phase.
     @SubscribeEvent
     public void onServerTick(ServerTickEvent.Post ev) {
+        com.enviouse.sef.control.MinecraftServerControlRuntime.tick(ev.getServer());
         if (ConfigHandler.config.enableAnnouncements.get())
             CommandRegistrationHandler.getAnnouncementManager().tick(ev.getServer());
         if (ConfigHandler.config.enableBannedItems.get())
             CommandRegistrationHandler.getBannedItemsManager().tick(ev.getServer(), ev.getServer().getTickCount());
-        if (ConfigHandler.config.enableFreezeSystem.get())
+        if (ConfigHandler.config.enableFreezeSystem.get()
+                || ConfigHandler.config.enableModerationEssentials.get())
             FreezeManager.tick(ev.getServer());
-        if (ConfigHandler.config.enableMuteSystem.get())
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get())
             CommandRegistrationHandler.getMuteManager().tick(ev.getServer());
+        com.enviouse.sef.moderation.ModerationEvents.tick(ev.getServer());
+        com.enviouse.sef.player.PlayerStateService.tick(ev.getServer());
         if (ConfigHandler.config.enableCountdown.get())
             com.enviouse.sef.countdown.CountdownManager.tick(ev.getServer());
+        if (ConfigHandler.config.enableTeleportEssentials.get()
+                && ev.getServer().getTickCount() % 20 == 0) {
+            KernelServices.teleportRequests().expire();
+            KernelServices.teleports().purgeExpired(java.time.Instant.now());
+        }
+        if (ConfigHandler.config.enableTeleportEssentials.get())
+            com.enviouse.sef.teleport.TeleportWarmupManager.tick(ev.getServer());
+        if (ev.getServer().getTickCount() % 20 == 0) {
+            com.enviouse.sef.gui.protocol.SefGuiRuntime.tick(ev.getServer());
+        }
     }
 
     @SubscribeEvent
@@ -179,12 +218,23 @@ public class ServerEssentialsForge {
         FreezeManager.clear();
         com.enviouse.sef.invlock.InvLockManager.clear();
         com.enviouse.sef.disablebuilding.DisableBuildingManager.clear();
-        CommandRegistrationHandler.getMuteManager().shutdown();
+        if (ConfigHandler.config.enableMuteSystem.get()
+                && !ConfigHandler.config.enableModerationEssentials.get()) {
+            CommandRegistrationHandler.getMuteManager().shutdown();
+        }
         CommandRegistrationHandler.getBannedItemsManager().shutdown();
         CommandRegistrationHandler.getAltTracker().shutdown();
         com.enviouse.sef.countdown.CountdownManager.clear();
+        com.enviouse.sef.player.PlayerStateService.clearAll();
+        com.enviouse.sef.control.MinecraftServerControlRuntime.clear();
+        com.enviouse.sef.invsee.OfflineInvSeeService.shutdown();
         com.enviouse.sef.vanish.VanishUtil.clearRuntimeState();
         com.enviouse.sef.vanish.misc.SoundSuppressionHelper.clear();
+        SefGuiServer.clear();
+        com.enviouse.sef.gui.protocol.SefGuiRuntime.clear();
+        SefSessionManager.instance().clear();
+        com.enviouse.sef.teleport.TeleportWarmupManager.cancelAll(
+                com.enviouse.sef.kernel.policy.WarmupService.CancelReason.FEATURE_DISABLE);
         ExternalModLoadingEvent.stopOptionalIntegrations();
         if (!KernelServices.profiles().shutdown()) {
             LOGGER.error("[SEF] Player profile shutdown flush did not complete");

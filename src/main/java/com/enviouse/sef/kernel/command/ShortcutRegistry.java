@@ -24,7 +24,9 @@ public final class ShortcutRegistry {
     private final CapabilityManifest capabilities;
     private final Map<String, Shortcut> shortcuts = new LinkedHashMap<>();
     private final Set<String> rootsPresentBeforeSef = new LinkedHashSet<>();
+    private final Set<String> registeredRoots = new LinkedHashSet<>();
     private boolean registrationCaptured;
+    private boolean registrationCompleted;
 
     public ShortcutRegistry(CommandCatalog catalog, CapabilityManifest capabilities) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
@@ -56,6 +58,12 @@ public final class ShortcutRegistry {
         }
     }
 
+    public synchronized void captureRegisteredRoots(Set<String> roots) {
+        registeredRoots.clear();
+        roots.stream().map(ShortcutRegistry::normalize).forEach(registeredRoots::add);
+        registrationCompleted = true;
+    }
+
     public synchronized Optional<Shortcut> find(String root) {
         return Optional.ofNullable(shortcuts.get(normalize(root)));
     }
@@ -85,7 +93,10 @@ public final class ShortcutRegistry {
             boolean occupied = rootsPresentBeforeSef.contains(shortcut.root());
             Status status;
             String detail;
-            if (!occupied) {
+            if (registrationCompleted && !registeredRoots.contains(shortcut.root())) {
+                status = Status.DISABLED;
+                detail = "root was not registered";
+            } else if (!occupied) {
                 status = Status.ACTIVE;
                 detail = "root available";
             } else {
@@ -110,6 +121,12 @@ public final class ShortcutRegistry {
                         || diagnostic.status() == Status.ACTIVE_OVERRIDE)
                 .forEach(diagnostic -> active.put(diagnostic.root(), diagnostic.actionId()));
         return Map.copyOf(active);
+    }
+
+    public synchronized List<Shortcut> entries() {
+        return shortcuts.values().stream()
+                .sorted(Comparator.comparing(Shortcut::root))
+                .toList();
     }
 
     public synchronized int size() {
@@ -150,6 +167,7 @@ public final class ShortcutRegistry {
     public enum Status {
         ACTIVE,
         ACTIVE_OVERRIDE,
+        DISABLED,
         CANONICAL_ONLY,
         CONFLICT,
         RESTART_REQUIRED

@@ -1,5 +1,7 @@
 # Phase 1 manual multiplayer tests
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 ## Purpose
 
 This matrix covers behavior that pure JUnit tests and a headless dedicated server cannot prove. Run it before approving a public release that contains Phase 1. It is not a substitute for `./gradlew test`, `./gradlew build`, or the dedicated integration matrix.

@@ -76,6 +76,34 @@ public final class CommandCatalog {
                         "privileged command has no audit policy"));
             }
         }
+        for (PanelContracts.PanelDescriptor panel : descriptors.panels().values()) {
+            if (!capabilities.contains(panel.permissionId())) {
+                problems.add(new Problem(
+                        Severity.ERROR,
+                        panel.id(),
+                        "unknown panel permission " + panel.permissionId()));
+            }
+            for (PanelContracts.ControlDescriptor control : panel.controls()) {
+                if (!byId.containsKey(control.actionId())) {
+                    problems.add(new Problem(
+                            Severity.ERROR,
+                            panel.id(),
+                            "unknown panel action " + control.actionId()));
+                }
+                if (!capabilities.contains(control.permissionId())) {
+                    problems.add(new Problem(
+                            Severity.ERROR,
+                            panel.id(),
+                            "unknown control permission " + control.permissionId()));
+                }
+                if (!capabilities.contains(control.audience().permissionId())) {
+                    problems.add(new Problem(
+                            Severity.ERROR,
+                            panel.id(),
+                            "unknown audience permission " + control.audience().permissionId()));
+                }
+            }
+        }
         return List.copyOf(problems);
     }
 

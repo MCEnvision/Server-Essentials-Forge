@@ -1,0 +1,70 @@
+# Controls private messages behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "private_messages"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Hover text for click to message. Placeholder: $player 0 through 8192 characters Apply class live.
+click_to_message_hover = "&dClick to message $player"
+# Hover text for click to reply. Placeholder: $player 0 through 8192 characters Apply class live.
+click_to_reply_hover = "&eClick to reply"
+# Click-to-reply system (/ans, clickable chat messages, chat logging). Requires chat_formatting = true (SEF must own the chat line to make it clickable). `true` or `false` Apply class restart_required.
+enable_chat_replies = true
+# Private messaging system (/msg, /r, /tell, /w) `true` or `false` Apply class restart_required.
+enable_messaging_system = true
+# Message when reply target message not found 0 through 8192 characters Apply class live.
+message_not_found_msg = "&cMessage not found or too old to reply to."
+# Format for incoming private messages. Placeholders: $sender, $receiver, $message 0 through 8192 characters Apply class live.
+msg_received_format = "&d&lFrom &d$sender&7: &r&7$message"
+# Format for outgoing private messages. Placeholders: $sender, $receiver, $message 0 through 8192 characters Apply class live.
+msg_sent_format = "&d&lTo &d$receiver&7: &r&7$message"
+# Message when there's no one to reply to 0 through 8192 characters Apply class live.
+no_reply_target_msg = "&cNo one to reply to."
+# Maximum private message length 1 through 16384 Apply class live.
+private_message_maximum_length = 2048
+# Format for the reply body line (the replier's message). Placeholders: $replier, $message   $replier will include the player's rank/prefix/suffix from LuckPerms if available 0 through 8192 characters Apply class live.
+reply_body_format = "$replier&7: &r$message"
+# Format for reply header. Placeholders: $replier, $original_sender, $summary 0 through 8192 characters Apply class live.
+reply_header_format = "    &f&l┌────&r &7Replying to $original_sender&7: &7$summary"
+# Maximum length of message summary shown in reply headers (0 = no limit) 0 through 500 Apply class live.
+reply_summary_length = 50

@@ -15,6 +15,7 @@ import java.util.UUID;
 
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.cacheddata.CachedMetaData;
+import net.luckperms.api.model.group.Group;
 import net.luckperms.api.model.user.User;
 
 public class LuckPermsProvider implements IMetadataProvider {
@@ -48,6 +49,47 @@ public class LuckPermsProvider implements IMetadataProvider {
 	@Override
 	public void invalidateCache() {
 		invalidateAll();
+	}
+
+	@Override
+	public @NonNull String getPrimaryGroup(@NonNull GameProfile player) {
+		if (this.luckPerms == null) {
+			return "";
+		}
+		try {
+			User user = this.luckPerms.getUserManager().getUser(player.getId());
+			return user == null ? "" : user.getPrimaryGroup();
+		} catch (IllegalStateException | NullPointerException exception) {
+			ServerEssentialsForge.LOGGER.warn(
+					"Could not resolve the LuckPerms primary group for {}",
+					player.getName(),
+					exception);
+			return "";
+		}
+	}
+
+	@Override
+	public Integer getHierarchyWeight(@NonNull GameProfile player) {
+		if (this.luckPerms == null) {
+			return null;
+		}
+		try {
+			User user = this.luckPerms.getUserManager().getUser(player.getId());
+			if (user == null) {
+				return null;
+			}
+			Group group = this.luckPerms.getGroupManager().getGroup(user.getPrimaryGroup());
+			if (group == null || group.getWeight().isEmpty()) {
+				return null;
+			}
+			return Math.clamp(group.getWeight().getAsInt(), 0, 1_000_000);
+		} catch (IllegalStateException | NullPointerException exception) {
+			ServerEssentialsForge.LOGGER.warn(
+					"Could not resolve the LuckPerms hierarchy weight for {}",
+					player.getName(),
+					exception);
+			return null;
+		}
 	}
 
 	private CachedMetaData getMetaData(GameProfile player) {

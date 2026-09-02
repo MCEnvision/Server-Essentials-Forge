@@ -466,6 +466,7 @@ class PolicyServicesTest {
                 "dimension",
                 true,
                 false,
+                false,
                 issued.token(),
                 binding,
                 null,
@@ -518,6 +519,44 @@ class PolicyServicesTest {
         ActionResult<CommandExecutionService.Lease> started = executions.begin(request);
         assertTrue(started.successful());
         assertFalse(cooldowns.inspect(actor, "sef:test").allowed());
+        assertTrue(started.value().complete(true, null).successful());
+    }
+
+    @Test
+    void warmupBypassSkipsAndClearsPendingWarmup() {
+        FeatureGateService gates = new FeatureGateService();
+        gates.publish(new FeatureGateService.Snapshot(2, Map.of("sef.test", true), Map.of(), Map.of()));
+        CommandPolicyService policies = new CommandPolicyService(gates);
+        policies.register(new CommandPolicyService.Policy(
+                "sef:test",
+                "sef.test",
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                false,
+                false,
+                Duration.ZERO,
+                Duration.ofSeconds(30),
+                BigDecimal.ZERO,
+                AuditService.AuditClass.METADATA_ONLY));
+        WarmupService warmups = new WarmupService();
+        CommandExecutionService executions = new CommandExecutionService(
+                policies,
+                new CooldownService(),
+                new CostService.Disabled(),
+                warmups,
+                new ConfirmationService());
+        UUID actor = UUID.randomUUID();
+        WarmupService.Position position =
+                new WarmupService.Position("minecraft:overworld", 0, 64, 0, 0, 0);
+
+        assertEquals(
+                ActionResult.ReasonCode.WARMUP_ACTIVE,
+                executions.begin(request(actor, true, position)).reason());
+        assertEquals(1, warmups.size());
+
+        ActionResult<CommandExecutionService.Lease> started =
+                executions.begin(request(actor, true, position, true));
+        assertTrue(started.successful());
+        assertEquals(0, warmups.size());
         assertTrue(started.value().complete(true, null).successful());
     }
 
@@ -594,6 +633,15 @@ class PolicyServicesTest {
             boolean permissionGranted,
             WarmupService.Position position
     ) {
+        return request(actor, permissionGranted, position, false);
+    }
+
+    private static CommandExecutionService.Request request(
+            UUID actor,
+            boolean permissionGranted,
+            WarmupService.Position position,
+            boolean warmupBypass
+    ) {
         return new CommandExecutionService.Request(
                 UUID.randomUUID(),
                 actor,
@@ -604,6 +652,7 @@ class PolicyServicesTest {
                 "dimension",
                 permissionGranted,
                 false,
+                warmupBypass,
                 "",
                 null,
                 position,

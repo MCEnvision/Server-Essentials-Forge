@@ -1,6 +1,7 @@
 package com.enviouse.sef.invsee;
 
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelServices;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
@@ -47,7 +48,19 @@ class InvSeeContainerAuthorizationTest {
         }
     }
 
+    @Test
+    void configurationReloadClosesOpenMenuBeforeInteraction() throws Exception {
+        try (Fixture fixture = fixture()) {
+            KernelServices.reloadConfiguration();
+
+            fixture.container().clicked(18, 0, ClickType.PICKUP, fixture.viewer());
+
+            verify(fixture.viewer()).closeContainer();
+        }
+    }
+
     private static Fixture fixture() {
+        KernelServices.initialize();
         ServerPlayer viewer = mock(ServerPlayer.class);
         ServerPlayer target = mock(ServerPlayer.class);
         CommandSourceStack source = mock(CommandSourceStack.class);
@@ -57,6 +70,9 @@ class InvSeeContainerAuthorizationTest {
 
         when(viewer.createCommandSourceStack()).thenReturn(source);
         when(source.getEntity()).thenReturn(viewer);
+        when(source.getPlayer()).thenReturn(viewer);
+        when(viewer.isAlive()).thenReturn(true);
+        when(target.isAlive()).thenReturn(true);
         when(target.getInventory()).thenReturn(targetInventory);
 
         MockedStatic<PermissionAPI> permissions = mockStatic(PermissionAPI.class, invocation -> {

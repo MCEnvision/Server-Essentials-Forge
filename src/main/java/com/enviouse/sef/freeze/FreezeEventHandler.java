@@ -12,6 +12,9 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import com.enviouse.sef.ServerEssentialsForge;
 
+import java.util.Locale;
+import java.util.Set;
+
 /**
  * Event handler that blocks frozen players from:
  * - Using commands (except chat is allowed via ServerChatEvent which is NOT cancelled here)
@@ -24,6 +27,9 @@ import com.enviouse.sef.ServerEssentialsForge;
  */
 @EventBusSubscriber(modid = ServerEssentialsForge.MODID)
 public class FreezeEventHandler {
+    private static final Set<String> ALLOWED_CHAT_COMMANDS = Set.of(
+            "msg", "r", "tell", "w", "reply", "whisper",
+            "helpop", "ac", "adminchat", "staffchat", "pchat", "teammsg", "tm");
 
     /**
      * Block commands from frozen players.
@@ -32,36 +38,20 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onCommand(CommandEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
-        try {
-            ServerPlayer player = event.getParseResults().getContext().getSource().getPlayerOrException();
-            if (FreezeManager.isFrozen(player.getUUID())) {
-                // Get the command name being executed
-                String input = event.getParseResults().getReader().getString().trim();
-                // Remove leading slash if present
-                if (input.startsWith("/")) input = input.substring(1);
-                String commandName = input.split(" ")[0].toLowerCase();
-
-                // Allow chat-related commands if freezeAllowChat is true
-                if (ConfigHandler.config.freezeAllowChat.get()) {
-                    // Allow messaging commands so frozen players can talk to admins
-                    if (commandName.equals("msg") || commandName.equals("r") ||
-                        commandName.equals("tell") || commandName.equals("w") ||
-                        commandName.equals("reply") || commandName.equals("whisper") ||
-                        commandName.equals("helpop") || commandName.equals("ac")) {
-                        return; // Allow these
-                    }
-                }
-
-                // Block everything else
-                event.setCanceled(true);
-                player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                    ConfigHandler.config.freezeCommandBlockedMsg.get()));
-            }
-        } catch (Exception ignored) {
-            // Not a player source, allow it
+        ServerPlayer player = event.getParseResults().getContext().getSource().getPlayer();
+        if (player == null || !FreezeManager.isFrozen(player.getUUID())) {
+            return;
         }
+        if (allowedWhileFrozen(
+                event.getParseResults().getReader().getString(),
+                ConfigHandler.config.freezeAllowChat.get())) {
+            return;
+        }
+        event.setCanceled(true);
+        player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                ConfigHandler.config.freezeCommandBlockedMsg.get()));
     }
 
     /**
@@ -69,7 +59,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getPlayer() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -85,7 +75,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onBlockPlace(BlockEvent.EntityPlaceEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -101,7 +91,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onAttackEntity(AttackEntityEvent event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -117,7 +107,7 @@ public class FreezeEventHandler {
      */
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -128,7 +118,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -139,7 +129,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -150,7 +140,7 @@ public class FreezeEventHandler {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
-        if (!ConfigHandler.config.enableFreezeSystem.get()) return;
+        if (!enabled()) return;
 
         if (event.getEntity() instanceof ServerPlayer player) {
             if (FreezeManager.isFrozen(player.getUUID())) {
@@ -158,5 +148,30 @@ public class FreezeEventHandler {
             }
         }
     }
-}
 
+    static boolean allowedWhileFrozen(String input, boolean allowChat) {
+        if (!allowChat || input == null) {
+            return false;
+        }
+        String candidate = input.strip();
+        while (candidate.startsWith("/")) {
+            candidate = candidate.substring(1).stripLeading();
+        }
+        int separator = 0;
+        while (separator < candidate.length()
+                && !Character.isWhitespace(candidate.charAt(separator))) {
+            separator++;
+        }
+        String root = candidate.substring(0, separator).toLowerCase(Locale.ROOT);
+        int namespace = root.indexOf(':');
+        if (namespace >= 0) {
+            root = root.substring(namespace + 1);
+        }
+        return ALLOWED_CHAT_COMMANDS.contains(root);
+    }
+
+    private static boolean enabled() {
+        return ConfigHandler.config.enableFreezeSystem.get()
+                || ConfigHandler.config.enableModerationEssentials.get();
+    }
+}

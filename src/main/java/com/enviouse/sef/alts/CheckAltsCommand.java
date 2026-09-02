@@ -5,12 +5,14 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
+import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageExportService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.List;
@@ -37,14 +39,19 @@ public class CheckAltsCommand {
             .then(Commands.literal("export")
                 .requires(src -> PermissionService.has(src, PermissionsHandler.checkAltsExport))
                 .executes(ctx -> export(ctx.getSource())))
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer target = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer target = IdentityArguments.getOnline(ctx, "player");
                     return executeCheckAlts(ctx.getSource(), target);
                 })));
     }
 
     private static int executeCheckAlts(CommandSourceStack source, ServerPlayer target) {
+        if (!eligible(source, target)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
+            audit(source, "inspect", "target denied");
+            return 0;
+        }
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
         if (tracker == null) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
@@ -83,9 +90,34 @@ public class CheckAltsCommand {
         return 1;
     }
 
+    private static boolean eligible(CommandSourceStack source, ServerPlayer target) {
+        if (source.getPlayer() != null && VanishUtil.isVanished(target, source.getPlayer())) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.phasePermission("checkalts.hierarchy.bypass"),
+                PermissionsHandler.phasePermission("checkalts.exempt"),
+                PermissionsHandler.phasePermission("checkalts.bypass.exempt"),
+                false,
+                true).allowed();
+    }
+
     private static int purgeExpired(CommandSourceStack source) {
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
-        int removed = tracker.purgeExpiredRecords();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
+        int removed;
+        try {
+            removed = tracker.purgeExpiredRecords();
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cExpired records could not be purged. &7" + exception.getMessage()));
+            return 0;
+        }
         audit(source, "purge expired", Integer.toString(removed));
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aPurged &e" + removed + " &aexpired alternate account record(s)."), false);
@@ -94,7 +126,18 @@ public class CheckAltsCommand {
 
     private static int purgeAll(CommandSourceStack source) {
         AltTracker tracker = CommandRegistrationHandler.getAltTracker();
-        int removed = tracker.purgeAll();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
+        int removed;
+        try {
+            removed = tracker.purgeAll();
+        } catch (IllegalStateException exception) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cAlternate account records could not be purged. &7" + exception.getMessage()));
+            return 0;
+        }
         audit(source, "purge all", Integer.toString(removed));
         source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aPurged &e" + removed + " &aalternate account record(s)."), false);
@@ -102,11 +145,15 @@ public class CheckAltsCommand {
     }
 
     private static int export(CommandSourceStack source) {
+        AltTracker tracker = CommandRegistrationHandler.getAltTracker();
+        if (tracker == null) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cAlt tracking is not initialized."));
+            return 0;
+        }
         boolean includeRaw = PermissionService.has(source, PermissionsHandler.checkAltsIpView);
         java.nio.file.Path directory = source.getServer().getServerDirectory()
                 .resolve("serverconfig").resolve("sef").resolve("exports");
-        com.google.gson.JsonObject snapshot =
-                CommandRegistrationHandler.getAltTracker().buildExport(includeRaw);
+        com.google.gson.JsonObject snapshot = tracker.buildExport(includeRaw);
         String issuer = source.getTextName();
         boolean accepted = StorageExportService.submit(() -> {
             try {

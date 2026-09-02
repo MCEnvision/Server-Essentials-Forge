@@ -3,6 +3,7 @@ package com.enviouse.sef.vanish.mixin;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.network.Connection;
@@ -21,9 +22,20 @@ import com.enviouse.sef.vanish.VanishUtil;
 import com.enviouse.sef.vanish.VanishingHandler;
 import com.enviouse.sef.vanish.misc.FieldHolder;
 import com.enviouse.sef.vanish.misc.SoundSuppressionHelper;
+import com.enviouse.sef.social.ConnectionMessageService;
+import net.minecraft.network.chat.Component;
 
 @Mixin(value = PlayerList.class)
 public class PlayerListMixin {
+	@ModifyArg(
+			method = "placeNewPlayer",
+			at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"),
+			index = 0)
+	private Component sef$customJoinMessage(Component original) {
+		ServerPlayer player = FieldHolder.joiningPlayer;
+		return player == null ? original : ConnectionMessageService.render(player, true, original);
+	}
+
 	//Vanishes any unvanished players that are on the vanishing queue. Also acts as a helper for accessing the player that is currently joining the server
 	@Inject(method = "placeNewPlayer", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
 	public void vanishmod$onSendJoinMessage(Connection networkManager, ServerPlayer player, CommonListenerCookie cookie, CallbackInfo ci) {

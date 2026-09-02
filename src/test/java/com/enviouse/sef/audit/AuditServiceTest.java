@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AuditServiceTest {
@@ -88,5 +89,84 @@ class AuditServiceTest {
         assertEquals(observerId.toString(), persisted.get("observerUuid").getAsString());
         assertEquals("abcdef", persisted.get("previousEventHash").getAsString());
         assertEquals("admin_action", persisted.get("auditClass").getAsString());
+    }
+
+    @Test
+    void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
+        Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        Files.createDirectories(activeFile);
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test",
+                    "writer_failure",
+                    "tester",
+                    "",
+                    "test",
+                    "attempted",
+                    "test")));
+            await(() -> SecurityAuditService.health().failures() > 0L
+                    && !SecurityAuditService.health().writerAlive());
+
+            SecurityAuditService.Health health = SecurityAuditService.health();
+            assertFalse(health.running());
+            assertFalse(health.writerAlive());
+            assertTrue(health.dropped() > 0L);
+            assertFalse(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test",
+                    "after_failure",
+                    "tester",
+                    "",
+                    "test",
+                    "attempted",
+                    "test")));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
+    void auditFieldsNormalizeControlAndFormatCharacters() {
+        SecurityAuditService.AuditEvent event = SecurityAuditService.AuditEvent.create(
+                "test",
+                "normalized_fields",
+                "En\u202Evy\n\tname",
+                "target\u0000\nname",
+                "test",
+                "attempted",
+                "test");
+
+        assertEquals("En vy name", event.actorUsername());
+        assertEquals("target name", event.normalizedParameters().get("target"));
+    }
+
+    @Test
+    void recentAuditRingFiltersAndReturnsNewestFirst() {
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "first", "envy", "", "fancy_tags", "success", "success")));
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "unrelated", "envy", "", "other", "success", "success")));
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "second", "envy", "", "fancy_tags", "success", "success")));
+
+            var recent = SecurityAuditService.recent(
+                    event -> event.origin().equals("fancy_tags"),
+                    16);
+            assertEquals(2, recent.size());
+            assertEquals("second", recent.getFirst().actionId());
+            assertEquals("first", recent.getLast().actionId());
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    private static void await(java.util.function.BooleanSupplier condition) {
+        long deadline = System.nanoTime() + java.time.Duration.ofSeconds(2).toNanos();
+        while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertTrue(condition.getAsBoolean());
     }
 }

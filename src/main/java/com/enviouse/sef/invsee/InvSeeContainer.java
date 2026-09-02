@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.moddeps.CuriosInventoryHelper;
 import net.minecraft.network.chat.Component;
@@ -44,6 +45,7 @@ import java.util.List;
 public class InvSeeContainer extends AbstractContainerMenu {
     private final ServerPlayer target;
     private final ServerPlayer viewer;
+    private final long configurationRevision;
     private final int page;
     private final int totalPages;
     private boolean readOnly;
@@ -67,6 +69,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
         super(MenuType.GENERIC_9x6, containerId);
         this.target = target;
         this.viewer = (ServerPlayer) viewerInventory.player;
+        this.configurationRevision = KernelServices.configurationRevision();
         this.page = page;
         this.readOnly = ConfigHandler.config.invSeeReadOnly.get() || !canModify;
         this.canViewCurios = canViewCurios;
@@ -257,7 +260,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public void clicked(int slotId, int button, ClickType clickType, Player player) {
-        if (player != viewer || !InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+        if (!authorizationValid(player)) {
             viewer.closeContainer();
             return;
         }
@@ -301,7 +304,7 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public void broadcastChanges() {
-        if (!InvSeeCommand.canView(viewer.createCommandSourceStack())) {
+        if (!authorizationValid(viewer)) {
             viewer.closeContainer();
             return;
         }
@@ -326,12 +329,14 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return player == viewer
-                && target != null
-                && target.isAlive()
-                && !target.hasDisconnected()
-                && InvSeeCommand.canView(viewer.createCommandSourceStack())
+        return authorizationValid(player)
                 && (page == 0 || PermissionService.has(viewer, PermissionsHandler.invSeeCurios));
+    }
+
+    private boolean authorizationValid(Player player) {
+        return player == viewer
+                && configurationRevision == KernelServices.configurationRevision()
+                && InvSeeCommand.canAccess(viewer, target);
     }
 
     private void auditModification(int slotId, ClickType clickType) {

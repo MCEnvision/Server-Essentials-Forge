@@ -1,10 +1,14 @@
 package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.kernel.observation.ObservationContracts;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -28,15 +32,20 @@ public final class KernelCommandExecutor {
     private KernelCommandExecutor() {
     }
 
+    @SafeVarargs
     public static boolean canUse(
             CommandSourceStack source,
             String actionId,
             PermissionNode<Boolean>... additionalPermissions
     ) {
         Objects.requireNonNull(source, "source");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            return false;
+        }
         return permissions(source, definition(actionId), additionalPermissions).granted();
     }
 
+    @SafeVarargs
     public static int execute(
             CommandSourceStack source,
             String actionId,
@@ -54,6 +63,7 @@ public final class KernelCommandExecutor {
                 additionalPermissions);
     }
 
+    @SafeVarargs
     public static int execute(
             CommandSourceStack source,
             String actionId,
@@ -67,15 +77,72 @@ public final class KernelCommandExecutor {
         Objects.requireNonNull(normalizedParameters, "normalizedParameters");
         Objects.requireNonNull(targetIds, "targetIds");
         Objects.requireNonNull(action, "action");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe delegated execution grant does not cover this action."));
+            return 0;
+        }
 
         CommandDefinition definition = definition(actionId);
         PermissionSummary permission = permissions(source, definition, additionalPermissions);
+        boolean effectiveCooldownBypass = cooldownBypass || KernelServices.cooldownBypass(source, actionId);
+        boolean effectiveCostBypass = KernelServices.costBypass(source);
         CommandDefinition.SourceType sourceType = sourceType(source);
-        UUID actorId = actorId(source, sourceType);
+        ExecutionOperationScope.Context operation =
+                ExecutionOperationScope.current().orElse(null);
+        UUID actorId = operation == null
+                ? actorId(source, sourceType)
+                : operation.actorId();
+        Map<String, String> effectiveParameters = new LinkedHashMap<>(normalizedParameters);
+        if (operation != null) {
+            effectiveParameters.put("operation_id", operation.operationId().toString());
+        }
         String dimensionId = dimensionId(source);
+        KernelServices.commandJournal().attachOrBegin(source, actionId);
+        ActionResult<Void> controlAuthorization =
+                MinecraftServerControlRuntime.authorizeAction(source, definition);
+        if (!controlAuthorization.successful()) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    controlAuthorization.reason().name().toLowerCase(Locale.ROOT));
+            AuditService.record(AuditService.Event.metadata(
+                    SecurityAuditService.currentSessionId(),
+                    actorId,
+                    Objects.requireNonNullElse(source.getTextName(), ""),
+                    sourceType.name(),
+                    definition.id(),
+                    targetIds,
+                    AuditService.Result.REJECTED,
+                    controlAuthorization.reason(),
+                    "server_control",
+                    definition.auditClass()));
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&c" + controlAuthorization.detail()));
+            return 0;
+        }
 
         Map<String, String> providerContext = new LinkedHashMap<>(permission.providerContext());
         providerContext.put("source_class", sourceType.name().toLowerCase(Locale.ROOT));
+        providerContext.put("cost_bypass", Boolean.toString(effectiveCostBypass));
+        if (operation != null) {
+            providerContext.put("operation_id", operation.operationId().toString());
+            providerContext.put("idempotency_key", operation.idempotencyKey());
+            providerContext.put("authorization", "queue_time");
+        }
+        try {
+            providerContext.put(
+                    "quoted_cost",
+                    KernelServices.quoteCommandCost(actionId, normalizedParameters, targetIds).toPlainString());
+        } catch (IllegalArgumentException exception) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    ActionResult.ReasonCode.INVALID_INPUT.name().toLowerCase(Locale.ROOT));
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe configured command cost could not be calculated."));
+            return 0;
+        }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(
                 new CommandExecutionService.Request(
                         SecurityAuditService.currentSessionId(),
@@ -86,37 +153,69 @@ public final class KernelCommandExecutor {
                         dimensionId,
                         dimensionId,
                         permission.granted(),
-                        cooldownBypass,
+                        effectiveCooldownBypass,
+                        effectiveCostBypass,
+                        false,
                         "",
                         null,
                         null,
                         Set.of(),
-                        normalizedParameters,
+                        effectiveParameters,
                         targetIds,
                         1L,
                         providerContext,
                         "command"));
         if (!started.successful()) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    started.reason().name().toLowerCase(Locale.ROOT));
             sendFailure(source, started);
             return 0;
         }
 
         try (CommandExecutionService.Lease lease = started.value()) {
-            int result = action.getAsInt();
+            int result;
+            try {
+                result = action.getAsInt();
+            } catch (RuntimeException exception) {
+                lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
+                KernelServices.commandJournal().finishCurrent(
+                        ObservationContracts.LifecycleStage.FAILED,
+                        null,
+                        exception.getClass().getSimpleName());
+                com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
+                        "[SEF] Kernel action {} failed",
+                        definition.id(),
+                        exception);
+                source.sendFailure(TextFormatter.stringToFormattedText(
+                        "&cThat action could not be completed safely."));
+                return 0;
+            }
             ActionResult<Void> completed = lease.complete(
                     result > 0,
                     result > 0 ? null : ActionResult.ReasonCode.PROVIDER_ERROR);
             if (!completed.successful()) {
+                KernelServices.commandJournal().finishCurrent(
+                        ObservationContracts.LifecycleStage.FAILED,
+                        result,
+                        completed.reason().name().toLowerCase(Locale.ROOT));
                 if (result > 0) {
                     sendFailure(source, completed);
                 }
                 return 0;
             }
+            KernelServices.commandJournal().finishCurrent(
+                    result > 0
+                            ? ObservationContracts.LifecycleStage.COMPLETED
+                            : ObservationContracts.LifecycleStage.FAILED,
+                    result,
+                    result > 0 ? "" : ActionResult.ReasonCode.PROVIDER_ERROR.name().toLowerCase(Locale.ROOT));
             return result;
         }
     }
 
-    static CommandDefinition.SourceType sourceType(CommandSourceStack source) {
+    public static CommandDefinition.SourceType sourceType(CommandSourceStack source) {
         if (source.getEntity() instanceof ServerPlayer) {
             return CommandDefinition.SourceType.PLAYER;
         }

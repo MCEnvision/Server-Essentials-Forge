@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
 public final class AliasCompiler {
@@ -35,7 +36,7 @@ public final class AliasCompiler {
 
     private final CommandCatalog catalog;
     private final CapabilityManifest capabilities;
-    private final Set<String> knownBundleIds;
+    private final Supplier<Set<String>> knownBundleIds;
     private final Map<String, ExternalAdapter> externalAdapters;
     private final RootOwnershipResolver rootOwnership;
 
@@ -64,7 +65,22 @@ public final class AliasCompiler {
     ) {
         this.catalog = Objects.requireNonNull(catalog, "catalog");
         this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
-        this.knownBundleIds = Set.copyOf(Objects.requireNonNull(knownBundleIds, "knownBundleIds"));
+        Set<String> immutableBundleIds = Set.copyOf(Objects.requireNonNull(knownBundleIds, "knownBundleIds"));
+        this.knownBundleIds = () -> immutableBundleIds;
+        this.externalAdapters = Map.copyOf(Objects.requireNonNull(externalAdapters, "externalAdapters"));
+        this.rootOwnership = Objects.requireNonNull(rootOwnership, "rootOwnership");
+    }
+
+    public AliasCompiler(
+            CommandCatalog catalog,
+            CapabilityManifest capabilities,
+            Supplier<Set<String>> knownBundleIds,
+            Map<String, ExternalAdapter> externalAdapters,
+            RootOwnershipResolver rootOwnership
+    ) {
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
+        this.capabilities = Objects.requireNonNull(capabilities, "capabilities");
+        this.knownBundleIds = Objects.requireNonNull(knownBundleIds, "knownBundleIds");
         this.externalAdapters = Map.copyOf(Objects.requireNonNull(externalAdapters, "externalAdapters"));
         this.rootOwnership = Objects.requireNonNull(rootOwnership, "rootOwnership");
     }
@@ -99,7 +115,13 @@ public final class AliasCompiler {
                 return ActionResult.failure(ActionResult.ReasonCode.POLICY_DENIED, "alias expands source classes");
             }
         } else if (definition.kind() == AliasKind.BUNDLE) {
-            if (!knownBundleIds.contains(definition.targetId())) {
+            if (definition.argumentSchema() != ArgumentSchema.NONE) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.INVALID_DEFINITION,
+                        "bundle aliases require the none argument schema");
+            }
+            if (!Set.copyOf(Objects.requireNonNull(knownBundleIds.get(), "knownBundleIds"))
+                    .contains(definition.targetId())) {
                 return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "unknown bundle");
             }
         } else {
@@ -112,6 +134,15 @@ public final class AliasCompiler {
             }
         }
         return ActionResult.success(new CompiledAlias(definition, Instant.now()));
+    }
+
+    public ActionResult<CompiledAlias> validatePublication(AliasDefinition definition) {
+        Objects.requireNonNull(definition, "definition");
+        ActionResult<Void> rootDecision = validatePublicationRoot(definition);
+        if (!rootDecision.successful()) {
+            return ActionResult.failure(rootDecision.reason(), rootDecision.detail());
+        }
+        return compile(definition);
     }
 
     public static final class Registry {

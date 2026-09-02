@@ -61,7 +61,13 @@ public final class MotdCommands {
         }
         String line1 = lines[0].trim();
         String line2 = lines.length > 1 ? lines[1].trim() : "";
-        manager.setMotd(line1, line2);
+        try {
+            manager.setMotd(line1, line2);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            context.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMOTD could not be updated. &7" + exception.getMessage()));
+            return 0;
+        }
         manager.applyToServer(context.getSource().getServer());
         context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aMOTD updated and applied"), false);
@@ -74,6 +80,12 @@ public final class MotdCommands {
             return 0;
         }
         manager.load();
+        if (manager.state() == com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.RECOVERY
+                || manager.state() == com.enviouse.sef.storage.repository.StorageRepository.RepositoryState.ERROR) {
+            context.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMOTD reload failed. The previous MOTD remains active."));
+            return 0;
+        }
         manager.applyToServer(context.getSource().getServer());
         context.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
                 "&aMOTD reloaded and applied"), false);

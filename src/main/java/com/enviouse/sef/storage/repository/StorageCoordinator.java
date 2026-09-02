@@ -14,6 +14,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -21,10 +22,24 @@ public final class StorageCoordinator {
     private static final long SHUTDOWN_TIMEOUT_SECONDS = 5L;
 
     private final Map<String, StorageRepository> repositories = new LinkedHashMap<>();
+    private final Object flushMonitor = new Object();
+    private final int flushIntervalSeconds;
     private Path managedRoot;
     private boolean started;
     private boolean recoveryMode;
     private ExecutorService pendingShutdownExecutor;
+    private ScheduledExecutorService periodicFlushExecutor;
+
+    public StorageCoordinator() {
+        this(30);
+    }
+
+    public StorageCoordinator(int flushIntervalSeconds) {
+        if (flushIntervalSeconds < 1 || flushIntervalSeconds > 600) {
+            throw new IllegalArgumentException("Flush interval must be between 1 and 600 seconds");
+        }
+        this.flushIntervalSeconds = flushIntervalSeconds;
+    }
 
     public synchronized void register(StorageRepository repository) {
         Objects.requireNonNull(repository, "repository");
@@ -59,10 +74,23 @@ public final class StorageCoordinator {
             }
         }
         started = true;
+        periodicFlushExecutor = Executors.newSingleThreadScheduledExecutor(task ->
+                Thread.ofPlatform().daemon(true).name("sef-storage-flush").unstarted(task));
+        periodicFlushExecutor.scheduleWithFixedDelay(
+                this::periodicFlush,
+                flushIntervalSeconds,
+                flushIntervalSeconds,
+                TimeUnit.SECONDS);
         return List.copyOf(results);
     }
 
     public FlushResult flush() {
+        synchronized (flushMonitor) {
+            return flushLocked();
+        }
+    }
+
+    private FlushResult flushLocked() {
         List<StorageRepository> snapshot;
         synchronized (this) {
             snapshot = List.copyOf(repositories.values());
@@ -91,6 +119,7 @@ public final class StorageCoordinator {
     }
 
     public FlushResult shutdown() {
+        stopPeriodicFlush();
         List<String> pendingRepositoryIds;
         var executor = Executors.newSingleThreadExecutor(task ->
                 Thread.ofPlatform().daemon(true).name("sef-storage-shutdown").unstarted(task));
@@ -133,6 +162,34 @@ public final class StorageCoordinator {
             }
         }
         return result;
+    }
+
+    private void periodicFlush() {
+        try {
+            flush();
+        } catch (RuntimeException exception) {
+            synchronized (this) {
+                recoveryMode = true;
+            }
+            ServerEssentialsForge.LOGGER.error("[SEF] Periodic repository flush failed", exception);
+        }
+    }
+
+    private void stopPeriodicFlush() {
+        ScheduledExecutorService executor;
+        synchronized (this) {
+            executor = periodicFlushExecutor;
+            periodicFlushExecutor = null;
+        }
+        if (executor == null) {
+            return;
+        }
+        executor.shutdownNow();
+        try {
+            executor.awaitTermination(250L, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     public synchronized boolean recoveryMode() {

@@ -1,0 +1,92 @@
+# Controls messages behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "messages"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[format]
+# Defines the bounded default message prefix. 0 through 128 characters Apply class live.
+prefix = "&8[&6SEF&8]&r "
+
+[runtime]
+# Format for Admin Chat messages. Placeholders: $sender, $message 0 through 8192 characters Apply class live.
+admin_chat_format = "&4&lAdmin Chat &e$sender&7:&r $message"
+# Server-wide message format when a banned entry has announce=true and a hit occurs.   Placeholders: $player, $item, $reason.   Leave empty to use the built-in default. 0 through 8192 characters Apply class live.
+banned_announce_format = ""
+# Sets the global color of the chat messages    Choose one of the following:     AQUA, RED, LIGHT_PURPLE, YELLOW, WHITE, BLACK, GOLD, GRAY, BLUE, GREEN,     DARK_GRAY, DARK_AQUA, DARK_RED, DARK_PURPLE, DARK_GREEN, DARK_BLUE 0 through 8192 characters Apply class live.
+chat_message_color = "WHITE"
+# Controls the chat message format     $time is replaced by the timestamp field or nothing if disabled     $name is replaced by the user's name, or nickname if they have one     colors can be uses in the formatting string. for a global message color see next section     $msg is replaced by the username's message (if you use it more then once it WILL break this mod) 0 through 8192 characters Apply class live.
+chat_message_format = "$time | $name: $msg"
+# Play sound for Admin Chat messages `true` or `false` Apply class restart_required.
+enable_admin_chat_sound = false
+# Master toggle for SEF's chat formatting (prefix/suffix/color/timestamp). When false, chat uses the vanilla format. Note: click_to_respond needs this ON to attach clickable replies. `true` or `false` Apply class restart_required.
+enable_chat_formatting = true
+# /colors command `true` or `false` Apply class restart_required.
+enable_colors_command = true
+# Word filter system (/sef filter ...) `true` or `false` Apply class restart_required.
+enable_filter_system = true
+# Play sound for HelpOp notifications `true` or `false` Apply class restart_required.
+enable_help_op_sound = true
+# Enables or disables markdown styling `true` or `false` Apply class restart_required.
+enable_markdown = true
+# Play sound when receiving a private message `true` or `false` Apply class restart_required.
+enable_msg_sound = true
+# Play sound when someone replies to your message `true` or `false` Apply class restart_required.
+enable_reply_sound = true
+# Enables or disables the filling in of timestamps `true` or `false` Apply class restart_required.
+enable_timestamp = true
+# Format for HelpOp replies to players. Placeholders: $message 0 through 8192 characters Apply class live.
+help_op_reply_format = "&l&cHelpOp &4OP&f Replied&7:&r&7 $message"
+# Hover text for HelpOp reply. Placeholder: $player 0 through 8192 characters Apply class live.
+help_op_reply_hover = "&7Click to reply to $player"
+# Format for HelpOp requests to operators. Placeholders: $sender, $message 0 through 8192 characters Apply class live.
+help_op_request_format = "&l&cHelpOp &fFrom &e$sender&7:&r&7 $message"
+# Separator inserted between multiple prefixes/suffixes when combined 0 through 8192 characters Apply class live.
+meta_join_separator = " "
+# Controls the chat message format     $prefix is replaced by the user's prefix or nothing if the user has no prefix     $suffix is replaced by the user's suffix or nothing if the user has no suffix     $name is replaced by the user's name, or nickname if they have one 0 through 8192 characters Apply class live.
+player_name_format = "$prefix$name$suffix"
+# Timestamp format following the java SimpleDateFormat     Read more here: https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html 0 through 8192 characters Apply class live.
+timestamp_format = "HH:mm"
+# Notification sent to admins when a player is unfrozen. Placeholders: $player, $admin 0 through 8192 characters Apply class live.
+unfreeze_admin_notify_format = "&e$admin &7has unfrozen &e$player&7."
+# Message sent to the player when unfrozen. Placeholder: $admin 0 through 8192 characters Apply class live.
+unfreeze_message_to_player = "&a&lYou have been unfrozen by &e$admin&a&l."

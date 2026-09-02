@@ -1,0 +1,76 @@
+# Controls displays behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "displays"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Format for announcement added confirmation. Placeholders: $id, $interval, $message 0 through 8192 characters Apply class live.
+announcement_confirm_format = "&aAdded announcement: &e$id &7(every $interval)"
+# Interval in seconds between announcements -9223372036854775808 through 9223372036854775807 Apply class live.
+announcement_interval_seconds = 300
+# Header for command announcement list 0 through 8192 characters Apply class live.
+announcement_list_header_cmd = "&6━━━━━━━━ Command Announcements ━━━━━━━━"
+# Header for text announcement list 0 through 8192 characters Apply class live.
+announcement_list_header_text = "&6━━━━━━━━ Text Announcements ━━━━━━━━"
+# When true, announcements are chosen randomly; otherwise in order `true` or `false` Apply class live.
+announcement_use_random_order = false
+# Automatically apply the configured MOTD when the server starts `true` or `false` Apply class live.
+apply_motd_on_startup = true
+# Chat-line format used when /countdown's chat_too argument is true.   Placeholders: $message, $time, $colored_time, $color.   Leave empty to use the built-in default. 0 through 8192 characters Apply class live.
+countdown_chat_format = ""
+# Format for the subtitle shown to players on each countdown beat.   Placeholders: $message, $time, $colored_time, $color.   Leave empty to use the built-in default ($colored_time). 0 through 8192 characters Apply class live.
+countdown_subtitle_format = ""
+# Format for the title shown to players on each countdown beat.   Placeholders: $message, $time, $colored_time, $color.   Leave empty to use the built-in default ($message). 0 through 8192 characters Apply class live.
+countdown_title_format = ""
+# Scheduled announcements + announcement commands `true` or `false` Apply class restart_required.
+enable_announcements = true
+# Countdown broadcaster (/countdown) `true` or `false` Apply class restart_required.
+enable_countdown = true
+# MOTD system (/sef motd ...) `true` or `false` Apply class restart_required.
+enable_motd_system = true
+# Header for toggle list 0 through 8192 characters Apply class live.
+toggle_list_header = "&6━━━━━━ Toggleable Announcements ━━━━━━"
+# Text shown when toggle is OFF 0 through 8192 characters Apply class live.
+toggle_off_text = "&c[OFF]"
+# Text shown when toggle is ON 0 through 8192 characters Apply class live.
+toggle_on_text = "&a[ON]"

@@ -12,6 +12,7 @@ import java.time.ZoneOffset;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AtomicFileStoreTest {
@@ -59,5 +60,47 @@ class AtomicFileStoreTest {
 
         assertFalse(Files.exists(target));
         assertEquals("bad", Files.readString(quarantined));
+    }
+
+    @Test
+    void nonAtomicFallbackKeepsACompletePreviousGeneration() throws Exception {
+        Path target = temporaryDirectory.resolve("data.json");
+        AtomicFileStore.write(target, "first".getBytes(StandardCharsets.UTF_8));
+
+        AtomicFileStore.write(
+                target,
+                "second".getBytes(StandardCharsets.UTF_8),
+                true);
+
+        assertEquals("second", Files.readString(target));
+        assertEquals("first", Files.readString(AtomicFileStore.previousPath(target)));
+        Files.delete(target);
+        assertTrue(AtomicFileStore.restorePrevious(target, 1_024));
+        assertEquals("first", Files.readString(target));
+    }
+
+    @Test
+    void writesRejectSymbolicLinkTargetsAndParents() throws Exception {
+        Path external = temporaryDirectory.resolve("external.txt");
+        Files.writeString(external, "secret");
+        Path targetLink = temporaryDirectory.resolve("target.json");
+        Files.createSymbolicLink(targetLink, external);
+
+        assertThrows(
+                AtomicFileStore.UnsafeStoragePathException.class,
+                () -> AtomicFileStore.write(
+                        targetLink,
+                        "replacement".getBytes(StandardCharsets.UTF_8)));
+        assertEquals("secret", Files.readString(external));
+
+        Path realDirectory = temporaryDirectory.resolve("real");
+        Files.createDirectory(realDirectory);
+        Path directoryLink = temporaryDirectory.resolve("linked");
+        Files.createSymbolicLink(directoryLink, realDirectory);
+        assertThrows(
+                AtomicFileStore.UnsafeStoragePathException.class,
+                () -> AtomicFileStore.write(
+                        directoryLink.resolve("data.json"),
+                        "replacement".getBytes(StandardCharsets.UTF_8)));
     }
 }

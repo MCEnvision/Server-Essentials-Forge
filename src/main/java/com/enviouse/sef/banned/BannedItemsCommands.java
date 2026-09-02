@@ -2,7 +2,10 @@ package com.enviouse.sef.banned;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
+import com.enviouse.sef.vanish.VanishUtil;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -14,7 +17,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -91,7 +94,7 @@ public class BannedItemsCommands {
         // ── Mutations: op-only ──────────────────────────────────────────────
         // /banned add <item> [duration] [announce] [reason...]
         root.then(Commands.literal("add").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("item", StringArgumentType.word())
+            .then(Commands.argument("item", ResourceLocationArgument.id())
                 .suggests(SUGGEST_ALL_ITEMS)
                 .executes(ctx -> doAdd(ctx, "infinite", false, ""))
                 .then(Commands.argument("duration", StringArgumentType.word())
@@ -126,7 +129,7 @@ public class BannedItemsCommands {
 
         // /banned update <item> [duration] [announce] [reason...]
         root.then(Commands.literal("update").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("item", StringArgumentType.word())
+            .then(Commands.argument("item", ResourceLocationArgument.id())
                 .suggests(SUGGEST_BANNED)
                 .executes(ctx -> doUpdate(ctx, null, null, null))
                 .then(Commands.argument("duration", StringArgumentType.word())
@@ -202,9 +205,12 @@ public class BannedItemsCommands {
 
         // /banned bypass <player> <on|off>
         root.then(Commands.literal("bypass").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .then(Commands.literal("on").executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     boolean changed = manager.setBypass(p.getUUID(), true);
                     ctx.getSource().sendSuccess(() -> fmt(changed
                         ? "&aBypass &2enabled &afor &e" + p.getGameProfile().getName()
@@ -212,7 +218,10 @@ public class BannedItemsCommands {
                     return 1;
                 }))
                 .then(Commands.literal("off").executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     boolean changed = manager.setBypass(p.getUUID(), false);
                     ctx.getSource().sendSuccess(() -> fmt(changed
                         ? "&aBypass &cdisabled &afor &e" + p.getGameProfile().getName()
@@ -222,9 +231,12 @@ public class BannedItemsCommands {
 
         // /banned scan <player>
         root.then(Commands.literal("scan").requires(BannedItemsCommands::isOp)
-            .then(Commands.argument("player", EntityArgument.player())
+            .then(IdentityArguments.online("player")
                 .executes(ctx -> {
-                    ServerPlayer p = EntityArgument.getPlayer(ctx, "player");
+                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
+                    if (!eligible(ctx.getSource(), p)) {
+                        return unavailable(ctx.getSource());
+                    }
                     int n = manager.forceScan(p);
                     ctx.getSource().sendSuccess(() -> fmt(
                         "&aForced scan on &e" + p.getGameProfile().getName() + "&a — removed &e" + n + "&a item(s)."), true);
@@ -273,7 +285,7 @@ public class BannedItemsCommands {
 
     private static int doAdd(CommandContext<CommandSourceStack> ctx, String durationStr,
                              boolean announce, String reason) {
-        String item = StringArgumentType.getString(ctx, "item");
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
         long durMs = parseDurationMs(durationStr);
         String issuer = sourceName(ctx.getSource());
         boolean added = manager.addBan(item, reason == null ? "" : reason, durMs, issuer, announce);
@@ -336,7 +348,7 @@ public class BannedItemsCommands {
 
     private static int doUpdate(CommandContext<CommandSourceStack> ctx,
                                 String durationStr, Boolean announce, String reason) {
-        String item = StringArgumentType.getString(ctx, "item");
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
         Long durMs = durationStr == null ? null : parseDurationMs(durationStr);
         boolean ok = manager.updateBan(item, reason, durMs, announce);
         if (!ok) {
@@ -421,6 +433,25 @@ public class BannedItemsCommands {
 
     private static boolean isOp(CommandSourceStack src) {
         return PermissionService.has(src, PermissionsHandler.bannedCommand);
+    }
+
+    private static boolean eligible(CommandSourceStack source, ServerPlayer target) {
+        if (source.getPlayer() != null && VanishUtil.isVanished(target, source.getPlayer())) {
+            return false;
+        }
+        return PlayerTargetPolicy.decide(
+                source,
+                target,
+                PermissionsHandler.phasePermission("banned.hierarchy.bypass"),
+                PermissionsHandler.phasePermission("banned.exempt"),
+                PermissionsHandler.phasePermission("banned.bypass.exempt"),
+                false,
+                true).allowed();
+    }
+
+    private static int unavailable(CommandSourceStack source) {
+        source.sendFailure(fmt("&cThat player is unavailable."));
+        return 0;
     }
 
     private static String sourceName(CommandSourceStack src) {

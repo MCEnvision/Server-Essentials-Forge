@@ -4,6 +4,8 @@ import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.storage.AtomicFileStore;
 import com.enviouse.sef.storage.StorageService;
+import com.enviouse.sef.storage.StorageLifecycle;
+import com.enviouse.sef.storage.repository.StorageRepository;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
@@ -55,6 +57,7 @@ public class AltTracker {
     private long generation;
     private long persistedGeneration;
     private boolean writeScheduled;
+    private StorageRepository.RepositoryState state = StorageRepository.RepositoryState.NEW;
 
     public static class AltEntry {
         public String uuid;
@@ -85,45 +88,61 @@ public class AltTracker {
             generation = 0L;
             persistedGeneration = 0L;
             writeScheduled = false;
-            addressMap.clear();
-            uuidToAddress.clear();
             startWriter();
-            document = StorageService.read(filePath, "alternate account correlations", 1).orElse(null);
-            if (document == null) return;
+            StorageService.Document candidate =
+                    StorageService.read(filePath, "alternate account correlations", 1).orElse(null);
+            if (candidate == null) {
+                StorageRepository.RepositoryState detected = StorageLifecycle.stateFor(filePath);
+                state = detected == StorageRepository.RepositoryState.MISSING && addressMap.isEmpty()
+                        ? detected
+                        : StorageRepository.RepositoryState.RECOVERY;
+                return;
+            }
             try {
                 boolean convertedRawAddress = false;
-                Map<String, List<AltEntry>> loaded = GSON.fromJson(document.data(), DATA_TYPE);
-                if (loaded != null) {
-                    boolean hash = ConfigHandler.config.altTrackingHashAddresses.get();
-                    for (Map.Entry<String, List<AltEntry>> stored : loaded.entrySet()) {
-                        if (addressMap.size() >= MAX_ADDRESSES) break;
-                        boolean convert = hash && !AltAddressPrivacy.isHashed(stored.getKey());
-                        String key = convert ? hashAddress(stored.getKey()) : stored.getKey();
-                        convertedRawAddress |= convert;
-                        List<AltEntry> destination = addressMap.computeIfAbsent(key, ignored -> new ArrayList<>());
-                        if (stored.getValue() != null) {
-                            for (AltEntry entry : stored.getValue()) {
-                                if (destination.size() >= MAX_PROFILES_PER_ADDRESS) break;
-                                if (valid(entry)) destination.add(entry);
-                            }
+                Map<String, List<AltEntry>> loaded = GSON.fromJson(candidate.data(), DATA_TYPE);
+                if (loaded == null || loaded.size() > MAX_ADDRESSES) {
+                    throw new IllegalStateException("Alternate account snapshot is outside bounds");
+                }
+                Map<String, List<AltEntry>> validated = new LinkedHashMap<>();
+                boolean hash = ConfigHandler.config.altTrackingHashAddresses.get();
+                for (Map.Entry<String, List<AltEntry>> stored : loaded.entrySet()) {
+                    validateAddress(stored.getKey());
+                    boolean convert = hash && !AltAddressPrivacy.isHashed(stored.getKey());
+                    String key = convert ? hashAddress(stored.getKey()) : stored.getKey();
+                    convertedRawAddress |= convert;
+                    List<AltEntry> entries = stored.getValue();
+                    if (entries == null || entries.size() > MAX_PROFILES_PER_ADDRESS) {
+                        throw new IllegalStateException("Alternate account group is outside bounds");
+                    }
+                    List<AltEntry> destination =
+                            validated.computeIfAbsent(key, ignored -> new ArrayList<>());
+                    for (AltEntry entry : entries) {
+                        validate(entry);
+                        if (destination.size() >= MAX_PROFILES_PER_ADDRESS
+                                || destination.stream().anyMatch(value -> value.uuid.equals(entry.uuid))) {
+                            throw new IllegalStateException("Alternate account group contains duplicates");
                         }
+                        destination.add(copy(entry));
                     }
                 }
-                if (ConfigHandler.config.altTrackingHashAddresses.get()
-                        && addressMap.keySet().stream().anyMatch(AltAddressPrivacy::isHashed)) {
+                if (hash && validated.keySet().stream().anyMatch(AltAddressPrivacy::isHashed)) {
                     loadExistingSalt();
                 }
+                addressMap.clear();
+                addressMap.putAll(validated);
+                document = candidate;
+                state = StorageRepository.RepositoryState.READY;
                 boolean changed = purgeExpired();
                 rebuildReverseIndex();
                 ServerEssentialsForge.LOGGER.info(
                         "[SEF] Loaded alternate account correlations for {} address key(s)",
                         addressMap.size());
-                if (document.migrated() || changed || convertedRawAddress) {
+                if (candidate.migrated() || changed || convertedRawAddress) {
                     save();
                 }
-            } catch (Exception exception) {
-                addressMap.clear();
-                uuidToAddress.clear();
+            } catch (RuntimeException | IOException exception) {
+                state = StorageRepository.RepositoryState.RECOVERY;
                 ServerEssentialsForge.LOGGER.error("[SEF] Failed to load alternate account data", exception);
             }
         }
@@ -143,7 +162,11 @@ public class AltTracker {
     }
 
     synchronized void recordLogin(UUID playerId, String name, String address, boolean hashAddress) {
+        if (!StorageLifecycle.writable(state)) {
+            return;
+        }
         if (AltAddressPrivacy.isLocal(address)) return;
+        validateName(name);
 
         String key;
         try {
@@ -194,13 +217,42 @@ public class AltTracker {
 
     public synchronized int purgeAll() {
         int removed = addressMap.values().stream().mapToInt(List::size).sum();
+        Map<String, List<AltEntry>> previous = snapshotAddresses();
         addressMap.clear();
         uuidToAddress.clear();
-        save();
+        if (!StorageLifecycle.writable(state)) {
+            state = StorageRepository.RepositoryState.MISSING;
+            document = null;
+        }
+        try {
+            StorageService.write(
+                    filePath,
+                    "alternate account correlations",
+                    1,
+                    GSON.toJsonTree(addressMap, DATA_TYPE),
+                    document,
+                    Set.of(""));
+            document = StorageService.read(
+                    filePath,
+                    "alternate account correlations",
+                    1).orElse(document);
+            generation++;
+            persistedGeneration = generation;
+            state = StorageRepository.RepositoryState.READY;
+        } catch (IOException | RuntimeException exception) {
+            addressMap.putAll(previous);
+            rebuildReverseIndex();
+            state = StorageRepository.RepositoryState.ERROR;
+            ServerEssentialsForge.LOGGER.error(
+                    "[SEF] Alternate account reset could not be persisted",
+                    exception);
+            throw new IllegalStateException("Alternate account reset could not be persisted");
+        }
         return removed;
     }
 
     public synchronized int purgeExpiredRecords() {
+        writable();
         int before = addressMap.values().stream().mapToInt(List::size).sum();
         if (purgeExpired()) save();
         int after = addressMap.values().stream().mapToInt(List::size).sum();
@@ -299,7 +351,7 @@ public class AltTracker {
 
     private byte[] loadOrCreateSalt() throws IOException {
         if (salt != null) return salt;
-        if (Files.exists(saltPath)) {
+        if (Files.exists(saltPath, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             return loadExistingSalt();
         }
         byte[] generated = new byte[32];
@@ -310,10 +362,10 @@ public class AltTracker {
     }
 
     private byte[] loadExistingSalt() throws IOException {
-        if (!Files.isRegularFile(saltPath)) {
+        if (!Files.isRegularFile(saltPath, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("Alternate account privacy salt is missing");
         }
-        byte[] stored = Files.readAllBytes(saltPath);
+        byte[] stored = AtomicFileStore.readBounded(saltPath, 32);
         if (stored.length != 32) {
             throw new IOException("Alternate account privacy salt is invalid");
         }
@@ -322,6 +374,7 @@ public class AltTracker {
     }
 
     private synchronized void markDirty() {
+        writable();
         generation++;
         scheduleWrite();
     }
@@ -360,12 +413,18 @@ public class AltTracker {
             } catch (IOException exception) {
                 synchronized (this) {
                     writeScheduled = false;
+                    state = StorageRepository.RepositoryState.ERROR;
                 }
                 ServerEssentialsForge.LOGGER.error("[SEF] Failed to save alternate account data", exception);
                 return;
             }
             synchronized (this) {
                 persistedGeneration = Math.max(persistedGeneration, snapshot.generation());
+                document = StorageService.read(
+                        snapshot.filePath(),
+                        "alternate account correlations",
+                        1).orElse(document);
+                state = StorageRepository.RepositoryState.READY;
             }
         }
     }
@@ -414,6 +473,10 @@ public class AltTracker {
         return addressMap.size();
     }
 
+    synchronized StorageRepository.RepositoryState state() {
+        return state;
+    }
+
     private record Snapshot(
             Path filePath,
             StorageService.Document document,
@@ -422,14 +485,51 @@ public class AltTracker {
     ) {
     }
 
-    private static boolean valid(AltEntry entry) {
-        if (entry == null || entry.uuid == null || entry.name == null || entry.lastSeen == null) return false;
-        try {
-            UUID.fromString(entry.uuid);
-            Instant.parse(entry.lastSeen);
-            return true;
-        } catch (RuntimeException exception) {
-            return false;
+    private static void validate(AltEntry entry) {
+        if (entry == null || entry.uuid == null || entry.name == null || entry.lastSeen == null) {
+            throw new IllegalStateException("Alternate account record is incomplete");
+        }
+        UUID.fromString(entry.uuid);
+        validateName(entry.name);
+        Instant instant = Instant.parse(entry.lastSeen);
+        if (instant.isAfter(Instant.now().plus(1, ChronoUnit.DAYS))) {
+            throw new IllegalStateException("Alternate account timestamp is in the future");
+        }
+    }
+
+    private static void validateAddress(String address) {
+        if (address == null
+                || address.isBlank()
+                || address.length() > 256
+                || address.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalStateException("Alternate account address key is invalid");
+        }
+    }
+
+    private static void validateName(String name) {
+        if (name == null
+                || name.isBlank()
+                || name.length() > 64
+                || name.codePoints().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("Alternate account player name is invalid");
+        }
+    }
+
+    private static AltEntry copy(AltEntry entry) {
+        return new AltEntry(entry.uuid, entry.name, entry.lastSeen);
+    }
+
+    private Map<String, List<AltEntry>> snapshotAddresses() {
+        Map<String, List<AltEntry>> copy = new LinkedHashMap<>();
+        addressMap.forEach((address, entries) ->
+                copy.put(address, new ArrayList<>(entries.stream().map(AltTracker::copy).toList())));
+        return copy;
+    }
+
+    private void writable() {
+        if (!StorageLifecycle.writable(state)) {
+            throw new IllegalStateException(
+                    "Alternate account storage is unavailable in " + state + " state");
         }
     }
 

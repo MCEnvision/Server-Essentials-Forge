@@ -28,9 +28,6 @@ public class VanishUtil {
 	private static final Map<UUID, Integer> OBSERVER_LEVELS = new HashMap<>();
 	public static final MutableComponent VANISHMOD_PREFIX = Component.literal("").append(Component.literal("[").withStyle(ChatFormatting.WHITE)).append(Component.literal("SEF-Vanish").withStyle(s -> s.applyFormat(ChatFormatting.GRAY))).append(Component.literal("] ").withStyle(ChatFormatting.WHITE));
 
-	/** ThreadLocal tracking which entity is currently being ticked (for sound/event suppression). */
-	public static final ThreadLocal<Entity> ACTIVE_ENTITY = ThreadLocal.withInitial(() -> null);
-
 	/** Predicate that excludes spectators AND vanished players. */
 	public static final Predicate<Entity> NO_SPECTATORS_AND_NO_VANISH = EntitySelector.NO_SPECTATORS.and(entity -> !isVanished(entity));
 	/** Predicate that excludes spectators, non-collidable, AND vanished players. */

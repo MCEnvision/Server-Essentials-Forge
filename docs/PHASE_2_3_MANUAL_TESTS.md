@@ -1,5 +1,7 @@
 # SEF 2 Phase 2 and Phase 3 manual acceptance matrix
 
+Final status, 2026-07-27: Complete. This file preserves earlier verification history. Pending or blocked labels below describe the earlier run and are superseded by the final matrix in `SEF2_ACCEPTANCE.md`.
+
 This matrix verifies behavior that pure JUnit tests cannot prove without a real NeoForge dedicated server, permission provider, player connection, restart, and filesystem.
 
 Do not run destructive recovery cases against a production world. Use a staging copy and keep the original files.

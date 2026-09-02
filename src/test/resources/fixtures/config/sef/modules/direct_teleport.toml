@@ -1,0 +1,78 @@
+# Controls direct teleport behavior, presentation, bounds, storage, and diagnostics.
+# Generated schema version 1.
+# This file cannot grant permissions or execute commands.
+schema_version = 1
+module_id = "direct_teleport"
+documentation_version = 2
+
+[module]
+# Enables the module after dependency validation. `true` or `false` Apply class live.
+enabled = true
+# Defines truthful behavior while this module is disabled. `command_unavailable`, `provider_fallback`, `read_only` Apply class live.
+disabled_behavior = "command_unavailable"
+
+[gui]
+# Selects enhanced GUI presentation without changing command access. `command_only`, `gui_preferred`, `inherit`, `off`, `on` Apply class live.
+mode = "inherit"
+# Allows eligible bare command routes to prefer a dedicated workflow. `true` or `false` Apply class live.
+bare_command_opens = true
+# Selects the stable default workflow page. 1 through 64 characters, pattern `[a-z0-9_]+` Apply class live.
+default_page = "overview"
+
+[limits]
+# Bounds persisted records owned by this module. 1 through 1000000 Apply class live.
+maximum_records = 10000
+# Bounds command and GUI result pages. 4 through 100 Apply class live.
+maximum_page_size = 45
+
+[rate]
+# Bounds admission attempts independently of permission cooldown duration. 1 through 10000 Apply class live.
+maximum_actions_per_minute = 300
+
+[storage]
+# Defines bounded data retention where the module owns persistent records. 0 through 3650 Apply class live.
+retention_days = 30
+
+[failure]
+# Defines provider and validation failure behavior. `fail_closed`, `previous_known_good`, `read_only` Apply class live.
+mode = "previous_known_good"
+
+[audit]
+# Defines the minimum audit class for module actions. `admin_action`, `destructive`, `metadata_only`, `none` Apply class live.
+class = "metadata_only"
+# Defines the module redaction class. `security_critical`, `sensitive`, `standard` Apply class live.
+redaction = "standard"
+
+[runtime]
+# Staff direct teleport commands `true` or `false` Apply class restart_required.
+enable_direct_teleport = true
+# Teleport essentials platform `true` or `false` Apply class restart_required.
+enable_teleport_essentials = true
+# Replace the vanilla /tp root with the SEF direct teleport command `true` or `false` Apply class live.
+own_vanilla_teleport_root = false
+# Allow lava, fire, cactus, magma, and similar destinations `true` or `false` Apply class live.
+teleport_allow_hazards = false
+# Allow normal user teleports while in combat `true` or `false` Apply class live.
+teleport_allow_in_combat = false
+# Allow destinations on the Nether roof `true` or `false` Apply class live.
+teleport_allow_nether_roof = false
+# Cancel an active teleport warmup when the player takes damage `true` or `false` Apply class live.
+teleport_cancel_on_damage = true
+# Cancel an active teleport warmup when the player moves `true` or `false` Apply class live.
+teleport_cancel_on_movement = true
+# Shared economy cost for user teleport actions. A positive value fails closed until an economy provider is installed 0.0 through 1.0E9 Apply class live.
+teleport_cost = 0.0
+# Damage immunity ticks after a successful user teleport 0 through 200 Apply class live.
+teleport_invulnerability_ticks = 20
+# Maximum already loaded chunks inspected by one teleport 1 through 256 Apply class live.
+teleport_maximum_chunks = 9
+# Maximum incoming or outgoing requests per player 1 through 100 Apply class live.
+teleport_maximum_pending_requests = 10
+# Maximum block positions inspected by one teleport 1 through 100000 Apply class live.
+teleport_maximum_safe_checks = 512
+# Ownership mode for homes and server warps. Values are sef, external, coexist, or import_once 0 through 8192 characters Apply class restart_required.
+teleport_ownership_mode = "sef"
+# Maximum horizontal and vertical safe destination search radius 0 through 32 Apply class live.
+teleport_safe_search_radius = 4
+# Shared warmup for user teleport actions 0 through 3600 Apply class live.
+teleport_warmup_seconds = 0

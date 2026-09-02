@@ -1,6 +1,7 @@
 package com.enviouse.sef.commands;
 
 import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.commandlog.LoggingCommands;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.motd.MotdCommands;
 import com.enviouse.sef.storage.StorageCommands;
@@ -110,6 +111,35 @@ class BfcCommandDispatcherTest {
     }
 
     @Test
+    void loggingCategoryRequiresAnAuthorizedActionAndHasNoUngatedRootAction() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+
+        try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+            permissions.when(() -> PermissionAPI.getPermission(
+                            player,
+                            PermissionsHandler.sefCommand))
+                    .thenReturn(true);
+
+            CommandDispatcher<CommandSourceStack> dispatcher = dispatcher();
+            var logging = dispatcher.getRoot().getChild("sef").getChild("logging");
+            assertFalse(logging.canUse(source));
+
+            permissions.when(() -> PermissionAPI.getPermission(
+                            player,
+                            PermissionsHandler.phasePermission("commands.logging.status")))
+                    .thenReturn(true);
+
+            assertTrue(logging.canUse(source));
+            assertTrue(logging.getChild("status").canUse(source));
+            assertThrows(
+                    CommandSyntaxException.class,
+                    () -> dispatcher.execute("sef logging", source));
+        }
+    }
+
+    @Test
     void dispatcherRevalidatesPermissionInsideSharedExecutionPipeline() throws Exception {
         ServerPlayer player = mock(ServerPlayer.class);
         when(player.getUUID()).thenReturn(UUID.randomUUID());
@@ -150,6 +180,7 @@ class BfcCommandDispatcherTest {
     private static CommandDispatcher<CommandSourceStack> dispatcher() {
         LiteralArgumentBuilder<CommandSourceStack> root = BfcCommands.coreRoot();
         BfcCommands.registerFilterCommands(root);
+        LoggingCommands.attachCanonical(root);
         StorageCommands.attach(root);
         MotdCommands.attach(root);
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
