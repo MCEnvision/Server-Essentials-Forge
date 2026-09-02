@@ -385,7 +385,7 @@ public final class NativeAuditFileProvider {
                 try {
                     WindowsIdentity identity = identity(handle);
                     if (!identity.directory() || identity.reparse()) {
-                        throw new IOException("security audit directory is not a safe directory");
+                        throw new IOException("security audit directory is not a safe directory: " + current);
                     }
                 } finally {
                     Kernel32.INSTANCE.CloseHandle(handle);
