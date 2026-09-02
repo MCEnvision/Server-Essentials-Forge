@@ -210,7 +210,9 @@ public final class TestInventoryGenerator {
         if (Files.isRegularFile(build)) {
             String source = Files.readString(build, StandardCharsets.UTF_8);
             for (String task : List.of("test", "build", "runServer", "runClient", "runGameTestServer", "generateProjectReferences", "generatePerformanceReport")) {
-                if (source.contains(task)) {
+                boolean declared = source.contains(task)
+                        || task.equals("runGameTestServer") && source.contains("gameTestServer");
+                if (declared) {
                     JsonObject row = row("verification-workflow", "gradle:" + task, "static", "build.gradle");
                     row.addProperty("command", "./gradlew " + task);
                     row.addProperty("proofFidelity", task.contains("run") ? "runtime" : "unit-or-build");
