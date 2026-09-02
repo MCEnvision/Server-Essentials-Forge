@@ -369,6 +369,7 @@ public final class NativeAuditFileProvider {
 
     private static final class Windows {
         private static final int GENERIC_READ = 0x80000000;
+        private static final int GENERIC_WRITE = 0x40000000;
         private static final int FILE_APPEND_DATA = 0x00000004;
         private static final int FILE_READ_ATTRIBUTES = 0x00000080;
         private static final int FILE_SHARE_READ = 0x00000001;
@@ -396,7 +397,7 @@ public final class NativeAuditFileProvider {
 
         static void forceDirectory(Path directory) throws IOException {
             validateDirectory(directory);
-            WinNT.HANDLE handle = open(directory, GENERIC_READ, WINDOWS_OPEN_EXISTING,
+            WinNT.HANDLE handle = open(directory, GENERIC_READ | GENERIC_WRITE, WINDOWS_OPEN_EXISTING,
                     FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
             try {
                 WindowsIdentity identity = identity(handle);
