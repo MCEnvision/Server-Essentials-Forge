@@ -215,7 +215,7 @@ git diff --check
 For the current audited worktree, the expected JAR SHA-256 is:
 
 ```text
-6701de81fd6f6d70e3cda6b604db9971fcbb288383979e69ff67f8836126c7b2
+894c28c9e4a0f9be1f0f2bc727e84a7f03c9402bbaa679b2035fe83b9702ccf9
 ```
 
 A different hash is not automatically a bug after any source or resource change. It requires a new artifact inspection and recorded expected hash.

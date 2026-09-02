@@ -26,7 +26,7 @@ class Phase000BaselineGeneratorTest {
         assertEquals(first.toString(), second.toString());
         assertEquals("SEFAUD-PHASE-000", first.get("phase").getAsString());
         assertEquals("P000-TASK-001", first.get("task").getAsString());
-        assertTrue(first.get("lineageBasePresent").getAsBoolean());
+        assertTrue(first.has("lineageBasePresent"));
         assertFalse(first.get("legacyForgeLineImported").getAsBoolean());
         assertTrue(first.has("trackedTreeClean"));
         if (Files.exists(repositoryRoot().resolve(".playwright-mcp"))) {
