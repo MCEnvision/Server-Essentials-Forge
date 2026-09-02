@@ -123,6 +123,8 @@ final class NativeAuditFileProvider {
         private static final int O_APPEND_MAC = 0x8;
         private static final int O_NOFOLLOW_LINUX = 0x20000;
         private static final int O_NOFOLLOW_MAC = 0x100;
+        private static final int O_NONBLOCK_LINUX = 0x800;
+        private static final int O_NONBLOCK_MAC = 0x4;
         private static final int AT_FDCWD = -100;
 
         private interface LibC extends Library {
@@ -259,13 +261,14 @@ final class NativeAuditFileProvider {
 
         private static int appendFlags() {
             boolean mac = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
-            return O_WRONLY | (mac ? O_CREAT_MAC | O_APPEND_MAC | O_NOFOLLOW_MAC : O_CREAT_LINUX | O_APPEND_LINUX | O_NOFOLLOW_LINUX);
+            return O_WRONLY | (mac
+                    ? O_CREAT_MAC | O_APPEND_MAC | O_NOFOLLOW_MAC | O_NONBLOCK_MAC
+                    : O_CREAT_LINUX | O_APPEND_LINUX | O_NOFOLLOW_LINUX | O_NONBLOCK_LINUX);
         }
 
         private static int noFollow() {
-            return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")
-                    ? O_NOFOLLOW_MAC
-                    : O_NOFOLLOW_LINUX;
+            boolean mac = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
+            return mac ? O_NOFOLLOW_MAC | O_NONBLOCK_MAC : O_NOFOLLOW_LINUX | O_NONBLOCK_LINUX;
         }
 
         private static void close(int descriptor) {
@@ -298,19 +301,22 @@ final class NativeAuditFileProvider {
         private static final int FILE_TYPE_DISK = 1;
 
         static void validateDirectory(Path directory) throws IOException {
-            WinNT.HANDLE handle = open(directory, GENERIC_READ, WINDOWS_OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
-            try {
-                WindowsIdentity identity = identity(handle);
-                if (!identity.directory() || identity.reparse()) {
-                    throw new IOException("security audit directory is not a safe directory");
+            for (Path current = directory.toAbsolutePath().normalize(); current != null; current = current.getParent()) {
+                WinNT.HANDLE handle = open(current, GENERIC_READ, WINDOWS_OPEN_EXISTING,
+                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+                try {
+                    WindowsIdentity identity = identity(handle);
+                    if (!identity.directory() || identity.reparse()) {
+                        throw new IOException("security audit directory is not a safe directory");
+                    }
+                } finally {
+                    Kernel32.INSTANCE.CloseHandle(handle);
                 }
-            } finally {
-                Kernel32.INSTANCE.CloseHandle(handle);
             }
         }
 
         static void validate(Path file) throws IOException {
+            validateDirectory(file.toAbsolutePath().normalize().getParent());
             WinNT.HANDLE handle = open(file, GENERIC_READ, WINDOWS_OPEN_EXISTING,
                     FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT);
             try {
@@ -324,6 +330,7 @@ final class NativeAuditFileProvider {
         }
 
         static void append(Path file, byte[] bytes) throws IOException {
+            validateDirectory(file.toAbsolutePath().normalize().getParent());
             WinNT.HANDLE handle = open(file, FILE_APPEND_DATA | FILE_READ_ATTRIBUTES, WINDOWS_OPEN_ALWAYS,
                     FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT);
             try {

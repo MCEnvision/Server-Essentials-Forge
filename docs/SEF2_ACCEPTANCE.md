@@ -56,7 +56,7 @@ The legacy phase ledger below remains useful for SEF 2 feature acceptance, but i
 
 The current worktree has the following verified evidence:
 
-- All 520 unit tests pass after the hard link repair.
+- All 523 unit tests pass after the special file nonblocking repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.

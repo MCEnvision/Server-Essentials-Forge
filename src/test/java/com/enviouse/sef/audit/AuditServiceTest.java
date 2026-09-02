@@ -3,12 +3,15 @@ package com.enviouse.sef.audit;
 import com.enviouse.sef.kernel.ActionResult;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 class AuditServiceTest {
     @TempDir
@@ -181,6 +185,24 @@ class AuditServiceTest {
         NativeAuditFileProvider provider = NativeAuditFileProvider.open(temporaryDirectory.resolve("audit"));
 
         assertThrows(IOException.class, () -> provider.validate(temporaryDirectory.resolve("outside.jsonl")));
+    }
+
+    @Test
+    void nativeProviderRejectsSpecialFileWithoutBlocking() throws Exception {
+        Assumptions.assumeFalse(System.getProperty("os.name", "").toLowerCase().contains("win"));
+        Path auditDirectory = temporaryDirectory.resolve("audit");
+        Files.createDirectories(auditDirectory);
+        Path fifo = auditDirectory.resolve("security-audit.jsonl");
+        Process process = new ProcessBuilder("mkfifo", fifo.toString()).start();
+        assertEquals(0, process.waitFor());
+
+        NativeAuditFileProvider provider = NativeAuditFileProvider.open(auditDirectory);
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(2),
+                () -> assertThrows(IOException.class, () -> provider.validate(fifo)));
+        assertTimeoutPreemptively(
+                Duration.ofSeconds(2),
+                () -> assertThrows(IOException.class, () -> provider.append(fifo, "event".getBytes(StandardCharsets.UTF_8))));
     }
 
     @Test

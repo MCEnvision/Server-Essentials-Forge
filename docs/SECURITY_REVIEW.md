@@ -18,7 +18,7 @@ The review covers command authority, permissions, delegation, aliases, bundles, 
 
 ## Open review blockers
 
-The audit writer now uses a platform native descriptor provider and fails closed when descriptor identity or link metadata is unavailable. Linux and macOS use anchored `openat` traversal with `O_NOFOLLOW`, descriptor `fstat` identity and link checks, and native append writes. Windows uses `CreateFile` with reparse point rejection, delete sharing disabled while the handle is open, and `GetFileInformationByHandleEx` identity and link checks. The provider is implemented against the JNA API supplied by the pinned NeoForge runtime and is not embedded in the mod JAR. Linux unit and server evidence is passing; macOS and Windows runtime evidence remain mandatory before this row closes.
+The audit writer now uses a platform native descriptor provider and fails closed when descriptor identity or link metadata is unavailable. Linux and macOS use anchored `openat` traversal with `O_NOFOLLOW`, nonblocking descriptor opens, descriptor `fstat` identity and link checks, and native append writes. Windows walks each existing parent with reparse point checks before validating or appending through `CreateFile`, with delete sharing disabled while the handle is open and `GetFileInformationByHandleEx` identity and link checks. The provider is implemented against the JNA API supplied by the pinned NeoForge runtime and is not embedded in the mod JAR. Linux unit and server evidence is passing; macOS and Windows runtime evidence remain mandatory before this row closes.
 
 The default Windows NIO provider is no longer used for the security sensitive append. The Windows provider opens the file with native sharing and reparse controls, validates the opened handle identity, and flushes the descriptor before closing. A Windows staging run is still required to verify the installed NeoForge runtime supplies the pinned JNA API and that the provider behaves correctly on the supported filesystem.
 
@@ -40,7 +40,7 @@ The candidate artifact is `build/libs/sef-2.0.0.jar`, 3,370,948 bytes, with SHA 
 
 ## Verification result
 
-The repaired worktree passes all 520 unit tests, the 41 required GameTests, the Gradle build, generated reference checks, headless client startup, and a dedicated server smoke that reached `Done` and saved dimensions before the expected bounded timeout. Mixin configuration remains required with `defaultRequire` set to one. Client references are confined to client sources and client mixins. Optional dependencies remain compile only.
+The repaired worktree passes all 523 unit tests, the 41 required GameTests, the Gradle build, generated reference checks, headless client startup, and a dedicated server smoke that reached `Done` and saved dimensions before the expected bounded timeout. Mixin configuration remains required with `defaultRequire` set to one. Client references are confined to client sources and client mixins. Optional dependencies remain compile only.
 
 No confirmed command authorization bypass, backdoor like route, or sensitive data leak remains in the reviewed repaired scope. The opened descriptor identity repair is implemented for the cross platform provider, with macOS and Windows runtime evidence still open. Dependency closure remains blocked because the current NeoForge platform supplies the affected runtime libraries and the candidate JAR does not replace them. The dependency row requires graph, advisory, and installed runtime verification rather than a development only override.
 
