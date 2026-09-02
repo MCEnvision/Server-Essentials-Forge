@@ -11,7 +11,6 @@ import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
@@ -122,7 +121,9 @@ public final class AuditEvidenceContract {
     }
 
     public static void validateInventoryRow(JsonObject row) {
-        requireObject(row, "inventory row");
+        if (row == null) {
+            throw new IllegalArgumentException("inventory row is required");
+        }
         requireVersion(row, "inventory row");
         requireString(row, "rowId");
         if (!ROW_ID.matcher(row.get("rowId").getAsString()).matches()) {
@@ -179,17 +180,31 @@ public final class AuditEvidenceContract {
         rejectSymlinkComponents(root);
         JsonObject record = sanitize(rawRecord);
         validateEvidenceRecord(record);
-        Path target = root.resolve(fileName).normalize();
-        if (!target.getParent().equals(root) || Files.isSymbolicLink(target)) {
-            throw new IllegalArgumentException("evidence output must be a regular child of the approved root");
+        return writeJson(root, fileName, record);
+    }
+
+    public static Path writeInventory(
+            Path approvedExternalRoot,
+            String fileName,
+            JsonObject metadata,
+            JsonArray rows
+    ) throws IOException {
+        validateInventorySet(rows);
+        JsonObject metadataOnly = metadata == null ? new JsonObject() : metadata.deepCopy();
+        metadataOnly.remove("rows");
+        metadataOnly.addProperty("schemaVersion", SCHEMA_VERSION);
+        JsonObject sanitized = sanitize(metadataOnly);
+        JsonArray sanitizedRows = new JsonArray();
+        for (JsonElement row : rows) {
+            sanitizedRows.add(sanitize(row.getAsJsonObject()));
         }
-        Files.writeString(
-                target,
-                GSON.toJson(record) + System.lineSeparator(),
-                StandardCharsets.UTF_8,
-                StandardOpenOption.CREATE_NEW,
-                StandardOpenOption.WRITE);
-        return target;
+        validateInventorySet(sanitizedRows);
+        sanitized.add("rows", sanitizedRows);
+        Path root = approvedExternalRoot.toAbsolutePath().normalize();
+        rejectSymlinkComponents(root);
+        Files.createDirectories(root);
+        rejectSymlinkComponents(root);
+        return writeJson(root, fileName, sanitized);
     }
 
     public static boolean isExpired(JsonObject record, Instant now) {
@@ -266,18 +281,31 @@ public final class AuditEvidenceContract {
     }
 
     private static boolean isSensitiveKey(String key) {
-        String normalized = key.toLowerCase(Locale.ROOT);
-        return SENSITIVE_KEYS.stream().anyMatch(normalized::contains);
+        return keyMatchesClass(key, SENSITIVE_KEYS);
     }
 
     private static boolean isPersonalKey(String key) {
-        String normalized = key.toLowerCase(Locale.ROOT);
-        return PERSONAL_KEYS.stream().anyMatch(normalized::contains);
+        return keyMatchesClass(key, PERSONAL_KEYS);
     }
 
     private static boolean isLogKey(String key) {
-        String normalized = key.toLowerCase(Locale.ROOT);
-        return LOG_KEYS.stream().anyMatch(normalized::contains);
+        return keyMatchesClass(key, LOG_KEYS);
+    }
+
+    private static boolean keyMatchesClass(String key, Set<String> keyClass) {
+        String separated = key.replaceAll("([a-z])([A-Z])", "$1_$2")
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[^a-z0-9]+", "_");
+        String compact = separated.replace("_", "");
+        return keyClass.stream().anyMatch(candidate -> {
+            String token = candidate.toLowerCase(Locale.ROOT);
+            String compactToken = token.replace("_", "");
+            return separated.equals(token)
+                    || separated.startsWith(token + "_")
+                    || separated.endsWith("_" + token)
+                    || separated.contains("_" + token + "_")
+                    || compact.equals(compactToken);
+        });
     }
 
     private static void requireVersion(JsonObject object, String kind) {
@@ -346,5 +374,22 @@ public final class AuditEvidenceContract {
                 throw new IllegalArgumentException("evidence path cannot contain symlinks");
             }
         }
+    }
+
+    private static Path writeJson(Path root, String fileName, JsonObject value) throws IOException {
+        if (!fileName.matches("[A-Za-z0-9._-]+\\.json")) {
+            throw new IllegalArgumentException("evidence output name is invalid");
+        }
+        Path target = root.resolve(fileName).normalize();
+        if (!target.getParent().equals(root) || Files.isSymbolicLink(target)) {
+            throw new IllegalArgumentException("evidence output must be a regular child of the approved root");
+        }
+        Files.writeString(
+                target,
+                GSON.toJson(value) + System.lineSeparator(),
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE);
+        return target;
     }
 }

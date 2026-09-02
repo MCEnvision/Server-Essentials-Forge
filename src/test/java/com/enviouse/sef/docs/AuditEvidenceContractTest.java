@@ -40,6 +40,7 @@ class AuditEvidenceContractTest {
         JsonObject raw = record();
         JsonObject payload = raw.getAsJsonObject("payload");
         payload.addProperty("api_token", "ghp_THIS_MUST_NOT_APPEAR");
+        payload.addProperty("signing_key_path", "/tmp/private-key");
         payload.addProperty("email", "owner@example.com");
         payload.addProperty("log", "a".repeat(AuditEvidenceContract.MAX_STRING_LENGTH * 4));
         payload.addProperty("path", "/home/owner/private/server.log");
@@ -47,6 +48,7 @@ class AuditEvidenceContractTest {
 
         String sanitized = AuditEvidenceContract.sanitize(raw).toString();
         assertFalse(sanitized.contains("ghp_THIS_MUST_NOT_APPEAR"));
+        assertFalse(sanitized.contains("signing_key_path"));
         assertFalse(sanitized.contains("owner@example.com"));
         assertFalse(sanitized.contains("server.log"));
         assertFalse(sanitized.contains("/home/owner"));
