@@ -1,6 +1,7 @@
 package com.enviouse.sef.audit;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.storage.AtomicFileStore;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -530,24 +531,6 @@ public final class SecurityAuditService {
     }
 
     private static void createSafeDirectories(Path directory) throws IOException {
-        Path normalized = directory.toAbsolutePath().normalize();
-        Path current = normalized.getRoot();
-        if (current == null) {
-            throw new IOException("security audit directory has no root");
-        }
-        for (Path part : normalized) {
-            current = current.resolve(part);
-            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
-                BasicFileAttributes attributes = Files.readAttributes(
-                        current,
-                        BasicFileAttributes.class,
-                        LinkOption.NOFOLLOW_LINKS);
-                if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
-                    throw new IOException("security audit directory contains an unsafe path entry");
-                }
-            } else {
-                Files.createDirectory(current);
-            }
-        }
+        AtomicFileStore.createSafeDirectories(directory);
     }
 }
