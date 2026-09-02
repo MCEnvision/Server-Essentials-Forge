@@ -10,6 +10,7 @@ import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
 
 import java.io.IOException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -165,7 +166,7 @@ final class NativeAuditFileProvider {
         private interface LibC extends Library {
             int open(String path, int flags, int mode);
 
-            int openat(int directory, String path, int flags, int mode);
+            int openat(int directory, String path, int flags);
 
             long write(int descriptor, byte[] bytes, int length);
 
@@ -189,7 +190,7 @@ final class NativeAuditFileProvider {
             int parent = openDirectory(directory);
             int descriptor = -1;
             try {
-                descriptor = openAt(parent, fileName, readFlags(), 0);
+                descriptor = openAt(parent, fileName, readFlags());
                 PosixIdentity identity = identity(descriptor);
                 if (!identity.regular() || identity.links() != 1L) {
                     throw new IOException("security audit file is not a single-link regular file");
@@ -204,7 +205,8 @@ final class NativeAuditFileProvider {
             int parent = openDirectory(directory);
             int descriptor = -1;
             try {
-                descriptor = openAt(parent, fileName, appendFlags(), 0600);
+                createTargetIfMissing(directory.resolve(fileName));
+                descriptor = openAt(parent, fileName, appendFlags());
                 PosixIdentity before = identity(descriptor);
                 if (!before.regular() || before.links() != 1L) {
                     throw new IOException("security audit file is not a single-link regular file");
@@ -246,7 +248,7 @@ final class NativeAuditFileProvider {
                     throw new IOException("security audit root is not a directory");
                 }
                 for (Path part : directory) {
-                    int next = openAt(descriptor, part.toString(), readFlags(), 0);
+                    int next = openAt(descriptor, part.toString(), readFlags());
                     close(descriptor);
                     descriptor = next;
                     if (!identity(descriptor).directory()) {
@@ -260,14 +262,25 @@ final class NativeAuditFileProvider {
             }
         }
 
-        private static int openAt(int parent, String name, int flags, int mode) throws IOException {
-            int descriptor = Holder.INSTANCE.openat(parent, name, flags, mode);
+        private static int openAt(int parent, String name, int flags) throws IOException {
+            int descriptor = Holder.INSTANCE.openat(parent, name, flags);
             if (descriptor < 0) {
                 throw new IOException(
                         "security audit native file open failed for " + name
                                 + " with errno " + Native.getLastError());
             }
             return descriptor;
+        }
+
+        private static void createTargetIfMissing(Path target) throws IOException {
+            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                return;
+            }
+            try {
+                Files.createFile(target);
+            } catch (FileAlreadyExistsException ignored) {
+                // another writer won the create race. the native open and identity checks remain authoritative.
+            }
         }
 
         private static PosixIdentity identity(int descriptor) throws IOException {
@@ -299,8 +312,8 @@ final class NativeAuditFileProvider {
         private static int appendFlags() {
             boolean mac = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac");
             return O_WRONLY | (mac
-                    ? O_CREAT_MAC | O_APPEND_MAC | O_NOFOLLOW_MAC | O_NONBLOCK_MAC
-                    : O_CREAT_LINUX | O_APPEND_LINUX | O_NOFOLLOW_LINUX | O_NONBLOCK_LINUX);
+                    ? O_APPEND_MAC | O_NOFOLLOW_MAC | O_NONBLOCK_MAC
+                    : O_APPEND_LINUX | O_NOFOLLOW_LINUX | O_NONBLOCK_LINUX);
         }
 
         private static int noFollow() {
