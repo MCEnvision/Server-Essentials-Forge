@@ -41,7 +41,7 @@ Fancy Tags and disguise content use bounded negotiated payloads. Missing client 
 
 Versioned repositories use UUID ownership and retained recovery data. An unsupported newer schema, corrupt document, failed migration, or missing provider must not be interpreted as an empty successful state.
 
-Phase 001 storage hardening applies bounded no follow reads to content addressed Fancy Tags objects and validates audit, module, history, backup, write, and recovery directory components without following symbolic links. Unsafe parents, active audit links, non regular targets, and oversized existing objects fail closed before external state is read or written.
+Phase 001 storage hardening applies bounded no follow reads to content addressed Fancy Tags objects and validates audit, module, history, backup, write, and recovery directory components without following symbolic links. Audit appends use a securely held directory handle and fail closed when hard link counts cannot be verified. Unsafe parents, active audit links, non regular targets, and oversized existing objects fail closed before external state is read or written.
 
 Dependency closure is currently blocked. A development only resolution comparison reached Netty `4.1.136.Final`, Log4j `2.25.5`, Commons Lang `3.18.0`, and Plexus Utils `3.6.1`, but that override was removed because the universal JAR does not embed or replace the libraries supplied by NeoForge `21.1.235`. The installed runtime therefore remains subject to the platform versions until an owner approved platform update or explicitly reviewed runtime packaging strategy is available. Optional integrations remain compile only.
 
