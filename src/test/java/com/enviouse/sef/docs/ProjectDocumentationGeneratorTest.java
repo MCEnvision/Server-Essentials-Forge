@@ -17,11 +17,11 @@ class ProjectDocumentationGeneratorTest {
         }
 
         assertEquals(
-                ProjectDocumentationGenerator.commandReference(root),
-                Files.readString(root.resolve("docs/COMMAND_REFERENCE.md"), StandardCharsets.UTF_8));
+                normalizeLineEndings(ProjectDocumentationGenerator.commandReference(root)),
+                normalizeLineEndings(Files.readString(root.resolve("docs/COMMAND_REFERENCE.md"), StandardCharsets.UTF_8)));
         assertEquals(
-                ProjectDocumentationGenerator.permissionReference(),
-                Files.readString(root.resolve("docs/PERMISSION_REFERENCE.md"), StandardCharsets.UTF_8));
+                normalizeLineEndings(ProjectDocumentationGenerator.permissionReference()),
+                normalizeLineEndings(Files.readString(root.resolve("docs/PERMISSION_REFERENCE.md"), StandardCharsets.UTF_8)));
     }
 
     private static Path repositoryRoot() {
@@ -34,5 +34,9 @@ class ProjectDocumentationGeneratorTest {
             current = current.getParent();
         }
         throw new IllegalStateException("repository root is unavailable");
+    }
+
+    private static String normalizeLineEndings(String value) {
+        return value.replace("\r\n", "\n").replace('\r', '\n');
     }
 }

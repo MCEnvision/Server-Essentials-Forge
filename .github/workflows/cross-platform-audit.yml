@@ -102,16 +102,22 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           .\gradlew.bat clean test build --console=plain
+          if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $candidateGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item 'cross-platform-candidate/sef-2.0.0.jar' (Join-Path $candidateGameDir 'mods/sef-2.0.0.jar')
           .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" 2>&1 | Tee-Object -FilePath build/candidate-runtime.log
+          if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'mods[\\/]sef-2\.0\.0\.jar')) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
+          if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
+          if ($LASTEXITCODE -ne 0) { throw "windows jna dependency insight failed with exit code $LASTEXITCODE" }
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
+          if ($LASTEXITCODE -ne 0) { throw "windows jna platform dependency insight failed with exit code $LASTEXITCODE" }
 
       - name: inspect linux or macos artifact
         if: runner.os != 'Windows'

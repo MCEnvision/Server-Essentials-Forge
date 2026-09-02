@@ -132,7 +132,7 @@ class ModuleConfigRegistryTest {
         }
         String tracked = Files.readString(reference, StandardCharsets.UTF_8);
 
-        assertEquals(generated, tracked);
+        assertEquals(normalizeLineEndings(generated), normalizeLineEndings(tracked));
     }
 
     @Test
@@ -165,14 +165,18 @@ class ModuleConfigRegistryTest {
         }
         assertEquals(expected, actual);
         assertEquals(
-                registry.defaultIndex(),
-                Files.readString(fixture.resolve("index.toml"), StandardCharsets.UTF_8));
+                normalizeLineEndings(registry.defaultIndex()),
+                normalizeLineEndings(Files.readString(fixture.resolve("index.toml"), StandardCharsets.UTF_8)));
         for (ModuleConfigRegistry.ModuleDefinition module : registry.definitions()) {
             assertEquals(
-                    registry.defaultFile(module),
-                    Files.readString(fixture.resolve(module.fileName()), StandardCharsets.UTF_8),
+                    normalizeLineEndings(registry.defaultFile(module)),
+                    normalizeLineEndings(Files.readString(fixture.resolve(module.fileName()), StandardCharsets.UTF_8)),
                     module.id());
         }
+    }
+
+    private static String normalizeLineEndings(String value) {
+        return value.replace("\r\n", "\n").replace('\r', '\n');
     }
 
     private static Path repositoryRoot() {
