@@ -156,7 +156,7 @@ SEF_TEST_BACKUP_DIR="$(mktemp -d)"
 cp -a run/config "$SEF_TEST_BACKUP_DIR/config"
 cp -a run/world "$SEF_TEST_BACKUP_DIR/world"
 cp -a run/server.properties "$SEF_TEST_BACKUP_DIR/server.properties"
-sha256sum build/libs/sef-1.0.2-SNAPSHOT.jar
+sha256sum build/libs/sef-2.0.0.jar
 ```
 
 If `run/world` does not exist, start and stop the server once, then create the snapshot. Record `SEF_TEST_BACKUP_DIR`. Do not delete it until testing is accepted.
@@ -178,13 +178,13 @@ Expected:
 - The command GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only live routes.
 - The build, fallback runtime, command reference, permission reference, configuration reference, and performance report complete.
 - No generated reference changes remain after generation.
-- `build/libs/sef-1.0.2-SNAPSHOT.jar` is a valid ZIP.
+- `build/libs/sef-2.0.0.jar` is a valid ZIP.
 
 Inspect the result:
 
 ```bash
-unzip -t build/libs/sef-1.0.2-SNAPSHOT.jar
-sha256sum build/libs/sef-1.0.2-SNAPSHOT.jar
+unzip -t build/libs/sef-2.0.0.jar
+sha256sum build/libs/sef-2.0.0.jar
 git status --short
 git diff --check
 ```
@@ -192,7 +192,7 @@ git diff --check
 For the current audited worktree, the expected JAR SHA-256 is:
 
 ```text
-15ec0f089db889e864f544a46c47452ab9391d1621f7e6daa8b74471a583f6a7
+8778dd80c569f82e820d2329b5475b17f36883cad30e6855b02d9eade1b86f32
 ```
 
 A different hash is not automatically a bug after any source or resource change. It requires a new artifact inspection and recorded expected hash.
@@ -1414,7 +1414,7 @@ Run:
 /sef commands
 ```
 
-Compare output with all 676 entries in `docs/COMMAND_REFERENCE.md`.
+Compare output with all 694 entries in `docs/COMMAND_REFERENCE.md`.
 
 For every player-facing action:
 
@@ -2867,10 +2867,10 @@ The dedicated tick profile target recorded for the accepted baseline is approxim
 Run:
 
 ```bash
-unzip -t build/libs/sef-1.0.2-SNAPSHOT.jar
-jar tf build/libs/sef-1.0.2-SNAPSHOT.jar
-jdeps --multi-release 21 build/libs/sef-1.0.2-SNAPSHOT.jar
-sha256sum build/libs/sef-1.0.2-SNAPSHOT.jar
+unzip -t build/libs/sef-2.0.0.jar
+jar tf build/libs/sef-2.0.0.jar
+jdeps --multi-release 21 build/libs/sef-2.0.0.jar
+sha256sum build/libs/sef-2.0.0.jar
 ```
 
 Inspect for:
