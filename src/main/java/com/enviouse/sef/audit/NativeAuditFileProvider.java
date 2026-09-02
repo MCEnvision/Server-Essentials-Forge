@@ -22,7 +22,7 @@ import java.util.Locale;
  * the object held by that descriptor. Java NIO does not expose that identity
  * portably, and path checks alone are vulnerable to a check then use race.
  */
-final class NativeAuditFileProvider {
+public final class NativeAuditFileProvider {
     private static final int WINDOWS_OPEN_EXISTING = 3;
     private static final int WINDOWS_OPEN_ALWAYS = 4;
     private static final int WINDOWS_FILE_STANDARD_INFORMATION = 4;
@@ -43,6 +43,23 @@ final class NativeAuditFileProvider {
         NativeAuditFileProvider provider = new NativeAuditFileProvider(platform, normalized);
         provider.verifyDirectory();
         return provider;
+    }
+
+    /**
+     * Flushes a validated directory through its native descriptor or handle.
+     * Java NIO does not provide a portable directory force operation.
+     */
+    public static void forceDirectory(Path directory) throws IOException {
+        Path normalized = normalizePlatformAliases(directory);
+        Platform platform = Platform.detect();
+        if (!Files.isDirectory(normalized, LinkOption.NOFOLLOW_LINKS)) {
+            throw new IOException("native directory flush target is not a directory");
+        }
+        if (platform == Platform.WINDOWS) {
+            Windows.forceDirectory(normalized);
+        } else {
+            Posix.forceDirectory(normalized);
+        }
     }
 
     void validate(Path file) throws IOException {
@@ -184,6 +201,17 @@ final class NativeAuditFileProvider {
         static void validateDirectory(Path directory) throws IOException {
             int descriptor = openDirectory(directory);
             close(descriptor);
+        }
+
+        static void forceDirectory(Path directory) throws IOException {
+            int descriptor = openDirectory(directory);
+            try {
+                if (Holder.INSTANCE.fsync(descriptor) != 0) {
+                    throw new IOException("native directory flush failed");
+                }
+            } finally {
+                close(descriptor);
+            }
         }
 
         static void validate(Path directory, String fileName) throws IOException {
@@ -362,6 +390,23 @@ final class NativeAuditFileProvider {
                 } finally {
                     Kernel32.INSTANCE.CloseHandle(handle);
                 }
+            }
+        }
+
+        static void forceDirectory(Path directory) throws IOException {
+            validateDirectory(directory);
+            WinNT.HANDLE handle = open(directory, GENERIC_READ, WINDOWS_OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+            try {
+                WindowsIdentity identity = identity(handle);
+                if (!identity.directory() || identity.reparse()) {
+                    throw new IOException("native directory flush target is not a safe directory");
+                }
+                if (!Kernel32.INSTANCE.FlushFileBuffers(handle)) {
+                    throw new IOException("native directory flush failed");
+                }
+            } finally {
+                Kernel32.INSTANCE.CloseHandle(handle);
             }
         }
 

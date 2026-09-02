@@ -1,5 +1,7 @@
 package com.enviouse.sef.storage;
 
+import com.enviouse.sef.audit.NativeAuditFileProvider;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -207,11 +209,7 @@ public final class AtomicFileStore {
     static void forceDirectory(Path directory) throws IOException {
         Path normalized = normalized(directory);
         validateExistingParents(normalized);
-        try (FileChannel channel = FileChannel.open(normalized, StandardOpenOption.READ)) {
-            channel.force(true);
-        } catch (UnsupportedOperationException exception) {
-            throw new IOException("Directory durability is unsupported", exception);
-        }
+        NativeAuditFileProvider.forceDirectory(normalized);
     }
 
     private static void durableCopy(Path source, Path destination) throws IOException {
