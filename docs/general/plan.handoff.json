@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "893d53768d91c9704c97cc286404028b7e92c846c13d470fb3acfc925e829167",
+  "planSetSha256": "79669cf783464d07ff1dc2203660c802958937a5bfe13d2703bea7bc7e473afe",
   "planningSubject": {
     "name": "Server Essentials Forge 2 final security, administrator-command, UI, persistence, backend-handling, and integration audit with mandatory remediation closure",
     "requestedArtifact": "authoritative_plan",
@@ -46,7 +46,7 @@
         "id": "SRC-006",
         "role": "repository_evidence",
         "subject": "current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows",
-        "source": "/mnt/hermes/projects/SEFPORTED at 88668786de2bdfbe2699acd1d1307a7351cf5502 with current CodeGraph index",
+        "source": "/mnt/hermes/projects/SEFPORTED at e203ece01df76cb076d9112a14a052cac6f4145d with current CodeGraph index",
         "use": "observed architecture, ownership, trust boundaries, test inventory, and planning constraints"
       },
       {

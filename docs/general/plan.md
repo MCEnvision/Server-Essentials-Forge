@@ -7,7 +7,7 @@
 > **Planning subject:** Server Essentials Forge 2 final security, administrator-command, UI, persistence, backend-handling, and integration audit with mandatory remediation closure
 > **Requested artifact:** authoritative_plan
 > **Plan profile:** software_product
-> **Authoring evidence date:** 2026-09-01
+> **Authoring evidence date:** 2026-09-02
 
 This master plan is the authoritative product contract for the final audit and remediation program. It freezes global scope, requirement ownership, decisions, phase order, and completion authority. Each linked file under `phases/` will own the detailed execution blueprint for exactly one phase. Planning completion does not mean that the product audit or remediation is complete.
 
@@ -18,14 +18,14 @@ Project: Server Essentials Forge 2, displayed as SEFPORTED
 Mod id: sef
 Primary package: com.enviouse.sef
 Repository root: /mnt/hermes/projects/SEFPORTED
-Starting branch: envy/sef2_complete
-Starting commit: 88668786de2bdfbe2699acd1d1307a7351cf5502
+Starting branch: envy/phase-001-security
+Starting commit: e203ece01df76cb076d9112a14a052cac6f4145d
 Candidate lineage base commit: 0c75bf25c58622096dfa7cc65a5f4b32e6d60ac4
 Authoritative remote:
 origin
 https://github.com/MCEnvision/Server-Essentials-Forge.git
-Remote ref: origin/envy/sef2_complete
-Remote commit: 88668786de2bdfbe2699acd1d1307a7351cf5502
+Remote ref: origin/envy/phase-001-security
+Remote commit: e203ece01df76cb076d9112a14a052cac6f4145d
 Remote default branch at authoring: forge-1.20.1
 Product version at authoring: 2.0.0
 Minecraft: 1.21.1
@@ -46,7 +46,7 @@ Repository identity, package metadata, source namespace, and remote identity mat
 | SRC-003 | audit_evidence | Prior full codebase SEF audit findings, repairs, limitations, and release blockers | /mnt/hermes/projects/SEFPORTED/audit.md | Historical findings and evidence gaps that must be independently revalidated |
 | SRC-004 | requirements | SEF 2 manual, multiplayer, integration, GUI, persistence, and release verification matrix | /mnt/hermes/projects/SEFPORTED/test.md | Existing highest fidelity runtime workflows and unresolved manual evidence |
 | SRC-005 | status | Current documented implementation, security, acceptance, compatibility, and release state | /mnt/hermes/projects/SEFPORTED/README.md, /mnt/hermes/projects/SEFPORTED/DOCUMENTATION.md, and /mnt/hermes/projects/SEFPORTED/docs | Evidence based current state only, never authority over the owner request or intended contract |
-| SRC-006 | repository_evidence | Current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows | /mnt/hermes/projects/SEFPORTED at 88668786de2bdfbe2699acd1d1307a7351cf5502 with current CodeGraph index | Observed architecture, ownership, trust boundaries, test inventory, and planning constraints |
+| SRC-006 | repository_evidence | Current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows | /mnt/hermes/projects/SEFPORTED at e203ece01df76cb076d9112a14a052cac6f4145d with current CodeGraph index | Observed architecture, ownership, trust boundaries, test inventory, and planning constraints |
 | SRC-007 | audit_evidence | GitHub repository, branch, pull request, Actions, ruleset, dependency alert, and security scanning state | read-only GitHub preflight for MCEnvision/Server-Essentials-Forge on 2026-09-01 | Remote identity, current dependency and verification risk, and branch evidence |
 | SRC-008 | reference | Historical Forge to NeoForge porting audit and inventories | /mnt/hermes/projects/SEFPORTED/SEFAudit.md | Legacy risk history and completeness cross check only |
 
@@ -75,7 +75,7 @@ The observable endpoint is defined by `DEC-003` and Section 18. The result is re
 | Area | Evidence class | Finding | Evidence |
 |---|---|---|---|
 | Project identity | OBSERVED | The repository builds a NeoForge 1.21.1 mod with mod id `sef`, Java 21, NeoForge 21.1.235, Parchment 2024.11.17, and artifact version 2.0.0. | `gradle.properties`, `build.gradle`, `settings.gradle`, generated mod metadata |
-| Repository state | OBSERVED | The update-pass starting branch is `envy/sef2_complete` at `88668786de2bdfbe2699acd1d1307a7351cf5502`, matches `origin/envy/sef2_complete`, has no pull request, descends from the `DEC-006` lineage base, and is 61 commits behind and 40 commits ahead of the remote default branch. The unrelated untracked `.playwright-mcp/` directory is outside plan scope and must be preserved. | Read only Git and GitHub inspection on 2026-09-01 |
+| Repository state | OBSERVED | The update-pass starting branch is `envy/phase-001-security` at `e203ece01df76cb076d9112a14a052cac6f4145d`, matches `origin/envy/phase-001-security`, has open phase pull request 8, descends from the `DEC-006` lineage base, and preserves the unrelated untracked `.playwright-mcp/` directory outside plan scope. | Read only Git and GitHub inspection on 2026-09-02 |
 | Planning state | OBSERVED | The authoritative master, eight contiguous phase plans, plan index, and deterministic handoff already existed at the update-pass starting commit and are being integrated without changing stable scope or owner decisions. | Existing registered plan set and locked update intake |
 | Source inventory | OBSERVED | The current CodeGraph index covers 512 files and was current during bounded planning inspection. | `.codegraph/` state and CodeGraph exploration on 2026-09-01 |
 | Command architecture | OBSERVED | `KernelServices` prepares and seals `CommandCatalog`, registers canonical actions and shortcuts, and constructs `CommandExecutionService` over feature, permission, cooldown, cost, warmup, confirmation, execution, and audit policies. | CodeGraph exploration of [KernelServices](../../src/main/java/com/enviouse/sef/kernel/KernelServices.java), [CommandCatalog](../../src/main/java/com/enviouse/sef/kernel/command/CommandCatalog.java), and [CommandExecutionService](../../src/main/java/com/enviouse/sef/kernel/policy/CommandExecutionService.java); [technical documentation](../../DOCUMENTATION.md) |
