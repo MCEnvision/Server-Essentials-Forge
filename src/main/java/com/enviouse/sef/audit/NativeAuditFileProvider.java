@@ -1,6 +1,7 @@
 package com.enviouse.sef.audit;
 
 import com.sun.jna.Library;
+import com.sun.jna.Memory;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 import com.sun.jna.platform.win32.Kernel32;
@@ -475,15 +476,14 @@ public final class NativeAuditFileProvider {
         }
 
         private static WindowsIdentity identity(WinNT.HANDLE handle) throws IOException {
-            WinBase.FILE_STANDARD_INFO standard = new WinBase.FILE_STANDARD_INFO();
+            Memory standard = new Memory(24L);
             if (!Kernel32.INSTANCE.GetFileInformationByHandleEx(
                     handle,
                     WINDOWS_FILE_STANDARD_INFORMATION,
-                    standard.getPointer(),
+                    standard,
                     new WinDef.DWORD(standard.size()))) {
                 throw new IOException("security audit descriptor attributes are unavailable");
             }
-            standard.read();
             WinBase.FILE_ATTRIBUTE_TAG_INFO tag = new WinBase.FILE_ATTRIBUTE_TAG_INFO();
             if (!Kernel32.INSTANCE.GetFileInformationByHandleEx(
                     handle,
@@ -510,9 +510,9 @@ public final class NativeAuditFileProvider {
             return new WindowsIdentity(
                     fileId.VolumeSerialNumber,
                     identifier,
-                    standard.NumberOfLinks,
-                    standard.EndOfFile.getValue(),
-                    standard.Directory,
+                    standard.getInt(16),
+                    standard.getLong(8),
+                    standard.getByte(21) != 0,
                     (tag.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0);
         }
     }
