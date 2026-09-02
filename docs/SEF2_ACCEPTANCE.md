@@ -12,7 +12,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 ## Current audit phase status
 
-The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and the cross platform native audit descriptor provider are repaired. Hosted matrix run `33677692628` passed the same candidate artifact on Linux, macOS, and Windows for commit `431ae3956d54ec1792dd086c853501186521370c`. Open gates remain for the full `EXT-001` host workflow and dependency closure because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security` from the frozen Phase 000 candidate. Confirmed admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and the cross platform native audit descriptor provider are repaired. Hosted matrix run `33678685476` passed the same candidate artifact on Linux, macOS, and Windows for commit `d37f62716a2e1a20c356d6c888692d06350c8029`. Open gates remain for the full `EXT-001` host workflow and dependency closure because the candidate JAR does not replace the libraries supplied by the pinned NeoForge runtime. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
 
 ## Phase ledger
 
@@ -56,7 +56,7 @@ The legacy phase ledger below remains useful for SEF 2 feature acceptance, but i
 
 The current worktree has the following verified evidence:
 
-- All 528 unit tests pass after the special file nonblocking repair.
+- All 530 unit tests pass after the special file nonblocking repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.
@@ -68,8 +68,8 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-2.0.0.jar`, 3,385,079 bytes, with SHA-256 `894c28c9e4a0f9be1f0f2bc727e84a7f03c9402bbaa679b2035fe83b9702ccf9` and SHA-512 `f837627cf581a9de4130914d2b84d5986f2c9a83c8078dc031a3740b61bf0151982a42671be20be473bbb2c62e20f13d6b87647c618e42cd3a8789a83fb20257`. Two independent clean JAR builds at the current revision produced the same digest after archive reproducibility was enabled. Hosted matrix run `33677692628` inspected the matching candidate on Linux, macOS, and Windows.
-- Hosted matrix run `33677692628` passed the candidate build, 528 unit tests, 41 required GameTests, native provider smoke, dependency insight, ZIP validation, and duplicate native runtime scan on Linux, macOS, and Windows. Full `EXT-001` still requires direct client and server workflow, rotation, restart, failure preservation, and fixture trace evidence.
+- The current JAR is `sef-2.0.0.jar`, 3,385,079 bytes, with SHA-256 `894c28c9e4a0f9be1f0f2bc727e84a7f03c9402bbaa679b2035fe83b9702ccf9` and SHA-512 `f837627cf581a9de4130914d2b84d5986f2c9a83c8078dc031a3740b61bf0151982a42671be20be473bbb2c62e20f13d6b87647c618e42cd3a8789a83fb20257`. Two independent clean JAR builds at the current revision produced the same digest after archive reproducibility was enabled. Hosted matrix run `33678685476` inspected the matching candidate on Linux, macOS, and Windows.
+- Hosted matrix run `33678685476` passed the candidate build, 530 unit tests, 41 required GameTests, native provider smoke, dependency insight, ZIP validation, and duplicate native runtime scan on Linux, macOS, and Windows. Full `EXT-001` still requires direct client and server workflow, rotation, restart, failure preservation, and fixture trace evidence.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.
