@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "79669cf783464d07ff1dc2203660c802958937a5bfe13d2703bea7bc7e473afe",
+  "planSetSha256": "aa57ccf8881ae3bc7ed3921ea0e7bf26781fbac96ff93b6219171fa833c6a5b0",
   "planningSubject": {
     "name": "Server Essentials Forge 2 final security, administrator-command, UI, persistence, backend-handling, and integration audit with mandatory remediation closure",
     "requestedArtifact": "authoritative_plan",
@@ -10,58 +10,72 @@
       {
         "id": "SRC-001",
         "role": "owner_request",
-        "subject": "the final SEF 2 audit and remediation endpoint",
+        "subject": "The final SEF 2 audit and remediation endpoint",
         "source": "EnVy's direct Plan Creator request dated 2026-09-01",
-        "use": "authoritative mandatory scope, audit priorities, and requested plan artifact"
+        "use": "Authoritative mandatory scope, audit priorities, and requested plan artifact"
       },
       {
         "id": "SRC-002",
         "role": "requirements",
         "subject": "SEF 2 product, architecture, command, persistence, GUI, integration, security, and delivery contract",
         "source": "/mnt/hermes/projects/SEFPORTED/sef2.md",
-        "use": "current intended behavior and compatibility boundaries for audit expectations"
+        "use": "Current intended behavior and compatibility boundaries for audit expectations"
       },
       {
         "id": "SRC-003",
         "role": "audit_evidence",
-        "subject": "prior full-codebase SEF audit findings, repairs, limitations, and release blockers",
+        "subject": "Prior full codebase SEF audit findings, repairs, limitations, and release blockers",
         "source": "/mnt/hermes/projects/SEFPORTED/audit.md",
-        "use": "historical findings and evidence gaps that must be independently revalidated"
+        "use": "Historical findings and evidence gaps that must be independently revalidated"
       },
       {
         "id": "SRC-004",
         "role": "requirements",
         "subject": "SEF 2 manual, multiplayer, integration, GUI, persistence, and release verification matrix",
         "source": "/mnt/hermes/projects/SEFPORTED/test.md",
-        "use": "existing highest-fidelity runtime workflows and unresolved manual evidence"
+        "use": "Existing highest fidelity runtime workflows and unresolved manual evidence"
       },
       {
         "id": "SRC-005",
         "role": "status",
-        "subject": "current documented implementation, security, acceptance, compatibility, and release state",
+        "subject": "Current documented implementation, security, acceptance, compatibility, and release state",
         "source": "/mnt/hermes/projects/SEFPORTED/README.md, /mnt/hermes/projects/SEFPORTED/DOCUMENTATION.md, and /mnt/hermes/projects/SEFPORTED/docs",
-        "use": "evidence-based current state only, never authority over the owner request or intended contract"
+        "use": "Evidence based current state only, never authority over the owner request or intended contract"
       },
       {
         "id": "SRC-006",
         "role": "repository_evidence",
-        "subject": "current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows",
+        "subject": "Current SEF source, tests, resources, manifests, build, configuration, persistence, commands, GUI, integrations, and workflows",
         "source": "/mnt/hermes/projects/SEFPORTED at e203ece01df76cb076d9112a14a052cac6f4145d with current CodeGraph index",
-        "use": "observed architecture, ownership, trust boundaries, test inventory, and planning constraints"
+        "use": "Observed architecture, ownership, trust boundaries, test inventory, and planning constraints"
       },
       {
         "id": "SRC-007",
         "role": "audit_evidence",
-        "subject": "GitHub repository, branch, pull request, Actions, ruleset, dependency-alert, and security-scanning state",
+        "subject": "GitHub repository, branch, pull request, Actions, ruleset, dependency alert, and security scanning state",
         "source": "read-only GitHub preflight for MCEnvision/Server-Essentials-Forge on 2026-09-01",
-        "use": "remote identity, current dependency and verification risk, and branch evidence"
+        "use": "Remote identity, current dependency and verification risk, and branch evidence"
       },
       {
         "id": "SRC-008",
         "role": "reference",
-        "subject": "historical Forge-to-NeoForge porting audit and inventories",
+        "subject": "Historical Forge to NeoForge porting audit and inventories",
         "source": "/mnt/hermes/projects/SEFPORTED/SEFAudit.md",
-        "use": "legacy risk history and completeness cross-check only"
+        "use": "Legacy risk history and completeness cross check only"
+      },
+      {
+        "id": "SRC-009",
+        "role": "owner_request",
+        "subject": "Mandatory Linux, macOS, and Windows support, opened-object writer identity, native dependency packaging, and platform dependency alert closure",
+        "source": "EnVy's direct Plan Creator update dated 2026-09-02",
+        "use": "Authoritative cross-platform decision, external prerequisites, blocker routing, and completion endpoint"
+      },
+      {
+        "id": "SRC-010",
+        "role": "repository_evidence",
+        "subject": "Cross-platform audit writer and compile-only native API declarations on the active Phase 001 branch",
+        "source": "/mnt/hermes/projects/SEFPORTED at 3fd6ce65e7a2610a04b1a0965e89a36cb6905fec",
+        "use": "Observed implementation state and unresolved runtime and provenance evidence only"
       }
     ]
   },
@@ -89,10 +103,10 @@
     },
     {
       "area": "Generalization",
-      "status": "covered",
-      "source": "SRC-002",
+      "status": "external_prerequisite",
+      "source": "SRC-002, SRC-009, EXT-001",
       "plan_section": "Supported Environments and Generalization",
-      "rationale": "Evidence must cover dedicated server, enhanced and fallback clients, mixed multiplayer, console and other supported sources, and optional integrations present and absent."
+      "rationale": "Linux, macOS, and Windows are mandatory, alongside dedicated server, enhanced and fallback clients, mixed multiplayer, supported command sources, and optional integrations present and absent."
     },
     {
       "area": "Inputs and outputs",
@@ -103,10 +117,10 @@
     },
     {
       "area": "Release lifecycle",
-      "status": "covered",
-      "source": "SRC-005",
+      "status": "external_prerequisite",
+      "source": "SRC-005, SRC-009, EXT-001, EXT-002",
       "plan_section": "Documentation, Operations, and Release Gates",
-      "rationale": "Build, packaging, evidence, compatibility, documentation, rollback, and release-readiness gates are in scope, while public publication is excluded."
+      "rationale": "Build, packaging, cross-platform runtime evidence, dependency provenance, compatibility, documentation, rollback, and release-readiness gates are in scope, while public publication is excluded."
     },
     {
       "area": "Security",
@@ -124,10 +138,10 @@
     },
     {
       "area": "Test system",
-      "status": "covered",
-      "source": "SRC-004",
+      "status": "external_prerequisite",
+      "source": "SRC-004, SRC-009, EXT-001",
       "plan_section": "Verification Strategy",
-      "rationale": "The repository has layered unit, GameTest, server, client, multiplayer, provider, failure-injection, performance, and artifact workflows that the plan extends and closes."
+      "rationale": "The repository has layered unit, GameTest, server, client, multiplayer, provider, failure-injection, performance, and artifact workflows, while mandatory real runtime proof additionally requires disposable Linux, macOS, and Windows environments."
     },
     {
       "area": "Versioning",
@@ -140,8 +154,8 @@
   "mandatoryRequirements": [
     {
       "id": "SEFAUD-REQ-001",
-      "summary": "Freeze the authoritative audit baseline and complete traceable inventories for all security, command, UI, persistence, backend, integration, dependency, test, documentation, and evidence surfaces.",
-      "source": "SRC-001",
+      "summary": "Freeze a complete reproducible audit baseline and traceability manifest for every relevant surface.",
+      "source": "existing plan Section 12",
       "owner": "Repository audit contract",
       "contributors": "All source domains, build system, documentation, and remote security evidence",
       "dependencies": [
@@ -151,7 +165,8 @@
         "DEC-005",
         "DEC-006",
         "DEC-007",
-        "DEC-008"
+        "DEC-008",
+        "DEC-009"
       ],
       "lifecycleStage": "readiness",
       "productionVerification": "none",
@@ -160,14 +175,16 @@
     },
     {
       "id": "SEFAUD-REQ-002",
-      "summary": "Threat-model, audit, repair, and adversarially verify every security, privacy, sensitive-data, authority, command-execution, payload, filesystem, integration, log, export, and packaged-artifact boundary.",
-      "source": "SRC-001",
+      "summary": "Close security, privacy, leak, backdoor like path, trust boundary, and authorization risk.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "Security audit boundary",
       "contributors": "Command kernel, GUI protocol, persistence, configuration, optional integrations, domain services, packaging",
       "dependencies": [
         "DEC-001",
         "DEC-003",
         "DEC-005",
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-REQ-001"
       ],
       "lifecycleStage": "change",
@@ -177,13 +194,16 @@
     },
     {
       "id": "SEFAUD-REQ-003",
-      "summary": "Triage every current dependency alert against the release-candidate graph and artifact, repair applicable findings within pinned platform constraints, and prove no applicable critical or high exploitable dependency vulnerability remains.",
-      "source": "SRC-007",
+      "summary": "Close dependency and supply chain risk against the resolved graph and packaged artifact without changing pinned platform versions.",
+      "source": "existing plan Section 12 and current owner decision",
       "owner": "Dependency graph",
       "contributors": "NeoForge platform, optional integration declarations, CI, packaging, remote security state",
       "dependencies": [
         "DEC-003",
         "DEC-004",
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-REQ-001"
       ],
       "lifecycleStage": "change",
@@ -193,13 +213,15 @@
     },
     {
       "id": "SEFAUD-REQ-004",
-      "summary": "Verify every executable administrator action across registration, authorization, sources, targets, arguments, effects, failures, persistence, equivalent routes, feedback, audit, and redaction, and repair every confirmed defect.",
-      "source": "SRC-001",
+      "summary": "Prove every executable administrator command and every unavailable negative contract across sources, permissions, effects, feedback, persistence, and audit.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "Command policy kernel",
       "contributors": "Permission service, domain command owners, GUI protocol, aliases, bundles, sudo, server controls, audit service, persistence",
       "dependencies": [
         "DEC-002",
         "DEC-008",
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-REQ-001",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-003",
@@ -212,12 +234,14 @@
     },
     {
       "id": "SEFAUD-REQ-005",
-      "summary": "Polish and verify all in-scope graphical, HUD, workflow, fallback, and administrator-feedback UI for layout, responsiveness, accessibility, state clarity, safe projection, and server-side authorization.",
-      "source": "SRC-001",
+      "summary": "Polish and verify graphical and textual operator UI for layout, accessibility, responsive state, privacy, authority, and fallback.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "GUI presentation",
       "contributors": "GUI protocol, command and message services, domain workflow owners, client caches, accessibility and test harness",
       "dependencies": [
         "DEC-008",
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-REQ-001",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-004"
@@ -229,12 +253,14 @@
     },
     {
       "id": "SEFAUD-REQ-006",
-      "summary": "Audit and repair every durable store and cross-store invariant for schema, bounds, atomicity, durability, concurrency, idempotency, lifecycle flush, corruption, recovery, migration, rollback, path safety, retention, and privacy.",
-      "source": "SRC-001",
+      "summary": "Audit every durable store and database like boundary through schema, bounds, concurrency, corruption, interruption, migration, rollback, recovery, and retention.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "Persistence layer",
       "contributors": "Every domain with durable state, configuration service, audit and logging, offline adapters, lifecycle coordination",
       "dependencies": [
         "DEC-005",
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-REQ-001",
         "SEFAUD-REQ-002"
       ],
@@ -245,11 +271,13 @@
     },
     {
       "id": "SEFAUD-REQ-007",
-      "summary": "Verify and repair backend handling and cross-channel integration across lifecycle, reloads, revisions, commands, GUI, persistence, providers, reconnects, dimensions, shutdown, retries, partial failure, audit correlation, and logical-side boundaries.",
-      "source": "SRC-001",
+      "summary": "Close backend lifecycle and cross channel integration under normal, stale, reconnect, provider failure, partial failure, and shutdown states.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "Lifecycle integration boundary",
       "contributors": "Mod lifecycle, command kernel, GUI network, persistence, configuration, optional integrations, all stateful domain services",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-003",
         "SEFAUD-REQ-004",
@@ -263,11 +291,14 @@
     },
     {
       "id": "SEFAUD-REQ-008",
-      "summary": "Pass the clean-checkout post-change static, unit, generated-reference, GameTest, build, server, client, mixed-multiplayer, provider, UI, packet-abuse, recovery, performance, artifact, secret, and diff verification matrix.",
-      "source": "SRC-004",
+      "summary": "Produce final clean checkout, runtime, compatibility, multiplayer, recovery, performance, and artifact regression proof across all target operating systems.",
+      "source": "existing plan Section 12 and current owner decision",
       "owner": "Release verification system",
       "contributors": "All mandatory requirement owners, Gradle build, CI, staging harness, documentation evidence",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-003",
         "SEFAUD-REQ-004",
@@ -282,11 +313,14 @@
     },
     {
       "id": "SEFAUD-REQ-009",
-      "summary": "Reconcile all affected documentation and sanitized evidence, then close the final cross-matrix audit only when every mandatory row and disallowed-defect endpoint condition passes.",
-      "source": "SRC-001",
+      "summary": "Reconcile documentation, evidence, traceability, and the final release readiness endpoint with the verified artifact.",
+      "source": "existing plan Section 12 and owner request",
       "owner": "Documentation evidence",
       "contributors": "All mandatory requirement owners, user and operator documentation, test and security records, release workflow",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-REQ-001",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-003",
@@ -305,59 +339,59 @@
   "optionalFutureScope": [
     {
       "id": "FUT-001",
-      "summary": "Implement and activate the sixteen intentionally unavailable Phase 13 runtime families.",
-      "source": "SRC-005",
+      "summary": "Implement the sixteen intentionally unavailable Phase 13 runtime families.",
+      "source": "existing plan Section 7",
       "disposition": "excluded"
     },
     {
       "id": "FUT-002",
       "summary": "Add unrelated commands, UI features, integrations, control families, or gameplay capabilities.",
-      "source": "SRC-001",
+      "source": "existing plan Section 7",
       "disposition": "excluded"
     },
     {
       "id": "FUT-003",
-      "summary": "Perform broad architecture modernization or class decomposition beyond confirmed-defect remediation or mandatory evidence enablement.",
-      "source": "SRC-003",
+      "summary": "Perform broad architecture modernization beyond confirmed defect remediation or mandatory evidence enablement.",
+      "source": "existing plan Section 7",
       "disposition": "excluded"
     }
   ],
   "nonGoals": [
     {
       "id": "NG-001",
-      "summary": "Do not implement new features, including intentionally unavailable control-family runtimes.",
-      "source": "DEC-002"
+      "summary": "Do not implement new features, including intentionally unavailable control family runtimes.",
+      "source": "existing plan Section 8"
     },
     {
       "id": "NG-002",
       "summary": "Do not upgrade or expand Minecraft, NeoForge, mappings, Java, Gradle, loader, or protocol boundaries.",
-      "source": "DEC-004"
+      "source": "existing plan Section 8"
     },
     {
       "id": "NG-003",
-      "summary": "Do not publish a release, deploy to production, or run destructive production tests.",
-      "source": "DEC-005"
+      "summary": "Do not publish, deploy to production, or run destructive production tests.",
+      "source": "existing plan Section 8"
     },
     {
       "id": "NG-004",
-      "summary": "Do not weaken tests, permissions, redaction, recovery, compatibility, or acceptance gates or mark blocked or unexecuted evidence as passed.",
-      "source": "SRC-001"
+      "summary": "Do not weaken tests, permissions, redaction, recovery, compatibility, or acceptance gates, and do not mark blocked or unexecuted evidence as passed.",
+      "source": "existing plan Section 8"
     },
     {
       "id": "NG-005",
       "summary": "Do not use real credentials, private messages, personal addresses, production worlds, or unrelated user data in fixtures or evidence.",
-      "source": "DEC-005"
+      "source": "existing plan Section 8"
     },
     {
       "id": "NG-006",
-      "summary": "Do not claim mathematical absence of defects; completion means the exhaustive declared matrices and adversarial evidence reveal no known disallowed finding at the frozen revision.",
-      "source": "DEC-003"
+      "summary": "Do not claim mathematical absence of defects.",
+      "source": "existing plan Section 8"
     }
   ],
   "ownerDecisions": [
     {
       "id": "DEC-001",
-      "question": "Is this pass report-only or must it remediate confirmed in-scope defects?",
+      "question": "Whether the audit includes remediation",
       "selectedChoice": "Audit plus mandatory in-scope remediation and regression proof.",
       "rationale": "A verified endpoint cannot close while the audit has confirmed an in scope defect.",
       "affectedRequirements": [
@@ -374,7 +408,7 @@
     },
     {
       "id": "DEC-002",
-      "question": "Does administrator-command success require implementing the sixteen intentionally unavailable Phase 13 runtime families?",
+      "question": "Whether intentionally unavailable control families are implemented",
       "selectedChoice": "No. Their implementation is feature expansion. They must remain clearly unavailable, unreachable, permission-safe, side-effect-free, and negatively tested.",
       "rationale": "Their runtime implementation is feature expansion, while current repository evidence defines explicit unavailability as the safe contract. They cannot be represented as working commands or release functionality.",
       "affectedRequirements": [
@@ -389,7 +423,7 @@
     },
     {
       "id": "DEC-003",
-      "question": "What exact defect boundary closes the audit?",
+      "question": "What defect boundary defines completion",
       "selectedChoice": "No known applicable critical or high exploitable vulnerability and no authorization bypass, sensitive-data leak, executable admin-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend-integration defect at the frozen revision.",
       "rationale": "This converts the owner's audit goal into an observable closure gate without claiming impossible mathematical certainty.",
       "affectedRequirements": [
@@ -407,7 +441,7 @@
     },
     {
       "id": "DEC-004",
-      "question": "May the audit change pinned platform and compatibility boundaries?",
+      "question": "Which platform and compatibility pins remain fixed",
       "selectedChoice": "No. Preserve Minecraft 1.21.1, NeoForge 21.1.235, Java 21, the checked-in Gradle wrapper, Parchment 2024.11.17, the optional enhanced protocol, fallback clients, and current optional-integration contracts.",
       "rationale": "The request is an audit and remediation program, not a platform migration.",
       "affectedRequirements": [
@@ -421,7 +455,7 @@
     },
     {
       "id": "DEC-005",
-      "question": "What environments and data may destructive or privacy-sensitive verification use?",
+      "question": "Which verification data and environments are allowed",
       "selectedChoice": "Disposable synthetic staging fixtures only. Production mutation, production credentials, personal data, and production worlds are excluded.",
       "rationale": "Existing workflows intentionally corrupt files, interrupt processes, and exercise destructive administration. These operations need isolation, not weakened evidence.",
       "affectedRequirements": [
@@ -439,7 +473,7 @@
     },
     {
       "id": "DEC-006",
-      "question": "Which repository lineage is the audit subject?",
+      "question": "Which candidate lineage is authoritative",
       "selectedChoice": "The SEF 2 current candidate lineage beginning on envy/sef2_complete at 0c75bf25c58622096dfa7cc65a5f4b32e6d60ac4. The older default branch is identity and remote-security evidence only.",
       "rationale": "The current branch contains the SEF 2 implementation described by the owner request. Branch divergence is recorded rather than silently reconciled.",
       "affectedRequirements": [
@@ -457,7 +491,7 @@
     },
     {
       "id": "DEC-007",
-      "question": "How is optional and future scope handled?",
+      "question": "How optional and future work is handled",
       "selectedChoice": "All optional and future work is excluded unless the owner later promotes it.",
       "rationale": "Completion must remain measurable and cannot absorb unrelated expansion.",
       "affectedRequirements": [],
@@ -465,7 +499,7 @@
     },
     {
       "id": "DEC-008",
-      "question": "What does UI include for this audit?",
+      "question": "What UI is in scope",
       "selectedChoice": "All in-scope graphical screens and HUDs plus administrator command feedback, because both are operator-facing product UI.",
       "rationale": "An administrator must receive usable, accurate, accessible state and failure information regardless of enhanced client availability.",
       "affectedRequirements": [
@@ -476,9 +510,76 @@
         "SEFAUD-REQ-009"
       ],
       "supersedes": []
+    },
+    {
+      "id": "DEC-009",
+      "question": "Which operating systems and audit writer strategy are supported",
+      "selectedChoice": "Minecraft Java support is cross-platform. Linux, macOS, and Windows are all mandatory, and Windows must not be documented as unsupported. Every security-sensitive writer whose safety depends on file identity must use a provider-specific or native implementation that proves the identity of the opened object on each operating system. JNA or JNA Platform may be compile only when the exact compatible API is supplied by the pinned NeoForge 21.1.235 runtime, and the mod must not embed a duplicate native runtime. Platform-owned dependency alerts remain separate graph, packaged-artifact, reachability, advisory-applicability, and compatible-remediation gates and cannot be suppressed or cleared by narrowing operating-system scope.",
+      "rationale": "Java portability does not make native filesystem identity, runtime dependency supply, binary compatibility, or advisory applicability portable by assertion. Release readiness requires direct proof on every supported operating system while retaining one pinned NeoForge boundary and one native runtime owner.",
+      "affectedRequirements": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "supersedes": []
     }
   ],
-  "externalPrerequisites": [],
+  "externalPrerequisites": [
+    {
+      "id": "EXT-001",
+      "name": "Java 21 and NeoForge 21.1.235 runtime evidence on isolated Linux, macOS, and Windows systems for the exact candidate revision and artifact",
+      "affected_requirements": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "environment",
+      "availability": "unknown",
+      "authorization": "not_required",
+      "blocked_plan_approved": true,
+      "required_evidence": [
+        "Exact OS and architecture, Java 21, Minecraft 1.21.1, NeoForge 21.1.235, mod artifact digest, native provider identity checks, append and flush results, dedicated server lifecycle result, and sanitized logs for Linux, macOS, and Windows."
+      ]
+    },
+    {
+      "id": "EXT-002",
+      "name": "Authoritative provenance, exact runtime supply, advisory applicability, and compatible closure for NeoForge-owned dependencies, including any JNA and JNA Platform APIs used by the mod",
+      "affected_requirements": [
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "unknown",
+      "authorization": "not_required",
+      "blocked_plan_approved": true,
+      "required_evidence": [
+        "Resolved compile, runtime, test, tooling, and packaged graphs, exact dependency paths, advisory applicability and reachability, authoritative versions and sources, SHA-256 and SHA-512 where available, license and provenance review, and proof that the release JAR embeds no duplicate native runtime."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    }
+  ],
   "phases": [
     {
       "id": "SEFAUD-PHASE-000",
@@ -490,7 +591,8 @@
         "DEC-005",
         "DEC-006",
         "DEC-007",
-        "DEC-008"
+        "DEC-008",
+        "DEC-009"
       ],
       "canonicalRequirements": [
         "SEFAUD-REQ-001"
@@ -500,6 +602,9 @@
       "id": "SEFAUD-PHASE-001",
       "owner": "Security audit boundary",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-PHASE-000",
         "SEFAUD-REQ-001"
       ],
@@ -512,6 +617,8 @@
       "id": "SEFAUD-PHASE-002",
       "owner": "Persistence layer",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-PHASE-001",
         "SEFAUD-REQ-002",
         "SEFAUD-REQ-003"
@@ -524,6 +631,8 @@
       "id": "SEFAUD-PHASE-003",
       "owner": "Command policy kernel",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-PHASE-002",
         "SEFAUD-REQ-006"
       ],
@@ -535,6 +644,8 @@
       "id": "SEFAUD-PHASE-004",
       "owner": "GUI presentation",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-PHASE-003",
         "SEFAUD-REQ-004"
       ],
@@ -546,6 +657,8 @@
       "id": "SEFAUD-PHASE-005",
       "owner": "Lifecycle integration boundary",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
         "SEFAUD-PHASE-004",
         "SEFAUD-REQ-005"
       ],
@@ -557,6 +670,9 @@
       "id": "SEFAUD-PHASE-006",
       "owner": "Release verification system",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-PHASE-005",
         "SEFAUD-REQ-007"
       ],
@@ -568,6 +684,9 @@
       "id": "SEFAUD-PHASE-007",
       "owner": "Documentation evidence",
       "dependencies": [
+        "DEC-009",
+        "EXT-001",
+        "EXT-002",
         "SEFAUD-PHASE-006",
         "SEFAUD-REQ-008"
       ],
@@ -576,15 +695,15 @@
       ]
     }
   ],
-  "completionEndpoint": "At one frozen SEF 2 candidate revision, every mandatory audit and remediation matrix is complete, all confirmed in-scope defects are repaired, highest-fidelity clean-checkout and runtime verification passes, documentation and evidence match the built artifact, and no known critical or high exploitable vulnerability, authorization bypass, sensitive-data leak, executable administrator-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend-integration defect remains.",
+  "completionEndpoint": "At one frozen SEF 2 candidate revision and artifact digest, every mandatory audit and remediation matrix is complete; all confirmed in-scope defects are repaired; highest-fidelity clean-checkout, dedicated-server, matching-client, native-writer, dependency, shutdown, restart, and representative administrator workflow verification passes on Linux, macOS, and Windows; `EXT-001` and `EXT-002` are satisfied; documentation and evidence identify all three operating systems as supported and match the built artifact; the mod embeds no duplicate native runtime; every platform-owned dependency alert passes its separate closure gates; and no known critical or high exploitable vulnerability, authorization bypass, sensitive-data leak, executable administrator-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend-integration defect remains.",
   "goalCreator": {
     "mandatoryBoundary": "SEFAUD-REQ-001 through SEFAUD-REQ-009, including remediation and regression proof for every confirmed in-scope defect.",
     "optionalFutureDisposition": "excluded",
-    "lockedOwnerDecisions": "DEC-001 through DEC-008.",
-    "activePhase": "SEFAUD-PHASE-000",
-    "nextExecutableAction": "P000-TASK-001 must freeze the execution revision and produce the authoritative baseline manifest before any audit remediation begins.",
-    "knownFailingChecks": "conflicting historical test and catalog counts; incomplete multiplayer, current LuckPerms, GUI, InvSee, admission, disguise, reconnect, and recovery rows; absent maintained formatter, warning, static-analysis, and risk-based coverage gates; open repository dependency alerts whose candidate applicability is unresolved.",
-    "knownExternalBlockers": "none",
-    "requiredEvidenceGates": "complete inventories, security and dependency closure, administrator command matrix, UI and accessibility matrix, persistence fault and recovery matrix, backend integration matrix, clean-checkout automated and runtime matrix, final artifact inspection, documentation parity, and final cross-matrix audit."
+    "lockedOwnerDecisions": "DEC-001 through DEC-009. DEC-009 requires Linux, macOS, and Windows support, provider-specific or native opened-object identity proof on each operating system, compile-only JNA only from the pinned NeoForge runtime without an embedded duplicate, and separate platform-owned dependency closure gates that cannot be waived by narrowing operating-system scope.",
+    "activePhase": "SEFAUD-PHASE-001",
+    "nextExecutableAction": "P001-TASK-011 must execute every unblocked adversarial row and route the required Linux, macOS, and Windows native-writer and runtime evidence through EXT-001; P001-TASK-012 must close the authoritative platform dependency provenance and advisory gates through EXT-002 before Phase 001 can exit.",
+    "knownFailingChecks": "macOS and Windows native-writer runtime evidence is incomplete; authoritative NeoForge-owned dependency provenance and advisory closure is incomplete; conflicting historical test and catalog counts require final reconciliation; multiplayer, current LuckPerms, GUI, InvSee, admission, disguise, reconnect, and recovery rows remain incomplete; maintained formatter, warning, static-analysis, and risk-based coverage gates remain to be closed; repository dependency alerts still require candidate and platform-specific dispositions.",
+    "knownExternalBlockers": "EXT-001, Java 21 and NeoForge 21.1.235 runtime evidence on isolated Linux, macOS, and Windows systems for the exact candidate revision and artifact, availability unknown. EXT-002, Authoritative provenance, exact runtime supply, advisory applicability, and compatible closure for NeoForge-owned dependencies, including any JNA and JNA Platform APIs used by the mod, availability unknown. Both are mandatory and blocker tolerant; neither weakens the endpoint.",
+    "requiredEvidenceGates": "complete inventories, Linux, macOS, and Windows environment manifests, provider-specific opened-object identity proof, native runtime loading, authoritative platform dependency provenance, separate advisory closure, no duplicate native runtime, security and dependency closure, administrator command matrix, UI and accessibility matrix, persistence fault and recovery matrix, backend integration matrix, clean-checkout automated and runtime matrix, final artifact inspection, documentation parity, and final cross-matrix audit."
   }
 }
