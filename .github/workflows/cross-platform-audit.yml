@@ -125,10 +125,11 @@ jobs:
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
-          sed -i \
+          sed \
             -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
             -e "s|$HOME|<home>|g" \
-            build/candidate-server-runtime.log
+            build/candidate-server-runtime.log > build/candidate-server-runtime.sanitized.log
+          mv build/candidate-server-runtime.sanitized.log build/candidate-server-runtime.log
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
