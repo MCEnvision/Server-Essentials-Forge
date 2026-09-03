@@ -183,12 +183,13 @@ jobs:
           $serverProcess = [System.Diagnostics.Process]::new()
           $serverProcess.StartInfo = $serverStartInfo
           $serverLogPath = $candidateServerLog
-          $serverOutputHandler = ([System.Diagnostics.DataReceivedEventHandler]{
+          $serverOutputAction = {
             param($sender, $event)
             if ($null -ne $event.Data) {
               [System.IO.File]::AppendAllText($serverLogPath, $event.Data + [Environment]::NewLine)
             }
-          }).GetNewClosure()
+          }.GetNewClosure()
+          $serverOutputHandler = [System.Diagnostics.DataReceivedEventHandler]$serverOutputAction
           $serverProcess.add_OutputDataReceived($serverOutputHandler)
           $serverProcess.add_ErrorDataReceived($serverOutputHandler)
           if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
