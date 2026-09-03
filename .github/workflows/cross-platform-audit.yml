@@ -134,7 +134,11 @@ jobs:
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'identity_validation_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'opened_object_identity_trace_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'object_swap_control_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'failure_preservation_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          test -s build/audit/native-writer-runtime/native-writer-identity-trace.txt
+          grep -F 'same_object=true' build/audit/native-writer-runtime/native-writer-identity-trace.txt
           grep -F 'rotation_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'restart_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'writer_stopped=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -230,6 +234,12 @@ jobs:
           foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
             if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
           }
+          foreach ($required in @('opened_object_identity_trace_verified=true', 'failure_preservation_verified=true')) {
+            if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
+          }
+          $identityTrace = 'build/audit/native-writer-runtime/native-writer-identity-trace.txt'
+          if (-not (Test-Path -LiteralPath $identityTrace)) { throw 'native writer identity trace is missing' }
+          if (-not (Select-String -Path $identityTrace -Pattern 'same_object=true')) { throw 'native writer identity trace did not prove same object' }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
@@ -277,6 +287,7 @@ jobs:
             echo "candidate_runtime_verified=true"
             echo "candidate_dedicated_server_verified=true"
             echo "candidate_dedicated_server_log=candidate-server-runtime.log"
+            echo "native_writer_identity_trace=native-writer-identity-trace.txt"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
             echo "host_build_artifact=$host_artifact"
@@ -330,6 +341,7 @@ jobs:
             "candidate_runtime_verified=true"
             "candidate_dedicated_server_verified=true"
             "candidate_dedicated_server_log=candidate-server-runtime.log"
+            "native_writer_identity_trace=native-writer-identity-trace.txt"
             "sha256=$sha256"
             "sha512=$sha512"
             "host_build_artifact=build/libs/$($hostArtifact.Name)"
@@ -346,4 +358,5 @@ jobs:
             build/cross-platform-audit-manifest.txt
             build/audit/platform-dependency-manifest.txt
             build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+            build/audit/native-writer-runtime/native-writer-identity-trace.txt
             build/candidate-server-runtime.log

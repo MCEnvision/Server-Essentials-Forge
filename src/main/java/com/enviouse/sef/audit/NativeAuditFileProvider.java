@@ -35,6 +35,7 @@ public final class NativeAuditFileProvider implements AutoCloseable {
     private int posixDirectoryDescriptor = -1;
     private WinNT.HANDLE windowsDirectoryHandle;
     private WindowsIdentity windowsDirectoryIdentity;
+    private volatile AppendEvidence lastAppendEvidence;
 
     private NativeAuditFileProvider(Platform platform, Path directory) {
         this.platform = platform;
@@ -88,10 +89,38 @@ public final class NativeAuditFileProvider implements AutoCloseable {
             return;
         }
         String fileName = childName(file);
-        if (platform == Platform.WINDOWS) {
-            Windows.append(file, bytes, windowsDirectoryIdentity);
-        } else {
-            Posix.append(posixDirectoryDescriptor, fileName, bytes);
+        try {
+            lastAppendEvidence = platform == Platform.WINDOWS
+                    ? Windows.append(file, bytes, windowsDirectoryIdentity)
+                    : Posix.append(posixDirectoryDescriptor, fileName, bytes);
+        } catch (IOException exception) {
+            lastAppendEvidence = AppendEvidence.failure(
+                    platform == Platform.WINDOWS ? "windows-native-handle" : "posix-native-descriptor",
+                    exception.getMessage());
+            throw exception;
+        }
+    }
+
+    AppendEvidence lastAppendEvidence() {
+        return lastAppendEvidence;
+    }
+
+    record AppendEvidence(
+            String provider,
+            String beforeIdentity,
+            String afterIdentity,
+            boolean beforeRegular,
+            boolean afterRegular,
+            long beforeLinks,
+            long afterLinks,
+            boolean nativeFlushVerified,
+            boolean sameObject,
+            boolean success,
+            String failure
+    ) {
+        static AppendEvidence failure(String provider, String failure) {
+            return new AppendEvidence(provider, "", "", false, false, 0L, 0L, false, false, false,
+                    failure == null ? "native append failed" : failure);
         }
     }
 
@@ -209,6 +238,14 @@ public final class NativeAuditFileProvider implements AutoCloseable {
         boolean sameObject(PosixIdentity other) {
             return device == other.device && inode == other.inode;
         }
+
+        String describe() {
+            return "device=" + device
+                    + ",inode=" + inode
+                    + ",links=" + links
+                    + ",mode=" + mode
+                    + ",size=" + size;
+        }
     }
 
     private static final class Posix {
@@ -274,7 +311,7 @@ public final class NativeAuditFileProvider implements AutoCloseable {
             }
         }
 
-        static void append(int parent, String fileName, byte[] bytes) throws IOException {
+        static AppendEvidence append(int parent, String fileName, byte[] bytes) throws IOException {
             int descriptor = -1;
             try {
                 descriptor = openAt(parent, fileName, appendFlags() | createFlag(), 0600);
@@ -302,6 +339,18 @@ public final class NativeAuditFileProvider implements AutoCloseable {
                 if (!before.sameObject(after) || !after.regular() || after.links() != 1L) {
                     throw new IOException("security audit file changed during native write");
                 }
+                return new AppendEvidence(
+                        "posix-native-descriptor",
+                        before.describe(),
+                        after.describe(),
+                        before.regular(),
+                        after.regular(),
+                        before.links(),
+                        after.links(),
+                        true,
+                        before.sameObject(after),
+                        true,
+                        "");
             } finally {
                 close(descriptor);
             }
@@ -417,6 +466,19 @@ public final class NativeAuditFileProvider implements AutoCloseable {
         boolean sameObject(WindowsIdentity other) {
             return volume == other.volume && Arrays.equals(fileId, other.fileId);
         }
+
+        String describe() {
+            StringBuilder identifier = new StringBuilder(fileId.length * 2);
+            for (byte value : fileId) {
+                identifier.append(String.format(Locale.ROOT, "%02x", value & 0xff));
+            }
+            return "volume=" + volume
+                    + ",file_id=" + identifier
+                    + ",links=" + links
+                    + ",size=" + size
+                    + ",directory=" + directory
+                    + ",reparse=" + reparse;
+        }
     }
 
     private static final class Windows {
@@ -508,7 +570,7 @@ public final class NativeAuditFileProvider implements AutoCloseable {
             }
         }
 
-        static void append(Path file, byte[] bytes, WindowsIdentity expectedDirectory) throws IOException {
+        static AppendEvidence append(Path file, byte[] bytes, WindowsIdentity expectedDirectory) throws IOException {
             WindowsIdentity currentDirectory = validateDirectory(file.toAbsolutePath().normalize().getParent());
             if (!currentDirectory.sameObject(expectedDirectory)) {
                 throw new IOException("security audit directory identity changed");
@@ -538,6 +600,18 @@ public final class NativeAuditFileProvider implements AutoCloseable {
                 if (!before.sameObject(after) || !after.regular() || after.links() != 1) {
                     throw new IOException("security audit file changed during native write");
                 }
+                return new AppendEvidence(
+                        "windows-native-handle",
+                        before.describe(),
+                        after.describe(),
+                        before.regular(),
+                        after.regular(),
+                        before.links(),
+                        after.links(),
+                        true,
+                        before.sameObject(after),
+                        true,
+                        "");
             } finally {
                 Kernel32.INSTANCE.CloseHandle(handle);
             }
