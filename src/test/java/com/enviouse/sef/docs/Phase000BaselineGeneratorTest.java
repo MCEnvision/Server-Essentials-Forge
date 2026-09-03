@@ -20,13 +20,22 @@ class Phase000BaselineGeneratorTest {
     Path temporaryDirectory;
 
     @Test
+    void acceptsWorktreeGitFileMetadata() throws Exception {
+        Path worktree = temporaryDirectory.resolve("worktree");
+        Files.createDirectories(worktree);
+        Files.writeString(worktree.resolve(".git"), "gitdir: /tmp/fixture-git\n", StandardCharsets.UTF_8);
+
+        assertTrue(Phase000BaselineGenerator.hasRepositoryMetadata(worktree));
+    }
+
+    @Test
     void capturesStableCommitLineagePlatformAndPrerequisiteContract() throws Exception {
         JsonObject first = Phase000BaselineGenerator.generate(repositoryRoot());
         JsonObject second = Phase000BaselineGenerator.generate(repositoryRoot());
         assertEquals(first.toString(), second.toString());
         assertEquals("SEFAUD-PHASE-000", first.get("phase").getAsString());
         assertEquals("P000-TASK-001", first.get("task").getAsString());
-        assertTrue(first.has("lineageBasePresent"));
+        assertTrue(first.get("lineageBasePresent").getAsBoolean());
         assertFalse(first.get("legacyForgeLineImported").getAsBoolean());
         assertTrue(first.has("trackedTreeClean"));
         if (Files.exists(repositoryRoot().resolve(".playwright-mcp"))) {
