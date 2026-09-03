@@ -16,6 +16,8 @@ The legacy phase ledger below remains useful for SEF 2 feature acceptance, but i
 
 The owner desktop probe reached the real Minecraft 1.21.1 LWJGL client, but its installed NeoForge 21.1.248 runtime rejected the candidate's exact NeoForge 21.1.235 requirement. The temporary candidate and logs were removed. The result confirms the desktop display path and records the exact `EXT-001` runtime fixture mismatch without weakening Linux, macOS, or Windows support.
 
+A second disposable owner desktop probe cloned the Prism instance, downloaded exact NeoForge 21.1.235, and launched the candidate artifact with SHA-256 `da76826dd757e9f52b1cfc61fb9902812a77c328321edae14428f329c2a16eb0`. The graphical Linux client reached Minecraft 1.21.1, LWJGL 3.3.3, SEF initialization, configuration loading, and the GUI atlas. The clone, candidate, logs, and process were removed. This closes the direct Linux desktop row for the targeted candidate evidence. Exact macOS and Windows graphical rows and the complete platform-specific failure matrix remain open under `EXT-001`.
+
 ## Phase ledger
 
 | Scope | Requirement bullets | Status | Current evidence |
