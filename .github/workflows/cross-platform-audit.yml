@@ -121,6 +121,7 @@ jobs:
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
+          touch build/candidate-gametest.verification.complete
           candidate_server_dir="$GITHUB_WORKSPACE/build/candidate-server-runtime"
           mkdir -p "$candidate_server_dir/mods"
           printf 'eula=true\n' > "$candidate_server_dir/eula.txt"
@@ -165,11 +166,7 @@ jobs:
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
-          sed \
-            -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
-            -e "s|$HOME|<home>|g" \
-            build/candidate-server-runtime.log > build/candidate-server-runtime.sanitized.log
-          mv build/candidate-server-runtime.sanitized.log build/candidate-server-runtime.log
+          touch build/candidate-server.verification.complete
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -213,6 +210,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
+          New-Item -ItemType File -Force -Path 'build/candidate-gametest.verification.complete' | Out-Null
           $candidateServerDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateServerDir 'mods') | Out-Null
           Set-Content -LiteralPath (Join-Path $candidateServerDir 'eula.txt') -Value 'eula=true'
@@ -285,13 +283,8 @@ jobs:
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
+          New-Item -ItemType File -Force -Path 'build/candidate-server.verification.complete' | Out-Null
           if (-not $stopCommandSent) { Write-Host 'candidate dedicated server stopped on its own after clean startup' }
-          $serverEvidence = [System.IO.File]::ReadAllText((Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'))
-          $serverEvidence = $serverEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
-          $serverEvidence = $serverEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
-          $serverEvidence = $serverEvidence.Replace($env:USERPROFILE, '<user>')
-          $serverEvidence = [regex]::Replace($serverEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
-          [System.IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'), $serverEvidence)
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
           foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
             if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
@@ -538,7 +531,12 @@ jobs:
         if: ${{ always() && runner.os != 'Windows' }}
         run: |
           set -euo pipefail
-          if [ -f build/candidate-server-runtime.log ]; then
+          raw_log=build/candidate-server-runtime.log
+          sanitized_log=build/candidate-server-runtime.sanitized.log
+          rm -f "$sanitized_log"
+          if [ -f "$raw_log" ]; then
+            temp_log="$(mktemp)"
+            trap 'rm -f "$temp_log"' EXIT
             sed \
               -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
               -e "s|$HOME|<home>|g" \
@@ -546,22 +544,30 @@ jobs:
               -e 's|/Users/runner|<runner>|g' \
               -e 's|/private/var|<private-var>|g' \
               -e 's|/opt/hostedtoolcache|<toolcache>|g' \
-              build/candidate-server-runtime.log > build/candidate-server-runtime.sanitized.log
-            mv build/candidate-server-runtime.sanitized.log build/candidate-server-runtime.log
+              "$raw_log" > "$temp_log"
+            if grep -Eiq '(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)' "$temp_log"; then
+              echo 'backend log contains a hosted path after sanitization' >&2
+              exit 1
+            fi
+            mv "$temp_log" "$sanitized_log"
           fi
 
       - name: sanitize windows backend evidence
         if: ${{ always() && runner.os == 'Windows' }}
         shell: pwsh
         run: |
-          if (Test-Path -LiteralPath 'build/candidate-server-runtime.log' -PathType Leaf) {
-            $serverEvidence = [System.IO.File]::ReadAllText('build/candidate-server-runtime.log')
+          $rawLog = 'build/candidate-server-runtime.log'
+          $sanitizedLog = 'build/candidate-server-runtime.sanitized.log'
+          Remove-Item -LiteralPath $sanitizedLog -Force -ErrorAction SilentlyContinue
+          if (Test-Path -LiteralPath $rawLog -PathType Leaf) {
+            $serverEvidence = [System.IO.File]::ReadAllText($rawLog)
             $serverEvidence = $serverEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
             $serverEvidence = $serverEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
             $serverEvidence = $serverEvidence.Replace($env:USERPROFILE, '<user>')
             $serverEvidence = [regex]::Replace($serverEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
             $serverEvidence = $serverEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            [System.IO.File]::WriteAllText('build/candidate-server-runtime.log', $serverEvidence)
+            if ($serverEvidence -match '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'backend log contains a hosted path after sanitization' }
+            [System.IO.File]::WriteAllText($sanitizedLog, $serverEvidence)
           }
 
       - name: inspect linux or macos artifact
@@ -593,6 +599,10 @@ jobs:
           checksum512 "$artifact" | tee build/cross-platform-audit.sha512
           checksum256 "$host_artifact" | tee build/cross-platform-host-build.sha256
           checksum512 "$host_artifact" | tee build/cross-platform-host-build.sha512
+          candidate_runtime_verified=false
+          candidate_dedicated_server_verified=false
+          if [ -f build/candidate-gametest.verification.complete ]; then candidate_runtime_verified=true; fi
+          if [ -f build/candidate-server.verification.complete ] && [ -s build/candidate-server-runtime.sanitized.log ]; then candidate_dedicated_server_verified=true; fi
           {
             echo "runner_os=$RUNNER_OS"
             echo "runner_arch=$RUNNER_ARCH"
@@ -601,9 +611,9 @@ jobs:
             git rev-parse HEAD
             echo "artifact=$artifact"
             echo "candidate_runtime=mods/$(basename "$artifact")"
-            echo "candidate_runtime_verified=true"
-            echo "candidate_dedicated_server_verified=true"
-            echo "candidate_dedicated_server_log=candidate-server-runtime.log"
+            echo "candidate_runtime_verified=$candidate_runtime_verified"
+            echo "candidate_dedicated_server_verified=$candidate_dedicated_server_verified"
+            echo "candidate_dedicated_server_log=candidate-server-runtime.sanitized.log"
             echo 'client_runtime_verified=separate-client-evidence-job'
             echo 'client_runtime_blocked=separate-client-evidence-job'
             echo 'client_runtime_manifest=client-evidence artifact'
@@ -651,6 +661,8 @@ jobs:
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
           $hostSha512 = (Get-FileHash $hostArtifact -Algorithm SHA512).Hash.ToLower()
+          $candidateRuntimeVerified = Test-Path -LiteralPath 'build/candidate-gametest.verification.complete' -PathType Leaf
+          $candidateDedicatedServerVerified = (Test-Path -LiteralPath 'build/candidate-server.verification.complete' -PathType Leaf) -and (Test-Path -LiteralPath 'build/candidate-server-runtime.sanitized.log' -PathType Leaf)
           @(
             "runner_os=$env:RUNNER_OS"
             "runner_arch=$env:RUNNER_ARCH"
@@ -659,9 +671,9 @@ jobs:
             (git rev-parse HEAD)
             "artifact=cross-platform-candidate/$($artifact.Name)"
             "candidate_runtime=mods/$($artifact.Name)"
-            "candidate_runtime_verified=true"
-            "candidate_dedicated_server_verified=true"
-            "candidate_dedicated_server_log=candidate-server-runtime.log"
+            "candidate_runtime_verified=$($candidateRuntimeVerified.ToString().ToLower())"
+            "candidate_dedicated_server_verified=$($candidateDedicatedServerVerified.ToString().ToLower())"
+            'candidate_dedicated_server_log=candidate-server-runtime.sanitized.log'
             'client_runtime_verified=separate-client-evidence-job'
             'client_runtime_blocked=separate-client-evidence-job'
             'client_runtime_manifest=client-evidence artifact'
@@ -679,13 +691,13 @@ jobs:
         if: always()
         with:
           name: cross-platform-audit-${{ matrix.os }}
-          if-no-files-found: error
+          if-no-files-found: warn
           path: |
             build/cross-platform-audit-manifest.txt
             build/audit/platform-dependency-manifest.txt
             build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
             build/audit/native-writer-runtime/native-writer-identity-trace.txt
-            build/candidate-server-runtime.log
+            build/candidate-server-runtime.sanitized.log
 
   client-evidence:
     name: client evidence ${{ matrix.os }}
@@ -722,6 +734,7 @@ jobs:
           path: cross-platform-candidate
 
       - name: run linux or macos client evidence
+        id: client_unix
         if: runner.os != 'Windows'
         run: |
           set -euo pipefail
@@ -796,15 +809,6 @@ jobs:
             grep -F 'ServerEssentialsForge (NeoForge 1.21.1 port) initialized' "$client_log"
             grep -F 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_log"
           fi
-          sed \
-            -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
-            -e "s|$HOME|<home>|g" \
-            "$client_log" > "$client_log.sanitized"
-          mv "$client_log.sanitized" "$client_log"
-          if grep -Eiq '(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)' "$client_log"; then
-            echo 'packaged client log contains a hosted path after sanitization' >&2
-            exit 1
-          fi
           {
             echo "runner_os=$RUNNER_OS"
             echo "runner_arch=$RUNNER_ARCH"
@@ -823,14 +827,15 @@ jobs:
               echo 'client_gui_atlas_verified=false'
             fi
             if [ "$display_blocked" -eq 1 ]; then echo 'client_display_blocked=true'; else echo 'client_display_blocked=false'; fi
-            echo 'client_log=candidate-client-runtime.log'
+            echo 'client_log=candidate-client-runtime.sanitized.log'
           } > build/client-runtime-manifest.txt
           if [ "$display_blocked" -eq 1 ]; then
-            echo 'packaged client startup is blocked by the hosted display environment' >&2
-            exit 0
+            echo 'packaged client startup is blocked by the hosted display environment'
           fi
+          echo "display_blocked=$display_blocked" >> "$GITHUB_OUTPUT"
 
       - name: run windows client evidence
+        id: client_windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -904,12 +909,6 @@ jobs:
             Copy-Item -LiteralPath $clientConsoleLog -Destination $clientLog -Force
           }
           $clientProcess.Dispose()
-          $clientEvidence = Read-TextWithRetry $clientLog
-          $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
-          $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
-          $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
-          $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
-          [System.IO.File]::WriteAllText($clientLog, $clientEvidence)
           $displayBlocked = $false
           if ($startupStabilityFailed) {
             Get-Content -LiteralPath $clientLog -Tail 80
@@ -925,7 +924,6 @@ jobs:
               if (-not (Select-String -Path $clientLog -Pattern ([regex]::Escape($required)))) { throw "packaged client startup did not prove $required" }
             }
           }
-          if (Select-String -Path $clientLog -Pattern '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'packaged client log contains a hosted path after sanitization' }
           @(
             "runner_os=$env:RUNNER_OS"
             "runner_arch=$env:RUNNER_ARCH"
@@ -938,18 +936,38 @@ jobs:
             "client_render_backend_verified=$startupVerified".ToLower()
             "client_gui_atlas_verified=$startupVerified".ToLower()
             "client_display_blocked=$displayBlocked".ToLower()
-            'client_log=candidate-client-runtime.log'
+            'client_log=candidate-client-runtime.sanitized.log'
           ) | Set-Content build/client-runtime-manifest.txt
           if ($displayBlocked) {
             Write-Host 'packaged client startup is blocked by the hosted display environment'
-            exit 0
           }
+          "display_blocked=$($displayBlocked.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: record blocked linux or macos client evidence
+        if: ${{ always() && runner.os != 'Windows' && steps.client_unix.outputs.display_blocked == '1' }}
+        continue-on-error: true
+        run: |
+          echo 'client startup is blocked by the hosted display environment'
+          exit 1
+
+      - name: record blocked windows client evidence
+        if: ${{ always() && runner.os == 'Windows' && steps.client_windows.outputs.display_blocked == 'true' }}
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Write-Host 'client startup is blocked by the hosted display environment'
+          exit 1
 
       - name: sanitize linux or macos client evidence
         if: ${{ always() && runner.os != 'Windows' }}
         run: |
           set -euo pipefail
-          if [ -f build/candidate-client-runtime.log ]; then
+          raw_log=build/candidate-client-runtime.log
+          sanitized_log=build/candidate-client-runtime.sanitized.log
+          rm -f "$sanitized_log"
+          if [ -f "$raw_log" ]; then
+            temp_log="$(mktemp)"
+            trap 'rm -f "$temp_log"' EXIT
             sed \
               -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
               -e "s|$HOME|<home>|g" \
@@ -957,22 +975,30 @@ jobs:
               -e 's|/Users/runner|<runner>|g' \
               -e 's|/private/var|<private-var>|g' \
               -e 's|/opt/hostedtoolcache|<toolcache>|g' \
-              build/candidate-client-runtime.log > build/candidate-client-runtime.sanitized.log
-            mv build/candidate-client-runtime.sanitized.log build/candidate-client-runtime.log
+              "$raw_log" > "$temp_log"
+            if grep -Eiq '(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)' "$temp_log"; then
+              echo 'packaged client log contains a hosted path after sanitization' >&2
+              exit 1
+            fi
+            mv "$temp_log" "$sanitized_log"
           fi
 
       - name: sanitize windows client evidence
         if: ${{ always() && runner.os == 'Windows' }}
         shell: pwsh
         run: |
-          if (Test-Path -LiteralPath 'build/candidate-client-runtime.log' -PathType Leaf) {
-            $clientEvidence = [System.IO.File]::ReadAllText('build/candidate-client-runtime.log')
+          $rawLog = 'build/candidate-client-runtime.log'
+          $sanitizedLog = 'build/candidate-client-runtime.sanitized.log'
+          Remove-Item -LiteralPath $sanitizedLog -Force -ErrorAction SilentlyContinue
+          if (Test-Path -LiteralPath $rawLog -PathType Leaf) {
+            $clientEvidence = [System.IO.File]::ReadAllText($rawLog)
             $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
             $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
             $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
             $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
             $clientEvidence = $clientEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            [System.IO.File]::WriteAllText('build/candidate-client-runtime.log', $clientEvidence)
+            if ($clientEvidence -match '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'packaged client log contains a hosted path after sanitization' }
+            [System.IO.File]::WriteAllText($sanitizedLog, $clientEvidence)
           }
 
       - name: upload client evidence
@@ -983,4 +1009,4 @@ jobs:
           if-no-files-found: warn
           path: |
             build/client-runtime-manifest.txt
-            build/candidate-client-runtime.log
+            build/candidate-client-runtime.sanitized.log
