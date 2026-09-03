@@ -121,7 +121,7 @@ jobs:
           candidate_server_dir="$GITHUB_WORKSPACE/build/candidate-server-runtime"
           mkdir -p "$candidate_server_dir/mods"
           cp "$candidate_jar" "$candidate_server_dir/mods/$candidate_name"
-          printf 'stop\n' | ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
+          { sleep 60; printf 'stop\n'; } | ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
@@ -167,7 +167,7 @@ jobs:
           $candidateServerDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateServerDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateServerDir 'mods' $candidateJar.Name)
-          'stop' | .\gradlew.bat runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidateServerDir" 2>&1 | Tee-Object -FilePath build/candidate-server-runtime.log
+          ({ Start-Sleep -Seconds 60; 'stop' } | .\gradlew.bat runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidateServerDir" 2>&1 | Tee-Object -FilePath build/candidate-server-runtime.log)
           if ($LASTEXITCODE -ne 0) { throw "windows candidate dedicated server failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
