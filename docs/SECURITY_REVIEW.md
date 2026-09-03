@@ -22,6 +22,8 @@ The audit writer now uses a platform native descriptor provider and fails closed
 
 The default Windows NIO provider is no longer used for the security sensitive append. The Windows provider opens the file with native sharing and reparse controls, validates the opened handle identity, and flushes the descriptor before closing. The hosted Windows run verified the provider against Java 21 and the pinned candidate jar. Authoritative NeoForge runtime provenance, advisory applicability, and compatible remediation remain separate `EXT-002` gates.
 
+An owner desktop probe using a real graphical Minecraft session reached Minecraft 1.21.1 and the LWJGL backend, but the installed NeoForge runtime was 21.1.248 while the candidate requires exactly 21.1.235. NeoForge correctly refused to load the candidate before mod initialization. The temporary candidate and logs were removed. This is evidence of a missing exact runtime fixture under `EXT-001`, not an unsupported operating system.
+
 ## Authority and backdoor review
 
 The command catalog rejects duplicate canonical routes, validates permission and audit metadata, and requires the shared execution pipeline before sealing. `KernelCommandExecutor` performs source classification, delegation scope, permission, control authorization, cost, quota, cooldown, lease, journal, and audit checks immediately before the action. The administrative GUI does not accept client command text. It constructs an action from a server projected catalog definition and fixed server side arguments, then rechecks panel revision, panel permission, control context, and current action permission before invoking the normal Brigadier route.
