@@ -260,6 +260,9 @@ tasks.register('generateAuditDependencyManifest') {
     dependsOn tasks.named('jar')
     outputs.upToDateWhen { false }
     def manifest = layout.buildDirectory.file('audit/platform-dependency-manifest.txt')
+    def javaToolchainLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
     outputs.file(manifest)
     def projectVersion = project.version.toString()
     def modId = project.findProperty('mod_id')?.toString() ?: 'unknown'
@@ -334,13 +337,21 @@ tasks.register('generateAuditDependencyManifest') {
             }
             pathsByCoordinate
         }
+        def javaToolchainMetadata = javaToolchainLauncher.get().metadata
+        def javaToolchainVersion = javaToolchainMetadata.languageVersion.asInt()
+        if (javaToolchainVersion != 21) {
+            throw new GradleException("audit manifest requires Java 21, resolved ${javaToolchainVersion}")
+        }
         def lines = [
                 'manifest_version=1',
                 "project_version=${projectVersion}",
                 "mod_id=${modId}",
                 "minecraft_version=${minecraftVersion}",
                 "neoforge_version=${neoForgeVersion}",
-                "java_version=${System.getProperty('java.version')}",
+                "java_version=${javaToolchainVersion}",
+                "java_runtime_version=${javaToolchainMetadata.javaRuntimeVersion}",
+                "java_vendor=${javaToolchainMetadata.vendor}",
+                "gradle_runtime_java_version=${System.getProperty('java.version')}",
                 "os_name=${System.getProperty('os.name')}",
                 "os_arch=${System.getProperty('os.arch')}",
                 "candidate_commit=${candidateCommit}",
