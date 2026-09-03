@@ -879,14 +879,14 @@ Linux and macOS:
 Windows:
 
 ```powershell
-gradlew.bat test
-gradlew.bat generateProjectReferences
-gradlew.bat build
-gradlew.bat runServer
-gradlew.bat runClient
-gradlew.bat runGameTestServer
-gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
-gradlew.bat runData
+.\gradlew.bat test
+.\gradlew.bat generateProjectReferences
+.\gradlew.bat build
+.\gradlew.bat runServer
+.\gradlew.bat runClient
+.\gradlew.bat runGameTestServer
+.\gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
+.\gradlew.bat runData
 ```
 
 There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do not claim those checks ran.
@@ -906,10 +906,12 @@ Linux and macOS:
 Windows:
 
 ```powershell
-gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence
+.\gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence
 ```
 
-`generateAuditDependencyManifest` captures the resolved `compileClasspath`, `runtimeClasspath`, `fallbackRuntimeRuntimeClasspath`, and `testRuntimeClasspath` artifacts. Each artifact entry includes its coordinate, file name, size, SHA-256, SHA-512, and normalized dependency paths. Variant specific native artifacts that Gradle does not expose through a parent dependency path retain their exact `variant_component` identity instead of being reported as unresolved. The manifest also records the candidate commit, pinned Minecraft and NeoForge versions, operating system and Java identity, the NeoForge component that supplies the compile-only JNA APIs, every resolved JNA runtime path, and whether the candidate JAR contains duplicate JNA classes or native libraries. Run it with `--no-configuration-cache` and `-PsefAuditCandidateCommit=<commit>` after the candidate JAR is built. Linux and macOS use `./gradlew`; Windows uses `gradlew.bat`. Output is `build/audit/platform-dependency-manifest.txt` and must be copied only to the approved restricted evidence location or a workflow artifact.
+`generateAuditDependencyManifest` captures the resolved `compileClasspath`, `runtimeClasspath`, `fallbackRuntimeRuntimeClasspath`, and `testRuntimeClasspath` artifacts. Each artifact entry includes its coordinate, file name, size, SHA-256, SHA-512, and normalized dependency paths. Variant specific native artifacts that Gradle does not expose through a parent dependency path retain their exact `variant_component` identity instead of being reported as unresolved. The manifest also records the candidate commit, pinned Minecraft and NeoForge versions, operating system and Java identity, the NeoForge component that supplies the compile-only JNA APIs, every resolved JNA runtime path, and whether the candidate JAR contains duplicate JNA classes or native libraries. Run it with `--no-configuration-cache` and `-PsefAuditCandidateCommit=<commit>` after the candidate JAR is built. Linux and macOS use `./gradlew`; Windows PowerShell uses `.\gradlew.bat`. Output is `build/audit/platform-dependency-manifest.txt` and must be copied only to the approved restricted evidence location or a workflow artifact.
+
+`runAuditWriterProbe` accepts `-PsefAuditProbeCandidateJar=<path>` for an exact packaged candidate. When supplied, the probe classpath contains the test harness, runtime dependencies, and that JAR while excluding compiled main output, so the native writer proof exercises the distributed artifact rather than fresh source classes. Without the property, the task probes the local `build/libs` JAR.
 
 `runCandidateGameTestServer` uses `sourceSets.fallbackRuntime` with no local source mod loaded. Copy the exact candidate JAR to the supplied game directory `mods` folder before running it. This is the packaged artifact smoke used by the cross platform audit, so the GameTests execute from the candidate JAR on Linux, macOS, and Windows rather than from compiled source output.
 
@@ -1020,7 +1022,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 
 The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 532-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, the dependency closure blocker, and the multiplayer and interactive gates that remain open. The twenty confirmed source defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
-Run `./gradlew generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=/path/to/fresh/external/audit-evidence` to execute the complete audit inventory and deterministic drift checks. On Windows use `gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence`. The task does not write product files.
+Run `./gradlew generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=/path/to/fresh/external/audit-evidence` to execute the complete audit inventory and deterministic drift checks. On Windows use `.\gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence`. The task does not write product files.
 
 ## 17. Operations and recovery
 

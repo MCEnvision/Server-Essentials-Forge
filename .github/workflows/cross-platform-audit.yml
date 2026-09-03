@@ -105,7 +105,21 @@ jobs:
           chmod +x ./gradlew
           expected_commit="$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$expected_commit"
-          ./gradlew clean test build runAuditWriterProbe --console=plain
+          candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
+          test -f "$candidate_jar"
+          candidate_name="$(basename "$candidate_jar")"
+          candidate_manifest_commit="$(sed -n 's/^commit=//p' cross-platform-candidate/manifest.txt | head -n 1)"
+          test "$candidate_manifest_commit" = "$expected_commit"
+          candidate_expected_sha256="$(awk -v name="$candidate_name" '$2 == name {print $1}' cross-platform-candidate/sha256.txt)"
+          test -n "$candidate_expected_sha256"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            candidate_digest256() { shasum -a 256 "$1" | awk '{print $1}'; }
+          else
+            candidate_digest256() { sha256sum "$1" | awk '{print $1}'; }
+          fi
+          candidate_downloaded_sha256="$(candidate_digest256 "$candidate_jar")"
+          test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
+          ./gradlew clean test build runAuditWriterProbe --console=plain -PsefAuditProbeCandidateJar="$candidate_jar"
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
           grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/audit/platform-dependency-manifest.txt
@@ -113,11 +127,9 @@ jobs:
           grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/audit/platform-dependency-manifest.txt
           grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/audit/platform-dependency-manifest.txt
           candidate_game_dir="$GITHUB_WORKSPACE/build/candidate-runtime"
-          candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
-          test -n "$candidate_jar"
           mkdir -p "$candidate_game_dir/mods"
-          candidate_name="$(basename "$candidate_jar")"
           cp "$candidate_jar" "$candidate_game_dir/mods/$candidate_name"
+          candidate_sha256_before="$(candidate_digest256 "$candidate_jar")"
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
@@ -199,6 +211,8 @@ jobs:
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
+          candidate_sha256_after="$(candidate_digest256 "$candidate_jar")"
+          test "$candidate_sha256_after" = "$candidate_sha256_before"
           touch build/candidate-server.verification.complete
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -224,7 +238,14 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           $expectedCommit = $env:GITHUB_SHA
           if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
-          .\gradlew.bat clean test build runAuditWriterProbe --console=plain
+          $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
+          if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
+          $candidateManifestCommit = (Get-Content -LiteralPath 'cross-platform-candidate/manifest.txt' | Where-Object { $_ -like 'commit=*' } | Select-Object -First 1).Substring(7)
+          if ($candidateManifestCommit -ne $expectedCommit) { throw 'downloaded candidate manifest commit does not match the checkout' }
+          $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
+          $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
+          if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
+          .\gradlew.bat clean test build runAuditWriterProbe --console=plain "-PsefAuditProbeCandidateJar=$($candidateJar.FullName)"
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
           .\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain
@@ -235,10 +256,9 @@ jobs:
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'jna_runtime_coordinate=net\.java\.dev\.jna:jna-platform:5\.14\.0')) { throw 'windows JNA platform runtime coordinate was not recorded' }
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'candidate_mod_jar_embeds_duplicate_native_runtime=false')) { throw 'windows duplicate native runtime scan failed' }
           $candidateGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-runtime'
-          $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
-          if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
+          $candidateSha256Before = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
           .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" 2>&1 | Tee-Object -FilePath build/candidate-runtime.log
           if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
@@ -316,6 +336,8 @@ jobs:
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
+          $candidateSha256After = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
+          if ($candidateSha256After -ne $candidateSha256Before) { throw 'downloaded candidate changed during packaged runtime verification' }
           New-Item -ItemType File -Force -Path 'build/candidate-server.verification.complete' | Out-Null
           if (-not $stopCommandSent) { Write-Host 'candidate dedicated server stopped on its own after clean startup' }
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'

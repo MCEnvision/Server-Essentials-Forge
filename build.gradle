@@ -465,9 +465,22 @@ tasks.register('generateAuditDependencyManifest') {
 tasks.register('runAuditWriterProbe', JavaExec) {
     description = 'Run the disposable cross platform native audit writer probe.'
     dependsOn testClasses
-    classpath = sourceSets.test.runtimeClasspath
+    def mainOutputFiles = sourceSets.main.output.files
+    def testSupportClasspath = sourceSets.test.runtimeClasspath.filter { file ->
+        !mainOutputFiles.contains(file)
+    }
+    classpath = files(sourceSets.test.output, testSupportClasspath)
     mainClass = 'com.enviouse.sef.audit.AuditRuntimeProbe'
     args layout.buildDirectory.dir('audit/native-writer-runtime').get().asFile.absolutePath
+    doFirst {
+        File candidateJar = providers.gradleProperty('sefAuditProbeCandidateJar').isPresent()
+                ? project.file(providers.gradleProperty('sefAuditProbeCandidateJar').get())
+                : layout.buildDirectory.file("libs/${project.base.archivesName.get()}-${project.version}.jar").get().asFile
+        if (!candidateJar.isFile()) {
+            throw new GradleException("audit writer probe candidate JAR is missing: ${candidateJar}")
+        }
+        classpath = files(sourceSets.test.output, testSupportClasspath, candidateJar)
+    }
 }
 
 tasks.register('generatePerformanceReport') {

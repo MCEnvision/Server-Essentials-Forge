@@ -104,13 +104,25 @@ jobs:
         run: |
           set -euo pipefail
           candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
-          test -n "$candidate_jar"
+          test -f "$candidate_jar"
+          candidate_name="$(basename "$candidate_jar")"
+          expected_commit="$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$expected_commit"
+          candidate_manifest_commit="$(sed -n 's/^commit=//p' cross-platform-candidate/manifest.txt | head -n 1)"
+          test "$candidate_manifest_commit" = "$expected_commit"
+          candidate_expected_sha256="$(awk -v name="$candidate_name" '$2 == name {print $1}' cross-platform-candidate/sha256.txt)"
+          test -n "$candidate_expected_sha256"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            candidate_downloaded_sha256="$(shasum -a 256 "$candidate_jar" | awk '{print $1}')"
+          else
+            candidate_downloaded_sha256="$(sha256sum "$candidate_jar" | awk '{print $1}')"
+          fi
+          test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
           client_game_dir="$GITHUB_WORKSPACE/build/candidate-client-runtime"
           client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
           client_console_log="$GITHUB_WORKSPACE/build/candidate-client-console.log"
           client_runtime_log="$client_game_dir/logs/latest.log"
           mkdir -p "$client_game_dir/mods"
-          candidate_name="$(basename "$candidate_jar")"
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
           if [ "$RUNNER_OS" = "Linux" ]; then
@@ -231,6 +243,13 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
           if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
+          $expectedCommit = $env:GITHUB_SHA
+          if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
+          $candidateManifestCommit = (Get-Content -LiteralPath 'cross-platform-candidate/manifest.txt' | Where-Object { $_ -like 'commit=*' } | Select-Object -First 1).Substring(7)
+          if ($candidateManifestCommit -ne $expectedCommit) { throw 'downloaded candidate manifest commit does not match the checkout' }
+          $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
+          $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
+          if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
           $clientGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime'
           $clientLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime.log'
           $clientConsoleLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-console.log'

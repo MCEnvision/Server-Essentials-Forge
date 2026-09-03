@@ -34,7 +34,7 @@ Capture the dependency and platform ownership manifest at the same candidate rev
 ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
 ```
 
-On Windows PowerShell, run `gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())" --console=plain`. Retain `build/audit/platform-dependency-manifest.txt` with the restricted release evidence. The manifest is sanitized, includes normalized dependency paths and artifact digests, identifies the NeoForge runtime owner for JNA and JNA Platform, and fails to provide closure if that owner cannot be resolved. It does not replace authoritative advisory, installed-runtime, or compatible-remediation evidence required by `EXT-002`.
+On Windows PowerShell, run `.\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())" --console=plain`. Retain `build/audit/platform-dependency-manifest.txt` with the restricted release evidence. The manifest is sanitized, includes normalized dependency paths and artifact digests, identifies the NeoForge runtime owner for JNA and JNA Platform, and fails to provide closure if that owner cannot be resolved. It does not replace authoritative advisory, installed-runtime, or compatible-remediation evidence required by `EXT-002`.
 
 The equivalent local checks are:
 

@@ -190,7 +190,7 @@ Run `./gradlew generateProjectReferences` after changing a module schema, comman
 
 Run `./gradlew generateAuditInventory --rerun-tasks -Dsef.audit.evidenceRoot=/path/to/restricted-evidence` to execute the complete audit inventory and deterministic drift checks. The evidence root must be a fresh approved directory outside the repository. The task fails when the evidence root is omitted and does not write product files.
 
-Run `./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit=$(git rev-parse HEAD)` after building a candidate to capture the resolved compile, runtime, fallback, and test artifacts, dependency paths, SHA-256 and SHA-512 digests, NeoForge runtime ownership, and duplicate native runtime scan. Variant specific native artifacts retain their exact selected component identity when Gradle does not expose a full parent path. The sanitized manifest is written to `build/audit/platform-dependency-manifest.txt` and is evidence only when it is retained outside the repository or uploaded by a workflow. On Windows use `gradlew.bat generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit=$(git rev-parse HEAD)` in PowerShell. The task intentionally runs without Gradle configuration cache because it resolves and hashes the live dependency model.
+Run `./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit=$(git rev-parse HEAD)` after building a candidate to capture the resolved compile, runtime, fallback, and test artifacts, dependency paths, SHA-256 and SHA-512 digests, NeoForge runtime ownership, and duplicate native runtime scan. Variant specific native artifacts retain their exact selected component identity when Gradle does not expose a full parent path. The sanitized manifest is written to `build/audit/platform-dependency-manifest.txt` and is evidence only when it is retained outside the repository or uploaded by a workflow. On Windows use `.\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())"` in PowerShell. The task intentionally runs without Gradle configuration cache because it resolves and hashes the live dependency model.
 
 NeoForge owns TOML loading and external reload notifications. `/sef reload` reapplies values already loaded by NeoForge. It does not force an arbitrary disk read.
 
@@ -216,12 +216,12 @@ Linux and macOS:
 Windows:
 
 ```powershell
-gradlew.bat test
-gradlew.bat generateProjectReferences
-gradlew.bat build
-gradlew.bat runServer
-gradlew.bat runClient
-gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
+.\gradlew.bat test
+.\gradlew.bat generateProjectReferences
+.\gradlew.bat build
+.\gradlew.bat runServer
+.\gradlew.bat runClient
+.\gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
 ```
 
 The built JAR is written to `build/libs/`.
