@@ -167,8 +167,57 @@ jobs:
           $candidateServerDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateServerDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateServerDir 'mods' $candidateJar.Name)
-          ({ Start-Sleep -Seconds 60; 'stop' } | .\gradlew.bat runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidateServerDir" 2>&1 | Tee-Object -FilePath build/candidate-server-runtime.log)
-          if ($LASTEXITCODE -ne 0) { throw "windows candidate dedicated server failed with exit code $LASTEXITCODE" }
+          $candidateServerLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'
+          Set-Content -LiteralPath $candidateServerLog -Value ''
+          $gradlePath = (Resolve-Path '.\gradlew.bat').Path
+          $serverStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $serverStartInfo.FileName = $env:ComSpec
+          $serverStartInfo.UseShellExecute = $false
+          $serverStartInfo.CreateNoWindow = $true
+          $serverStartInfo.RedirectStandardInput = $true
+          $serverStartInfo.RedirectStandardOutput = $true
+          $serverStartInfo.RedirectStandardError = $true
+          [void]$serverStartInfo.ArgumentList.Add('/d')
+          [void]$serverStartInfo.ArgumentList.Add('/c')
+          [void]$serverStartInfo.ArgumentList.Add(('call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir))
+          $serverProcess = [System.Diagnostics.Process]::new()
+          $serverProcess.StartInfo = $serverStartInfo
+          $serverLogPath = $candidateServerLog
+          $serverOutputHandler = ([System.Diagnostics.DataReceivedEventHandler]{
+            param($sender, $event)
+            if ($null -ne $event.Data) {
+              [System.IO.File]::AppendAllText($serverLogPath, $event.Data + [Environment]::NewLine)
+            }
+          }).GetNewClosure()
+          $serverProcess.add_OutputDataReceived($serverOutputHandler)
+          $serverProcess.add_ErrorDataReceived($serverOutputHandler)
+          if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
+          $serverProcess.BeginOutputReadLine()
+          $serverProcess.BeginErrorReadLine()
+          $serverReady = $false
+          $serverReadyDeadline = (Get-Date).AddSeconds(180)
+          while ((Get-Date) -lt $serverReadyDeadline -and -not $serverProcess.HasExited) {
+            if (Select-String -LiteralPath $candidateServerLog -Pattern 'Done \(' -Quiet) {
+              $serverProcess.StandardInput.WriteLine('stop')
+              $serverProcess.StandardInput.Flush()
+              $serverReady = $true
+              break
+            }
+            Start-Sleep -Seconds 1
+          }
+          if (-not $serverReady) {
+            if (-not $serverProcess.HasExited) { $serverProcess.Kill($true); $serverProcess.WaitForExit() }
+            throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
+          }
+          if (-not $serverProcess.WaitForExit(180000)) {
+            $serverProcess.Kill($true)
+            $serverProcess.WaitForExit()
+            throw 'windows candidate dedicated server did not stop within 180 seconds'
+          }
+          Start-Sleep -Seconds 1
+          $serverExitCode = $serverProcess.ExitCode
+          $serverProcess.Dispose()
+          if ($serverExitCode -ne 0) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
