@@ -411,6 +411,10 @@ jobs:
             if [ "$display_blocked" -eq 1 ]; then echo 'client_display_blocked=true'; else echo 'client_display_blocked=false'; fi
             echo 'client_log=candidate-client-runtime.log'
           } > build/client-runtime-manifest.txt
+          if [ "$display_blocked" -eq 1 ]; then
+            echo 'packaged client startup is blocked by the hosted display environment' >&2
+            exit 1
+          fi
 
       - name: run windows packaged client startup smoke
         if: runner.os == 'Windows'
@@ -524,9 +528,12 @@ jobs:
             "client_display_blocked=$displayBlocked".ToLower()
             'client_log=candidate-client-runtime.log'
           ) | Set-Content build/client-runtime-manifest.txt
+          if ($displayBlocked) {
+            throw 'packaged client startup is blocked by the hosted display environment'
+          }
 
       - name: inspect linux or macos artifact
-        if: runner.os != 'Windows'
+        if: ${{ always() && runner.os != 'Windows' }}
         run: |
           set -euo pipefail
           artifact="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
@@ -581,7 +588,7 @@ jobs:
           } > build/cross-platform-audit-manifest.txt
 
       - name: inspect windows artifact
-        if: runner.os == 'Windows'
+        if: ${{ always() && runner.os == 'Windows' }}
         shell: pwsh
         run: |
           $artifact = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
@@ -643,6 +650,7 @@ jobs:
 
       - name: upload sanitized audit manifest
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
           name: cross-platform-audit-${{ matrix.os }}
           if-no-files-found: error
