@@ -177,9 +177,8 @@ jobs:
           $serverStartInfo.RedirectStandardInput = $true
           $serverStartInfo.RedirectStandardOutput = $true
           $serverStartInfo.RedirectStandardError = $true
-          [void]$serverStartInfo.ArgumentList.Add('/d')
-          [void]$serverStartInfo.ArgumentList.Add('/c')
-          [void]$serverStartInfo.ArgumentList.Add(('call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir))
+          $serverStartInfo.WorkingDirectory = (Get-Location).Path
+          $serverStartInfo.Arguments = ('/d /c call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir)
           $serverProcess = [System.Diagnostics.Process]::new()
           $serverProcess.StartInfo = $serverStartInfo
           if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
@@ -202,6 +201,7 @@ jobs:
           [System.IO.File]::WriteAllText($candidateServerLog, "stop_command_sent=$stopCommandSent" + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
+          Write-Host ("candidate dedicated server stdout length " + $stdout.Length + ", stderr length " + $stderr.Length)
           $successfulBuild = Select-String -Path $candidateServerLog -Pattern 'BUILD SUCCESSFUL'
           if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) {
             Write-Host "candidate dedicated server process returned exit code $serverExitCode without a successful build marker"
