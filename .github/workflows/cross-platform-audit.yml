@@ -183,75 +183,25 @@ jobs:
           $serverProcess = [System.Diagnostics.Process]::new()
           $serverProcess.StartInfo = $serverStartInfo
           if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
-          $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
-          $stderrTask = $serverProcess.StandardError.ReadLineAsync()
-          $stdoutComplete = $false
-          $stderrComplete = $false
-          $serverReady = $false
-          $serverReadyDeadline = (Get-Date).AddSeconds(180)
-          while (-not $serverReady -and -not $serverProcess.HasExited) {
-            if (-not $stdoutComplete -and $stdoutTask.IsCompleted) {
-              $line = $stdoutTask.Result
-              if ($null -eq $line) {
-                $stdoutComplete = $true
-              } else {
-                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
-                if (-not $serverReady -and $line -match 'Done \(') {
-                  $serverProcess.StandardInput.WriteLine('stop')
-                  $serverProcess.StandardInput.Flush()
-                  $serverReady = $true
-                }
-                $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
-              }
-            }
-            if (-not $stderrComplete -and $stderrTask.IsCompleted) {
-              $line = $stderrTask.Result
-              if ($null -eq $line) {
-                $stderrComplete = $true
-              } else {
-                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
-                if (-not $serverReady -and $line -match 'Done \(') {
-                  $serverProcess.StandardInput.WriteLine('stop')
-                  $serverProcess.StandardInput.Flush()
-                  $serverReady = $true
-                }
-                $stderrTask = $serverProcess.StandardError.ReadLineAsync()
-              }
-            }
-            if ((Get-Date) -ge $serverReadyDeadline) { break }
-            Start-Sleep -Milliseconds 100
+          $stdoutTask = $serverProcess.StandardOutput.ReadToEndAsync()
+          $stderrTask = $serverProcess.StandardError.ReadToEndAsync()
+          Start-Sleep -Seconds 60
+          if ($serverProcess.HasExited) {
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
+            [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
+            throw 'windows candidate dedicated server exited before the stop command'
           }
-          if (-not $serverReady) {
-            if (-not $serverProcess.HasExited) { $serverProcess.Kill($true); $serverProcess.WaitForExit() }
-            throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
-          }
+          $serverProcess.StandardInput.WriteLine('stop')
+          $serverProcess.StandardInput.Flush()
           if (-not $serverProcess.WaitForExit(180000)) {
             $serverProcess.Kill($true)
             $serverProcess.WaitForExit()
             throw 'windows candidate dedicated server did not stop within 180 seconds'
           }
-          while (-not $stdoutComplete -or -not $stderrComplete) {
-            if (-not $stdoutComplete -and $stdoutTask.IsCompleted) {
-              $line = $stdoutTask.Result
-              if ($null -eq $line) {
-                $stdoutComplete = $true
-              } else {
-                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
-                $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
-              }
-            }
-            if (-not $stderrComplete -and $stderrTask.IsCompleted) {
-              $line = $stderrTask.Result
-              if ($null -eq $line) {
-                $stderrComplete = $true
-              } else {
-                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
-                $stderrTask = $serverProcess.StandardError.ReadLineAsync()
-              }
-            }
-            Start-Sleep -Milliseconds 100
-          }
-          Start-Sleep -Seconds 1
+          $stdout = $stdoutTask.GetAwaiter().GetResult()
+          $stderr = $stderrTask.GetAwaiter().GetResult()
+          [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
           if ($serverExitCode -ne 0) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
