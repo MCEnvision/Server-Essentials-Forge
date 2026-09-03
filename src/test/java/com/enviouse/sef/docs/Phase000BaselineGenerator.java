@@ -40,7 +40,7 @@ public final class Phase000BaselineGenerator {
 
     public static JsonObject generate(Path repositoryRoot) throws IOException {
         Path root = repositoryRoot.toAbsolutePath().normalize();
-        if (!Files.isDirectory(root.resolve(".git"))) {
+        if (!hasRepositoryMetadata(root)) {
             throw new IOException("repository metadata is unavailable");
         }
 
@@ -84,6 +84,11 @@ public final class Phase000BaselineGenerator {
         baseline.addProperty("rowCount", rows.size());
         baseline.add("rows", rows);
         return baseline;
+    }
+
+    static boolean hasRepositoryMetadata(Path repositoryRoot) {
+        Path gitMetadata = repositoryRoot.toAbsolutePath().normalize().resolve(".git");
+        return Files.isDirectory(gitMetadata) || Files.isRegularFile(gitMetadata);
     }
 
     public static Path write(Path approvedExternalRoot, String fileName, Path repositoryRoot) throws IOException {

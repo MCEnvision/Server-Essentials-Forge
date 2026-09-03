@@ -20,6 +20,15 @@ class Phase000BaselineGeneratorTest {
     Path temporaryDirectory;
 
     @Test
+    void acceptsWorktreeGitFileMetadata() throws Exception {
+        Path worktree = temporaryDirectory.resolve("worktree");
+        Files.createDirectories(worktree);
+        Files.writeString(worktree.resolve(".git"), "gitdir: /tmp/fixture-git\n", StandardCharsets.UTF_8);
+
+        assertTrue(Phase000BaselineGenerator.hasRepositoryMetadata(worktree));
+    }
+
+    @Test
     void capturesStableCommitLineagePlatformAndPrerequisiteContract() throws Exception {
         JsonObject first = Phase000BaselineGenerator.generate(repositoryRoot());
         JsonObject second = Phase000BaselineGenerator.generate(repositoryRoot());

@@ -66,10 +66,17 @@ public final class BoundaryInventoryGenerator {
         JsonArray rows = new JsonArray();
         for (Boundary boundary : BOUNDARIES) {
             Path source = repositoryRoot.resolve(boundary.sourceLocation()).normalize();
-            if (!source.startsWith(repositoryRoot) || !Files.isRegularFile(source)) {
-                throw new IllegalStateException("trust boundary source is missing " + boundary.sourceLocation());
+            if (!source.startsWith(repositoryRoot)) {
+                throw new IllegalStateException("trust boundary source escapes repository " + boundary.sourceLocation());
             }
             JsonObject row = row(boundary.id(), boundary.sourceLocation(), boundary.laterPhase());
+            boolean sourceAvailable = Files.isRegularFile(source);
+            row.addProperty("sourceAvailable", sourceAvailable);
+            if (!sourceAvailable) {
+                row.addProperty("disposition", "finding");
+                row.addProperty("findingType", "missing-source");
+                row.addProperty("gap", "the declared trust-boundary owner is absent at the frozen baseline");
+            }
             row.addProperty("boundary", boundary.description());
             row.addProperty("inputClass", boundary.inputClass());
             row.addProperty("validation", boundary.validation());

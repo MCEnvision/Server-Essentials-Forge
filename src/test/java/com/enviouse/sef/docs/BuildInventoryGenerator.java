@@ -157,6 +157,9 @@ public final class BuildInventoryGenerator {
         inventory.addProperty("resourceInputCount", countKind(rows, "artifact-input", "packaged-resource"));
         inventory.addProperty("workflowCount", count(rows, "ci-workflow"));
         inventory.addProperty("platformDependencyDeclarationCount", count(rows, "platform-dependency"));
+        inventory.addProperty("platformDependencyExpectedCount", 2);
+        inventory.addProperty("platformDependencyMissingCount",
+                Math.max(0, 2 - count(rows, "platform-dependency")));
         inventory.addProperty("platformDependencyGateCount", count(rows, "platform-dependency-gate"));
         inventory.addProperty("remoteSecuritySnapshot", "blocked, read-only");
         inventory.addProperty("rowCount", rows.size());

@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BoundaryInventoryGeneratorTest {
@@ -23,6 +25,14 @@ class BoundaryInventoryGeneratorTest {
         AuditDriftValidator.requireTraceability(inventory.getAsJsonArray("rows"));
         assertEquals(23, inventory.get("boundaryCount").getAsInt());
         assertEquals(23, inventory.getAsJsonArray("rows").size());
+        JsonObject nativeWriter = inventory.getAsJsonArray("rows").asList().stream()
+                .map(element -> element.getAsJsonObject())
+                .filter(row -> row.get("semanticKey").getAsString().equals("opened-object-writer"))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(nativeWriter);
+        assertFalse(nativeWriter.get("sourceAvailable").getAsBoolean());
+        assertEquals("finding", nativeWriter.get("disposition").getAsString());
     }
 
     @Test
