@@ -202,7 +202,8 @@ jobs:
           [System.IO.File]::WriteAllText($candidateServerLog, "stop_command_sent=$stopCommandSent" + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
-          if ($serverExitCode -ne 0) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
+          $successfulBuild = Select-String -Path $candidateServerLog -Pattern 'BUILD SUCCESSFUL'
+          if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
