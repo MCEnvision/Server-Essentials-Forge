@@ -119,7 +119,7 @@ jobs:
           fi
           candidate_downloaded_sha256="$(candidate_digest256 "$candidate_jar")"
           test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
-          ./gradlew clean test build runAuditWriterProbe --console=plain -PsefAuditProbeCandidateJar="$candidate_jar"
+          ./gradlew clean test build runAuditWriterProbe --no-configuration-cache --console=plain -PsefAuditProbeCandidateJar="$candidate_jar"
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
           grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/audit/platform-dependency-manifest.txt
@@ -245,7 +245,7 @@ jobs:
           $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
           $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
           if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
-          .\gradlew.bat clean test build runAuditWriterProbe --console=plain "-PsefAuditProbeCandidateJar=$($candidateJar.FullName)"
+          .\gradlew.bat clean test build runAuditWriterProbe --no-configuration-cache --console=plain "-PsefAuditProbeCandidateJar=$($candidateJar.FullName)"
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
           .\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain

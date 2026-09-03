@@ -464,6 +464,7 @@ tasks.register('generateAuditDependencyManifest') {
 
 tasks.register('runAuditWriterProbe', JavaExec) {
     description = 'Run the disposable cross platform native audit writer probe.'
+    notCompatibleWithConfigurationCache('Uses the selected packaged candidate to construct the verification classpath.')
     dependsOn testClasses
     def mainOutputFiles = sourceSets.main.output.files
     def testSupportClasspath = sourceSets.test.runtimeClasspath.filter { file ->
