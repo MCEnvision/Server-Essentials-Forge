@@ -64,7 +64,7 @@ A prior merge-revision matrix run `33738411285` tested synthetic merge commit `6
 
 The current worktree has the following verified evidence:
 
-- All 530 unit tests pass after the special file nonblocking repair.
+- All 532 unit tests pass after the special file nonblocking repair.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
 - All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.
