@@ -182,29 +182,44 @@ jobs:
           [void]$serverStartInfo.ArgumentList.Add(('call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir))
           $serverProcess = [System.Diagnostics.Process]::new()
           $serverProcess.StartInfo = $serverStartInfo
-          $serverLogPath = $candidateServerLog
-          $serverOutputAction = {
-            param($sender, $event)
-            if ($null -ne $event.Data) {
-              [System.IO.File]::AppendAllText($serverLogPath, $event.Data + [Environment]::NewLine)
-            }
-          }.GetNewClosure()
-          $serverOutputHandler = [System.Diagnostics.DataReceivedEventHandler]$serverOutputAction
-          $serverProcess.add_OutputDataReceived($serverOutputHandler)
-          $serverProcess.add_ErrorDataReceived($serverOutputHandler)
           if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
-          $serverProcess.BeginOutputReadLine()
-          $serverProcess.BeginErrorReadLine()
+          $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
+          $stderrTask = $serverProcess.StandardError.ReadLineAsync()
+          $stdoutComplete = $false
+          $stderrComplete = $false
           $serverReady = $false
           $serverReadyDeadline = (Get-Date).AddSeconds(180)
-          while ((Get-Date) -lt $serverReadyDeadline -and -not $serverProcess.HasExited) {
-            if (Select-String -LiteralPath $candidateServerLog -Pattern 'Done \(' -Quiet) {
-              $serverProcess.StandardInput.WriteLine('stop')
-              $serverProcess.StandardInput.Flush()
-              $serverReady = $true
-              break
+          while (-not $serverReady -and -not $serverProcess.HasExited) {
+            if (-not $stdoutComplete -and $stdoutTask.IsCompleted) {
+              $line = $stdoutTask.Result
+              if ($null -eq $line) {
+                $stdoutComplete = $true
+              } else {
+                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
+                if (-not $serverReady -and $line -match 'Done \(') {
+                  $serverProcess.StandardInput.WriteLine('stop')
+                  $serverProcess.StandardInput.Flush()
+                  $serverReady = $true
+                }
+                $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
+              }
             }
-            Start-Sleep -Seconds 1
+            if (-not $stderrComplete -and $stderrTask.IsCompleted) {
+              $line = $stderrTask.Result
+              if ($null -eq $line) {
+                $stderrComplete = $true
+              } else {
+                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
+                if (-not $serverReady -and $line -match 'Done \(') {
+                  $serverProcess.StandardInput.WriteLine('stop')
+                  $serverProcess.StandardInput.Flush()
+                  $serverReady = $true
+                }
+                $stderrTask = $serverProcess.StandardError.ReadLineAsync()
+              }
+            }
+            if ((Get-Date) -ge $serverReadyDeadline) { break }
+            Start-Sleep -Milliseconds 100
           }
           if (-not $serverReady) {
             if (-not $serverProcess.HasExited) { $serverProcess.Kill($true); $serverProcess.WaitForExit() }
@@ -214,6 +229,27 @@ jobs:
             $serverProcess.Kill($true)
             $serverProcess.WaitForExit()
             throw 'windows candidate dedicated server did not stop within 180 seconds'
+          }
+          while (-not $stdoutComplete -or -not $stderrComplete) {
+            if (-not $stdoutComplete -and $stdoutTask.IsCompleted) {
+              $line = $stdoutTask.Result
+              if ($null -eq $line) {
+                $stdoutComplete = $true
+              } else {
+                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
+                $stdoutTask = $serverProcess.StandardOutput.ReadLineAsync()
+              }
+            }
+            if (-not $stderrComplete -and $stderrTask.IsCompleted) {
+              $line = $stderrTask.Result
+              if ($null -eq $line) {
+                $stderrComplete = $true
+              } else {
+                [System.IO.File]::AppendAllText($candidateServerLog, $line + [Environment]::NewLine)
+                $stderrTask = $serverProcess.StandardError.ReadLineAsync()
+              }
+            }
+            Start-Sleep -Milliseconds 100
           }
           Start-Sleep -Seconds 1
           $serverExitCode = $serverProcess.ExitCode
