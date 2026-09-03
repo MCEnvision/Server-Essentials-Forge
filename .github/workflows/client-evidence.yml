@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  build-candidate:
-    name: build candidate
+  build-client-candidate:
+    name: build client candidate
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -67,7 +67,7 @@ jobs:
   client-evidence:
     name: client evidence ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: build-candidate
+    needs: build-client-candidate
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -150,6 +150,24 @@ jobs:
             kill "$process_pid" 2>/dev/null || true
           }
           stop_tree "$client_pid"
+          for _ in $(seq 1 30); do
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 "$client_pid" 2>/dev/null; then
+            echo 'packaged client did not stop after the bounded grace period' >&2
+            force_tree() {
+              local process_pid="$1"
+              local child_pid
+              for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
+                force_tree "$child_pid"
+              done
+              kill -KILL "$process_pid" 2>/dev/null || true
+            }
+            force_tree "$client_pid"
+          fi
           wait "$client_pid" 2>/dev/null || true
           if [ -f "$client_runtime_log" ]; then
             cat "$client_runtime_log" > "$client_log"
