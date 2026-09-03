@@ -387,14 +387,27 @@ jobs:
           if ($stdoutTask.Wait(30000)) { $stdout = $stdoutTask.GetAwaiter().GetResult() } else { $stdout = 'stdout capture timed out' }
           if ($stderrTask.Wait(30000)) { $stderr = $stderrTask.GetAwaiter().GetResult() } else { $stderr = 'stderr capture timed out' }
           [System.IO.File]::WriteAllText($clientConsoleLog, $stdout + [Environment]::NewLine + $stderr)
+
+          function Read-TextWithRetry([string] $path) {
+            for ($attempt = 0; $attempt -lt 30; $attempt++) {
+              try {
+                return [System.IO.File]::ReadAllText($path)
+              } catch [System.IO.IOException] {
+                if ($attempt -eq 29) { throw }
+                Start-Sleep -Seconds 2
+              }
+            }
+            throw "could not read locked file $path"
+          }
+
           if (Test-Path -LiteralPath $clientRuntimeLog -PathType Leaf) {
-            $runtimeEvidence = [System.IO.File]::ReadAllText($clientRuntimeLog)
+            $runtimeEvidence = Read-TextWithRetry $clientRuntimeLog
             [System.IO.File]::WriteAllText($clientLog, $runtimeEvidence + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
           } else {
             Copy-Item -LiteralPath $clientConsoleLog -Destination $clientLog -Force
           }
           $clientProcess.Dispose()
-          $clientEvidence = [System.IO.File]::ReadAllText($clientLog)
+          $clientEvidence = Read-TextWithRetry $clientLog
           $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
           $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
           $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
