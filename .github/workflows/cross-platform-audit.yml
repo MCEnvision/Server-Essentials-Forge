@@ -330,9 +330,18 @@ jobs:
           "${client_command[@]}" > "$client_console_log" 2>&1 &
           client_pid=$!
           startup_verified=0
+          startup_stability_failed=0
           for _ in $(seq 1 180); do
             if grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_runtime_log" 2>/dev/null || grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_console_log" 2>/dev/null; then
               startup_verified=1
+              for _ in $(seq 1 5); do
+                if ! kill -0 "$client_pid" 2>/dev/null; then
+                  startup_verified=0
+                  startup_stability_failed=1
+                  break
+                fi
+                sleep 1
+              done
               break
             fi
             if ! kill -0 "$client_pid" 2>/dev/null; then
@@ -358,7 +367,10 @@ jobs:
             cp "$client_console_log" "$client_log"
           fi
           display_blocked=0
-          if [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '\[0x10009\]NSGL: Failed to find a suitable pixel format' "$client_log"; then
+          if [ "$startup_stability_failed" -eq 1 ]; then
+            tail -n 80 "$client_log"
+            exit 1
+          elif [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '\[0x10009\]NSGL: Failed to find a suitable pixel format' "$client_log"; then
             display_blocked=1
           elif [ "$startup_verified" -ne 1 ]; then
             tail -n 80 "$client_log"
@@ -431,9 +443,18 @@ jobs:
           $stdoutTask = $clientProcess.StandardOutput.ReadToEndAsync()
           $stderrTask = $clientProcess.StandardError.ReadToEndAsync()
           $startupVerified = $false
+          $startupStabilityFailed = $false
           for ($i = 0; $i -lt 180; $i++) {
             if ((Test-Path -LiteralPath $clientRuntimeLog -PathType Leaf) -and (Select-String -Path $clientRuntimeLog -Pattern 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas')) {
               $startupVerified = $true
+              for ($stability = 0; $stability -lt 5; $stability++) {
+                if ($clientProcess.HasExited) {
+                  $startupVerified = $false
+                  $startupStabilityFailed = $true
+                  break
+                }
+                Start-Sleep -Seconds 1
+              }
               break
             }
             if ($clientProcess.HasExited) { break }
@@ -474,7 +495,10 @@ jobs:
           $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
           [System.IO.File]::WriteAllText($clientLog, $clientEvidence)
           $displayBlocked = $false
-          if (-not $startupVerified -and (Select-String -Path $clientLog -Pattern '(?i)\[0x10006\]WGL: The driver does not appear to support OpenGL')) {
+          if ($startupStabilityFailed) {
+            Get-Content -LiteralPath $clientLog -Tail 80
+            throw 'packaged client exited after the startup marker before the stability gate completed'
+          } elseif (-not $startupVerified -and (Select-String -Path $clientLog -Pattern '(?i)\[0x10006\]WGL: The driver does not appear to support OpenGL')) {
             $displayBlocked = $true
           } elseif (-not $startupVerified) {
             Get-Content -LiteralPath $clientLog -Tail 80
