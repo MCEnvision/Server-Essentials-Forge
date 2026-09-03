@@ -134,6 +134,10 @@ jobs:
                 fi
                 sleep 1
               done
+              if [ "$startup_verified" -eq 1 ] && ! kill -0 "$client_pid" 2>/dev/null; then
+                startup_verified=0
+                startup_stability_failed=1
+              fi
               break
             fi
             if ! kill -0 "$client_pid" 2>/dev/null; then
@@ -261,6 +265,10 @@ jobs:
                   break
                 }
                 Start-Sleep -Seconds 1
+              }
+              if ($startupVerified -and $clientProcess.HasExited) {
+                $startupVerified = $false
+                $startupStabilityFailed = $true
               }
               break
             }
