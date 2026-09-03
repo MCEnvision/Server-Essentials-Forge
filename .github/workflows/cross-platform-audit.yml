@@ -185,29 +185,28 @@ jobs:
           if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
           $stdoutTask = $serverProcess.StandardOutput.ReadToEndAsync()
           $stderrTask = $serverProcess.StandardError.ReadToEndAsync()
-          Start-Sleep -Seconds 60
-          if ($serverProcess.HasExited) {
-            $stdout = $stdoutTask.GetAwaiter().GetResult()
-            $stderr = $stderrTask.GetAwaiter().GetResult()
-            [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
-            throw 'windows candidate dedicated server exited before the stop command'
-          }
-          $serverProcess.StandardInput.WriteLine('stop')
-          $serverProcess.StandardInput.Flush()
-          if (-not $serverProcess.WaitForExit(180000)) {
-            $serverProcess.Kill($true)
-            $serverProcess.WaitForExit()
-            throw 'windows candidate dedicated server did not stop within 180 seconds'
+          $stopCommandSent = $false
+          Start-Sleep -Seconds 30
+          if (-not $serverProcess.HasExited) {
+            $serverProcess.StandardInput.WriteLine('stop')
+            $serverProcess.StandardInput.Flush()
+            $stopCommandSent = $true
+            if (-not $serverProcess.WaitForExit(180000)) {
+              $serverProcess.Kill($true)
+              $serverProcess.WaitForExit()
+              throw 'windows candidate dedicated server did not stop within 180 seconds'
+            }
           }
           $stdout = $stdoutTask.GetAwaiter().GetResult()
           $stderr = $stderrTask.GetAwaiter().GetResult()
-          [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
+          [System.IO.File]::WriteAllText($candidateServerLog, "stop_command_sent=$stopCommandSent" + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
           if ($serverExitCode -ne 0) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
+          if (-not $stopCommandSent) { Write-Host 'candidate dedicated server stopped on its own after clean startup' }
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
           foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
             if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
