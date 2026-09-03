@@ -102,7 +102,7 @@ jobs:
           chmod +x ./gradlew
           expected_commit='${{ github.event.pull_request.head.sha || github.sha }}'
           test "$(git rev-parse HEAD)" = "$expected_commit"
-          ./gradlew clean test build --console=plain
+          ./gradlew clean test build runAuditWriterProbe --console=plain
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
           grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/audit/platform-dependency-manifest.txt
@@ -118,6 +118,14 @@ jobs:
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
+          grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'identity_validation_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'object_swap_control_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'rotation_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'restart_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+          grep -F 'writer_stopped=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           ./gradlew dependencies --configuration runtimeClasspath --console=plain
           ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
           ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
@@ -130,7 +138,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           $expectedCommit = '${{ github.event.pull_request.head.sha || github.sha }}'
           if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
-          .\gradlew.bat clean test build --console=plain
+          .\gradlew.bat clean test build runAuditWriterProbe --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
           .\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain
@@ -149,6 +157,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
+          $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
+          foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
+            if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
+          }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
@@ -260,3 +272,4 @@ jobs:
           path: |
             build/cross-platform-audit-manifest.txt
             build/audit/platform-dependency-manifest.txt
+            build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
