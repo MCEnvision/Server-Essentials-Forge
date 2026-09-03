@@ -247,6 +247,140 @@ jobs:
           .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows jna platform dependency insight failed with exit code $LASTEXITCODE" }
 
+      - name: run linux or macos packaged client startup smoke
+        if: runner.os != 'Windows'
+        run: |
+          set -euo pipefail
+          candidate_jar="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          test -n "$candidate_jar"
+          client_game_dir="$GITHUB_WORKSPACE/build/candidate-client-runtime"
+          client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
+          mkdir -p "$client_game_dir/mods"
+          candidate_name="$(basename "$candidate_jar")"
+          cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            command -v xvfb-run
+            client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
+          else
+            client_command=(./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
+          fi
+          "${client_command[@]}" > "$client_log" 2>&1 &
+          client_pid=$!
+          startup_verified=0
+          for _ in $(seq 1 180); do
+            if grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_log"; then
+              startup_verified=1
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          stop_tree() {
+            local process_pid="$1"
+            local child_pid
+            for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
+              stop_tree "$child_pid"
+            done
+            kill "$process_pid" 2>/dev/null || true
+          }
+          stop_tree "$client_pid"
+          wait "$client_pid" 2>/dev/null || true
+          if [ "$startup_verified" -ne 1 ]; then
+            tail -n 80 "$client_log"
+            exit 1
+          fi
+          grep -F 'Minecraft 1.21.1' "$client_log"
+          grep -F 'Backend library: LWJGL' "$client_log"
+          grep -F 'ServerEssentialsForge (NeoForge 1.21.1 port) initialized' "$client_log"
+          grep -F 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_log"
+          grep -F "mods/$candidate_name" "$client_log"
+          sed \
+            -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
+            -e "s|$HOME|<home>|g" \
+            "$client_log" > "$client_log.sanitized"
+          mv "$client_log.sanitized" "$client_log"
+          if grep -Eiq '(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)' "$client_log"; then
+            echo 'packaged client log contains a hosted path after sanitization' >&2
+            exit 1
+          fi
+          {
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            uname -srm
+            java -version 2>&1 | head -n 1
+            echo "candidate_commit=$(git rev-parse HEAD)"
+            echo "client_artifact=mods/$candidate_name"
+            echo 'client_artifact_verified=true'
+            echo 'client_startup_verified=true'
+            echo 'client_render_backend_verified=true'
+            echo 'client_gui_atlas_verified=true'
+            echo 'client_log=candidate-client-runtime.log'
+          } > build/client-runtime-manifest.txt
+
+      - name: run windows packaged client startup smoke
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
+          if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
+          $clientGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime'
+          $clientLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime.log'
+          New-Item -ItemType Directory -Force -Path (Join-Path $clientGameDir 'mods') | Out-Null
+          Copy-Item $candidateJar.FullName (Join-Path $clientGameDir 'mods' $candidateJar.Name)
+          Set-Content -LiteralPath $clientLog -Value ''
+          $gradlePath = (Resolve-Path '.\gradlew.bat').Path
+          $clientStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
+          $clientStartInfo.FileName = $env:ComSpec
+          $clientStartInfo.UseShellExecute = $false
+          $clientStartInfo.CreateNoWindow = $true
+          $clientStartInfo.RedirectStandardOutput = $true
+          $clientStartInfo.RedirectStandardError = $true
+          $clientStartInfo.WorkingDirectory = (Get-Location).Path
+          $clientStartInfo.Arguments = ('/d /c call "{0}" runFallbackClient --console=plain "-PsefFallbackClientGameDirectory={1}" -PsefFallbackClientUsername=SEFAuditPackaged' -f $gradlePath, $clientGameDir)
+          $clientProcess = [System.Diagnostics.Process]::new()
+          $clientProcess.StartInfo = $clientStartInfo
+          if (-not $clientProcess.Start()) { throw 'windows packaged client process did not start' }
+          $stdoutTask = $clientProcess.StandardOutput.ReadToEndAsync()
+          $stderrTask = $clientProcess.StandardError.ReadToEndAsync()
+          $clientCompleted = $clientProcess.WaitForExit(180000)
+          if (-not $clientCompleted) {
+            $clientProcess.Kill($true)
+            $clientProcess.WaitForExit()
+          }
+          $stdout = $stdoutTask.GetAwaiter().GetResult()
+          $stderr = $stderrTask.GetAwaiter().GetResult()
+          [System.IO.File]::WriteAllText($clientLog, $stdout + [Environment]::NewLine + $stderr)
+          $clientProcess.Dispose()
+          $clientEvidence = [System.IO.File]::ReadAllText($clientLog)
+          $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
+          $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
+          $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
+          $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
+          [System.IO.File]::WriteAllText($clientLog, $clientEvidence)
+          foreach ($required in @('Minecraft 1.21.1', 'Backend library: LWJGL', 'ServerEssentialsForge (NeoForge 1.21.1 port) initialized', 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas')) {
+            if (-not (Select-String -Path $clientLog -Pattern ([regex]::Escape($required)))) { throw "packaged client startup did not prove $required" }
+          }
+          $candidatePattern = 'mods[\\/]' + [regex]::Escape($candidateJar.Name)
+          if (-not (Select-String -Path $clientLog -Pattern $candidatePattern)) { throw 'packaged client startup did not prove the candidate jar was loaded from the mods directory' }
+          if (Select-String -Path $clientLog -Pattern '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'packaged client log contains a hosted path after sanitization' }
+          @(
+            "runner_os=$env:RUNNER_OS"
+            "runner_arch=$env:RUNNER_ARCH"
+            (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
+            (java -version 2>&1 | Select-Object -First 1)
+            "candidate_commit=$((git rev-parse HEAD).Trim())"
+            "client_artifact=mods/$($candidateJar.Name)"
+            'client_artifact_verified=true'
+            'client_startup_verified=true'
+            'client_render_backend_verified=true'
+            'client_gui_atlas_verified=true'
+            'client_log=candidate-client-runtime.log'
+          ) | Set-Content build/client-runtime-manifest.txt
+
       - name: inspect linux or macos artifact
         if: runner.os != 'Windows'
         run: |
@@ -287,6 +421,9 @@ jobs:
             echo "candidate_runtime_verified=true"
             echo "candidate_dedicated_server_verified=true"
             echo "candidate_dedicated_server_log=candidate-server-runtime.log"
+            echo "client_runtime_verified=true"
+            echo "client_runtime_manifest=client-runtime-manifest.txt"
+            echo "client_runtime_log=candidate-client-runtime.log"
             echo "native_writer_identity_trace=native-writer-identity-trace.txt"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
@@ -341,6 +478,9 @@ jobs:
             "candidate_runtime_verified=true"
             "candidate_dedicated_server_verified=true"
             "candidate_dedicated_server_log=candidate-server-runtime.log"
+            "client_runtime_verified=true"
+            "client_runtime_manifest=client-runtime-manifest.txt"
+            "client_runtime_log=candidate-client-runtime.log"
             "native_writer_identity_trace=native-writer-identity-trace.txt"
             "sha256=$sha256"
             "sha512=$sha512"
@@ -359,4 +499,6 @@ jobs:
             build/audit/platform-dependency-manifest.txt
             build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
             build/audit/native-writer-runtime/native-writer-identity-trace.txt
+            build/client-runtime-manifest.txt
+            build/candidate-client-runtime.log
             build/candidate-server-runtime.log
