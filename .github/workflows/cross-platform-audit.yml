@@ -121,7 +121,7 @@ jobs:
           candidate_server_dir="$GITHUB_WORKSPACE/build/candidate-server-runtime"
           mkdir -p "$candidate_server_dir/mods"
           cp "$candidate_jar" "$candidate_server_dir/mods/$candidate_name"
-          printf 'stop\n' | timeout --foreground --signal=TERM 180s ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
+          printf 'stop\n' | ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
