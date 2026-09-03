@@ -18,7 +18,7 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: set up java
@@ -35,6 +35,8 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
+          expected_commit='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected_commit"
           ./gradlew clean test build runGameTestServer generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           mkdir -p build/candidate
           candidate_artifact="build/libs/$(sed -n 's/^mod_id=//p' gradle.properties | head -n 1)-$(sed -n 's/^mod_version=//p' gradle.properties | head -n 1).jar"
@@ -74,7 +76,7 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: set up java
@@ -98,6 +100,8 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
+          expected_commit='${{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(git rev-parse HEAD)" = "$expected_commit"
           ./gradlew clean test build --console=plain
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
@@ -124,6 +128,8 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
+          $expectedCommit = '${{ github.event.pull_request.head.sha || github.sha }}'
+          if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
           .\gradlew.bat clean test build --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
