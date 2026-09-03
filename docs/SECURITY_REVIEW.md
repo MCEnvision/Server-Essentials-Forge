@@ -2,9 +2,21 @@
 
 ## Current Phase 001 review
 
-This review covers the repaired security and supply chain worktree on branch `envy/phase-001-security`. The frozen Phase 000 base is commit `6fa2dde1e69578c9629eaa6629b224ed06eddd3f`, with tree `5a46c4d3290f4220deddee3d0d912766fbd1a86d`. The complete sanitized evidence is held in the Phase 001 task records for Tasks 001 through 013.
+This review covers the repaired security and supply chain worktree on branch `envy/phase-001-security`. The integrated Phase 000 base is merge commit `a71840c96ea507b438213be4967ae5af4398c0c1`, tagged `phase-000-audit`. The exact current Phase 001 candidate is commit `01f38a781c43fc6fb1d69c62e8d4d876890a0473`, with tree `ffed0d67d57b87212dff90d668f62f79a9f158ed`. The complete sanitized evidence is held in the Phase 001 task records and the restricted external evidence root.
 
 The review covers command authority, permissions, delegation, aliases, bundles, profiles, sudo, scheduled work, server controls, GUI actions, payloads, sessions, configuration, migration, recovery, filesystem roots, Fancy Tags content, optional integrations, mixins, access transformers, audit, logs, privacy projections, dependencies, and the packaged JAR.
+
+## Exact candidate refresh, 2026-09-03
+
+The current candidate artifact is `sef-2.0.0.jar`, 3,389,485 bytes, with SHA 256 `e747dc5ab4c7016d64d39e72e98af76e1e189580f3d0e122fa667e2490cc0bbc` and SHA 512 `7e3f08a1f97aabb88577185397dab86ee6193d41ba92f9e0d9b2856e911b1ce0f43ec37b3ea5c833aa0a935eeeab90e1453db76bfc97d8f4b40d36a4ff6e3bd2`. The worktree has no tracked changes. The only untracked files are the preserved `.playwright-mcp` state, which is excluded from the audit and was not read.
+
+The exact packaged candidate passed `runCandidateGameTestServer` with all 41 required GameTests. A separate disposable `runCandidateServer` loaded the same JAR from its `mods` directory, reached the dedicated server `Done` line, ran `/sef doctor` and `/sef storage status`, reported a healthy security audit and 35 managed documents, accepted `stop`, saved all three dimensions, and exited successfully. The native writer probe passed append, native flush, identity validation, opened object identity tracing, object swap control, failure preservation, rotation, restart, and writer shutdown. The dependency manifest captured `compileClasspath`, `runtimeClasspath`, `fallbackRuntimeRuntimeClasspath`, and `testRuntimeClasspath`, binds both JNA coordinates as compile only to `net.neoforged:minecraft-dependencies:1.21.1`, and records no duplicate native runtime in the mod JAR.
+
+The Phase 000 inventory consumed by this candidate contains 30 baseline rows, 9 artifact inputs, and all 3 mandatory operating systems. Reconciliation reports 19,314 rows, 1,922 foreign key checks, zero foreign key failures, zero duplicate identities, zero unowned rows, and complete traceability. The restricted evidence directory is `/tmp/sef-p001-current-evidence-C9Puy4` for this local capture. Hosted checks for this candidate pass build, CodeQL, Java and Kotlin analysis, candidate build, Linux runtime, macOS runtime, and Windows runtime. The separate macOS and Windows client evidence jobs remain blocked by hosted display errors, `NSGL` and `WGL`, and do not change their supported platform status.
+
+The remote Dependabot snapshot was refreshed on 2026-09-03 and still contains 26 open transitive Maven alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning report zero open alerts. The affected libraries are supplied through the pinned NeoForge runtime, so `EXT-002` remains open pending authoritative advisory applicability, provenance, and compatible remediation inside the pinned Minecraft 1.21.1, NeoForge 21.1.235, and Java 21 contract. `EXT-001` also remains open until direct high fidelity macOS and Windows client evidence and the complete platform specific failure matrix are available. Linux, macOS, and Windows remain mandatory supported targets.
+
+Commit and artifact references below that predate `01f38a781c43fc6fb1d69c62e8d4d876890a0473` are retained as historical evidence and do not supersede this exact candidate refresh.
 
 ## Confirmed findings repaired in this phase
 
@@ -42,7 +54,7 @@ Command observation uses redaction before persistence and export. Structured aud
 
 ## Dependency and artifact evidence
 
-The latest read only remote snapshot, captured on 2026-09-02, contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
+The latest read only remote snapshot, captured on 2026-09-03, contains 26 open Dependabot alerts, 12 high, 13 medium, and 1 low. Code scanning and secret scanning each contain zero open alerts. The alerts remain open remotely because this audit does not dismiss or mutate repository alert state. The snapshot is for the repository default branch, which is the legacy Forge 1.20.1 branch, while this candidate targets NeoForge 1.21.1. Candidate graph and packaged reachability evidence are required to determine applicability and repair.
 
 The alert rows below preserve every current advisory as a separate disposition input. The patched version is the first version reported by GitHub, not a proposed upgrade. The candidate status remains blocked until the platform runtime owner, installed runtime artifact, affected API reachability, authoritative advisory applicability, provenance, and compatible remediation are proven through `EXT-002`.
 
