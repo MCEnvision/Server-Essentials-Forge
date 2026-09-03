@@ -370,13 +370,14 @@ jobs:
           Remove-Item -LiteralPath $sanitizedLog -Force -ErrorAction SilentlyContinue
           if (Test-Path -LiteralPath $rawLog -PathType Leaf) {
             $clientEvidence = [System.IO.File]::ReadAllText($rawLog)
+            $clientEvidence = [regex]::Replace($clientEvidence, '\\{2,}', '\')
             $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
             $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
             $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
-            $windowsHostedPathPattern = '(?i)(?:[A-Z]:(?:\\+|/+)Users(?:\\+|/+)[^\\/\r\n ]+(?:(?:\\+|/+)[^\\/\r\n ]+)*|[A-Z]:(?:\\+|/+)hostedtoolcache(?:(?:\\+|/+)[^ \r\n\]\)\}]+)*|[A-Z]:(?:\\+|/+)a(?:\\+|/+)[^ \r\n\]\)\}]+)'
-            $clientEvidence = [regex]::Replace($clientEvidence, $windowsHostedPathPattern, '<user>')
+            $windowsDrivePathPattern = '(?i)\b[A-Z]:(?:\\|/)(?:[^\\/:<>\r\n\]\)\},;]+(?:(?:\\|/)[^\\/:<>\r\n\]\)\},;]+)*)'
+            $clientEvidence = [regex]::Replace($clientEvidence, $windowsDrivePathPattern, '<path>')
             $clientEvidence = $clientEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            if ($clientEvidence -match '(?i)(?:[A-Z]:(?:\\+|/+)Users(?:\\+|/+)[^\\/\r\n ]+|[A-Z]:(?:\\+|/+)hostedtoolcache|[A-Z]:(?:\\+|/+)a(?:\\+|/+)|/Users/[^/\r\n ]+|/home/[^/\r\n ]+|/private/var|/opt/hostedtoolcache|runneradmin)') { throw 'packaged client log contains a hosted path after sanitization' }
+            if ($clientEvidence -match '(?i)(?:\b[A-Z]:(?:\\|/)|/Users/[^/\r\n ]+|/home/[^/\r\n ]+|/private/var|/opt/hostedtoolcache|runneradmin)') { throw 'packaged client log contains a hosted path after sanitization' }
             [System.IO.File]::WriteAllText($sanitizedLog, $clientEvidence)
           }
 
