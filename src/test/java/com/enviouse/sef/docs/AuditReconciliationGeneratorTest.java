@@ -20,7 +20,7 @@ class AuditReconciliationGeneratorTest {
     void reconciliationJoinsAllInventoriesAndForeignKeys() throws Exception {
         JsonObject inventory = AuditReconciliationGenerator.generate(repositoryRoot());
         AuditEvidenceContract.validateInventorySet(inventory.getAsJsonArray("rows"));
-        assertEquals(6, inventory.get("sourceInventoryCount").getAsInt());
+        assertEquals(8, inventory.get("sourceInventoryCount").getAsInt());
         assertTrue(inventory.get("reconciledRowCount").getAsInt() > 0);
         assertTrue(inventory.get("foreignKeyCheckCount").getAsInt() > 0);
         assertEquals(0, inventory.get("foreignKeyFailureCount").getAsInt());

@@ -25,6 +25,11 @@ class BuildInventoryGeneratorTest {
         assertTrue(inventory.get("artifactInputCount").getAsInt() > 0);
         assertTrue(inventory.get("resourceInputCount").getAsInt() > 0);
         assertTrue(inventory.get("workflowCount").getAsInt() >= 0);
+        assertTrue(inventory.get("platformDependencyDeclarationCount").getAsInt() >= 0);
+        assertEquals(2, inventory.get("platformDependencyExpectedCount").getAsInt());
+        assertEquals(2 - inventory.get("platformDependencyDeclarationCount").getAsInt(),
+                inventory.get("platformDependencyMissingCount").getAsInt());
+        assertEquals(9, inventory.get("platformDependencyGateCount").getAsInt());
         assertEquals("blocked, read-only", inventory.get("remoteSecuritySnapshot").getAsString());
     }
 

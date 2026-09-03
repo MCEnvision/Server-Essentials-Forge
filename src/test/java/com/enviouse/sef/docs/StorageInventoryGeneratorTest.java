@@ -24,6 +24,13 @@ class StorageInventoryGeneratorTest {
         assertTrue(inventory.get("runtimeRegisteredCount").getAsInt() > 0);
         assertTrue(inventory.get("durableWriterCount").getAsInt() > 0);
         assertTrue(inventory.get("nonRepositoryOwnerCount").getAsInt() >= 8);
+        assertEquals(24, inventory.get("securitySensitiveWriterCount").getAsInt());
+        assertEquals(
+                24,
+                inventory.getAsJsonArray("inventoryRows").asList().stream()
+                        .filter(row -> row.getAsJsonObject().get("category").getAsString()
+                                .equals("security-sensitive-writer"))
+                        .count());
         assertEquals(
                 inventory.get("rows").getAsInt(),
                 inventory.getAsJsonArray("inventoryRows").size());
