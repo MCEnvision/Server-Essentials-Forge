@@ -125,6 +125,10 @@ jobs:
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
+          sed -i \
+            -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
+            -e "s|$HOME|<home>|g" \
+            build/candidate-server-runtime.log
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -215,6 +219,12 @@ jobs:
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
           if (-not $stopCommandSent) { Write-Host 'candidate dedicated server stopped on its own after clean startup' }
+          $serverEvidence = [System.IO.File]::ReadAllText((Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'))
+          $serverEvidence = $serverEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
+          $serverEvidence = $serverEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
+          $serverEvidence = $serverEvidence.Replace($env:USERPROFILE, '<user>')
+          $serverEvidence = [regex]::Replace($serverEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
+          [System.IO.File]::WriteAllText((Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'), $serverEvidence)
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
           foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
             if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
@@ -264,6 +274,8 @@ jobs:
             echo "artifact=$artifact"
             echo "candidate_runtime=mods/$(basename "$artifact")"
             echo "candidate_runtime_verified=true"
+            echo "candidate_dedicated_server_verified=true"
+            echo "candidate_dedicated_server_log=candidate-server-runtime.log"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
             echo "host_build_artifact=$host_artifact"
@@ -312,12 +324,14 @@ jobs:
             (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
             (java -version 2>&1 | Select-Object -First 1)
             (git rev-parse HEAD)
-            "artifact=$($artifact.FullName)"
+            "artifact=cross-platform-candidate/$($artifact.Name)"
             "candidate_runtime=mods/$($artifact.Name)"
             "candidate_runtime_verified=true"
+            "candidate_dedicated_server_verified=true"
+            "candidate_dedicated_server_log=candidate-server-runtime.log"
             "sha256=$sha256"
             "sha512=$sha512"
-            "host_build_artifact=$hostArtifact"
+            "host_build_artifact=build/libs/$($hostArtifact.Name)"
             "host_build_sha256=$hostSha256"
             "host_build_sha512=$hostSha512"
           ) | Set-Content build/cross-platform-audit-manifest.txt
