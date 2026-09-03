@@ -180,6 +180,23 @@ Expected:
 - No generated reference changes remain after generation.
 - `build/libs/sef-2.0.0.jar` is a valid ZIP.
 
+Capture the resolved dependency and runtime ownership evidence at the same revision:
+
+```bash
+./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
+sed -n '1,16p' build/audit/platform-dependency-manifest.txt
+```
+
+On Windows PowerShell:
+
+```powershell
+$commit = (git rev-parse HEAD).Trim()
+gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain
+Get-Content build/audit/platform-dependency-manifest.txt -TotalCount 16
+```
+
+The manifest must identify the exact commit, Java 21, Minecraft and NeoForge versions, all captured configurations, normalized dependency paths, artifact digests, the NeoForge owner of the compile-only JNA APIs, and the duplicate native runtime result. Keep it with restricted evidence and do not commit it from `build/`.
+
 ### Phase 000 inventory capture
 
 Create a fresh restricted evidence directory outside the repository before capturing the baseline. The command writes sanitized JSON only and fails if the evidence root is not supplied.

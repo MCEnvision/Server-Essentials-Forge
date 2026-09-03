@@ -34,9 +34,13 @@ jobs:
       - name: build candidate
         run: |
           chmod +x ./gradlew
-          ./gradlew clean test build runGameTestServer --console=plain
+          ./gradlew clean test build runGameTestServer generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           mkdir -p build/candidate
           cp build/libs/sef-2.0.0.jar build/candidate/sef-2.0.0.jar
+          cp build/audit/platform-dependency-manifest.txt build/candidate/platform-dependency-manifest.txt
+          grep -F "candidate_commit=$(git rev-parse HEAD)" build/candidate/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/candidate/platform-dependency-manifest.txt
+          grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/candidate/platform-dependency-manifest.txt
           sha256sum build/candidate/sef-2.0.0.jar > build/candidate/sha256.txt
           sha512sum build/candidate/sef-2.0.0.jar > build/candidate/sha512.txt
           printf '%s\n' "commit=$(git rev-parse HEAD)" > build/candidate/manifest.txt
@@ -88,6 +92,10 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew clean test build --console=plain
+          ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
+          grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/audit/platform-dependency-manifest.txt
+          grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/audit/platform-dependency-manifest.txt
           candidate_game_dir="$GITHUB_WORKSPACE/build/candidate-runtime"
           mkdir -p "$candidate_game_dir/mods"
           cp cross-platform-candidate/sef-2.0.0.jar "$candidate_game_dir/mods/sef-2.0.0.jar"
@@ -105,6 +113,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           .\gradlew.bat clean test build --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
+          $commit = (git rev-parse HEAD).Trim()
+          .\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain
+          if ($LASTEXITCODE -ne 0) { throw "windows dependency manifest failed with exit code $LASTEXITCODE" }
+          if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern "candidate_commit=$commit")) { throw 'windows dependency manifest commit binding failed' }
+          if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'jna_runtime_owner=net\.neoforged:minecraft-dependencies:1\.21\.1')) { throw 'windows NeoForge JNA runtime owner was not recorded' }
+          if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'candidate_mod_jar_embeds_duplicate_native_runtime=false')) { throw 'windows duplicate native runtime scan failed' }
           $candidateGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item 'cross-platform-candidate/sef-2.0.0.jar' (Join-Path $candidateGameDir 'mods/sef-2.0.0.jar')
@@ -179,4 +193,6 @@ jobs:
         with:
           name: cross-platform-audit-${{ matrix.os }}
           if-no-files-found: error
-          path: build/cross-platform-audit-manifest.txt
+          path: |
+            build/cross-platform-audit-manifest.txt
+            build/audit/platform-dependency-manifest.txt

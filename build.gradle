@@ -243,6 +243,164 @@ tasks.register('generateAuditInventory') {
     }
 }
 
+tasks.register('generateAuditDependencyManifest') {
+    description = 'Generate a sanitized candidate and platform dependency manifest.'
+    notCompatibleWithConfigurationCache('Captures resolved dependency metadata for an external audit manifest.')
+    dependsOn tasks.named('jar')
+    outputs.upToDateWhen { false }
+    def manifest = layout.buildDirectory.file('audit/platform-dependency-manifest.txt')
+    outputs.file(manifest)
+    def projectVersion = project.version.toString()
+    def modId = project.findProperty('mod_id')?.toString() ?: 'unknown'
+    def minecraftVersion = project.findProperty('minecraft_version')?.toString() ?: 'unknown'
+    def neoForgeVersion = project.findProperty('neo_version')?.toString() ?: 'unknown'
+    def candidateCommit = providers.gradleProperty('sefAuditCandidateCommit')
+            .orElse(providers.environmentVariable('GITHUB_SHA'))
+            .orElse('unknown')
+            .get()
+    def archivesName = project.base.archivesName.get()
+    def configurationsToCapture = [
+            'compileClasspath',
+            'runtimeClasspath',
+            'fallbackRuntimeRuntimeClasspath',
+            'testRuntimeClasspath'
+    ]
+    doLast {
+        File output = manifest.get().asFile
+        output.parentFile.mkdirs()
+        def digest = { File file, String algorithm ->
+            java.security.MessageDigest messageDigest = java.security.MessageDigest.getInstance(algorithm)
+            file.withInputStream { input ->
+                byte[] buffer = new byte[16 * 1024]
+                int read
+                while ((read = input.read(buffer)) != -1) {
+                    if (read > 0) {
+                        messageDigest.update(buffer, 0, read)
+                    }
+                }
+            }
+            messageDigest.digest().collect { byte value -> String.format('%02x', value & 0xff) }.join()
+        }
+        def coordinate = { artifact ->
+            def module = artifact.moduleVersion.id
+            "${module.group}:${module.name}:${module.version}"
+        }
+        def dependencyPaths = { configuration ->
+            def pathsByCoordinate = [:].withDefault { [] as Set }
+            def visit
+            visit = { dependency, path, ancestors ->
+                def current = "${dependency.moduleGroup}:${dependency.moduleName}:${dependency.moduleVersion}"
+                def nextPath = path + current
+                if (!ancestors.add(current)) {
+                    return
+                }
+                pathsByCoordinate[current] << nextPath.join(' -> ')
+                dependency.children.toList().sort { left, right ->
+                    "${left.moduleGroup}:${left.moduleName}:${left.moduleVersion}" <=>
+                            "${right.moduleGroup}:${right.moduleName}:${right.moduleVersion}"
+                }.each { child ->
+                    visit(child, nextPath, new LinkedHashSet<>(ancestors))
+                }
+            }
+            configuration.resolvedConfiguration.firstLevelModuleDependencies.toList().sort { left, right ->
+                "${left.moduleGroup}:${left.moduleName}:${left.moduleVersion}" <=>
+                        "${right.moduleGroup}:${right.moduleName}:${right.moduleVersion}"
+            }.each { dependency ->
+                visit(dependency, [], new LinkedHashSet<>())
+            }
+            pathsByCoordinate
+        }
+        def lines = [
+                'manifest_version=1',
+                "project_version=${projectVersion}",
+                "mod_id=${modId}",
+                "minecraft_version=${minecraftVersion}",
+                "neoforge_version=${neoForgeVersion}",
+                "java_version=${System.getProperty('java.version')}",
+                "os_name=${System.getProperty('os.name')}",
+                "os_arch=${System.getProperty('os.arch')}",
+                "candidate_commit=${candidateCommit}",
+                'jna_declaration=compileOnly',
+                'jna_runtime_owner=unresolved'
+        ]
+        def artifacts = []
+        def jnaRuntimePaths = [] as Set
+        configurationsToCapture.each { configurationName ->
+            def configuration = configurations.findByName(configurationName)
+            if (configuration != null && configuration.canBeResolved) {
+                def pathsByCoordinate = dependencyPaths(configuration)
+                configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    File file = artifact.file
+                    if (file.isFile()) {
+                        def artifactCoordinate = coordinate(artifact)
+                        def paths = pathsByCoordinate[artifactCoordinate].toList().sort()
+                        artifacts << [
+                                configuration: configurationName,
+                                coordinate: artifactCoordinate,
+                                fileName: file.name,
+                                size: file.length(),
+                                sha256: digest(file, 'SHA-256'),
+                                sha512: digest(file, 'SHA-512'),
+                                paths: paths
+                        ]
+                        if (configurationName == 'runtimeClasspath'
+                                && artifactCoordinate.startsWith('net.java.dev.jna:')) {
+                            jnaRuntimePaths.addAll(paths)
+                        }
+                    }
+                }
+            }
+        }
+        artifacts.sort { left, right ->
+            [left.configuration, left.coordinate, left.fileName].join('\u0000') <=>
+                    [right.configuration, right.coordinate, right.fileName].join('\u0000')
+        }.each { artifact ->
+            def pathText = artifact.paths.isEmpty()
+                    ? "variant_component:${artifact.coordinate}"
+                    : artifact.paths.join(' || ')
+            lines << "artifact=${artifact.configuration}|${artifact.coordinate}|${artifact.fileName}|${artifact.size}|sha256:${artifact.sha256}|sha512:${artifact.sha512}|paths:${pathText}"
+        }
+
+        def runtimeOwner = jnaRuntimePaths.collectMany { path ->
+            path.split(' -> ').toList()
+        }.find { component -> component.startsWith('net.neoforged:minecraft-dependencies:') }
+        lines[lines.findIndexOf { it.startsWith('jna_runtime_owner=') }] =
+                "jna_runtime_owner=${runtimeOwner ?: 'unresolved'}"
+        jnaRuntimePaths.toList().sort().each { path -> lines << "jna_runtime_path=${path}" }
+
+        File candidate = layout.buildDirectory.file("libs/${archivesName}-${projectVersion}.jar").get().asFile
+        if (candidate.isFile()) {
+            def nativeEntryPattern = java.util.regex.Pattern.compile(
+                    '(?i)(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\\.(dll|dylib|so))(/|$)')
+            boolean duplicateNativeRuntime = false
+            int entryCount = 0
+            new java.util.zip.ZipFile(candidate).withCloseable { zip ->
+                def entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    String name = entries.nextElement().name
+                    entryCount++
+                    if (nativeEntryPattern.matcher(name).find()) {
+                        duplicateNativeRuntime = true
+                    }
+                }
+            }
+            lines << "candidate_mod_jar=${candidate.name}"
+            lines << "candidate_mod_jar_size=${candidate.length()}"
+            lines << "candidate_mod_jar_sha256=${digest(candidate, 'SHA-256')}"
+            lines << "candidate_mod_jar_sha512=${digest(candidate, 'SHA-512')}"
+            lines << "candidate_mod_jar_entry_count=${entryCount}"
+            lines << "candidate_mod_jar_embeds_duplicate_native_runtime=${duplicateNativeRuntime}"
+        } else {
+            lines << 'candidate_mod_jar=missing'
+            lines << 'candidate_mod_jar_embeds_duplicate_native_runtime=unknown'
+        }
+        java.nio.file.Files.writeString(
+                output.toPath(),
+                lines.join(System.lineSeparator()) + System.lineSeparator(),
+                java.nio.charset.StandardCharsets.UTF_8)
+    }
+}
+
 tasks.register('generatePerformanceReport') {
     dependsOn test
 }

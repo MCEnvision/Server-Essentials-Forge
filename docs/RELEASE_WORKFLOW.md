@@ -28,6 +28,14 @@ The workflow runs unit tests, all registered GameTests, the Gradle build, metada
 
 The Phase 001 security gate also requires the resolved dependency graphs and remote alert snapshot to be captured at the release commit. Do not treat an open remote alert as dismissed. Record candidate configuration, packaged reachability, and the installed runtime provider in the release evidence. A development resolution override is not release remediation when the universal JAR does not embed or replace the platform library. Release preparation remains blocked until the dependency runtime decision is approved and verified.
 
+Capture the dependency and platform ownership manifest at the same candidate revision:
+
+```bash
+./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
+```
+
+On Windows PowerShell, run `gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())" --console=plain`. Retain `build/audit/platform-dependency-manifest.txt` with the restricted release evidence. The manifest is sanitized, includes normalized dependency paths and artifact digests, identifies the NeoForge runtime owner for JNA and JNA Platform, and fails to provide closure if that owner cannot be resolved. It does not replace authoritative advisory, installed-runtime, or compatible-remediation evidence required by `EXT-002`.
+
 The equivalent local checks are:
 
 ```bash
