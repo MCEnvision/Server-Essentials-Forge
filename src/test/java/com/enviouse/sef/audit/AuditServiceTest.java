@@ -182,9 +182,29 @@ class AuditServiceTest {
     @Test
     void nativeProviderRejectsPathOutsideOwnedDirectory() throws Exception {
         Files.createDirectories(temporaryDirectory.resolve("audit"));
-        NativeAuditFileProvider provider = NativeAuditFileProvider.open(temporaryDirectory.resolve("audit"));
+        try (NativeAuditFileProvider provider = NativeAuditFileProvider.open(temporaryDirectory.resolve("audit"))) {
+            assertThrows(IOException.class, () -> provider.validate(temporaryDirectory.resolve("outside.jsonl")));
+        }
+    }
 
-        assertThrows(IOException.class, () -> provider.validate(temporaryDirectory.resolve("outside.jsonl")));
+    @Test
+    void nativeProviderKeepsWritingToOpenedDirectoryAfterPathReplacement() throws Exception {
+        Assumptions.assumeFalse(System.getProperty("os.name", "").toLowerCase().contains("win"));
+        Path auditDirectory = temporaryDirectory.resolve("audit");
+        Path movedDirectory = temporaryDirectory.resolve("moved-audit");
+        Files.createDirectories(auditDirectory);
+
+        try (NativeAuditFileProvider provider = NativeAuditFileProvider.open(auditDirectory)) {
+            Files.move(auditDirectory, movedDirectory);
+            Files.createDirectories(auditDirectory);
+            Path replacementFile = auditDirectory.resolve("security-audit.jsonl");
+            Path originalFile = movedDirectory.resolve("security-audit.jsonl");
+
+            provider.append(replacementFile, "event".getBytes(StandardCharsets.UTF_8));
+
+            assertEquals("event", Files.readString(originalFile));
+            assertFalse(Files.exists(replacementFile));
+        }
     }
 
     @Test
@@ -196,13 +216,14 @@ class AuditServiceTest {
         Process process = new ProcessBuilder("mkfifo", fifo.toString()).start();
         assertEquals(0, process.waitFor());
 
-        NativeAuditFileProvider provider = NativeAuditFileProvider.open(auditDirectory);
-        assertTimeoutPreemptively(
-                Duration.ofSeconds(2),
-                () -> assertThrows(IOException.class, () -> provider.validate(fifo)));
-        assertTimeoutPreemptively(
-                Duration.ofSeconds(2),
-                () -> assertThrows(IOException.class, () -> provider.append(fifo, "event".getBytes(StandardCharsets.UTF_8))));
+        try (NativeAuditFileProvider provider = NativeAuditFileProvider.open(auditDirectory)) {
+            assertTimeoutPreemptively(
+                    Duration.ofSeconds(2),
+                    () -> assertThrows(IOException.class, () -> provider.validate(fifo)));
+            assertTimeoutPreemptively(
+                    Duration.ofSeconds(2),
+                    () -> assertThrows(IOException.class, () -> provider.append(fifo, "event".getBytes(StandardCharsets.UTF_8))));
+        }
     }
 
     @Test

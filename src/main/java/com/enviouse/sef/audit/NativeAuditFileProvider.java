@@ -11,7 +11,6 @@ import com.sun.jna.platform.win32.WinNT;
 import com.sun.jna.ptr.IntByReference;
 
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -22,8 +21,9 @@ import java.util.Locale;
  * Opens the audit file with the operating system's descriptor API and validates
  * the object held by that descriptor. Java NIO does not expose that identity
  * portably, and path checks alone are vulnerable to a check then use race.
+ * The audit directory descriptor or handle remains open for the provider lifetime.
  */
-public final class NativeAuditFileProvider {
+public final class NativeAuditFileProvider implements AutoCloseable {
     private static final int WINDOWS_OPEN_EXISTING = 3;
     private static final int WINDOWS_OPEN_ALWAYS = 4;
     private static final int WINDOWS_FILE_STANDARD_INFORMATION = 1;
@@ -32,6 +32,9 @@ public final class NativeAuditFileProvider {
 
     private final Platform platform;
     private final Path directory;
+    private int posixDirectoryDescriptor = -1;
+    private WinNT.HANDLE windowsDirectoryHandle;
+    private WindowsIdentity windowsDirectoryIdentity;
 
     private NativeAuditFileProvider(Platform platform, Path directory) {
         this.platform = platform;
@@ -42,8 +45,14 @@ public final class NativeAuditFileProvider {
         Path normalized = normalizePlatformAliases(directory);
         Platform platform = Platform.detect();
         NativeAuditFileProvider provider = new NativeAuditFileProvider(platform, normalized);
-        provider.verifyDirectory();
-        return provider;
+        try {
+            provider.openDirectoryHandle();
+            provider.verifyDirectory();
+            return provider;
+        } catch (IOException | RuntimeException exception) {
+            provider.close();
+            throw exception;
+        }
     }
 
     /**
@@ -64,23 +73,38 @@ public final class NativeAuditFileProvider {
     }
 
     void validate(Path file) throws IOException {
+        ensureOpen();
         String fileName = childName(file);
         if (platform == Platform.WINDOWS) {
-            Windows.validate(file);
+            Windows.validate(file, windowsDirectoryIdentity);
         } else {
-            Posix.validate(directory, fileName);
+            Posix.validate(posixDirectoryDescriptor, fileName);
         }
     }
 
     void append(Path file, byte[] bytes) throws IOException {
+        ensureOpen();
         if (bytes.length == 0) {
             return;
         }
         String fileName = childName(file);
         if (platform == Platform.WINDOWS) {
-            Windows.append(file, bytes);
+            Windows.append(file, bytes, windowsDirectoryIdentity);
         } else {
-            Posix.append(directory, fileName, bytes);
+            Posix.append(posixDirectoryDescriptor, fileName, bytes);
+        }
+    }
+
+    @Override
+    public void close() {
+        if (posixDirectoryDescriptor >= 0) {
+            Posix.close(posixDirectoryDescriptor);
+            posixDirectoryDescriptor = -1;
+        }
+        if (windowsDirectoryHandle != null) {
+            Kernel32.INSTANCE.CloseHandle(windowsDirectoryHandle);
+            windowsDirectoryHandle = null;
+            windowsDirectoryIdentity = null;
         }
     }
 
@@ -132,9 +156,28 @@ public final class NativeAuditFileProvider {
             throw new IOException("security audit directory is not a directory");
         }
         if (platform == Platform.WINDOWS) {
-            Windows.validateDirectory(directory);
+            WindowsIdentity current = Windows.validateDirectory(directory);
+            if (!current.sameObject(windowsDirectoryIdentity)) {
+                throw new IOException("security audit directory identity changed during initialization");
+            }
         } else {
-            Posix.validateDirectory(directory);
+            Posix.validateDirectory(posixDirectoryDescriptor);
+        }
+    }
+
+    private void openDirectoryHandle() throws IOException {
+        if (platform == Platform.WINDOWS) {
+            windowsDirectoryHandle = Windows.openDirectory(directory);
+            windowsDirectoryIdentity = Windows.identity(windowsDirectoryHandle);
+        } else {
+            posixDirectoryDescriptor = Posix.openDirectory(directory);
+        }
+    }
+
+    private void ensureOpen() throws IOException {
+        if ((platform == Platform.WINDOWS && windowsDirectoryHandle == null)
+                || (platform == Platform.POSIX && posixDirectoryDescriptor < 0)) {
+            throw new IOException("security audit native provider is closed");
         }
     }
 
@@ -184,7 +227,7 @@ public final class NativeAuditFileProvider {
         private interface LibC extends Library {
             int open(String path, int flags, int mode);
 
-            int openat(int directory, String path, int flags);
+            int openat(int directory, String path, int flags, int mode);
 
             long write(int descriptor, byte[] bytes, int length);
 
@@ -199,9 +242,10 @@ public final class NativeAuditFileProvider {
             private static final LibC INSTANCE = Native.load("c", LibC.class);
         }
 
-        static void validateDirectory(Path directory) throws IOException {
-            int descriptor = openDirectory(directory);
-            close(descriptor);
+        static void validateDirectory(int descriptor) throws IOException {
+            if (!identity(descriptor).directory()) {
+                throw new IOException("security audit root is not a directory");
+            }
         }
 
         static void forceDirectory(Path directory) throws IOException {
@@ -215,8 +259,7 @@ public final class NativeAuditFileProvider {
             }
         }
 
-        static void validate(Path directory, String fileName) throws IOException {
-            int parent = openDirectory(directory);
+        static void validate(int parent, String fileName) throws IOException {
             int descriptor = -1;
             try {
                 descriptor = openAt(parent, fileName, readFlags());
@@ -226,16 +269,13 @@ public final class NativeAuditFileProvider {
                 }
             } finally {
                 close(descriptor);
-                close(parent);
             }
         }
 
-        static void append(Path directory, String fileName, byte[] bytes) throws IOException {
-            int parent = openDirectory(directory);
+        static void append(int parent, String fileName, byte[] bytes) throws IOException {
             int descriptor = -1;
             try {
-                createTargetIfMissing(directory.resolve(fileName));
-                descriptor = openAt(parent, fileName, appendFlags());
+                descriptor = openAt(parent, fileName, appendFlags() | createFlag(), 0600);
                 PosixIdentity before = identity(descriptor);
                 if (!before.regular() || before.links() != 1L) {
                     throw new IOException("security audit file is not a single-link regular file");
@@ -259,7 +299,6 @@ public final class NativeAuditFileProvider {
                 }
             } finally {
                 close(descriptor);
-                close(parent);
             }
         }
 
@@ -292,24 +331,17 @@ public final class NativeAuditFileProvider {
         }
 
         private static int openAt(int parent, String name, int flags) throws IOException {
-            int descriptor = Holder.INSTANCE.openat(parent, name, flags);
+            return openAt(parent, name, flags, 0);
+        }
+
+        private static int openAt(int parent, String name, int flags, int mode) throws IOException {
+            int descriptor = Holder.INSTANCE.openat(parent, name, flags, mode);
             if (descriptor < 0) {
                 throw new IOException(
                         "security audit native file open failed for " + name
                                 + " with errno " + Native.getLastError());
             }
             return descriptor;
-        }
-
-        private static void createTargetIfMissing(Path target) throws IOException {
-            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
-                return;
-            }
-            try {
-                Files.createFile(target);
-            } catch (FileAlreadyExistsException ignored) {
-                // another writer won the create race. the native open and identity checks remain authoritative.
-            }
         }
 
         private static PosixIdentity identity(int descriptor) throws IOException {
@@ -326,12 +358,21 @@ public final class NativeAuditFileProvider {
                         attributes.getShort(4) & 0xffffL,
                         attributes.getLong(96));
             }
-            return new PosixIdentity(
-                    attributes.getLong(0),
-                    attributes.getLong(8),
-                    attributes.getLong(16),
-                    attributes.getInt(24) & 0xffffffffL,
-                    attributes.getLong(48));
+            boolean arm = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT).contains("aarch64")
+                    || System.getProperty("os.arch", "").toLowerCase(Locale.ROOT).contains("arm64");
+            return arm
+                    ? new PosixIdentity(
+                            attributes.getLong(0),
+                            attributes.getLong(8),
+                            attributes.getInt(20) & 0xffffffffL,
+                            attributes.getInt(16) & 0xffffffffL,
+                            attributes.getLong(40))
+                    : new PosixIdentity(
+                            attributes.getLong(0),
+                            attributes.getLong(8),
+                            attributes.getLong(16),
+                            attributes.getInt(24) & 0xffffffffL,
+                            attributes.getLong(48));
         }
 
         private static int readFlags() {
@@ -343,6 +384,12 @@ public final class NativeAuditFileProvider {
             return O_WRONLY | (mac
                     ? O_APPEND_MAC | O_NOFOLLOW_MAC | O_NONBLOCK_MAC
                     : O_APPEND_LINUX | O_NOFOLLOW_LINUX | O_NONBLOCK_LINUX);
+        }
+
+        private static int createFlag() {
+            return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")
+                    ? O_CREAT_MAC
+                    : O_CREAT_LINUX;
         }
 
         private static int noFollow() {
@@ -380,25 +427,51 @@ public final class NativeAuditFileProvider {
         private static final int FILE_FLAG_BACKUP_SEMANTICS = 0x02000000;
         private static final int FILE_TYPE_DISK = 1;
 
-        static void validateDirectory(Path directory) throws IOException {
+        static WinNT.HANDLE openDirectory(Path directory) throws IOException {
+            validateDirectory(directory);
+            WinNT.HANDLE handle = open(
+                    directory,
+                    GENERIC_READ,
+                    WINDOWS_OPEN_EXISTING,
+                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE);
+            WindowsIdentity identity = identity(handle);
+            if (!identity.directory() || identity.reparse()) {
+                Kernel32.INSTANCE.CloseHandle(handle);
+                throw new IOException("security audit directory is not a safe directory");
+            }
+            return handle;
+        }
+
+        static WindowsIdentity validateDirectory(Path directory) throws IOException {
+            WindowsIdentity finalIdentity = null;
             for (Path current = directory.toAbsolutePath().normalize(); current != null; current = current.getParent()) {
                 WinNT.HANDLE handle = open(current, GENERIC_READ, WINDOWS_OPEN_EXISTING,
-                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+                        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                        FILE_SHARE_READ | FILE_SHARE_WRITE);
                 try {
                     WindowsIdentity identity = identity(handle);
                     if (!identity.directory() || identity.reparse()) {
                         throw new IOException("security audit directory is not a safe directory: " + current);
                     }
+                    if (current.equals(directory.toAbsolutePath().normalize())) {
+                        finalIdentity = identity;
+                    }
                 } finally {
                     Kernel32.INSTANCE.CloseHandle(handle);
                 }
             }
+            if (finalIdentity == null) {
+                throw new IOException("security audit directory identity is unavailable");
+            }
+            return finalIdentity;
         }
 
         static void forceDirectory(Path directory) throws IOException {
             validateDirectory(directory);
             WinNT.HANDLE handle = open(directory, GENERIC_READ | GENERIC_WRITE, WINDOWS_OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS);
+                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE);
             try {
                 WindowsIdentity identity = identity(handle);
                 if (!identity.directory() || identity.reparse()) {
@@ -412,10 +485,14 @@ public final class NativeAuditFileProvider {
             }
         }
 
-        static void validate(Path file) throws IOException {
-            validateDirectory(file.toAbsolutePath().normalize().getParent());
+        static void validate(Path file, WindowsIdentity expectedDirectory) throws IOException {
+            WindowsIdentity currentDirectory = validateDirectory(file.toAbsolutePath().normalize().getParent());
+            if (!currentDirectory.sameObject(expectedDirectory)) {
+                throw new IOException("security audit directory identity changed");
+            }
             WinNT.HANDLE handle = open(file, GENERIC_READ, WINDOWS_OPEN_EXISTING,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT);
+                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE);
             try {
                 WindowsIdentity identity = identity(handle);
                 if (!identity.regular() || identity.links() != 1) {
@@ -426,10 +503,14 @@ public final class NativeAuditFileProvider {
             }
         }
 
-        static void append(Path file, byte[] bytes) throws IOException {
-            validateDirectory(file.toAbsolutePath().normalize().getParent());
+        static void append(Path file, byte[] bytes, WindowsIdentity expectedDirectory) throws IOException {
+            WindowsIdentity currentDirectory = validateDirectory(file.toAbsolutePath().normalize().getParent());
+            if (!currentDirectory.sameObject(expectedDirectory)) {
+                throw new IOException("security audit directory identity changed");
+            }
             WinNT.HANDLE handle = open(file, FILE_APPEND_DATA | FILE_READ_ATTRIBUTES, WINDOWS_OPEN_ALWAYS,
-                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT);
+                    FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT,
+                    FILE_SHARE_READ);
             try {
                 WindowsIdentity before = identity(handle);
                 if (!before.regular() || before.links() != 1) {
@@ -457,11 +538,16 @@ public final class NativeAuditFileProvider {
             }
         }
 
-        private static WinNT.HANDLE open(Path path, int access, int disposition, int attributes) throws IOException {
+        private static WinNT.HANDLE open(
+                Path path,
+                int access,
+                int disposition,
+                int attributes,
+                int shareMode) throws IOException {
             WinNT.HANDLE handle = Kernel32.INSTANCE.CreateFile(
                     path.toString(),
                     access,
-                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    shareMode,
                     null,
                     disposition,
                     attributes,

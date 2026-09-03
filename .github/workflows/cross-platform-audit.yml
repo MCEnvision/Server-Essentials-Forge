@@ -18,7 +18,7 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: set up java
@@ -33,16 +33,22 @@ jobs:
 
       - name: build candidate
         run: |
+          set -euo pipefail
           chmod +x ./gradlew
           ./gradlew clean test build runGameTestServer generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           mkdir -p build/candidate
-          cp build/libs/sef-2.0.0.jar build/candidate/sef-2.0.0.jar
+          candidate_artifact="build/libs/$(sed -n 's/^mod_id=//p' gradle.properties | head -n 1)-$(sed -n 's/^mod_version=//p' gradle.properties | head -n 1).jar"
+          test -f "$candidate_artifact"
+          cp "$candidate_artifact" build/candidate/
+          candidate_name="$(basename "$candidate_artifact")"
           cp build/audit/platform-dependency-manifest.txt build/candidate/platform-dependency-manifest.txt
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/candidate/platform-dependency-manifest.txt
           grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/candidate/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna:5.14.0' build/candidate/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/candidate/platform-dependency-manifest.txt
           grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/candidate/platform-dependency-manifest.txt
-          sha256sum build/candidate/sef-2.0.0.jar > build/candidate/sha256.txt
-          sha512sum build/candidate/sef-2.0.0.jar > build/candidate/sha512.txt
+          sha256sum "build/candidate/$candidate_name" > build/candidate/sha256.txt
+          sha512sum "build/candidate/$candidate_name" > build/candidate/sha512.txt
           printf '%s\n' "commit=$(git rev-parse HEAD)" > build/candidate/manifest.txt
           cat build/candidate/sha256.txt >> build/candidate/manifest.txt
           cat build/candidate/sha512.txt >> build/candidate/manifest.txt
@@ -68,7 +74,7 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: set up java
@@ -90,17 +96,23 @@ jobs:
       - name: run linux or macos audit
         if: runner.os != 'Windows'
         run: |
+          set -euo pipefail
           chmod +x ./gradlew
           ./gradlew clean test build --console=plain
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
           grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/audit/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna:5.14.0' build/audit/platform-dependency-manifest.txt
+          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/audit/platform-dependency-manifest.txt
           grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/audit/platform-dependency-manifest.txt
           candidate_game_dir="$GITHUB_WORKSPACE/build/candidate-runtime"
+          candidate_jar="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          test -n "$candidate_jar"
           mkdir -p "$candidate_game_dir/mods"
-          cp cross-platform-candidate/sef-2.0.0.jar "$candidate_game_dir/mods/sef-2.0.0.jar"
+          candidate_name="$(basename "$candidate_jar")"
+          cp "$candidate_jar" "$candidate_game_dir/mods/$candidate_name"
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
-          grep -F "/mods/sef-2.0.0.jar" build/candidate-runtime.log
+          grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
           ./gradlew dependencies --configuration runtimeClasspath --console=plain
           ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
@@ -111,6 +123,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
           .\gradlew.bat clean test build --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
@@ -118,13 +131,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windows dependency manifest failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern "candidate_commit=$commit")) { throw 'windows dependency manifest commit binding failed' }
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'jna_runtime_owner=net\.neoforged:minecraft-dependencies:1\.21\.1')) { throw 'windows NeoForge JNA runtime owner was not recorded' }
+          if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'jna_runtime_coordinate=net\.java\.dev\.jna:jna:5\.14\.0')) { throw 'windows JNA runtime coordinate was not recorded' }
+          if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'jna_runtime_coordinate=net\.java\.dev\.jna:jna-platform:5\.14\.0')) { throw 'windows JNA platform runtime coordinate was not recorded' }
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern 'candidate_mod_jar_embeds_duplicate_native_runtime=false')) { throw 'windows duplicate native runtime scan failed' }
           $candidateGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-runtime'
+          $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
+          if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
-          Copy-Item 'cross-platform-candidate/sef-2.0.0.jar' (Join-Path $candidateGameDir 'mods/sef-2.0.0.jar')
+          Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
           .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" 2>&1 | Tee-Object -FilePath build/candidate-runtime.log
           if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
-          if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'mods[\\/]sef-2\.0\.0\.jar')) { throw 'candidate jar was not loaded from the mods directory' }
+          if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
@@ -136,14 +153,32 @@ jobs:
       - name: inspect linux or macos artifact
         if: runner.os != 'Windows'
         run: |
-          artifact=cross-platform-candidate/sef-2.0.0.jar
-          host_artifact=build/libs/sef-2.0.0.jar
-          unzip -t "$artifact"
-          ! jar tf "$artifact" | grep -Eiq '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)'
-          sha256sum "$artifact" | tee build/cross-platform-audit.sha256
-          sha512sum "$artifact" | tee build/cross-platform-audit.sha512
-          sha256sum "$host_artifact" | tee build/cross-platform-host-build.sha256
-          sha512sum "$host_artifact" | tee build/cross-platform-host-build.sha512
+          set -euo pipefail
+          artifact="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          host_artifact="$(find build/libs -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          test -n "$artifact"; test -n "$host_artifact"
+          scan_jar() {
+            local label="$1"; local jar_path="$2"; local listing
+            unzip -t "$jar_path" >/dev/null
+            listing="$(jar tf "$jar_path")"
+            if printf '%s\n' "$listing" | grep -Eiq '(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|jna(-platform)?(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'; then
+              echo "duplicate native runtime entries found in $label" >&2
+              return 1
+            fi
+          }
+          scan_jar candidate "$artifact"
+          scan_jar host "$host_artifact"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            checksum256() { shasum -a 256 "$1"; }
+            checksum512() { shasum -a 512 "$1"; }
+          else
+            checksum256() { sha256sum "$1"; }
+            checksum512() { sha512sum "$1"; }
+          fi
+          checksum256 "$artifact" | tee build/cross-platform-audit.sha256
+          checksum512 "$artifact" | tee build/cross-platform-audit.sha512
+          checksum256 "$host_artifact" | tee build/cross-platform-host-build.sha256
+          checksum512 "$host_artifact" | tee build/cross-platform-host-build.sha512
           {
             echo "runner_os=$RUNNER_OS"
             echo "runner_arch=$RUNNER_ARCH"
@@ -151,7 +186,7 @@ jobs:
             java -version 2>&1 | head -n 1
             git rev-parse HEAD
             echo "artifact=$artifact"
-            echo "candidate_runtime=mods/sef-2.0.0.jar"
+            echo "candidate_runtime=mods/$(basename "$artifact")"
             echo "candidate_runtime_verified=true"
             cat build/cross-platform-audit.sha256
             cat build/cross-platform-audit.sha512
@@ -164,10 +199,33 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $artifact = 'cross-platform-candidate/sef-2.0.0.jar'
-          $hostArtifact = 'build/libs/sef-2.0.0.jar'
-          jar tf $artifact | Out-Null
-          if (jar tf $artifact | Select-String -CaseSensitive:$false -Pattern '(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\.(dll|dylib|so))(/|$)') { throw 'duplicate native runtime entries found' }
+          $artifact = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
+          $hostArtifact = Get-ChildItem 'build/libs' -Filter '*.jar' -File | Select-Object -First 1
+          if ($null -eq $artifact -or $null -eq $hostArtifact) { throw 'candidate or host jar is missing' }
+          function Test-JarIntegrity([string] $path) {
+            $temp = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Force -Path $temp | Out-Null
+            try {
+              Push-Location $temp
+              & jar xf $path
+              if ($LASTEXITCODE -ne 0) { throw "jar integrity extraction failed for $path with exit code $LASTEXITCODE" }
+            } finally {
+              Pop-Location
+              Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
+          Test-JarIntegrity $artifact.FullName
+          Test-JarIntegrity $hostArtifact.FullName
+          function Get-JarEntries([string] $path) {
+            $entries = (& jar tf $path 2>&1 | Out-String)
+            if ($LASTEXITCODE -ne 0) { throw "jar integrity listing failed for $path with exit code $LASTEXITCODE" }
+            return @($entries -split "`r?`n" | Where-Object { $_ -ne '' })
+          }
+          $nativePattern = '(?i)(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|(jna|jna-platform)(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'
+          $artifactEntries = Get-JarEntries $artifact.FullName
+          $hostEntries = Get-JarEntries $hostArtifact.FullName
+          if ($artifactEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in candidate jar' }
+          if ($hostEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in host jar' }
           $sha256 = (Get-FileHash $artifact -Algorithm SHA256).Hash.ToLower()
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
@@ -178,8 +236,8 @@ jobs:
             (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
             (java -version 2>&1 | Select-Object -First 1)
             (git rev-parse HEAD)
-            "artifact=$artifact"
-            "candidate_runtime=mods/sef-2.0.0.jar"
+            "artifact=$($artifact.FullName)"
+            "candidate_runtime=mods/$($artifact.Name)"
             "candidate_runtime_verified=true"
             "sha256=$sha256"
             "sha512=$sha512"

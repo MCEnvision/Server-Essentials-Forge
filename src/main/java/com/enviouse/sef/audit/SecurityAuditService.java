@@ -293,6 +293,11 @@ public final class SecurityAuditService {
             FAILURES.incrementAndGet();
             failureDetail = "security audit storage initialization failed";
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to initialize security audit storage", exception);
+            NativeAuditFileProvider provider = fileProvider;
+            fileProvider = null;
+            if (provider != null) {
+                provider.close();
+            }
             return;
         }
         running = true;
@@ -363,6 +368,11 @@ public final class SecurityAuditService {
         running = false;
         Thread thread = writerThread;
         if (thread == null) {
+            NativeAuditFileProvider provider = fileProvider;
+            fileProvider = null;
+            if (provider != null) {
+                provider.close();
+            }
             return;
         }
         try {
@@ -378,6 +388,11 @@ public final class SecurityAuditService {
             return;
         }
         writerThread = null;
+        NativeAuditFileProvider provider = fileProvider;
+        fileProvider = null;
+        if (provider != null) {
+            provider.close();
+        }
         if (!QUEUE.isEmpty()) {
             DROPPED.addAndGet(QUEUE.size());
             ServerEssentialsForge.LOGGER.error(

@@ -1,6 +1,6 @@
 # Performance Report
 
-Measured on 2026-09-02 with Java `21.0.11`, 20 available processors, Minecraft `1.21.1`, and NeoForge `21.1.235`.
+Deterministic metadata and configuration workloads were measured on 2026-09-02 with Java `21.0.11`, 20 available processors, Minecraft `1.21.1`, and NeoForge `21.1.235`. The dedicated server profile was measured separately on 2026-07-27 with the same pinned platform versions.
 
 These deterministic metadata and configuration workloads run outside the logical server tick. The final row records the dedicated-server tick profile captured during the release matrix.
 
@@ -13,4 +13,4 @@ These deterministic metadata and configuration workloads run outside the logical
 | Resolve typed server control schemas | 250000 | 128 ms | 5000 ms | pass |
 | Dedicated server tick profile | 480 ticks | 20.04 TPS | 20 TPS minimum | pass |
 
-The deterministic test fails on a budget breach. File watching remains debounced and performs no per tick filesystem polling. The runtime profile ran for 23.95 seconds on 2026-07-27. Enhanced and fallback clients also remained connected through their bounded smoke windows.
+The deterministic test fails on a budget breach. File watching remains debounced and performs no per tick filesystem polling. The dedicated server runtime profile ran for 23.95 seconds on 2026-07-27. Enhanced and fallback clients also remained connected through their bounded smoke windows.

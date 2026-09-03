@@ -361,9 +361,32 @@ tasks.register('generateAuditDependencyManifest') {
             lines << "artifact=${artifact.configuration}|${artifact.coordinate}|${artifact.fileName}|${artifact.size}|sha256:${artifact.sha256}|sha512:${artifact.sha512}|paths:${pathText}"
         }
 
+        def expectedJnaCoordinates = [
+                'net.java.dev.jna:jna:5.14.0',
+                'net.java.dev.jna:jna-platform:5.14.0'
+        ] as Set
+        def runtimeJnaCoordinates = artifacts.findAll { artifact ->
+            artifact.configuration == 'runtimeClasspath'
+                    && artifact.coordinate.startsWith('net.java.dev.jna:')
+        }.collect { artifact -> artifact.coordinate.toString() } as Set
+        if (!runtimeJnaCoordinates.containsAll(expectedJnaCoordinates)) {
+            throw new GradleException(
+                    "runtimeClasspath must resolve both pinned NeoForge JNA artifacts. "
+                            + "expected=${expectedJnaCoordinates.toList().sort()}, "
+                            + "resolved=${runtimeJnaCoordinates.toList().sort()}")
+        }
+        expectedJnaCoordinates.toList().sort().each { jnaCoordinate ->
+            lines << "jna_runtime_coordinate=${jnaCoordinate}"
+        }
+
         def runtimeOwner = jnaRuntimePaths.collectMany { path ->
             path.split(' -> ').toList()
         }.find { component -> component.startsWith('net.neoforged:minecraft-dependencies:') }
+        if (runtimeOwner != 'net.neoforged:minecraft-dependencies:1.21.1') {
+            throw new GradleException(
+                    "runtime JNA ownership must resolve through the pinned NeoForge runtime. "
+                            + "resolved=${runtimeOwner ?: 'unresolved'}")
+        }
         lines[lines.findIndexOf { it.startsWith('jna_runtime_owner=') }] =
                 "jna_runtime_owner=${runtimeOwner ?: 'unresolved'}"
         jnaRuntimePaths.toList().sort().each { path -> lines << "jna_runtime_path=${path}" }
@@ -371,7 +394,7 @@ tasks.register('generateAuditDependencyManifest') {
         File candidate = layout.buildDirectory.file("libs/${archivesName}-${projectVersion}.jar").get().asFile
         if (candidate.isFile()) {
             def nativeEntryPattern = java.util.regex.Pattern.compile(
-                    '(?i)(^|/)(com/sun/jna|jnidispatch|jna-platform|.*\\.(dll|dylib|so))(/|$)')
+                    '(?i)(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|(?:jna|jna-platform)(?:-[^/]*)?\\.jar$|.*\\.(dll|dylib|so)$)')
             boolean duplicateNativeRuntime = false
             int entryCount = 0
             new java.util.zip.ZipFile(candidate).withCloseable { zip ->
