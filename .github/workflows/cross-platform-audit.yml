@@ -206,7 +206,7 @@ jobs:
           if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) {
             Write-Host "candidate dedicated server process returned exit code $serverExitCode without a successful build marker"
             @($stdout, $stderr) -join [Environment]::NewLine -split "`r?`n" |
-              Where-Object { $_ -match '(?i)(BUILD|Done \\(|Stopping server|Exception|Error|mods[\\/].*\\.jar)' } |
+              Where-Object { $_ -match '(?i)(BUILD|Done \(|Stopping server|Exception|Error|mods[/\\].*\.jar)' } |
               Select-Object -Last 20 |
               ForEach-Object { Write-Host $_ }
             throw "windows candidate dedicated server failed with exit code $serverExitCode"
