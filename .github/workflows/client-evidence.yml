@@ -373,9 +373,10 @@ jobs:
             $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
             $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
             $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
-            $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
+            $windowsHostedPathPattern = '(?i)(?:[A-Z]:\\+Users\\+[^\\/\r\n ]+(?:(?:\\+|/+)[^\\/\r\n ]+)*)'
+            $clientEvidence = [regex]::Replace($clientEvidence, $windowsHostedPathPattern, '<user>')
             $clientEvidence = $clientEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            if ($clientEvidence -match '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'packaged client log contains a hosted path after sanitization' }
+            if ($clientEvidence -match '(?i)(?:[A-Z]:\\+Users\\+[^\\/\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+|/private/var|/opt/hostedtoolcache|runneradmin)') { throw 'packaged client log contains a hosted path after sanitization' }
             [System.IO.File]::WriteAllText($sanitizedLog, $clientEvidence)
           }
 

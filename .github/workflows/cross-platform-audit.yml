@@ -372,9 +372,10 @@ jobs:
             $serverEvidence = $serverEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
             $serverEvidence = $serverEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
             $serverEvidence = $serverEvidence.Replace($env:USERPROFILE, '<user>')
-            $serverEvidence = [regex]::Replace($serverEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
+            $windowsHostedPathPattern = '(?i)(?:[A-Z]:\\+Users\\+[^\\/\r\n ]+(?:(?:\\+|/+)[^\\/\r\n ]+)*)'
+            $serverEvidence = [regex]::Replace($serverEvidence, $windowsHostedPathPattern, '<user>')
             $serverEvidence = $serverEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            if ($serverEvidence -match '(?i)(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)') { throw 'backend log contains a hosted path after sanitization' }
+            if ($serverEvidence -match '(?i)(?:[A-Z]:\\+Users\\+[^\\/\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+|/private/var|/opt/hostedtoolcache|runneradmin)') { throw 'backend log contains a hosted path after sanitization' }
             [System.IO.File]::WriteAllText($sanitizedLog, $serverEvidence)
           }
 
