@@ -2,8 +2,9 @@ name: cross platform audit
 
 on:
   pull_request:
+    branches: [master]
   push:
-    branches: [forge-1.20.1, main, master]
+    branches: [master]
 
 permissions:
   contents: read
@@ -18,8 +19,9 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: set up java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
@@ -35,7 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          expected_commit='${{ github.event.pull_request.head.sha || github.sha }}'
+          expected_commit="$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$expected_commit"
           ./gradlew clean test build runGameTestServer generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           mkdir -p build/candidate
@@ -49,8 +51,8 @@ jobs:
           grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna:5.14.0' build/candidate/platform-dependency-manifest.txt
           grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/candidate/platform-dependency-manifest.txt
           grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/candidate/platform-dependency-manifest.txt
-          sha256sum "build/candidate/$candidate_name" > build/candidate/sha256.txt
-          sha512sum "build/candidate/$candidate_name" > build/candidate/sha512.txt
+          (cd build/candidate && sha256sum "$candidate_name" > sha256.txt)
+          (cd build/candidate && sha512sum "$candidate_name" > sha512.txt)
           printf '%s\n' "commit=$(git rev-parse HEAD)" > build/candidate/manifest.txt
           cat build/candidate/sha256.txt >> build/candidate/manifest.txt
           cat build/candidate/sha512.txt >> build/candidate/manifest.txt
@@ -76,8 +78,9 @@ jobs:
       - name: check out source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: set up java
         uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
@@ -100,7 +103,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          expected_commit='${{ github.event.pull_request.head.sha || github.sha }}'
+          expected_commit="$GITHUB_SHA"
           test "$(git rev-parse HEAD)" = "$expected_commit"
           ./gradlew clean test build runAuditWriterProbe --console=plain
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
@@ -110,7 +113,7 @@ jobs:
           grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/audit/platform-dependency-manifest.txt
           grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/audit/platform-dependency-manifest.txt
           candidate_game_dir="$GITHUB_WORKSPACE/build/candidate-runtime"
-          candidate_jar="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
           test -n "$candidate_jar"
           mkdir -p "$candidate_game_dir/mods"
           candidate_name="$(basename "$candidate_jar")"
@@ -121,7 +124,34 @@ jobs:
           candidate_server_dir="$GITHUB_WORKSPACE/build/candidate-server-runtime"
           mkdir -p "$candidate_server_dir/mods"
           cp "$candidate_jar" "$candidate_server_dir/mods/$candidate_name"
-          { sleep 60; printf 'stop\n'; } | ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
+          server_input_dir="$(mktemp -d)"
+          server_input="$server_input_dir/stdin"
+          mkfifo "$server_input"
+          cleanup_server_input() { rm -rf "$server_input_dir"; }
+          trap cleanup_server_input EXIT
+          exec 3<> "$server_input"
+          ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" <&3 > build/candidate-server-runtime.log 2>&1 &
+          server_pid=$!
+          server_ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq 'Done (' build/candidate-server-runtime.log 2>/dev/null; then
+              server_ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ "$server_ready" -ne 1 ]; then
+            tail -n 80 build/candidate-server-runtime.log
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+            exit 1
+          fi
+          printf 'stop\n' >&3
+          exec 3>&-
+          wait "$server_pid"
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
@@ -152,7 +182,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
-          $expectedCommit = '${{ github.event.pull_request.head.sha || github.sha }}'
+          $expectedCommit = $env:GITHUB_SHA
           if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
           .\gradlew.bat clean test build runAuditWriterProbe --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
@@ -177,6 +207,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateServerDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateServerDir 'mods' $candidateJar.Name)
           $candidateServerLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime.log'
+          $candidateServerRuntimeLog = Join-Path $candidateServerDir 'logs/latest.log'
           Set-Content -LiteralPath $candidateServerLog -Value ''
           $gradlePath = (Resolve-Path '.\gradlew.bat').Path
           $serverStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
@@ -194,7 +225,25 @@ jobs:
           $stdoutTask = $serverProcess.StandardOutput.ReadToEndAsync()
           $stderrTask = $serverProcess.StandardError.ReadToEndAsync()
           $stopCommandSent = $false
-          Start-Sleep -Seconds 30
+          $serverReady = $false
+          for ($i = 0; $i -lt 180; $i++) {
+            if ((Test-Path -LiteralPath $candidateServerRuntimeLog -PathType Leaf) -and (Select-String -Path $candidateServerRuntimeLog -Pattern 'Done \(')) {
+              $serverReady = $true
+              break
+            }
+            if ($serverProcess.HasExited) { break }
+            Start-Sleep -Seconds 1
+          }
+          if (-not $serverReady) {
+            if (-not $serverProcess.HasExited) {
+              $serverProcess.Kill($true)
+              $serverProcess.WaitForExit()
+            }
+            if ($stdoutTask.Wait(30000)) { $stdout = $stdoutTask.GetAwaiter().GetResult() } else { $stdout = 'stdout capture timed out' }
+            if ($stderrTask.Wait(30000)) { $stderr = $stderrTask.GetAwaiter().GetResult() } else { $stderr = 'stderr capture timed out' }
+            [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
+            throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
+          }
           if (-not $serverProcess.HasExited) {
             $serverProcess.StandardInput.WriteLine('stop')
             $serverProcess.StandardInput.Flush()
@@ -251,7 +300,7 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           set -euo pipefail
-          candidate_jar="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
           test -n "$candidate_jar"
           client_game_dir="$GITHUB_WORKSPACE/build/candidate-client-runtime"
           client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
@@ -298,7 +347,7 @@ jobs:
             cp "$client_console_log" "$client_log"
           fi
           display_blocked=0
-          if [ "$startup_verified" -ne 1 ] && grep -Eiq '(Failed to find any valid GLFW profile|Failed to initialize the mod loading system and display|GLFW error)' "$client_log"; then
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '(Failed to find any valid GLFW profile|Failed to initialize the mod loading system and display|GLFW error)' "$client_log"; then
             display_blocked=1
           elif [ "$startup_verified" -ne 1 ]; then
             tail -n 80 "$client_log"
@@ -433,7 +482,7 @@ jobs:
             (java -version 2>&1 | Select-Object -First 1)
             "candidate_commit=$((git rev-parse HEAD).Trim())"
             "client_artifact=mods/$($candidateJar.Name)"
-            "client_artifact_verified=$([bool](Test-Path -LiteralPath $clientRuntimeLog -PathType Leaf))".ToLower()
+            "client_artifact_verified=$([bool](Test-Path -LiteralPath (Join-Path $clientGameDir 'mods' $candidateJar.Name) -PathType Leaf))".ToLower()
             "client_startup_verified=$startupVerified".ToLower()
             "client_render_backend_verified=$startupVerified".ToLower()
             "client_gui_atlas_verified=$startupVerified".ToLower()
@@ -445,14 +494,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           set -euo pipefail
-          artifact="$(find cross-platform-candidate -maxdepth 1 -type f -name '*.jar' -print -quit)"
-          host_artifact="$(find build/libs -maxdepth 1 -type f -name '*.jar' -print -quit)"
+          artifact="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
+          host_artifact="$(printf '%s\n' build/libs/*.jar | sed -n '1p')"
           test -n "$artifact"; test -n "$host_artifact"
           scan_jar() {
             local label="$1"; local jar_path="$2"; local listing
             unzip -t "$jar_path" >/dev/null
             listing="$(jar tf "$jar_path")"
-            if printf '%s\n' "$listing" | grep -Eiq '(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|jna(-platform)?(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'; then
+            if printf '%s\n' "$listing" | grep -Ei '(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|jna(-platform)?(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)' >/dev/null; then
               echo "duplicate native runtime entries found in $label" >&2
               return 1
             fi
