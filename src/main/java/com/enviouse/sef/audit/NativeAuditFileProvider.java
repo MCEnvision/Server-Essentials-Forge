@@ -233,6 +233,8 @@ public final class NativeAuditFileProvider implements AutoCloseable {
 
             int fstat(int descriptor, Pointer attributes);
 
+            int fchmod(int descriptor, int mode);
+
             int close(int descriptor);
 
             int fsync(int descriptor);
@@ -276,6 +278,9 @@ public final class NativeAuditFileProvider implements AutoCloseable {
             int descriptor = -1;
             try {
                 descriptor = openAt(parent, fileName, appendFlags() | createFlag(), 0600);
+                if (Holder.INSTANCE.fchmod(descriptor, 0600) != 0) {
+                    throw new IOException("security audit native file permissions could not be restricted");
+                }
                 PosixIdentity before = identity(descriptor);
                 if (!before.regular() || before.links() != 1L) {
                     throw new IOException("security audit file is not a single-link regular file");
