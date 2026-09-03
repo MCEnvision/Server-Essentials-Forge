@@ -44,7 +44,7 @@ The equivalent local checks are:
 ./gradlew build -Pmod_version=2.0.0 --no-daemon
 ```
 
-The cross platform audit also stages the exact candidate JAR in a fresh game directory `mods` folder and runs `runCandidateGameTestServer` with `-PsefCandidateGameDirectory`. That run disables the local source mod and requires all 41 packaged GameTests to pass on Linux, macOS, and Windows. The runtime manifest records the candidate mods path and artifact digests.
+The cross platform audit also stages the exact candidate JAR in fresh game directory `mods` folders and runs `runCandidateGameTestServer` with `-PsefCandidateGameDirectory`. That run disables the local source mod and requires all 41 packaged GameTests to pass on Linux, macOS, and Windows. It then starts `runCandidateServer` from a separate disposable directory and requires the same packaged JAR to load, reach the dedicated server `Done` line, and stop cleanly. The runtime manifests record the candidate mods path, dedicated server evidence, and artifact digests. Server logs are sanitized for hosted runner paths before upload.
 
 Inspect `build/libs/sef-2.0.0.jar`, its metadata, its contents, and both checksum files before continuing.
 
