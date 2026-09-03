@@ -149,9 +149,18 @@ jobs:
             wait "$server_pid" 2>/dev/null || true
             exit 1
           fi
+          if ! kill -0 "$server_pid" 2>/dev/null; then
+            tail -n 80 build/candidate-server-runtime.log
+            exit 1
+          fi
           printf 'stop\n' >&3
           exec 3>&-
-          wait "$server_pid"
+          server_exit=0
+          wait "$server_pid" || server_exit=$?
+          if [ "$server_exit" -ne 0 ]; then
+            tail -n 80 build/candidate-server-runtime.log
+            exit "$server_exit"
+          fi
           grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
           grep -F 'Done (' build/candidate-server-runtime.log
           grep -F 'Stopping server' build/candidate-server-runtime.log
@@ -244,6 +253,9 @@ jobs:
             [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
             throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
           }
+          if ($serverProcess.HasExited) {
+            throw 'windows candidate dedicated server exited before the stop command'
+          }
           if (-not $serverProcess.HasExited) {
             $serverProcess.StandardInput.WriteLine('stop')
             $serverProcess.StandardInput.Flush()
@@ -260,9 +272,8 @@ jobs:
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
           Write-Host ("candidate dedicated server stdout length " + $stdout.Length + ", stderr length " + $stderr.Length)
-          $successfulBuild = Select-String -Path $candidateServerLog -Pattern 'BUILD SUCCESSFUL'
-          if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) {
-            Write-Host "candidate dedicated server process returned exit code $serverExitCode without a successful build marker"
+          if ($serverExitCode -ne 0) {
+            Write-Host "candidate dedicated server process returned exit code $serverExitCode"
             @($stdout, $stderr) -join [Environment]::NewLine -split "`r?`n" |
               Where-Object { $_ -match '(?i)(BUILD|Done \(|Stopping server|Exception|Error|mods[/\\].*\.jar)' } |
               Select-Object -Last 20 |
@@ -347,7 +358,7 @@ jobs:
             cp "$client_console_log" "$client_log"
           fi
           display_blocked=0
-          if [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '(Failed to find any valid GLFW profile|Failed to initialize the mod loading system and display|GLFW error)' "$client_log"; then
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '\[0x10009\]NSGL: Failed to find a suitable pixel format' "$client_log"; then
             display_blocked=1
           elif [ "$startup_verified" -ne 1 ]; then
             tail -n 80 "$client_log"
@@ -463,7 +474,7 @@ jobs:
           $clientEvidence = [regex]::Replace($clientEvidence, '(?i)(?:[A-Z]:\\Users\\[^\\\r\n ]+|/Users/[^/\r\n ]+|/home/[^/\r\n ]+)', '<user>')
           [System.IO.File]::WriteAllText($clientLog, $clientEvidence)
           $displayBlocked = $false
-          if (-not $startupVerified -and (Select-String -Path $clientLog -Pattern '(?i)(Failed to find any valid GLFW profile|Failed to initialize the mod loading system and display|GLFW error)')) {
+          if (-not $startupVerified -and (Select-String -Path $clientLog -Pattern '(?i)\[0x10006\]WGL: The driver does not appear to support OpenGL')) {
             $displayBlocked = $true
           } elseif (-not $startupVerified) {
             Get-Content -LiteralPath $clientLog -Tail 80
