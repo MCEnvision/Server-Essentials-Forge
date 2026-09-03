@@ -18,6 +18,8 @@ The owner desktop probe reached the real Minecraft 1.21.1 LWJGL client, but its 
 
 A second disposable owner desktop probe cloned the Prism instance, downloaded exact NeoForge 21.1.235, and launched the candidate artifact with SHA-256 `da76826dd757e9f52b1cfc61fb9902812a77c328321edae14428f329c2a16eb0`. The graphical Linux client reached Minecraft 1.21.1, LWJGL 3.3.3, SEF initialization, configuration loading, and the GUI atlas. The clone, candidate, logs, and process were removed. This closes the direct Linux desktop row for the targeted candidate evidence. Exact macOS and Windows graphical rows and the complete platform-specific failure matrix remain open under `EXT-001`.
 
+Hosted matrix run `33732626666` reran the complete candidate audit from commit `2cb01b8ecf91eaa90d0f0284e6f1bc2b52058323`. Linux, macOS, and Windows passed the native writer, opened object identity, failure preservation, dedicated server, dependency, packaged artifact, and sanitized evidence gates. Linux verified packaged client startup and the GUI atlas. macOS and Windows recorded explicit hosted display blockers and remained supported targets. The Windows packaged client reader now waits for transient `latest.log` locks to clear after process-tree shutdown.
+
 ## Phase ledger
 
 | Scope | Requirement bullets | Status | Current evidence |
