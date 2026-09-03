@@ -41,6 +41,16 @@ class Phase000BaselineGeneratorTest {
         assertEquals(Set.of("linux", "macos", "windows"), platforms);
         assertEquals(2, first.get("externalPrerequisiteCount").getAsInt());
         assertEquals("unknown, dependent evidence blocked", first.get("externalPrerequisiteState").getAsString());
+
+        JsonObject modMetadata = first.getAsJsonArray("rows").asList().stream()
+                .map(value -> value.getAsJsonObject())
+                .filter(row -> row.get("category").getAsString().equals("artifact-input"))
+                .filter(row -> row.get("semanticKey").getAsString()
+                        .equals("src/main/templates/META-INF/neoforge.mods.toml"))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("present", modMetadata.get("availability").getAsString());
+        assertEquals("available", modMetadata.get("dependentEvidence").getAsString());
     }
 
     @Test

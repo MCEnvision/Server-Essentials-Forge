@@ -31,7 +31,7 @@ public final class Phase000BaselineGenerator {
             "gradlew",
             "gradle/wrapper/gradle-wrapper.jar",
             "gradle/wrapper/gradle-wrapper.properties",
-            "src/main/resources/META-INF/neoforge.mods.toml",
+            "src/main/templates/META-INF/neoforge.mods.toml",
             "src/main/resources/sef.mixins.json",
             "src/main/resources/META-INF/accesstransformer.cfg");
 
