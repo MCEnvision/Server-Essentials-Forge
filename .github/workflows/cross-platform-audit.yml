@@ -203,7 +203,14 @@ jobs:
           $serverExitCode = $serverProcess.ExitCode
           $serverProcess.Dispose()
           $successfulBuild = Select-String -Path $candidateServerLog -Pattern 'BUILD SUCCESSFUL'
-          if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) { throw "windows candidate dedicated server failed with exit code $serverExitCode" }
+          if ($serverExitCode -ne 0 -and $null -eq $successfulBuild) {
+            Write-Host "candidate dedicated server process returned exit code $serverExitCode without a successful build marker"
+            @($stdout, $stderr) -join [Environment]::NewLine -split "`r?`n" |
+              Where-Object { $_ -match '(?i)(BUILD|Done \\(|Stopping server|Exception|Error|mods[\\/].*\\.jar)' } |
+              Select-Object -Last 20 |
+              ForEach-Object { Write-Host $_ }
+            throw "windows candidate dedicated server failed with exit code $serverExitCode"
+          }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
