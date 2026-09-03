@@ -118,6 +118,13 @@ jobs:
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
+          candidate_server_dir="$GITHUB_WORKSPACE/build/candidate-server-runtime"
+          mkdir -p "$candidate_server_dir/mods"
+          cp "$candidate_jar" "$candidate_server_dir/mods/$candidate_name"
+          printf 'stop\n' | timeout --foreground --signal=TERM 180s ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" 2>&1 | tee build/candidate-server-runtime.log
+          grep -F "/mods/$candidate_name" build/candidate-server-runtime.log
+          grep -F 'Done (' build/candidate-server-runtime.log
+          grep -F 'Stopping server' build/candidate-server-runtime.log
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'native_flush_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -157,6 +164,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
+          $candidateServerDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-server-runtime'
+          New-Item -ItemType Directory -Force -Path (Join-Path $candidateServerDir 'mods') | Out-Null
+          Copy-Item $candidateJar.FullName (Join-Path $candidateServerDir 'mods' $candidateJar.Name)
+          'stop' | .\gradlew.bat runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidateServerDir" 2>&1 | Tee-Object -FilePath build/candidate-server-runtime.log
+          if ($LASTEXITCODE -ne 0) { throw "windows candidate dedicated server failed with exit code $LASTEXITCODE" }
+          if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate dedicated server did not load the jar from the mods directory' }
+          if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Done \(')) { throw 'candidate dedicated server did not reach ready state' }
+          if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
           foreach ($required in @('manifest_complete=true', 'append_verified=true', 'native_flush_verified=true', 'identity_validation_verified=true', 'object_swap_control_verified=true', 'rotation_verified=true', 'restart_verified=true', 'writer_stopped=true')) {
             if (-not (Select-String -Path $probeManifest -Pattern ([regex]::Escape($required)))) { throw "native writer probe did not prove $required" }
@@ -273,3 +288,4 @@ jobs:
             build/cross-platform-audit-manifest.txt
             build/audit/platform-dependency-manifest.txt
             build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
+            build/candidate-server-runtime.log
