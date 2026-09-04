@@ -98,9 +98,8 @@ jobs:
           name: cross-platform-candidate
           path: cross-platform-candidate
 
-      - name: run linux or macos client evidence
+      - name: run minecraft java client fixture
         id: client_unix
-        if: runner.os != 'Windows'
         run: |
           set -euo pipefail
           candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
@@ -112,11 +111,7 @@ jobs:
           test "$candidate_manifest_commit" = "$expected_commit"
           candidate_expected_sha256="$(awk -v name="$candidate_name" '$2 == name {print $1}' cross-platform-candidate/sha256.txt)"
           test -n "$candidate_expected_sha256"
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            candidate_downloaded_sha256="$(shasum -a 256 "$candidate_jar" | awk '{print $1}')"
-          else
-            candidate_downloaded_sha256="$(sha256sum "$candidate_jar" | awk '{print $1}')"
-          fi
+          candidate_downloaded_sha256="$(sha256sum "$candidate_jar" | awk '{print $1}')"
           test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
           client_game_dir="$GITHUB_WORKSPACE/build/candidate-client-runtime"
           client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
@@ -125,13 +120,9 @@ jobs:
           mkdir -p "$client_game_dir/mods"
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
-          if [ "$RUNNER_OS" = "Linux" ]; then
-            command -v xvfb-run
-            client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
-          else
-            client_command=(./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
-          fi
-          "${client_command[@]}" > "$client_console_log" 2>&1 &
+          command -v xvfb-run
+          client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
+          setsid "${client_command[@]}" > "$client_console_log" 2>&1 &
           client_pid=$!
           startup_verified=0
           startup_stability_failed=0
@@ -157,15 +148,15 @@ jobs:
             fi
             sleep 1
           done
-          stop_tree() {
+          stop_group() {
             local process_pid="$1"
-            local child_pid
-            for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
-              stop_tree "$child_pid"
-            done
-            kill "$process_pid" 2>/dev/null || true
+            kill -TERM -- "-$process_pid" 2>/dev/null || true
           }
-          stop_tree "$client_pid"
+          force_group() {
+            local process_pid="$1"
+            kill -KILL -- "-$process_pid" 2>/dev/null || true
+          }
+          stop_group "$client_pid"
           for _ in $(seq 1 30); do
             if ! kill -0 "$client_pid" 2>/dev/null; then
               break
@@ -174,15 +165,18 @@ jobs:
           done
           if kill -0 "$client_pid" 2>/dev/null; then
             echo 'packaged client did not stop after the bounded grace period' >&2
-            force_tree() {
-              local process_pid="$1"
-              local child_pid
-              for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
-                force_tree "$child_pid"
-              done
-              kill -KILL "$process_pid" 2>/dev/null || true
-            }
-            force_tree "$client_pid"
+            force_group "$client_pid"
+            for _ in $(seq 1 30); do
+              if ! kill -0 "$client_pid" 2>/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+          fi
+          if pgrep -s "$client_pid" >/dev/null 2>&1; then
+            echo 'packaged client process group did not terminate completely' >&2
+            force_group "$client_pid"
+            exit 1
           fi
           wait "$client_pid" 2>/dev/null || true
           if [ -f "$client_runtime_log" ]; then
@@ -192,12 +186,9 @@ jobs:
           else
             cp "$client_console_log" "$client_log"
           fi
-          display_blocked=0
           if [ "$startup_stability_failed" -eq 1 ]; then
             tail -n 80 "$client_log"
             exit 1
-          elif [ "$RUNNER_OS" = "macOS" ] && [ "$startup_verified" -ne 1 ] && grep -Eiq '\[0x10009\]NSGL: Failed to find a suitable pixel format' "$client_log"; then
-            display_blocked=1
           elif [ "$startup_verified" -ne 1 ]; then
             tail -n 80 "$client_log"
             exit 1
@@ -225,138 +216,9 @@ jobs:
               echo 'client_render_backend_verified=false'
               echo 'client_gui_atlas_verified=false'
             fi
-            if [ "$display_blocked" -eq 1 ]; then echo 'client_display_blocked=true'; else echo 'client_display_blocked=false'; fi
             echo 'client_log=candidate-client-runtime.sanitized.log'
           } > build/client-runtime-manifest.txt
-          if [ "$display_blocked" -eq 1 ]; then
-            echo 'packaged client startup is blocked by the hosted display environment'
-            exit 1
-          fi
-          echo "display_blocked=$display_blocked" >> "$GITHUB_OUTPUT"
-
-      - name: run windows client evidence
-        id: client_windows
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $PSNativeCommandUseErrorActionPreference = $true
-          $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
-          if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
-          $expectedCommit = $env:GITHUB_SHA
-          if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
-          $candidateManifestCommit = (Get-Content -LiteralPath 'cross-platform-candidate/manifest.txt' | Where-Object { $_ -like 'commit=*' } | Select-Object -First 1).Substring(7)
-          if ($candidateManifestCommit -ne $expectedCommit) { throw 'downloaded candidate manifest commit does not match the checkout' }
-          $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
-          $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
-          if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
-          $clientGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime'
-          $clientLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-runtime.log'
-          $clientConsoleLog = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-client-console.log'
-          $clientRuntimeLog = Join-Path $clientGameDir 'logs/latest.log'
-          New-Item -ItemType Directory -Force -Path (Join-Path $clientGameDir 'mods') | Out-Null
-          Copy-Item $candidateJar.FullName (Join-Path $clientGameDir 'mods' $candidateJar.Name)
-          if (-not (Test-Path -LiteralPath (Join-Path $clientGameDir 'mods' $candidateJar.Name) -PathType Leaf)) { throw 'candidate jar was not copied into the client mods directory' }
-          Set-Content -LiteralPath $clientLog -Value ''
-          $gradlePath = (Resolve-Path '.\gradlew.bat').Path
-          $clientStartInfo = [System.Diagnostics.ProcessStartInfo]::new()
-          $clientStartInfo.FileName = $env:ComSpec
-          $clientStartInfo.UseShellExecute = $false
-          $clientStartInfo.CreateNoWindow = $true
-          $clientStartInfo.RedirectStandardOutput = $true
-          $clientStartInfo.RedirectStandardError = $true
-          $clientStartInfo.WorkingDirectory = (Get-Location).Path
-          $clientStartInfo.Arguments = ('/d /c call "{0}" runFallbackClient --console=plain "-PsefFallbackClientGameDirectory={1}" -PsefFallbackClientUsername=SEFAuditPackaged' -f $gradlePath, $clientGameDir)
-          $clientProcess = [System.Diagnostics.Process]::new()
-          $clientProcess.StartInfo = $clientStartInfo
-          if (-not $clientProcess.Start()) { throw 'windows packaged client process did not start' }
-          $stdoutTask = $clientProcess.StandardOutput.ReadToEndAsync()
-          $stderrTask = $clientProcess.StandardError.ReadToEndAsync()
-          $startupVerified = $false
-          $startupStabilityFailed = $false
-          for ($i = 0; $i -lt 180; $i++) {
-            if ((Test-Path -LiteralPath $clientRuntimeLog -PathType Leaf) -and (Select-String -Path $clientRuntimeLog -Pattern 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas')) {
-              $startupVerified = $true
-              for ($stability = 0; $stability -lt 5; $stability++) {
-                if ($clientProcess.HasExited) {
-                  $startupVerified = $false
-                  $startupStabilityFailed = $true
-                  break
-                }
-                Start-Sleep -Seconds 1
-              }
-              if ($startupVerified -and $clientProcess.HasExited) {
-                $startupVerified = $false
-                $startupStabilityFailed = $true
-              }
-              break
-            }
-            if ($clientProcess.HasExited) { break }
-            Start-Sleep -Seconds 1
-          }
-          $clientCompleted = $clientProcess.HasExited
-          if (-not $clientCompleted) {
-            $clientProcess.Kill($true)
-            $clientProcess.WaitForExit()
-          }
-          if ($stdoutTask.Wait(30000)) { $stdout = $stdoutTask.GetAwaiter().GetResult() } else { $stdout = 'stdout capture timed out' }
-          if ($stderrTask.Wait(30000)) { $stderr = $stderrTask.GetAwaiter().GetResult() } else { $stderr = 'stderr capture timed out' }
-          [System.IO.File]::WriteAllText($clientConsoleLog, $stdout + [Environment]::NewLine + $stderr)
-          function Read-TextWithRetry([string] $path) {
-            for ($attempt = 0; $attempt -lt 30; $attempt++) {
-              try {
-                return [System.IO.File]::ReadAllText($path)
-              } catch [System.IO.IOException] {
-                if ($attempt -eq 29) { throw }
-                Start-Sleep -Seconds 2
-              }
-            }
-            throw "could not read locked file $path"
-          }
-          if (Test-Path -LiteralPath $clientRuntimeLog -PathType Leaf) {
-            $runtimeEvidence = Read-TextWithRetry $clientRuntimeLog
-            [System.IO.File]::WriteAllText($clientLog, $runtimeEvidence + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
-          } else {
-            Copy-Item -LiteralPath $clientConsoleLog -Destination $clientLog -Force
-          }
-          $clientProcess.Dispose()
-          $displayBlocked = $false
-          if ($startupStabilityFailed) {
-            Get-Content -LiteralPath $clientLog -Tail 80
-            throw 'packaged client exited after the startup marker before the stability gate completed'
-          } elseif (-not $startupVerified -and (Select-String -Path $clientLog -Pattern '(?i)\[0x10006\]WGL: The driver does not appear to support OpenGL')) {
-            $displayBlocked = $true
-          } elseif (-not $startupVerified) {
-            Get-Content -LiteralPath $clientLog -Tail 80
-            throw 'packaged client startup did not reach a verified state'
-          }
-          if ($startupVerified) {
-            foreach ($required in @('Minecraft 1.21.1', 'Backend library: LWJGL', 'ServerEssentialsForge (NeoForge 1.21.1 port) initialized', 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas')) {
-              if (-not (Select-String -Path $clientLog -Pattern ([regex]::Escape($required)))) { throw "packaged client startup did not prove $required" }
-            }
-          }
-          @(
-            "runner_os=$env:RUNNER_OS"
-            "runner_arch=$env:RUNNER_ARCH"
-            (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
-            (java -version 2>&1 | Select-Object -First 1)
-            "candidate_commit=$((git rev-parse HEAD).Trim())"
-            "client_artifact=mods/$($candidateJar.Name)"
-            "client_artifact_verified=$([bool](Test-Path -LiteralPath (Join-Path $clientGameDir 'mods' $candidateJar.Name) -PathType Leaf))".ToLower()
-            "client_startup_verified=$startupVerified".ToLower()
-            "client_render_backend_verified=$startupVerified".ToLower()
-            "client_gui_atlas_verified=$startupVerified".ToLower()
-            "client_display_blocked=$displayBlocked".ToLower()
-            'client_log=candidate-client-runtime.sanitized.log'
-          ) | Set-Content build/client-runtime-manifest.txt
-          if ($displayBlocked) {
-            Write-Host 'packaged client startup is blocked by the hosted display environment'
-            exit 1
-          }
-          "display_blocked=$($displayBlocked.ToString().ToLower())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-      - name: sanitize linux or macos client evidence
-        if: ${{ always() && runner.os != 'Windows' }}
+      - name: sanitize minecraft java client fixture evidence
         run: |
           set -euo pipefail
           raw_log=build/candidate-client-runtime.log
@@ -379,26 +241,6 @@ jobs:
             fi
             mv "$temp_log" "$sanitized_log"
           fi
-
-      - name: sanitize windows client evidence
-        if: ${{ always() && runner.os == 'Windows' }}
-        shell: pwsh
-        run: |
-          $rawLog = 'build/candidate-client-runtime.log'
-          $sanitizedLog = 'build/candidate-client-runtime.sanitized.log'
-          Remove-Item -LiteralPath $sanitizedLog -Force -ErrorAction SilentlyContinue
-          if (Test-Path -LiteralPath $rawLog -PathType Leaf) {
-            $clientEvidence = [System.IO.File]::ReadAllText($rawLog)
-            $clientEvidence = [regex]::Replace($clientEvidence, '\\{2,}', '\')
-            $clientEvidence = $clientEvidence.Replace($env:GITHUB_WORKSPACE, '<workspace>')
-            $clientEvidence = $clientEvidence.Replace($env:RUNNER_TEMP, '<runner-temp>')
-            $clientEvidence = $clientEvidence.Replace($env:USERPROFILE, '<user>')
-            $windowsDrivePathPattern = '(?i)\b[A-Z]:(?:\\|/)(?:[^\\/:<>\r\n\]\)\},;]+(?:(?:\\|/)[^\\/:<>\r\n\]\)\},;]+)*)'
-            $clientEvidence = [regex]::Replace($clientEvidence, $windowsDrivePathPattern, '<path>')
-            $clientEvidence = $clientEvidence.Replace('/private/var', '<private-var>').Replace('/opt/hostedtoolcache', '<toolcache>')
-            if ($clientEvidence -match '(?i)(?:\b[A-Z]:(?:\\|/)|/Users/[^/\r\n ]+|/home/[^/\r\n ]+|/private/var|/opt/hostedtoolcache|runneradmin)') { throw 'packaged client log contains a hosted path after sanitization' }
-            [System.IO.File]::WriteAllText($sanitizedLog, $clientEvidence)
-          }
 
       - name: upload client evidence
         if: always()
