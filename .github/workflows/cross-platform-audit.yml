@@ -572,7 +572,12 @@ jobs:
           if ($hostEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in host jar' }
           $artifactContentManifest = Get-JarContentManifest $artifact.FullName
           $hostContentManifest = Get-JarContentManifest $hostArtifact.FullName
-          if (($artifactContentManifest -join "`n") -ne ($hostContentManifest -join "`n")) { throw 'host build artifact content does not match downloaded candidate' }
+          if (($artifactContentManifest -join "`n") -ne ($hostContentManifest -join "`n")) {
+            Compare-Object -ReferenceObject $artifactContentManifest -DifferenceObject $hostContentManifest |
+              ForEach-Object { "{0}: {1}" -f $_.SideIndicator, $_.InputObject } |
+              Set-Content -LiteralPath 'build/cross-platform-artifact-content-diff.txt'
+            throw 'host build artifact content does not match downloaded candidate'
+          }
           $sha256 = (Get-FileHash $artifact -Algorithm SHA256).Hash.ToLower()
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
@@ -615,3 +620,4 @@ jobs:
             build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
             build/audit/native-writer-runtime/native-writer-identity-trace.txt
             build/candidate-server-runtime.sanitized.log
+            build/cross-platform-artifact-content-diff.txt
