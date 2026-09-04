@@ -5,8 +5,11 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.math.BigDecimal;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +25,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CommandExecutionLeaseTest {
+    @TempDir
+    Path temporaryDirectory;
+
     @Test
     void successfulCompletionCommitsOnceAndRejectsReplay() {
         Fixture fixture = fixture(new RecordingReservation(ActionResult.success(null), ActionResult.success(null)));
@@ -38,18 +44,28 @@ class CommandExecutionLeaseTest {
     }
 
     @Test
-    void successfulCompletionFailsWhenMandatoryAuditIsRejected() {
-        SecurityAuditService.shutdown();
-        Fixture fixture = fixture(
-                AuditService.AuditClass.ADMIN_ACTION,
-                new RecordingReservation(ActionResult.success(null), ActionResult.success(null)));
-        CommandExecutionService.Lease lease = fixture.begin();
+    void successfulCompletionFailsWhenMandatoryAuditWriterHasFailed() throws Exception {
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            Fixture fixture = fixture(
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    new RecordingReservation(ActionResult.success(null), ActionResult.success(null)));
+            CommandExecutionService.Lease lease = fixture.begin();
+            Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+            Files.createDirectories(activeFile);
+            assertTrue(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test", "writer_failure", "tester", "", "test", "attempted", "test")));
+            await(() -> SecurityAuditService.health().failures() > 0L
+                    && !SecurityAuditService.health().writerAlive());
 
-        ActionResult<Void> result = lease.complete(true, null);
+            ActionResult<Void> result = lease.complete(true, null);
 
-        assertFalse(result.successful());
-        assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
-        assertEquals(1, fixture.reservation.commitCalls);
+            assertFalse(result.successful());
+            assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
+            assertEquals(1, fixture.reservation.commitCalls);
+        } finally {
+            SecurityAuditService.shutdown();
+        }
     }
 
     @Test
@@ -199,6 +215,14 @@ class CommandExecutionLeaseTest {
                 1L,
                 Map.of(),
                 "command");
+    }
+
+    private static void await(java.util.function.BooleanSupplier condition) {
+        long deadline = System.nanoTime() + Duration.ofSeconds(2).toNanos();
+        while (!condition.getAsBoolean() && System.nanoTime() < deadline) {
+            Thread.onSpinWait();
+        }
+        assertTrue(condition.getAsBoolean());
     }
 
     private static final class RecordingCostService implements CostService {

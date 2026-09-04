@@ -1,6 +1,7 @@
 package com.enviouse.sef.kernel.policy;
 
 import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 
@@ -202,7 +203,9 @@ public final class CommandExecutionService {
                 !cooldownAcquired,
                 cost.value(),
                 cooldownContext,
-                startedNanos));
+                startedNanos,
+                policy.auditClass() != AuditService.AuditClass.NONE
+                        && SecurityAuditService.health().running()));
     }
 
     private void clearCooldown(Request request, boolean cooldownAcquired) {
@@ -307,6 +310,7 @@ public final class CommandExecutionService {
         private final CostService.Reservation cost;
         private final Map<String, String> cooldownContext;
         private final long startedNanos;
+        private final boolean auditExpected;
         private boolean completed;
 
         private Lease(
@@ -315,7 +319,8 @@ public final class CommandExecutionService {
                 boolean cooldownNotAcquired,
                 CostService.Reservation cost,
                 Map<String, String> cooldownContext,
-                long startedNanos
+                long startedNanos,
+                boolean auditExpected
         ) {
             this.request = request;
             this.policy = policy;
@@ -323,6 +328,7 @@ public final class CommandExecutionService {
             this.cost = cost;
             this.cooldownContext = Map.copyOf(cooldownContext);
             this.startedNanos = startedNanos;
+            this.auditExpected = auditExpected;
         }
 
         public synchronized ActionResult<Void> complete(
@@ -363,7 +369,8 @@ public final class CommandExecutionService {
                         policy.auditClass(),
                         elapsedMillis(startedNanos),
                         merge(cooldownContext, cost.auditContext()));
-                if (!audited && policy.auditClass() != AuditService.AuditClass.NONE) {
+                if (!audited
+                        && auditExpected) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.STORAGE_ERROR,
                             "command audit could not be persisted safely");
