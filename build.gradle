@@ -293,6 +293,15 @@ tasks.register('generateAuditDependencyManifest') {
                     "candidate commit binding does not match the checked out revision. "
                             + "expected=${candidateCommit}, supplied=${suppliedCandidateCommit}")
         }
+        def dirtyProcess = ['git', 'status', '--porcelain', '--untracked-files=no'].execute(null, project.rootDir)
+        dirtyProcess.waitFor()
+        if (dirtyProcess.exitValue() != 0) {
+            throw new GradleException('unable to verify that the checked out tree is clean')
+        }
+        def dirtyTrackedFiles = dirtyProcess.in.text.trim()
+        if (!dirtyTrackedFiles.isEmpty()) {
+            throw new GradleException("audit manifest requires a clean tracked tree: ${dirtyTrackedFiles}")
+        }
         File output = manifest.get().asFile
         output.parentFile.mkdirs()
         def digest = { File file, String algorithm ->
@@ -473,6 +482,9 @@ tasks.register('generateAuditDependencyManifest') {
             lines << "candidate_mod_jar_sha512=${digest(candidate, 'SHA-512')}"
             lines << "candidate_mod_jar_entry_count=${entryCount}"
             lines << "candidate_mod_jar_embeds_duplicate_native_runtime=${duplicateNativeRuntime}"
+            if (duplicateNativeRuntime) {
+                throw new GradleException("candidate mod jar embeds duplicate native runtime entries: ${candidate.name}")
+            }
         } else {
             throw new GradleException("candidate mod jar is missing: ${candidate.name}")
         }

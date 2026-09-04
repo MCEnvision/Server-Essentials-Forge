@@ -238,6 +238,7 @@ jobs:
             echo 'client_log=candidate-client-runtime.sanitized.log'
           } > build/client-runtime-manifest.txt
       - name: sanitize minecraft java client fixture evidence
+        if: always()
         run: |
           set -euo pipefail
           raw_log=build/candidate-client-runtime.log
