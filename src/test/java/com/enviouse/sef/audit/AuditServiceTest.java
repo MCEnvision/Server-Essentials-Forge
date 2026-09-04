@@ -28,6 +28,21 @@ class AuditServiceTest {
     Path temporaryDirectory;
 
     @Test
+    void mandatoryAuditAvailabilityTracksWriterHealth() throws Exception {
+        SecurityAuditService.shutdown();
+        assertTrue(AuditService.accepting(AuditService.AuditClass.NONE));
+        assertFalse(AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION));
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            assertTrue(AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+        assertFalse(AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION));
+    }
+
+    @Test
     void structuredEventPersistsEveryRequiredField() throws Exception {
         UUID eventId = UUID.randomUUID();
         UUID sessionId = UUID.randomUUID();

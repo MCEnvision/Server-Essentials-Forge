@@ -21,6 +21,11 @@ public final class AuditService {
         return SecurityAuditService.record(SecurityAuditService.AuditEvent.from(event));
     }
 
+    public static boolean accepting(AuditClass auditClass) {
+        Objects.requireNonNull(auditClass, "auditClass");
+        return auditClass == AuditClass.NONE || SecurityAuditService.health().running();
+    }
+
     public record Event(
             int schemaVersion,
             UUID eventId,

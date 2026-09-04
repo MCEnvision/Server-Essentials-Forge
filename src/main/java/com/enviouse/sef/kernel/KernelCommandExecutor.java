@@ -42,7 +42,9 @@ public final class KernelCommandExecutor {
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
             return false;
         }
-        return permissions(source, definition(actionId), additionalPermissions).granted();
+        CommandDefinition definition = definition(actionId);
+        return AuditService.accepting(definition.auditClass())
+                && permissions(source, definition, additionalPermissions).granted();
     }
 
     @SafeVarargs
@@ -84,6 +86,15 @@ public final class KernelCommandExecutor {
         }
 
         CommandDefinition definition = definition(actionId);
+        if (!AuditService.accepting(definition.auditClass())) {
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    null,
+                    ActionResult.ReasonCode.STORAGE_ERROR.name().toLowerCase(Locale.ROOT));
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMandatory command audit is unavailable. This action is blocked."));
+            return 0;
+        }
         PermissionSummary permission = permissions(source, definition, additionalPermissions);
         boolean effectiveCooldownBypass = cooldownBypass || KernelServices.cooldownBypass(source, actionId);
         boolean effectiveCostBypass = KernelServices.costBypass(source);
