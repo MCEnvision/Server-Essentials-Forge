@@ -139,7 +139,7 @@ jobs:
           mkdir -p "$candidate_game_dir/mods"
           cp "$candidate_jar" "$candidate_game_dir/mods/$candidate_name"
           test "$(candidate_digest256 "$candidate_jar")" = "$candidate_sha256_before"
-          ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
+          ./gradlew --no-daemon runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
           touch build/candidate-gametest.verification.complete
@@ -174,7 +174,7 @@ jobs:
           trap cleanup_server EXIT
           exec 3<> "$server_input"
           server_pid_file="$candidate_server_dir/server-session.pid"
-          server_command=(./gradlew runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidate_server_dir")
+          server_command=(./gradlew --no-daemon runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidate_server_dir")
           if command -v setsid >/dev/null 2>&1; then
             setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$server_pid_file" "${server_command[@]}" <&3 > build/candidate-server-runtime.log 2>&1 &
           else
@@ -263,8 +263,12 @@ jobs:
           grep -F 'restart_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'writer_stopped=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           ./gradlew dependencies --configuration runtimeClasspath --console=plain
-          ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
-          ./gradlew dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
+          ./gradlew --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain | tee build/jna-dependency-insight.txt
+          grep -Fx 'net.java.dev.jna:jna:5.14.0' build/jna-dependency-insight.txt
+          grep -F -- '--- net.neoforged:minecraft-dependencies:1.21.1' build/jna-dependency-insight.txt
+          ./gradlew --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain | tee build/jna-platform-dependency-insight.txt
+          grep -Fx 'net.java.dev.jna:jna-platform:5.14.0' build/jna-platform-dependency-insight.txt
+          grep -F -- '--- net.neoforged:minecraft-dependencies:1.21.1' build/jna-platform-dependency-insight.txt
 
       - name: run windows audit
         if: runner.os == 'Windows'
@@ -296,7 +300,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
           if ((Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower() -ne $candidateSha256Before) { throw 'downloaded candidate changed during host verification' }
-          & .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" *> build/candidate-runtime.log
+          & .\gradlew.bat --no-daemon runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" *> build/candidate-runtime.log
           $gameTestExitCode = $LASTEXITCODE
           Get-Content -LiteralPath 'build/candidate-runtime.log' | Write-Host
           if ($gameTestExitCode -ne 0) { throw "windows candidate GameTests failed with exit code $gameTestExitCode" }
@@ -319,7 +323,7 @@ jobs:
           $serverStartInfo.RedirectStandardOutput = $true
           $serverStartInfo.RedirectStandardError = $true
           $serverStartInfo.WorkingDirectory = (Get-Location).Path
-          $serverStartInfo.Arguments = ('/d /c call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir)
+          $serverStartInfo.Arguments = ('/d /c call "{0}" --no-daemon runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir)
           $serverProcess = $null
           try {
             $serverProcess = [System.Diagnostics.Process]::new()
@@ -405,10 +409,14 @@ jobs:
           if (-not (Select-String -Path $identityTrace -Pattern 'same_object=true')) { throw 'native writer identity trace did not prove same object' }
           .\gradlew.bat dependencies --configuration runtimeClasspath --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
-          .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain
+          $jnaInsight = (& .\gradlew.bat --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain 2>&1 | Out-String)
           if ($LASTEXITCODE -ne 0) { throw "windows jna dependency insight failed with exit code $LASTEXITCODE" }
-          .\gradlew.bat dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain
+          if ($jnaInsight -notmatch '(?m)^net\.java\.dev\.jna:jna:5\.14\.0$') { throw 'windows JNA dependency insight did not resolve jna 5.14.0' }
+          if ($jnaInsight -notmatch '(?m)^.*--- net\.neoforged:minecraft-dependencies:1\.21\.1') { throw 'windows JNA dependency insight did not prove NeoForge ownership' }
+          $jnaPlatformInsight = (& .\gradlew.bat --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain 2>&1 | Out-String)
           if ($LASTEXITCODE -ne 0) { throw "windows jna platform dependency insight failed with exit code $LASTEXITCODE" }
+          if ($jnaPlatformInsight -notmatch '(?m)^net\.java\.dev\.jna:jna-platform:5\.14\.0$') { throw 'windows JNA platform dependency insight did not resolve jna-platform 5.14.0' }
+          if ($jnaPlatformInsight -notmatch '(?m)^.*--- net\.neoforged:minecraft-dependencies:1\.21\.1') { throw 'windows JNA platform dependency insight did not prove NeoForge ownership' }
 
       - name: sanitize linux or macos backend evidence
         if: ${{ always() && runner.os != 'Windows' }}
@@ -484,6 +492,10 @@ jobs:
           checksum512 "$artifact" | tee build/cross-platform-audit.sha512
           checksum256 "$host_artifact" | tee build/cross-platform-host-build.sha256
           checksum512 "$host_artifact" | tee build/cross-platform-host-build.sha512
+          candidate_sha256="$(checksum256 "$artifact" | awk '{print $1}')"
+          host_sha256="$(checksum256 "$host_artifact" | awk '{print $1}')"
+          test -n "$candidate_sha256"
+          test "$candidate_sha256" = "$host_sha256"
           candidate_runtime_verified=false
           candidate_dedicated_server_verified=false
           if [ -f build/candidate-gametest.verification.complete ]; then candidate_runtime_verified=true; fi
@@ -546,6 +558,7 @@ jobs:
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
           $hostSha512 = (Get-FileHash $hostArtifact -Algorithm SHA512).Hash.ToLower()
+          if ($hostSha256 -ne $sha256) { throw 'host build artifact does not match downloaded candidate' }
           $candidateRuntimeVerified = Test-Path -LiteralPath 'build/candidate-gametest.verification.complete' -PathType Leaf
           $candidateDedicatedServerVerified = (Test-Path -LiteralPath 'build/candidate-server.verification.complete' -PathType Leaf) -and (Test-Path -LiteralPath 'build/candidate-server-runtime.sanitized.log' -PathType Leaf)
           @(

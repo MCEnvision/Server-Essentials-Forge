@@ -5,8 +5,8 @@
 | Component | Supported value | Required | Current evidence |
 | --- | --- | --- | --- |
 | Minecraft | `1.21.1` | yes | Build and run configurations are pinned |
-| NeoForge | `21.1.235` | yes | ModDevGradle compile, 532 unit tests, 41 GameTests, dedicated server, headless client, and packaged metadata pass |
-| Java | `21` | yes | Toolchain is pinned and current verification uses Java `21.0.11` |
+| NeoForge | `21.1.235` | yes | ModDevGradle compile, 534 unit tests, 41 GameTests, dedicated server, headless client, and packaged metadata pass |
+| Java | `21` | yes | Toolchain is pinned and current verification uses Java `21.0.12.1` |
 | Gradle | checked in wrapper, Gradle `8.8` | yes | Build uses `./gradlew` or `gradlew.bat` |
 | Loader | NeoForge only | yes | Fabric and legacy Forge are not supported |
 

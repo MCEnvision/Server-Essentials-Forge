@@ -66,7 +66,7 @@ jobs:
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
           command -v xvfb-run
-          client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
+          client_command=(xvfb-run -a ./gradlew --no-daemon runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
           setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$client_pid_file" "${client_command[@]}" > "$client_console_log" 2>&1 &
           client_launcher_pid=$!
           client_pid=""
@@ -86,22 +86,30 @@ jobs:
           client_session_alive() {
             pgrep -s "$client_pid" >/dev/null 2>&1
           }
+          client_launcher_alive() {
+            kill -0 "$client_launcher_pid" >/dev/null 2>&1
+          }
+          client_java_pid=""
           client_java_alive() {
-            pgrep -s "$client_pid" -x java >/dev/null 2>&1 || pgrep -s "$client_pid" -f '(^|/)java([[:space:]]|$)' >/dev/null 2>&1
+            if [ -z "$client_java_pid" ] || ! kill -0 "$client_java_pid" >/dev/null 2>&1; then
+              return 1
+            fi
+            ps -p "$client_java_pid" -o args= 2>/dev/null | grep -Eq '(net\.neoforged\.devlaunch\.Main|cpw\.mods\.bootstraplauncher\.BootstrapLauncher|net\.minecraft\.client\.main\.Main)'
           }
           startup_verified=0
           startup_stability_failed=0
           for _ in $(seq 1 180); do
             if grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_runtime_log" 2>/dev/null || grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_console_log" 2>/dev/null; then
+              client_java_pid="$(pgrep -s "$client_pid" -f '(net\.neoforged\.devlaunch\.Main|cpw\.mods\.bootstraplauncher\.BootstrapLauncher|net\.minecraft\.client\.main\.Main)' | head -n 1 || true)"
               startup_verified=1
               for _ in $(seq 1 5); do
-                if ! client_session_alive || ! client_java_alive; then
+                if ! client_session_alive || ! client_launcher_alive || ! client_java_alive; then
                   startup_verified=0
                   startup_stability_failed=1
                   break
                 fi
                 sleep 1
-                if ! client_session_alive || ! client_java_alive; then
+                if ! client_session_alive || ! client_launcher_alive || ! client_java_alive; then
                   startup_verified=0
                   startup_stability_failed=1
                   break
@@ -109,7 +117,7 @@ jobs:
               done
               break
             fi
-            if ! client_session_alive; then
+            if ! client_session_alive || ! client_launcher_alive; then
               break
             fi
             sleep 1
@@ -155,10 +163,8 @@ jobs:
             cp "$client_console_log" "$client_log"
           fi
           if [ "$startup_stability_failed" -eq 1 ]; then
-            tail -n 80 "$client_log"
             exit 1
           elif [ "$startup_verified" -ne 1 ]; then
-            tail -n 80 "$client_log"
             exit 1
           fi
           if [ "$startup_verified" -eq 1 ]; then
