@@ -294,16 +294,18 @@ tasks.register('generateAuditDependencyManifest') {
                             + "expected=${candidateCommit}, supplied=${suppliedCandidateCommit}")
         }
         def dirtyProcess = new ProcessBuilder(
-                'git', 'status', '--porcelain', '--untracked-files=all')
+                'git', 'status', '--porcelain=v1', '-z', '--untracked-files=all')
                 .directory(project.rootDir)
                 .redirectErrorStream(true)
                 .start()
-        def dirtyOutput = dirtyProcess.inputStream.text
+        def dirtyOutput = dirtyProcess.inputStream.bytes
         dirtyProcess.waitFor()
         if (dirtyProcess.exitValue() != 0) {
             throw new GradleException('unable to verify that the checked out tree is clean')
         }
-        def dirtyFiles = dirtyOutput.readLines()
+        def dirtyFiles = new String(dirtyOutput, java.nio.charset.StandardCharsets.UTF_8)
+                .split('\u0000')
+                .findAll { !it.isEmpty() }
         def dirtyTrackedFiles = dirtyFiles.findAll { !it.startsWith('?? ') }
         if (!dirtyTrackedFiles.isEmpty()) {
             throw new GradleException("audit manifest requires a clean tracked tree: ${dirtyTrackedFiles.join(' | ')}")
