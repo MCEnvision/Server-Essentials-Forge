@@ -3,6 +3,7 @@ package com.enviouse.sef.recovery;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.storage.InstantJsonAdapter;
 import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.storage.repository.StorageRepository;
 import net.minecraft.server.level.ServerPlayer;
@@ -29,7 +30,10 @@ public final class InventoryRecoveryRepository implements StorageRepository {
     public static final int HARD_MAXIMUM_SNAPSHOTS_PER_PLAYER = 128;
     public static final int HARD_MAXIMUM_TOTAL_SNAPSHOTS = 10_000;
     public static final int HARD_MAXIMUM_DOCUMENT_CHARACTERS = 12 * 1024 * 1024;
-    private static final Gson GSON = new GsonBuilder().disableHtmlEscaping().create();
+    private static final Gson GSON = new GsonBuilder()
+            .disableHtmlEscaping()
+            .registerTypeAdapter(Instant.class, new InstantJsonAdapter())
+            .create();
 
     private final Map<UUID, Deque<InventorySnapshot>> snapshots = new LinkedHashMap<>();
     private StorageService.Document document;
