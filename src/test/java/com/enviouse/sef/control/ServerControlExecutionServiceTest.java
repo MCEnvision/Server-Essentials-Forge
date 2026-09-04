@@ -144,6 +144,71 @@ class ServerControlExecutionServiceTest {
     }
 
     @Test
+    void everyUnavailableRuntimeFeatureFailsClosedAcrossGenericActivationAndResolution() {
+        ServerControlRepository repository = new ServerControlRepository();
+        repository.load(temporaryDirectory);
+        ServerControlExecutionService service = new ServerControlExecutionService(repository);
+        MinecraftServerControlRuntime.registerHandlers(service);
+
+        var diagnostic = service.diagnostic();
+        assertEquals(
+                MinecraftServerControlRuntime.unavailableRuntimeFeatures(),
+                diagnostic.unavailableIntegrations());
+        assertEquals(
+                ServerControlSchemaRegistry.schemas().size(),
+                diagnostic.schemas());
+
+        for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+            UUID actor = UUID.randomUUID();
+            var created = repository.create(
+                    feature,
+                    actor,
+                    null,
+                    feature,
+                    "unavailable contract",
+                    null,
+                    Map.of());
+            assertTrue(created.successful(), created.detail());
+            var configured = configureRequiredFields(repository, created.value(), actor);
+
+            var preview = service.preview(configured.id(), configured.revision());
+            assertFalse(preview.ready(), feature);
+            assertTrue(preview.detail().contains("runtime behavior is unavailable"), feature);
+
+            for (UUID executionActor : new UUID[]{actor, new UUID(0L, 0L)}) {
+                var result = service.execute(
+                        configured.id(),
+                        executionActor,
+                        configured.revision(),
+                        true,
+                        context());
+                assertFalse(result.successful(), feature);
+                assertEquals(ActionResult.ReasonCode.PROVIDER_ERROR, result.reason(), feature);
+                var unchanged = repository.find(configured.id()).orElseThrow();
+                assertEquals(ServerControlRepository.RecordState.OPEN, unchanged.state(), feature);
+                assertEquals(configured.revision(), unchanged.revision(), feature);
+            }
+
+            for (ServerControlRepository.RecordState forbidden : new ServerControlRepository.RecordState[]{
+                    ServerControlRepository.RecordState.ACTIVE,
+                    ServerControlRepository.RecordState.RESOLVED}) {
+                var transition = repository.transition(
+                        configured.id(),
+                        actor,
+                        forbidden,
+                        configured.revision(),
+                        "generic transition");
+                assertFalse(transition.successful(), feature + " " + forbidden);
+                assertEquals(ActionResult.ReasonCode.PROVIDER_ERROR, transition.reason(), feature + " " + forbidden);
+                assertEquals(
+                        ServerControlRepository.RecordState.OPEN,
+                        repository.find(configured.id()).orElseThrow().state(),
+                        feature + " " + forbidden);
+            }
+        }
+    }
+
+    @Test
     void executionClaimIsDurableBeforeHandlerRunsAndCarriesIdempotencyKey() {
         ServerControlRepository repository = new ServerControlRepository();
         repository.load(temporaryDirectory);
@@ -355,6 +420,45 @@ class ServerControlExecutionServiceTest {
         current = repository.configure(
                 current.id(), actor, "deny_login", "true", false, current.revision()).value();
         return current;
+    }
+
+    private static ServerControlRepository.ControlRecord configureRequiredFields(
+            ServerControlRepository repository,
+            ServerControlRepository.ControlRecord current,
+            UUID actor
+    ) {
+        for (ServerControlSchemaRegistry.FieldDefinition field
+                : ServerControlSchemaRegistry.require(current.featureId()).fields()) {
+            if (!field.required()) {
+                continue;
+            }
+            var configured = repository.configure(
+                    current.id(),
+                    actor,
+                    field.id(),
+                    validValue(field),
+                    false,
+                    current.revision());
+            assertTrue(configured.successful(), current.featureId() + " " + field.id() + " " + configured.detail());
+            current = configured.value();
+        }
+        return current;
+    }
+
+    private static String validValue(ServerControlSchemaRegistry.FieldDefinition field) {
+        return switch (field.type()) {
+            case TEXT -> "test";
+            case INTEGER, DURATION_SECONDS -> Long.toString(field.minimum());
+            case DECIMAL -> field.minimum() + ".0";
+            case BOOLEAN -> "false";
+            case ENUM -> field.enumValues().stream().sorted().findFirst().orElseThrow();
+            case INSTANT -> "2026-01-01T00:00:00Z";
+            case UUID -> "00000000-0000-0000-0000-000000000001";
+            case RESOURCE_LOCATION -> "minecraft:overworld";
+            case HTTPS_URL -> "https://example.com";
+            case HASH -> "a".repeat((int) field.minimum());
+            case LIST -> "test";
+        };
     }
 
     private static ServerControlExecutionService.ExecutionContext context() {

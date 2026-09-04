@@ -73,29 +73,11 @@ public final class MinecraftServerControlRuntime {
     private static long lastGlobalPerformanceQuery;
     private static long cachedRevision = -1L;
     private static Map<String, List<ServerControlRepository.ControlRecord>> active = Map.of();
-    private static final Set<String> UNAVAILABLE_RUNTIME_FEATURES = Set.of(
-            "resource_governor",
-            "chat_channels",
-            "afk_zones",
-            "resource_worlds",
-            "admin_journal",
-            "rollouts",
-            "waypoints",
-            "portal_policy",
-            "staff_duty",
-            "approvals",
-            "capability_leases",
-            "server_presentation",
-            "spawn_ecology",
-            "display_profiles",
-            "display_ownership",
-            "player_warp_review");
-
     private MinecraftServerControlRuntime() {
     }
 
     public static List<String> unavailableRuntimeFeatures() {
-        return UNAVAILABLE_RUNTIME_FEATURES.stream().sorted().toList();
+        return ServerControlRuntimeAvailability.features();
     }
 
     public static void registerHandlers(ServerControlExecutionService executions) {
@@ -140,7 +122,7 @@ public final class MinecraftServerControlRuntime {
                 "knowledge",
                 "display_profiles",
                 "display_ownership")) {
-            if (UNAVAILABLE_RUNTIME_FEATURES.contains(feature)) {
+            if (ServerControlRuntimeAvailability.unavailable(feature)) {
                 executions.registerUnavailable(
                         feature,
                         feature + " runtime behavior is unavailable, the record cannot be activated");
@@ -158,7 +140,7 @@ public final class MinecraftServerControlRuntime {
                 "discipline",
                 "access_applications",
                 "privacy")) {
-            if (UNAVAILABLE_RUNTIME_FEATURES.contains(feature)) {
+            if (ServerControlRuntimeAvailability.unavailable(feature)) {
                 executions.registerUnavailable(
                         feature,
                         feature + " runtime behavior is unavailable, the record cannot be resolved");

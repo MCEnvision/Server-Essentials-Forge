@@ -165,6 +165,13 @@ public final class ServerControlRepository implements StorageRepository {
         if (!allowedTransition(current.state(), replacement)) {
             return ActionResult.failure(ActionResult.ReasonCode.POLICY_DENIED, "server control state transition is invalid");
         }
+        if (!execution
+                && (replacement == RecordState.ACTIVE || replacement == RecordState.RESOLVED)
+                && ServerControlRuntimeAvailability.unavailable(current.featureId())) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.PROVIDER_ERROR,
+                    "server control runtime behavior is unavailable");
+        }
         ServerControlSchemaRegistry.RuntimeClass runtimeClass =
                 ServerControlSchemaRegistry.require(current.featureId()).runtimeClass();
         if (!execution
