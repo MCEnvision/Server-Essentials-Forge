@@ -486,7 +486,7 @@ tasks.register('generateAuditDependencyManifest') {
         File candidate = layout.buildDirectory.file("libs/${archivesName}-${projectVersion}.jar").get().asFile
         if (candidate.isFile()) {
             def nativeEntryPattern = java.util.regex.Pattern.compile(
-                    '(?i)(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|(?:jna|jna-platform)(?:-[^/]*)?\\.jar$|.*\\.(dll|dylib|so)$)')
+                    '(?i)(^|/)(?:com/sun/jna/|jnidispatch/|(?:jna|jna-platform)(?:-[^/]*)?\\.jar$|.*\\.(?:dll|dylib|so)$)')
             boolean duplicateNativeRuntime = false
             int entryCount = 0
             new java.util.zip.ZipFile(candidate).withCloseable { zip ->

@@ -126,8 +126,16 @@ jobs:
             candidate_digest256() { sha256sum "$1" | awk '{print $1}'; }
           fi
           candidate_downloaded_sha256="$(candidate_digest256 "$candidate_jar")"
+          candidate_digest512() {
+            if [ "$RUNNER_OS" = "macOS" ]; then shasum -a 512 "$1" | awk '{print $1}'; else sha512sum "$1" | awk '{print $1}'; fi
+          }
+          candidate_expected_sha512="$(awk -v name="$candidate_name" '$2 == name {print $1}' cross-platform-candidate/sha512.txt)"
+          candidate_downloaded_sha512="$(candidate_digest512 "$candidate_jar")"
           test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
+          test -n "$candidate_expected_sha512"
+          test "$candidate_downloaded_sha512" = "$candidate_expected_sha512"
           candidate_sha256_before="$candidate_downloaded_sha256"
+          candidate_sha512_before="$candidate_downloaded_sha512"
           ./gradlew clean test build runAuditWriterProbe --no-configuration-cache --console=plain -PsefAuditProbeCandidateJar="$candidate_jar"
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
@@ -139,6 +147,7 @@ jobs:
           mkdir -p "$candidate_game_dir/mods"
           cp "$candidate_jar" "$candidate_game_dir/mods/$candidate_name"
           test "$(candidate_digest256 "$candidate_jar")" = "$candidate_sha256_before"
+          test "$(candidate_digest512 "$candidate_jar")" = "$candidate_sha512_before"
           ./gradlew --no-daemon runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
@@ -249,6 +258,8 @@ jobs:
           grep -F 'Stopping server' build/candidate-server-runtime.log
           candidate_sha256_after="$(candidate_digest256 "$candidate_jar")"
           test "$candidate_sha256_after" = "$candidate_sha256_before"
+          candidate_sha512_after="$(candidate_digest512 "$candidate_jar")"
+          test "$candidate_sha512_after" = "$candidate_sha512_before"
           touch build/candidate-server.verification.complete
           grep -F 'manifest_complete=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
           grep -F 'append_verified=true' build/audit/native-writer-runtime/native-writer-runtime-manifest.txt
@@ -277,18 +288,24 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $PSNativeCommandUseErrorActionPreference = $true
           $expectedCommit = $env:GITHUB_SHA
-          if ((git rev-parse HEAD).Trim() -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
+          $checkoutCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "windows checkout revision lookup failed with exit code $LASTEXITCODE" }
+          if ($checkoutCommit -ne $expectedCommit) { throw 'windows checkout did not bind to the expected candidate commit' }
           $candidateJar = Get-ChildItem 'cross-platform-candidate' -Filter '*.jar' -File | Select-Object -First 1
           if ($null -eq $candidateJar) { throw 'candidate jar was not downloaded' }
           $candidateManifestCommit = (Get-Content -LiteralPath 'cross-platform-candidate/manifest.txt' | Where-Object { $_ -like 'commit=*' } | Select-Object -First 1).Substring(7)
           if ($candidateManifestCommit -ne $expectedCommit) { throw 'downloaded candidate manifest commit does not match the checkout' }
           $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
+          $candidateExpectedSha512 = (Get-Content -LiteralPath 'cross-platform-candidate/sha512.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
           $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
+          $candidateDownloadedSha512 = (Get-FileHash $candidateJar.FullName -Algorithm SHA512).Hash.ToLower()
           if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
+          if ([string]::IsNullOrWhiteSpace($candidateExpectedSha512) -or $candidateDownloadedSha512 -ne $candidateExpectedSha512) { throw 'downloaded candidate SHA-512 does not match its manifest' }
           $candidateSha256Before = $candidateDownloadedSha256
           .\gradlew.bat clean test build runAuditWriterProbe --no-configuration-cache --console=plain "-PsefAuditProbeCandidateJar=$($candidateJar.FullName)"
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "windows checkout revision lookup failed with exit code $LASTEXITCODE" }
           .\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$commit" --console=plain
           if ($LASTEXITCODE -ne 0) { throw "windows dependency manifest failed with exit code $LASTEXITCODE" }
           if (-not (Select-String -Path build/audit/platform-dependency-manifest.txt -Pattern "candidate_commit=$commit")) { throw 'windows dependency manifest commit binding failed' }
@@ -300,6 +317,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
           if ((Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower() -ne $candidateSha256Before) { throw 'downloaded candidate changed during host verification' }
+          if ((Get-FileHash $candidateJar.FullName -Algorithm SHA512).Hash.ToLower() -ne $candidateDownloadedSha512) { throw 'downloaded candidate SHA-512 changed during host verification' }
           & .\gradlew.bat --no-daemon runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" *> build/candidate-runtime.log
           $gameTestExitCode = $LASTEXITCODE
           Get-Content -LiteralPath 'build/candidate-runtime.log' | Write-Host
@@ -395,6 +413,8 @@ jobs:
           if (-not (Select-String -Path build/candidate-server-runtime.log -Pattern 'Stopping server')) { throw 'candidate dedicated server did not stop cleanly' }
           $candidateSha256After = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
           if ($candidateSha256After -ne $candidateSha256Before) { throw 'downloaded candidate changed during packaged runtime verification' }
+          $candidateSha512After = (Get-FileHash $candidateJar.FullName -Algorithm SHA512).Hash.ToLower()
+          if ($candidateSha512After -ne $candidateDownloadedSha512) { throw 'downloaded candidate SHA-512 changed during packaged runtime verification' }
           New-Item -ItemType File -Force -Path 'build/candidate-server.verification.complete' | Out-Null
           if (-not $stopCommandSent) { Write-Host 'candidate dedicated server stopped on its own after clean startup' }
           $probeManifest = 'build/audit/native-writer-runtime/native-writer-runtime-manifest.txt'
@@ -474,7 +494,7 @@ jobs:
             local label="$1"; local jar_path="$2"; local listing
             unzip -t "$jar_path" >/dev/null
             listing="$(jar tf "$jar_path")"
-            if printf '%s\n' "$listing" | grep -Ei '(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|jna(-platform)?(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)' >/dev/null; then
+            if printf '%s\n' "$listing" | grep -Ei '(^|/)(com/sun/jna/|jnidispatch/|jna(-platform)?(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)' >/dev/null; then
               echo "duplicate native runtime entries found in $label" >&2
               return 1
             fi
@@ -552,20 +572,32 @@ jobs:
           function Get-JarContentManifest([string] $path) {
             $temp = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
             New-Item -ItemType Directory -Force -Path $temp | Out-Null
+            $textExtensions = @('.cfg', '.csv', '.json', '.mcmeta', '.mf', '.properties', '.toml', '.txt', '.xml')
             try {
               Push-Location $temp
               & jar xf $path
               if ($LASTEXITCODE -ne 0) { throw "jar content extraction failed for $path with exit code $LASTEXITCODE" }
               return @(Get-ChildItem -LiteralPath $temp -Recurse -File | ForEach-Object {
                 $relative = [System.IO.Path]::GetRelativePath($temp, $_.FullName).Replace('\', '/')
-                "$relative=$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())"
+                $bytes = [System.IO.File]::ReadAllBytes($_.FullName)
+                if ($textExtensions -contains $_.Extension.ToLowerInvariant()) {
+                  $text = [System.Text.Encoding]::UTF8.GetString($bytes)
+                  $bytes = [System.Text.Encoding]::UTF8.GetBytes($text.Replace("`r`n", "`n").Replace("`r", "`n"))
+                }
+                $sha256 = [System.Security.Cryptography.SHA256]::Create()
+                try {
+                  $digest = [System.BitConverter]::ToString($sha256.ComputeHash($bytes)).Replace('-', '').ToLowerInvariant()
+                } finally {
+                  $sha256.Dispose()
+                }
+                "$relative=$digest"
               } | Sort-Object)
             } finally {
               Pop-Location
               Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
             }
           }
-          $nativePattern = '(?i)(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|(jna|jna-platform)(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'
+          $nativePattern = '(?i)(^|/)(com/sun/jna/|jnidispatch/|(jna|jna-platform)(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'
           $artifactEntries = Get-JarEntries $artifact.FullName
           $hostEntries = Get-JarEntries $hostArtifact.FullName
           if ($artifactEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in candidate jar' }
@@ -582,19 +614,25 @@ jobs:
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
           $hostSha512 = (Get-FileHash $hostArtifact -Algorithm SHA512).Hash.ToLower()
+          $artifactRelative = [System.IO.Path]::GetRelativePath($env:GITHUB_WORKSPACE, $artifact.FullName).Replace('\', '/')
+          $javaVersion = (& java -version 2>&1 | Select-Object -First 1)
+          if ($LASTEXITCODE -ne 0) { throw "windows java version lookup failed with exit code $LASTEXITCODE" }
+          $manifestCommit = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0) { throw "windows manifest revision lookup failed with exit code $LASTEXITCODE" }
           $candidateRuntimeVerified = Test-Path -LiteralPath 'build/candidate-gametest.verification.complete' -PathType Leaf
           $candidateDedicatedServerVerified = (Test-Path -LiteralPath 'build/candidate-server.verification.complete' -PathType Leaf) -and (Test-Path -LiteralPath 'build/candidate-server-runtime.sanitized.log' -PathType Leaf)
           @(
             "runner_os=$env:RUNNER_OS"
             "runner_arch=$env:RUNNER_ARCH"
             (Get-ComputerInfo -Property WindowsProductName,WindowsVersion | Out-String).Trim()
-            (java -version 2>&1 | Select-Object -First 1)
-            (git rev-parse HEAD)
-            "artifact=cross-platform-candidate/$($artifact.Name)"
+            $javaVersion
+            $manifestCommit
+            "artifact=$artifactRelative"
             "candidate_runtime=mods/$($artifact.Name)"
             "candidate_runtime_verified=$($candidateRuntimeVerified.ToString().ToLower())"
             "candidate_dedicated_server_verified=$($candidateDedicatedServerVerified.ToString().ToLower())"
             'host_build_content_equal=true'
+            'host_build_content_normalization=crlf_to_lf_for_text_entries'
             'candidate_dedicated_server_log=candidate-server-runtime.sanitized.log'
             'client_runtime_verified=separate-client-evidence-workflow'
             'client_runtime_blocked=separate-client-evidence-workflow'
