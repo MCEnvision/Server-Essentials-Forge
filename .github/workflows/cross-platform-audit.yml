@@ -142,11 +142,46 @@ jobs:
           server_input_dir="$(mktemp -d)"
           server_input="$server_input_dir/stdin"
           mkfifo "$server_input"
-          cleanup_server_input() { rm -rf "$server_input_dir"; }
-          trap cleanup_server_input EXIT
+          server_pid=""
+          stop_session() {
+            local session_pid="$1"
+            pkill -TERM -s "$session_pid" 2>/dev/null || true
+            kill -TERM -- "-$session_pid" 2>/dev/null || true
+          }
+          force_session() {
+            local session_pid="$1"
+            pkill -KILL -s "$session_pid" 2>/dev/null || true
+            kill -KILL -- "-$session_pid" 2>/dev/null || true
+          }
+          cleanup_server() {
+            if [ -n "${server_pid:-}" ] && pgrep -s "$server_pid" >/dev/null 2>&1; then
+              stop_session "$server_pid"
+              sleep 1
+              force_session "$server_pid"
+            fi
+            wait "${server_launcher_pid:-}" 2>/dev/null || true
+            exec 3>&- 2>/dev/null || true
+            rm -rf "$server_input_dir"
+          }
+          trap cleanup_server EXIT
           exec 3<> "$server_input"
-          ./gradlew runCandidateServer --console=plain -PsefCandidateServerGameDirectory="$candidate_server_dir" <&3 > build/candidate-server-runtime.log 2>&1 &
-          server_pid=$!
+          server_pid_file="$candidate_server_dir/server-session.pid"
+          setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$server_pid_file" ./gradlew runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidate_server_dir" <&3 > build/candidate-server-runtime.log 2>&1 &
+          server_launcher_pid=$!
+          server_pid=""
+          for _ in $(seq 1 30); do
+            if [ -s "$server_pid_file" ]; then
+              server_pid="$(cat "$server_pid_file")"
+              break
+            fi
+            if ! kill -0 "$server_launcher_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "$server_pid" ]; then
+            server_pid="$server_launcher_pid"
+          fi
           server_ready=0
           for _ in $(seq 1 180); do
             if grep -Fq 'Done (' build/candidate-server-runtime.log 2>/dev/null; then
@@ -160,8 +195,10 @@ jobs:
           done
           if [ "$server_ready" -ne 1 ]; then
             tail -n 80 build/candidate-server-runtime.log
-            kill "$server_pid" 2>/dev/null || true
-            wait "$server_pid" 2>/dev/null || true
+            stop_session "$server_pid"
+            sleep 1
+            force_session "$server_pid"
+            wait "$server_launcher_pid" 2>/dev/null || true
             exit 1
           fi
           if ! kill -0 "$server_pid" 2>/dev/null; then
@@ -180,28 +217,12 @@ jobs:
           if kill -0 "$server_pid" 2>/dev/null; then
             server_stop_timed_out=1
             echo 'candidate dedicated server did not stop after the bounded grace period' >&2
-            stop_tree() {
-              local process_pid="$1"
-              local child_pid
-              for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
-                stop_tree "$child_pid"
-              done
-              kill "$process_pid" 2>/dev/null || true
-            }
-            force_tree() {
-              local process_pid="$1"
-              local child_pid
-              for child_pid in $(pgrep -P "$process_pid" 2>/dev/null || true); do
-                force_tree "$child_pid"
-              done
-              kill -KILL "$process_pid" 2>/dev/null || true
-            }
-            stop_tree "$server_pid"
+            stop_session "$server_pid"
             sleep 5
-            force_tree "$server_pid"
+            force_session "$server_pid"
           fi
           server_exit=0
-          wait "$server_pid" || server_exit=$?
+          wait "$server_launcher_pid" || server_exit=$?
           if [ "$server_stop_timed_out" -ne 0 ]; then
             exit 1
           fi
@@ -246,6 +267,7 @@ jobs:
           $candidateExpectedSha256 = (Get-Content -LiteralPath 'cross-platform-candidate/sha256.txt' | Where-Object { $_ -match ('\s' + [regex]::Escape($candidateJar.Name) + '$') } | Select-Object -First 1).Split(' ', 2)[0]
           $candidateDownloadedSha256 = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
           if ([string]::IsNullOrWhiteSpace($candidateExpectedSha256) -or $candidateDownloadedSha256 -ne $candidateExpectedSha256) { throw 'downloaded candidate SHA-256 does not match its manifest' }
+          $candidateSha256Before = $candidateDownloadedSha256
           .\gradlew.bat clean test build runAuditWriterProbe --no-configuration-cache --console=plain "-PsefAuditProbeCandidateJar=$($candidateJar.FullName)"
           if ($LASTEXITCODE -ne 0) { throw "windows unit and build checks failed with exit code $LASTEXITCODE" }
           $commit = (git rev-parse HEAD).Trim()
@@ -259,7 +281,7 @@ jobs:
           $candidateGameDir = Join-Path $env:GITHUB_WORKSPACE 'build/candidate-runtime'
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
-          $candidateSha256Before = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
+          if ((Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower() -ne $candidateSha256Before) { throw 'downloaded candidate changed during host verification' }
           & .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" *> build/candidate-runtime.log
           $gameTestExitCode = $LASTEXITCODE
           Get-Content -LiteralPath 'build/candidate-runtime.log' | Write-Host
@@ -284,50 +306,64 @@ jobs:
           $serverStartInfo.RedirectStandardError = $true
           $serverStartInfo.WorkingDirectory = (Get-Location).Path
           $serverStartInfo.Arguments = ('/d /c call "{0}" runCandidateServer --console=plain "-PsefCandidateServerGameDirectory={1}"' -f $gradlePath, $candidateServerDir)
-          $serverProcess = [System.Diagnostics.Process]::new()
-          $serverProcess.StartInfo = $serverStartInfo
-          if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
-          $stdoutTask = $serverProcess.StandardOutput.ReadToEndAsync()
-          $stderrTask = $serverProcess.StandardError.ReadToEndAsync()
-          $stopCommandSent = $false
-          $serverReady = $false
-          for ($i = 0; $i -lt 180; $i++) {
-            if ((Test-Path -LiteralPath $candidateServerRuntimeLog -PathType Leaf) -and (Select-String -Path $candidateServerRuntimeLog -Pattern 'Done \(')) {
-              $serverReady = $true
-              break
+          $serverProcess = $null
+          try {
+            $serverProcess = [System.Diagnostics.Process]::new()
+            $serverProcess.StartInfo = $serverStartInfo
+            if (-not $serverProcess.Start()) { throw 'windows candidate dedicated server process did not start' }
+            $stdoutTask = $serverProcess.StandardOutput.ReadToEndAsync()
+            $stderrTask = $serverProcess.StandardError.ReadToEndAsync()
+            $stopCommandSent = $false
+            $serverReady = $false
+            for ($i = 0; $i -lt 180; $i++) {
+              if ((Test-Path -LiteralPath $candidateServerRuntimeLog -PathType Leaf) -and (Select-String -Path $candidateServerRuntimeLog -Pattern 'Done \(')) {
+                $serverReady = $true
+                break
+              }
+              if ($serverProcess.HasExited) { break }
+              Start-Sleep -Seconds 1
             }
-            if ($serverProcess.HasExited) { break }
-            Start-Sleep -Seconds 1
-          }
-          if (-not $serverReady) {
+            if (-not $serverReady) {
+              if (-not $serverProcess.HasExited) {
+                $serverProcess.Kill($true)
+                $serverProcess.WaitForExit()
+              }
+              if ($stdoutTask.Wait(30000)) { $stdout = $stdoutTask.GetAwaiter().GetResult() } else { $stdout = 'stdout capture timed out' }
+              if ($stderrTask.Wait(30000)) { $stderr = $stderrTask.GetAwaiter().GetResult() } else { $stderr = 'stderr capture timed out' }
+              [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
+              throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
+            }
+            if ($serverProcess.HasExited) {
+              throw 'windows candidate dedicated server exited before the stop command'
+            }
             if (-not $serverProcess.HasExited) {
-              $serverProcess.Kill($true)
-              $serverProcess.WaitForExit()
+              $serverProcess.StandardInput.WriteLine('stop')
+              $serverProcess.StandardInput.Flush()
+              $stopCommandSent = $true
+              if (-not $serverProcess.WaitForExit(180000)) {
+                $serverProcess.Kill($true)
+                $serverProcess.WaitForExit()
+                throw 'windows candidate dedicated server did not stop within 180 seconds'
+              }
             }
-            if ($stdoutTask.Wait(30000)) { $stdout = $stdoutTask.GetAwaiter().GetResult() } else { $stdout = 'stdout capture timed out' }
-            if ($stderrTask.Wait(30000)) { $stderr = $stderrTask.GetAwaiter().GetResult() } else { $stderr = 'stderr capture timed out' }
-            [System.IO.File]::WriteAllText($candidateServerLog, $stdout + [Environment]::NewLine + $stderr)
-            throw 'windows candidate dedicated server did not reach ready state within 180 seconds'
-          }
-          if ($serverProcess.HasExited) {
-            throw 'windows candidate dedicated server exited before the stop command'
-          }
-          if (-not $serverProcess.HasExited) {
-            $serverProcess.StandardInput.WriteLine('stop')
-            $serverProcess.StandardInput.Flush()
-            $stopCommandSent = $true
-            if (-not $serverProcess.WaitForExit(180000)) {
-              $serverProcess.Kill($true)
-              $serverProcess.WaitForExit()
-              throw 'windows candidate dedicated server did not stop within 180 seconds'
+            $stdout = $stdoutTask.GetAwaiter().GetResult()
+            $stderr = $stderrTask.GetAwaiter().GetResult()
+            [System.IO.File]::WriteAllText($candidateServerLog, "stop_command_sent=$stopCommandSent" + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
+            $serverExitCode = $serverProcess.ExitCode
+            Write-Host ("candidate dedicated server stdout length " + $stdout.Length + ", stderr length " + $stderr.Length)
+          } finally {
+            if ($null -ne $serverProcess) {
+              try {
+                if (-not $serverProcess.HasExited) {
+                  $serverProcess.Kill($true)
+                  $serverProcess.WaitForExit()
+                }
+              } catch {
+                Write-Host 'candidate dedicated server cleanup encountered an error'
+              }
+              $serverProcess.Dispose()
             }
           }
-          $stdout = $stdoutTask.GetAwaiter().GetResult()
-          $stderr = $stderrTask.GetAwaiter().GetResult()
-          [System.IO.File]::WriteAllText($candidateServerLog, "stop_command_sent=$stopCommandSent" + [Environment]::NewLine + $stdout + [Environment]::NewLine + $stderr)
-          $serverExitCode = $serverProcess.ExitCode
-          $serverProcess.Dispose()
-          Write-Host ("candidate dedicated server stdout length " + $stdout.Length + ", stderr length " + $stderr.Length)
           if ($serverExitCode -ne 0) {
             Write-Host "candidate dedicated server process returned exit code $serverExitCode"
             @($stdout, $stderr) -join [Environment]::NewLine -split "`r?`n" |

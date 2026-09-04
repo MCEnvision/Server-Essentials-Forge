@@ -117,11 +117,12 @@ jobs:
           client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
           client_console_log="$GITHUB_WORKSPACE/build/candidate-client-console.log"
           client_runtime_log="$client_game_dir/logs/latest.log"
+          client_pid_file="$client_game_dir/client-session.pid"
           mkdir -p "$client_game_dir/mods"
+          rm -f "$client_pid_file"
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
           command -v xvfb-run
-          client_pid_file="$client_game_dir/client-session.pid"
           client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
           setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$client_pid_file" "${client_command[@]}" > "$client_console_log" 2>&1 &
           client_launcher_pid=$!
@@ -151,11 +152,12 @@ jobs:
                   break
                 fi
                 sleep 1
+                if ! kill -0 "$client_pid" 2>/dev/null; then
+                  startup_verified=0
+                  startup_stability_failed=1
+                  break
+                fi
               done
-              if [ "$startup_verified" -eq 1 ] && ! kill -0 "$client_pid" 2>/dev/null; then
-                startup_verified=0
-                startup_stability_failed=1
-              fi
               break
             fi
             if ! kill -0 "$client_pid" 2>/dev/null; then
@@ -191,7 +193,7 @@ jobs:
             done
           fi
           if pgrep -s "$client_pid" >/dev/null 2>&1; then
-            echo 'packaged client process group did not terminate completely' >&2
+            echo 'packaged client process session did not terminate completely' >&2
             force_session "$client_pid"
             exit 1
           fi
