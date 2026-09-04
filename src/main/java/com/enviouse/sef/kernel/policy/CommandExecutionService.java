@@ -253,17 +253,17 @@ public final class CommandExecutionService {
         return Map.copyOf(result);
     }
 
-    private void audit(
+    private boolean audit(
             Request request,
             AuditService.Result result,
             ActionResult.ReasonCode reason,
             AuditService.AuditClass auditClass,
             long durationMillis
     ) {
-        audit(request, result, reason, auditClass, durationMillis, Map.of());
+        return audit(request, result, reason, auditClass, durationMillis, Map.of());
     }
 
-    private void audit(
+    private boolean audit(
             Request request,
             AuditService.Result result,
             ActionResult.ReasonCode reason,
@@ -273,7 +273,7 @@ public final class CommandExecutionService {
     ) {
         Map<String, String> providerContext = new java.util.LinkedHashMap<>(request.providerContext());
         providerContext.putAll(executionContext);
-        AuditService.record(new AuditService.Event(
+        return AuditService.record(new AuditService.Event(
                 1,
                 UUID.randomUUID(),
                 java.time.Instant.now(),
@@ -356,8 +356,18 @@ public final class CommandExecutionService {
                             elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
                     return committed;
                 }
-                audit(request, AuditService.Result.SUCCESS, ActionResult.ReasonCode.SUCCESS, policy.auditClass(),
-                        elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
+                boolean audited = audit(
+                        request,
+                        AuditService.Result.SUCCESS,
+                        ActionResult.ReasonCode.SUCCESS,
+                        policy.auditClass(),
+                        elapsedMillis(startedNanos),
+                        merge(cooldownContext, cost.auditContext()));
+                if (!audited && policy.auditClass() != AuditService.AuditClass.NONE) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.success(null);
             }
 

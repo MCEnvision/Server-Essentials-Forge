@@ -1,6 +1,7 @@
 package com.enviouse.sef.kernel.policy;
 
 import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import org.junit.jupiter.api.Test;
@@ -33,6 +34,21 @@ class CommandExecutionLeaseTest {
 
         ActionResult<Void> replay = lease.complete(true, null);
         assertEquals(ActionResult.ReasonCode.CONFLICT, replay.reason());
+        assertEquals(1, fixture.reservation.commitCalls);
+    }
+
+    @Test
+    void successfulCompletionFailsWhenMandatoryAuditIsRejected() {
+        SecurityAuditService.shutdown();
+        Fixture fixture = fixture(
+                AuditService.AuditClass.ADMIN_ACTION,
+                new RecordingReservation(ActionResult.success(null), ActionResult.success(null)));
+        CommandExecutionService.Lease lease = fixture.begin();
+
+        ActionResult<Void> result = lease.complete(true, null);
+
+        assertFalse(result.successful());
+        assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
         assertEquals(1, fixture.reservation.commitCalls);
     }
 
@@ -121,6 +137,10 @@ class CommandExecutionLeaseTest {
     }
 
     private static Fixture fixture(RecordingReservation reservation) {
+        return fixture(AuditService.AuditClass.NONE, reservation);
+    }
+
+    private static Fixture fixture(AuditService.AuditClass auditClass, RecordingReservation reservation) {
         FeatureGateService gates = new FeatureGateService();
         gates.publish(new FeatureGateService.Snapshot(2L, Map.of("sef.test", true), Map.of(), Map.of()));
         CommandPolicyService policies = new CommandPolicyService(gates);
@@ -133,7 +153,7 @@ class CommandExecutionLeaseTest {
                 Duration.ofMinutes(5),
                 Duration.ZERO,
                 BigDecimal.ONE,
-                AuditService.AuditClass.ADMIN_ACTION));
+                auditClass));
         CooldownService cooldowns = new CooldownService();
         RecordingCostService costs = new RecordingCostService(reservation);
         CommandExecutionService executions = new CommandExecutionService(
