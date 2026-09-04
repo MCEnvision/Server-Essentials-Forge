@@ -334,12 +334,25 @@ public final class CommandExecutionService {
             }
             completed = true;
             if (successful) {
-                ActionResult<Void> committed = cost.commit();
+                ActionResult<Void> committed;
+                try {
+                    committed = cost.commit();
+                } catch (RuntimeException exception) {
+                    committed = ActionResult.failure(
+                            ActionResult.ReasonCode.COST_UNAVAILABLE,
+                            "cost commit could not be completed safely");
+                }
                 if (!committed.successful()) {
-                    if (!cooldownNotAcquired) {
+                    if (!cooldownNotAcquired
+                            && committed.reason() != ActionResult.ReasonCode.COST_UNAVAILABLE) {
                         cooldowns.clear(request.actorId(), request.actionId());
                     }
-                    audit(request, AuditService.Result.FAILED, committed.reason(), policy.auditClass(),
+                    audit(request,
+                            committed.reason() == ActionResult.ReasonCode.COST_UNAVAILABLE
+                                    ? AuditService.Result.OUTCOME_UNKNOWN
+                                    : AuditService.Result.FAILED,
+                            committed.reason(),
+                            policy.auditClass(),
                             elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
                     return committed;
                 }
@@ -348,7 +361,23 @@ public final class CommandExecutionService {
                 return ActionResult.success(null);
             }
 
-            cost.refund();
+            ActionResult<Void> refunded;
+            try {
+                refunded = cost.refund();
+            } catch (RuntimeException exception) {
+                refunded = ActionResult.failure(
+                        ActionResult.ReasonCode.COST_UNAVAILABLE,
+                        "cost refund could not be completed safely");
+            }
+            if (!refunded.successful()) {
+                audit(request,
+                        AuditService.Result.OUTCOME_UNKNOWN,
+                        refunded.reason(),
+                        policy.auditClass(),
+                        elapsedMillis(startedNanos),
+                        merge(cooldownContext, cost.auditContext()));
+                return refunded;
+            }
             if (!cooldownNotAcquired) {
                 cooldowns.clear(request.actorId(), request.actionId());
             }
