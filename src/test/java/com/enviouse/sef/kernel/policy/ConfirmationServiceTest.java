@@ -4,6 +4,7 @@ import com.enviouse.sef.kernel.ActionResult;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +33,9 @@ class ConfirmationServiceTest {
         assertEquals("sef:test.action", request.actionId());
         assertEquals(Set.of("alpha", "zeta"), request.normalizedParameters().keySet());
         assertEquals("line\\nfeed\\rvalue", request.normalizedParameters().get("zeta"));
-        assertEquals(List.of(first, second), request.targetIds());
+        assertEquals(
+                List.of(first, second).stream().sorted(Comparator.comparing(UUID::toString)).toList(),
+                request.targetIds());
         assertEquals("panel.main", request.panelId());
     }
 
