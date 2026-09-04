@@ -350,6 +350,8 @@ ConnectionAddressService.registerAdapter(new ConnectionAddressService.Adapter() 
 
 `FileLogSink` is optional and independent from mandatory security audit. When enabled, it owns only `<server>/logs/sef`, uses immutable redacted records, a bounded queue, batched writes, maximum record size, rotation by size or age, archive count and total-byte retention, and a bounded shutdown drain. Search, tail, and export operate on owned redacted records. Capture filters cannot suppress mandatory audit. Retention cleanup requires a preview and confirmation token bound to the exact archive set and policy revision. Filesystem operations normalize paths, refuse symbolic-link traversal, and never accept operator-supplied paths. A writer failure creates an incomplete-session marker. An existing marker keeps the sink degraded across enablement until an operator acknowledges repair.
 
+Phase 001 extends the same ownership rule to the security audit writer and modular configuration roots. Every existing component of an audit, module, history, backup, write, or recovery directory is checked without following symbolic links. Audit appends use a platform native descriptor provider. Linux and macOS retain an opened directory descriptor and use anchored `openat` traversal with `O_NOFOLLOW`, descriptor `fstat` identity and link checks, and bounded native writes. Windows retains an opened directory handle, rejects reparse points, compares reopened parent identity with the retained handle, disables delete sharing on the provider handle, and uses `GetFileInformationByHandleEx` identity and link checks. The provider uses the JNA API supplied by the pinned NeoForge runtime and does not embed a second native runtime. Active audit files and rotation targets must be regular non link files, and bounded content reads reject an oversized existing Fancy Tags object before integrity processing. These checks preserve the previous known good state and do not redirect writes to a host supplied path. The current pull request matrix is the required evidence gate for the same candidate artifact, native provider smoke, and disposable writer probe on Linux, macOS, and Windows. The Minecraft Java client fixture on Ubuntu is the required client evidence surface. Authoritative dependency ownership and final later phase matrices remain required for final closure.
+
 ### 6.6 Phase 7 inventory and player utility enforcement
 
 Phase 7 inventory mutations are server authoritative and transactional where a partial change could lose or duplicate items.
@@ -761,6 +763,8 @@ Required Phase 1 integration verification includes:
 
 The earlier dedicated integration startup matrix passed on NeoForge `21.1.233` with LuckPerms NeoForge `5.4.140`, Curios `9.5.1+1.21.1`, FTB Essentials `2101.1.9`, FTB Library `2101.1.30`, and Architectury `13.0.8`. Each integration family started alone, and the complete stack started together. Every startup reached the ready state, `/sef doctor` reported no kernel errors, and normal `stop` saved every dimension. This historical startup evidence does not prove current compatibility on `21.1.235`. LuckPerms NeoForge `5.4.140` also threw `Capability has not been initialised` from its own login listener on `21.1.233`. Provider absence, direct wildcard and denial precedence, bridge failure, refresh invalidation, finite fallback, metadata parsing, ownership selection, and optional-inventory behavior have deterministic automated coverage. A current real multiplayer integration matrix remains open.
 
+Phase 001 compared patched Netty `4.1.136.Final`, Log4j `2.25.5`, Commons Lang `3.18.0`, and Plexus Utils `3.6.1` against the strict NeoForge requests, but removed the development only resolution override after review. Those libraries are supplied by the installed NeoForge runtime and are not embedded in the universal JAR, so the comparison does not close a release vulnerability. Dependency closure remains blocked pending an owner approved compatible platform update or explicitly reviewed runtime packaging strategy. A clean graph capture, build, required GameTests, dedicated server smoke, and artifact inspection are required again after that decision.
+
 ### 14.1 Optional enhanced client protocol
 
 `ConfigHandler.config.guiEnabled` selects the startup mode. This option is restart required because payload registration occurs during NeoForge network registration.
@@ -868,19 +872,21 @@ Linux and macOS:
 ./gradlew runServer
 ./gradlew runClient
 ./gradlew runGameTestServer
+./gradlew runCandidateGameTestServer -PsefCandidateGameDirectory=/path/to/fresh/candidate-runtime
 ./gradlew runData
 ```
 
 Windows:
 
 ```powershell
-gradlew.bat test
-gradlew.bat generateProjectReferences
-gradlew.bat build
-gradlew.bat runServer
-gradlew.bat runClient
-gradlew.bat runGameTestServer
-gradlew.bat runData
+.\gradlew.bat test
+.\gradlew.bat generateProjectReferences
+.\gradlew.bat build
+.\gradlew.bat runServer
+.\gradlew.bat runClient
+.\gradlew.bat runGameTestServer
+.\gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
+.\gradlew.bat runData
 ```
 
 There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do not claim those checks ran.
@@ -888,6 +894,26 @@ There is no configured formatter, Checkstyle, SpotBugs, or Error Prone task. Do 
 `generateProjectReferences` runs the unit suite in the NeoForge test environment and rewrites the tracked [configuration](docs/CONFIGURATION_REFERENCE.md), [command](docs/COMMAND_REFERENCE.md), and [permission](docs/PERMISSION_REFERENCE.md) references from their runtime registries. Normal unit tests fail if any tracked reference drifts.
 
 `generatePerformanceReport` runs the release metadata workload gates and writes [the measured performance report](docs/PERFORMANCE_REPORT.md). It does not replace live server and client profiling.
+
+`generateAuditInventory` requires `-Dsef.audit.evidenceRoot` and writes the sanitized Phase 000 baseline, command, UI, storage, lifecycle, build, test, and reconciliation inventories to that approved external directory. Use a fresh directory for each capture and include `--rerun-tasks` when renewing evidence. The baseline records Linux, macOS, and Windows as mandatory targets and routes unavailable runtime proof through `EXT-001` and `EXT-002` as blocked evidence. It never treats Windows as unsupported and never reads the unrelated `.playwright-mcp` state.
+
+Linux and macOS:
+
+```bash
+./gradlew generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=/path/to/fresh/external/audit-evidence
+```
+
+Windows:
+
+```powershell
+.\gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence
+```
+
+`generateAuditDependencyManifest` captures the resolved `compileClasspath`, `runtimeClasspath`, `fallbackRuntimeRuntimeClasspath`, and `testRuntimeClasspath` artifacts. Each artifact entry includes its coordinate, file name, size, SHA-256, SHA-512, and normalized dependency paths. Variant specific native artifacts that Gradle does not expose through a parent dependency path retain their exact `variant_component` identity instead of being reported as unresolved. The manifest also records the candidate commit, pinned Minecraft and NeoForge versions, operating system and Java identity, the NeoForge component that supplies the compile-only JNA APIs, every resolved JNA runtime path, and whether the candidate JAR contains duplicate JNA classes or native libraries. Run it with `--no-configuration-cache` and `-PsefAuditCandidateCommit=<commit>` after the candidate JAR is built. Linux and macOS use `./gradlew`; Windows PowerShell uses `.\gradlew.bat`. Output is `build/audit/platform-dependency-manifest.txt` and must be copied only to the approved restricted evidence location or a workflow artifact.
+
+`runAuditWriterProbe` accepts `-PsefAuditProbeCandidateJar=<path>` for an exact packaged candidate. When supplied, the probe classpath contains the test harness, runtime dependencies, and that JAR while excluding compiled main output, so the native writer proof exercises the distributed artifact rather than fresh source classes. Without the property, the task probes the local `build/libs` JAR.
+
+`runCandidateGameTestServer` uses `sourceSets.fallbackRuntime` with no local source mod loaded. Copy the exact candidate JAR to the supplied game directory `mods` folder before running it. This is the packaged artifact smoke used by the cross platform audit, so the GameTests execute from the candidate JAR on Linux, macOS, and Windows rather than from compiled source output.
 
 The `runServer` task forwards standard input. Use its terminal for `sef doctor`, `sef storage status`, and the literal `stop` command. Signal termination is useful only for an explicitly recorded crash test and does not replace a normal shutdown check.
 
@@ -994,9 +1020,9 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 
-The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 516-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, and the multiplayer and interactive gates that remain open. The twenty confirmed defects from the full repository audit are repaired and documented in [audit.md](audit.md).
+The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 534-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, the dependency closure blocker, and the multiplayer and interactive gates that remain open. The twenty confirmed source defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
-Run `./gradlew generateAuditInventory` to execute the complete audit inventory and deterministic drift checks. Supplying `-Dsef.audit.evidenceRoot=/path/to/restricted-evidence` writes sanitized JSON inventories outside the repository. The task does not write product files.
+Run `./gradlew generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=/path/to/fresh/external/audit-evidence` to execute the complete audit inventory and deterministic drift checks. On Windows use `.\gradlew.bat generateAuditInventory --rerun-tasks --no-configuration-cache -Dsef.audit.evidenceRoot=C:\path\to\fresh\external\audit-evidence`. The task does not write product files.
 
 ## 17. Operations and recovery
 

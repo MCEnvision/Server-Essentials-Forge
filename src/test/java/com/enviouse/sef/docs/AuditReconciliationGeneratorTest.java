@@ -43,6 +43,7 @@ class AuditReconciliationGeneratorTest {
         String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
         if (!evidenceRoot.isEmpty()) {
             AuditReconciliationGenerator.write(Path.of(evidenceRoot), "reconciliation.json", repositoryRoot());
+            SecurityFindingLedgerGenerator.write(Path.of(evidenceRoot), "security-finding-ledger.json");
         }
     }
 

@@ -1,0 +1,237 @@
+name: client evidence
+
+on:
+  workflow_call:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  client-evidence:
+    name: client evidence ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - name: check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: set up java
+        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: validate wrapper
+        uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3
+
+      - name: download candidate artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: cross-platform-candidate
+          path: cross-platform-candidate
+
+      - name: run minecraft java client fixture
+        id: client_unix
+        run: |
+          set -euo pipefail
+          candidate_jar="$(printf '%s\n' cross-platform-candidate/*.jar | sed -n '1p')"
+          test -f "$candidate_jar"
+          candidate_name="$(basename "$candidate_jar")"
+          expected_commit="$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$expected_commit"
+          candidate_manifest_commit="$(sed -n 's/^commit=//p' cross-platform-candidate/manifest.txt | head -n 1)"
+          test "$candidate_manifest_commit" = "$expected_commit"
+          candidate_expected_sha256="$(awk -v name="$candidate_name" '$2 == name {print $1}' cross-platform-candidate/sha256.txt)"
+          test -n "$candidate_expected_sha256"
+          candidate_downloaded_sha256="$(sha256sum "$candidate_jar" | awk '{print $1}')"
+          test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
+          client_game_dir="$GITHUB_WORKSPACE/build/candidate-client-runtime"
+          client_log="$GITHUB_WORKSPACE/build/candidate-client-runtime.log"
+          client_console_log="$GITHUB_WORKSPACE/build/candidate-client-console.log"
+          client_runtime_log="$client_game_dir/logs/latest.log"
+          client_pid_file="$client_game_dir/client-session.pid"
+          rm -rf "$client_game_dir"
+          mkdir -p "$client_game_dir/mods"
+          cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
+          test -f "$client_game_dir/mods/$candidate_name"
+          command -v xvfb-run
+          client_command=(xvfb-run -a ./gradlew --no-daemon runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
+          setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$client_pid_file" "${client_command[@]}" > "$client_console_log" 2>&1 &
+          client_launcher_pid=$!
+          client_pid=""
+          for _ in $(seq 1 30); do
+            if [ -s "$client_pid_file" ]; then
+              client_pid="$(cat "$client_pid_file")"
+              break
+            fi
+            if ! kill -0 "$client_launcher_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "$client_pid" ]; then
+            client_pid="$client_launcher_pid"
+          fi
+          client_session_alive() {
+            pgrep -s "$client_pid" >/dev/null 2>&1
+          }
+          client_launcher_alive() {
+            kill -0 "$client_launcher_pid" >/dev/null 2>&1
+          }
+          client_java_pid=""
+          client_java_alive() {
+            if [ -z "$client_java_pid" ] || ! kill -0 "$client_java_pid" >/dev/null 2>&1; then
+              return 1
+            fi
+            ps -p "$client_java_pid" -o args= 2>/dev/null | grep -Eq '(net\.neoforged\.devlaunch\.Main|cpw\.mods\.bootstraplauncher\.BootstrapLauncher|net\.minecraft\.client\.main\.Main)'
+          }
+          client_owned_alive() {
+            client_session_alive || client_java_alive
+          }
+          startup_verified=0
+          startup_stability_failed=0
+          for _ in $(seq 1 180); do
+            if grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_runtime_log" 2>/dev/null || grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_console_log" 2>/dev/null; then
+              client_java_pid="$(pgrep -f 'net\.neoforged\.devlaunch\.Main.*fallbackClientRunProgramArgs\.txt' | head -n 1 || true)"
+              startup_verified=1
+              for _ in $(seq 1 5); do
+                if ! client_session_alive || ! client_launcher_alive || ! client_java_alive; then
+                  startup_verified=0
+                  startup_stability_failed=1
+                  break
+                fi
+                sleep 1
+                if ! client_session_alive || ! client_launcher_alive || ! client_java_alive; then
+                  startup_verified=0
+                  startup_stability_failed=1
+                  break
+                fi
+              done
+              break
+            fi
+            if ! client_session_alive || ! client_launcher_alive; then
+              break
+            fi
+            sleep 1
+          done
+          stop_session() {
+            local session_pid="$1"
+            pkill -TERM -s "$session_pid" 2>/dev/null || true
+            kill -TERM -- "-$session_pid" 2>/dev/null || true
+          }
+          force_session() {
+            local session_pid="$1"
+            pkill -KILL -s "$session_pid" 2>/dev/null || true
+            kill -KILL -- "-$session_pid" 2>/dev/null || true
+          }
+          stop_session "$client_pid"
+          if [ -n "$client_java_pid" ]; then
+            kill -TERM "$client_java_pid" 2>/dev/null || true
+          fi
+          for _ in $(seq 1 30); do
+            if ! client_owned_alive; then
+              break
+            fi
+            sleep 1
+          done
+          if client_owned_alive; then
+            echo 'packaged client did not stop after the bounded grace period' >&2
+            force_session "$client_pid"
+            if [ -n "$client_java_pid" ]; then
+              kill -KILL "$client_java_pid" 2>/dev/null || true
+            fi
+            for _ in $(seq 1 30); do
+              if ! client_owned_alive; then
+                break
+              fi
+              sleep 1
+            done
+          fi
+          if client_owned_alive; then
+            echo 'packaged client process session did not terminate completely' >&2
+            force_session "$client_pid"
+            exit 1
+          fi
+          wait "$client_launcher_pid" 2>/dev/null || true
+          if [ -f "$client_runtime_log" ]; then
+            cat "$client_runtime_log" > "$client_log"
+            printf '\n' >> "$client_log"
+            cat "$client_console_log" >> "$client_log"
+          else
+            cp "$client_console_log" "$client_log"
+          fi
+          if [ "$startup_stability_failed" -eq 1 ]; then
+            exit 1
+          elif [ "$startup_verified" -ne 1 ]; then
+            exit 1
+          fi
+          if [ "$startup_verified" -eq 1 ]; then
+            grep -F 'Minecraft 1.21.1' "$client_log"
+            grep -F 'Backend library: LWJGL' "$client_log"
+            grep -F 'ServerEssentialsForge (NeoForge 1.21.1 port) initialized' "$client_log"
+            grep -F 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_log"
+          fi
+          {
+            echo "runner_os=$RUNNER_OS"
+            echo "runner_arch=$RUNNER_ARCH"
+            uname -srm
+            java -version 2>&1 | head -n 1
+            echo "candidate_commit=$(git rev-parse HEAD)"
+            echo "client_artifact=mods/$candidate_name"
+            echo 'client_artifact_verified=true'
+            if [ "$startup_verified" -eq 1 ]; then
+              echo 'client_startup_verified=true'
+              echo 'client_render_backend_verified=true'
+              echo 'client_gui_atlas_verified=true'
+            else
+              echo 'client_startup_verified=false'
+              echo 'client_render_backend_verified=false'
+              echo 'client_gui_atlas_verified=false'
+            fi
+            echo 'client_log=candidate-client-runtime.sanitized.log'
+          } > build/client-runtime-manifest.txt
+      - name: sanitize minecraft java client fixture evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          raw_log=build/candidate-client-runtime.log
+          sanitized_log=build/candidate-client-runtime.sanitized.log
+          rm -f "$sanitized_log"
+          if [ -f "$raw_log" ]; then
+            temp_log="$(mktemp)"
+            trap 'rm -f "$temp_log"' EXIT
+            sed \
+              -e "s|$GITHUB_WORKSPACE|<workspace>|g" \
+              -e "s|$HOME|<home>|g" \
+              -e 's|/home/runner|<runner>|g' \
+              -e 's|/Users/runner|<runner>|g' \
+              -e 's|/private/var|<private-var>|g' \
+              -e 's|/opt/hostedtoolcache|<toolcache>|g' \
+              "$raw_log" > "$temp_log"
+            if grep -Eiq '(/home/runner|/Users/runner|/private/var|/opt/hostedtoolcache)' "$temp_log"; then
+              echo 'packaged client log contains a hosted path after sanitization' >&2
+              exit 1
+            fi
+            mv "$temp_log" "$sanitized_log"
+          fi
+
+      - name: upload client evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cross-platform-client-evidence-${{ matrix.os }}
+          if-no-files-found: warn
+          path: |
+            build/client-runtime-manifest.txt
+            build/candidate-client-runtime.sanitized.log

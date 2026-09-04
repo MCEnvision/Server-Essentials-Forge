@@ -2,6 +2,7 @@ package com.enviouse.sef.config.modules;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.storage.AtomicFileStore;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -1117,11 +1118,11 @@ public final class ModuleConfigService {
         if (Files.exists(configRoot, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(configRoot)) {
             throw new IOException("configuration root cannot be a symbolic link");
         }
-        Files.createDirectories(modulesRoot);
+        AtomicFileStore.createSafeDirectories(modulesRoot);
         if (Files.isSymbolicLink(modulesRoot)) {
             throw new IOException("module configuration root cannot be a symbolic link");
         }
-        Files.createDirectories(historyRoot);
+        AtomicFileStore.createSafeDirectories(historyRoot);
         if (!historyRoot.getParent().equals(modulesRoot) || Files.isSymbolicLink(historyRoot)) {
             throw new IOException("module configuration history root is invalid");
         }
@@ -1148,7 +1149,7 @@ public final class ModuleConfigService {
                 continue;
             }
             Path directory = historyDirectory(definition.id());
-            Files.createDirectories(directory);
+            AtomicFileStore.createSafeDirectories(directory);
             if (Files.isSymbolicLink(directory)) {
                 throw new IOException("module configuration history directory cannot be a symbolic link");
             }
@@ -1695,7 +1696,7 @@ public final class ModuleConfigService {
         if (parent == null) {
             throw new IOException("configuration destination is too broad");
         }
-        Files.createDirectories(parent);
+        AtomicFileStore.createSafeDirectories(parent);
         if (Files.isSymbolicLink(parent)
                 || (Files.exists(destination, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(destination))) {
             throw new IOException("configuration destination cannot be a symbolic link");
@@ -1755,7 +1756,7 @@ public final class ModuleConfigService {
         try {
             ModuleConfigRegistry.ModuleDefinition definition = registry.require(previous.moduleId());
             Path directory = historyDirectory(previous.moduleId());
-            Files.createDirectories(directory);
+            AtomicFileStore.createSafeDirectories(directory);
             if (Files.isSymbolicLink(directory)) {
                 throw new IOException("module configuration history directory cannot be a symbolic link");
             }

@@ -1,14 +1,16 @@
 package com.enviouse.sef.audit;
 
 import com.enviouse.sef.ServerEssentialsForge;
+import com.enviouse.sef.storage.AtomicFileStore;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -252,6 +254,7 @@ public final class SecurityAuditService {
     private static volatile String failureDetail = "";
     private static Path auditDirectory;
     private static Path activeFile;
+    private static NativeAuditFileProvider fileProvider;
     private static int retentionDays;
     private static long maximumFileBytes;
 
@@ -273,17 +276,28 @@ public final class SecurityAuditService {
         DROPPED.set(0L);
         FAILURES.set(0L);
         failureDetail = "";
-        auditDirectory = sefDirectory.resolve("audit");
+        auditDirectory = Objects.requireNonNull(sefDirectory, "sefDirectory")
+                .toAbsolutePath()
+                .normalize()
+                .resolve("audit")
+                .normalize();
         activeFile = auditDirectory.resolve("security-audit.jsonl");
         retentionDays = Math.max(1, configuredRetentionDays);
         maximumFileBytes = Math.max(1L, maximumFileMiB) * 1024L * 1024L;
         try {
-            Files.createDirectories(auditDirectory);
+            createSafeDirectories(auditDirectory);
+            fileProvider = NativeAuditFileProvider.open(auditDirectory);
+            validateActiveFile();
             pruneExpiredFiles();
         } catch (IOException | RuntimeException exception) {
             FAILURES.incrementAndGet();
             failureDetail = "security audit storage initialization failed";
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to initialize security audit storage", exception);
+            NativeAuditFileProvider provider = fileProvider;
+            fileProvider = null;
+            if (provider != null) {
+                provider.close();
+            }
             return;
         }
         running = true;
@@ -354,21 +368,31 @@ public final class SecurityAuditService {
         running = false;
         Thread thread = writerThread;
         if (thread == null) {
+            NativeAuditFileProvider provider = fileProvider;
+            fileProvider = null;
+            if (provider != null) {
+                provider.close();
+            }
             return;
         }
-        thread.interrupt();
         try {
             thread.join(5000L);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
         if (thread.isAlive()) {
+            thread.interrupt();
             FAILURES.incrementAndGet();
             failureDetail = "security audit writer did not stop within the shutdown timeout";
             ServerEssentialsForge.LOGGER.error("[SEF] {}", failureDetail);
             return;
         }
         writerThread = null;
+        NativeAuditFileProvider provider = fileProvider;
+        fileProvider = null;
+        if (provider != null) {
+            provider.close();
+        }
         if (!QUEUE.isEmpty()) {
             DROPPED.addAndGet(QUEUE.size());
             ServerEssentialsForge.LOGGER.error(
@@ -437,19 +461,29 @@ public final class SecurityAuditService {
             output.append(GSON.toJson(event)).append(System.lineSeparator());
         }
         byte[] bytes = output.toString().getBytes(StandardCharsets.UTF_8);
+        createSafeDirectories(auditDirectory);
+        validateActiveFile();
         rotateIfRequired(bytes.length);
-        Files.write(
-                activeFile,
-                bytes,
-                StandardOpenOption.CREATE,
-                StandardOpenOption.APPEND);
+        appendActiveFile(bytes);
+    }
+
+    private static void appendActiveFile(byte[] bytes) throws IOException {
+        NativeAuditFileProvider provider = fileProvider;
+        if (provider == null) {
+            throw new IOException("security audit native provider is unavailable");
+        }
+        provider.append(activeFile, bytes);
     }
 
     private static void rotateIfRequired(int incomingBytes) throws IOException {
-        if (!Files.exists(activeFile)) {
+        if (!Files.exists(activeFile, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
-        long size = Files.size(activeFile);
+        validateActiveFile();
+        long size = Files.readAttributes(
+                activeFile,
+                BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS).size();
         if (size + incomingBytes <= maximumFileBytes) {
             return;
         }
@@ -460,12 +494,12 @@ public final class SecurityAuditService {
     }
 
     private static Path uniqueRotationPath(Path preferred) {
-        if (!Files.exists(preferred)) {
+        if (!Files.exists(preferred, LinkOption.NOFOLLOW_LINKS)) {
             return preferred;
         }
         for (int counter = 1; counter < 10_000; counter++) {
             Path candidate = preferred.resolveSibling(preferred.getFileName() + "." + counter);
-            if (!Files.exists(candidate)) {
+            if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) {
                 return candidate;
             }
         }
@@ -473,19 +507,45 @@ public final class SecurityAuditService {
     }
 
     private static void pruneExpiredFiles() throws IOException {
-        if (!Files.exists(auditDirectory)) {
+        if (!Files.exists(auditDirectory, LinkOption.NOFOLLOW_LINKS)) {
             return;
         }
+        createSafeDirectories(auditDirectory);
         Instant cutoff = Instant.now().minus(Duration.ofDays(retentionDays));
         try (var files = Files.list(auditDirectory)) {
             for (Path path : files
                     .filter(candidate -> candidate.getFileName().toString().startsWith("security-audit."))
                     .sorted(Comparator.naturalOrder())
                     .toList()) {
-                if (Files.getLastModifiedTime(path).toInstant().isBefore(cutoff)) {
+                BasicFileAttributes attributes = Files.readAttributes(
+                        path,
+                        BasicFileAttributes.class,
+                        LinkOption.NOFOLLOW_LINKS);
+                if (attributes.isRegularFile()
+                        && !attributes.isSymbolicLink()
+                        && attributes.lastModifiedTime().toInstant().isBefore(cutoff)) {
+                    fileProvider.validate(path);
                     Files.deleteIfExists(path);
                 }
             }
         }
+    }
+
+    private static void validateActiveFile() throws IOException {
+        if (!Files.exists(activeFile, LinkOption.NOFOLLOW_LINKS)) {
+            return;
+        }
+        BasicFileAttributes attributes = Files.readAttributes(
+                activeFile,
+                BasicFileAttributes.class,
+                LinkOption.NOFOLLOW_LINKS);
+        if (attributes.isSymbolicLink() || !attributes.isRegularFile()) {
+            throw new IOException("security audit active file is not a regular file");
+        }
+        fileProvider.validate(activeFile);
+    }
+
+    private static void createSafeDirectories(Path directory) throws IOException {
+        AtomicFileStore.createSafeDirectories(directory);
     }
 }

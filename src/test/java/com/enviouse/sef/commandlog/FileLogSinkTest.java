@@ -59,6 +59,25 @@ class FileLogSinkTest {
     }
 
     @Test
+    void writerRefusesASymbolicLinkForTheActiveCommandFile() throws Exception {
+        Path outside = temporaryDirectory.resolve("outside.jsonl");
+        Files.writeString(outside, "sentinel");
+        Path current = temporaryDirectory.resolve("logs").resolve("sef")
+                .resolve("commands").resolve("current.jsonl");
+        Files.createDirectories(current.getParent());
+        Files.createSymbolicLink(current, outside);
+        FileLogSink sink = new FileLogSink();
+
+        assertTrue(sink.startConfigured(temporaryDirectory));
+        assertTrue(sink.enable());
+        await(() -> sink.health().state() == FileLogSink.State.FAILED);
+        await(() -> !threadExists("sef-file-log"));
+
+        assertEquals("sentinel", Files.readString(outside));
+        sink.shutdown();
+    }
+
+    @Test
     void previousIncompleteSessionRemainsDegradedUntilAcknowledged() throws Exception {
         Path state = temporaryDirectory.resolve("logs").resolve("sef").resolve("state");
         Files.createDirectories(state);

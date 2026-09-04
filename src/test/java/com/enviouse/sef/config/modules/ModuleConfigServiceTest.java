@@ -101,6 +101,22 @@ class ModuleConfigServiceTest {
     }
 
     @Test
+    void startupRejectsConfigurationParentSymlink() throws Exception {
+        Path external = temporaryDirectory.resolve("external");
+        Files.createDirectories(external);
+        Path linked = temporaryDirectory.resolve("linked");
+        Files.createSymbolicLink(linked, external);
+
+        service = new ModuleConfigService(new ModuleConfigRegistry());
+        var publication = service.start(linked.resolve("sef"), Runnable::run);
+
+        assertFalse(publication.successful());
+        assertTrue(publication.diagnostics().stream()
+                .anyMatch(diagnostic -> diagnostic.operation().equals("startup")));
+        assertFalse(Files.exists(external.resolve("sef"), java.nio.file.LinkOption.NOFOLLOW_LINKS));
+    }
+
+    @Test
     void malformedEditKeepsCompletePreviousSnapshot() throws Exception {
         service = new ModuleConfigService(new ModuleConfigRegistry());
         assertTrue(service.start(temporaryDirectory.resolve("sef"), Runnable::run).successful());

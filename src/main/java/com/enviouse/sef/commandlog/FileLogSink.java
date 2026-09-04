@@ -376,7 +376,8 @@ public final class FileLogSink {
                 destination,
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE_NEW,
-                StandardOpenOption.WRITE)) {
+                StandardOpenOption.WRITE,
+                LinkOption.NOFOLLOW_LINKS)) {
             for (int index = records.size() - 1; index >= 0; index--) {
                 writer.write(encode(records.get(index)));
                 writer.newLine();
@@ -732,7 +733,8 @@ public final class FileLogSink {
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.TRUNCATE_EXISTING,
-                StandardOpenOption.WRITE);
+                StandardOpenOption.WRITE,
+                LinkOption.NOFOLLOW_LINKS);
     }
 
     private void writeIncompleteMarker() {
@@ -756,7 +758,8 @@ public final class FileLogSink {
                     StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE,
                     StandardOpenOption.TRUNCATE_EXISTING,
-                    StandardOpenOption.WRITE);
+                    StandardOpenOption.WRITE,
+                    LinkOption.NOFOLLOW_LINKS);
         } catch (IOException exception) {
             ServerEssentialsForge.LOGGER.error("[SEF] Failed to write incomplete logger marker", exception);
         }
@@ -846,7 +849,8 @@ public final class FileLogSink {
                 StandardCharsets.UTF_8,
                 StandardOpenOption.CREATE,
                 StandardOpenOption.APPEND,
-                StandardOpenOption.WRITE);
+                StandardOpenOption.WRITE,
+                LinkOption.NOFOLLOW_LINKS);
     }
 
     private void closeWriter(BufferedWriter writer) {

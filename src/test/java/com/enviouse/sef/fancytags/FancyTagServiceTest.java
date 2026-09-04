@@ -110,6 +110,22 @@ class FancyTagServiceTest {
     }
 
     @Test
+    void rejectsOversizedExistingObjectBeforeReadingIt() throws Exception {
+        FancyTagObjectStore.Limits limits = new FancyTagObjectStore.Limits(
+                32, 16, 512, 32_768, 8_192, 1_048_576, 8);
+        FancyTagObjectStore store = new FancyTagObjectStore(limits);
+        store.initialize(directory);
+        byte[] image = png(8, 8, 0xffabcdef);
+        String hash = sha256(image);
+        Path object = directory.resolve("fancy-tags").resolve("objects").resolve("sha256")
+                .resolve(hash.substring(0, 2)).resolve(hash + ".png");
+        Files.createDirectories(object.getParent());
+        Files.write(object, new byte[limits.maximumEncodedBytes() + 1]);
+
+        assertFalse(store.canonicalizeAndStore(image).successful());
+    }
+
+    @Test
     void importInboxRequiresAnUnchangedReviewedCandidate() throws Exception {
         FancyTagService service = new FancyTagService(settings(true, Duration.ZERO));
         service.load(directory);

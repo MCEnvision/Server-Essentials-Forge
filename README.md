@@ -17,7 +17,7 @@ Current project metadata:
 5. Mod id `sef`.
 6. Artifact version `2.0.0`.
 
-Treat this branch as a test build. All twenty confirmed findings from the full repository audit are repaired. The current worktree passes 516 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
+Treat this branch as a test build. The confirmed source security findings are repaired, and the audit writer now uses a platform native descriptor provider on Linux, macOS, and Windows through the JNA API supplied by the pinned NeoForge runtime. The current pull request matrix is the required evidence gate for the same candidate artifact, native provider smoke, disposable writer probe, unit, GameTest, dependency, and artifact checks on all three operating systems. The Minecraft Java client fixture is the required client evidence surface on Ubuntu. Interactive acceptance and external dependency ownership closure remain open gates. The current worktree passes 534 unit tests, 41 required GameTests, complete route checks for 694 catalog actions and 315 shortcuts, 2,213 representative parser variants, and 358 safe read only live routes. Automated evidence and remaining gaps are recorded in [docs/SEF2_ACCEPTANCE.md](docs/SEF2_ACCEPTANCE.md), with detailed defect evidence and repairs in [audit.md](audit.md). Interactive release acceptance must also complete the staging matrix in [test.md](test.md). Do not advance the branch to `main` while any acceptance row remains incomplete or in progress.
 
 ## Current features
 
@@ -188,7 +188,9 @@ Generated references:
 
 Run `./gradlew generateProjectReferences` after changing a module schema, command catalog entry, shortcut, GUI descriptor, or permission definition. Unit tests fail when tracked references drift from their runtime registries.
 
-Run `./gradlew generateAuditInventory` to execute the complete audit inventory and deterministic drift checks. Supplying `-Dsef.audit.evidenceRoot=/path/to/restricted-evidence` writes sanitized JSON inventories outside the repository. The task does not write product files.
+Run `./gradlew generateAuditInventory --rerun-tasks -Dsef.audit.evidenceRoot=/path/to/restricted-evidence` to execute the complete audit inventory and deterministic drift checks. The evidence root must be a fresh approved directory outside the repository. The task fails when the evidence root is omitted and does not write product files.
+
+Run `./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit=$(git rev-parse HEAD)` after building a candidate to capture the resolved compile, runtime, fallback, and test artifacts, dependency paths, SHA-256 and SHA-512 digests, NeoForge runtime ownership, and duplicate native runtime scan. Variant specific native artifacts retain their exact selected component identity when Gradle does not expose a full parent path. The sanitized manifest is written to `build/audit/platform-dependency-manifest.txt` and is evidence only when it is retained outside the repository or uploaded by a workflow. On Windows use `.\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())"` in PowerShell. The task intentionally runs without Gradle configuration cache because it resolves and hashes the live dependency model.
 
 NeoForge owns TOML loading and external reload notifications. `/sef reload` reapplies values already loaded by NeoForge. It does not force an arbitrary disk read.
 
@@ -208,16 +210,22 @@ Linux and macOS:
 ./gradlew build
 ./gradlew runServer
 ./gradlew runClient
+mkdir -p /path/to/fresh/candidate-runtime/mods
+cp build/libs/sef-2.0.0.jar /path/to/fresh/candidate-runtime/mods/
+./gradlew runCandidateGameTestServer -PsefCandidateGameDirectory=/path/to/fresh/candidate-runtime
 ```
 
 Windows:
 
 ```powershell
-gradlew.bat test
-gradlew.bat generateProjectReferences
-gradlew.bat build
-gradlew.bat runServer
-gradlew.bat runClient
+.\gradlew.bat test
+.\gradlew.bat generateProjectReferences
+.\gradlew.bat build
+.\gradlew.bat runServer
+.\gradlew.bat runClient
+New-Item -ItemType Directory -Force C:\path\to\fresh\candidate-runtime\mods
+Copy-Item build\libs\sef-2.0.0.jar C:\path\to\fresh\candidate-runtime\mods\
+.\gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
 ```
 
 The built JAR is written to `build/libs/`.

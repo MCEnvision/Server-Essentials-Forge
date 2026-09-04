@@ -10,6 +10,18 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 | In progress | The scope is actively being completed, but its exit criteria do not all pass. |
 | Complete | Every requirement and exit criterion passes on the current source revision. |
 
+## Current audit phase status
+
+The legacy phase ledger below remains useful for SEF 2 feature acceptance, but it is not the authoritative status for the current security audit sequence. Phase 001 security, privacy, and supply chain closure is being verified on `envy/phase-001-security`; each exact candidate revision, artifact digest, and completed run is recorded in the matching restricted evidence packet. Confirmed repairs include admin chat logging, bounded Fancy Tags reads, audit symlink handling, configuration parent path handling, and the cross platform native audit descriptor provider. The current candidate is required to pass 534 unit tests, 41 required GameTests, the Java 21 build and fallback compilation, the Linux, macOS, and Windows native writer probes, and the disposable dedicated server smoke. The current pull request matrix is the required evidence gate for candidate build, Linux runtime, macOS runtime, Windows runtime, artifact inspection, and sanitized evidence upload. The Minecraft Java client fixture on Ubuntu is the sole client evidence surface and must pass from the same candidate artifact. The current remaining Phase 001 record is `EXT-002`: all 26 upstream platform supplied alerts have separate candidate, packaged artifact, installed runtime, affected API, advisory, provenance, and compatible remediation dispositions in the restricted evidence packet, with no direct mod owned exposure found. Phase 001 remains open until that external acceptance record and pull request integration gate are closed. Later persistence, universal GUI, UI polish, lifecycle, clean checkout, and final documentation matrices remain open.
+
+The owner desktop probe reached the real Minecraft 1.21.1 LWJGL client, but its installed NeoForge 21.1.248 runtime rejected the candidate's exact NeoForge 21.1.235 requirement. The temporary candidate and logs were removed. The result confirms the desktop display path and records the exact `EXT-001` runtime fixture mismatch without weakening Linux, macOS, or Windows support.
+
+A second disposable owner desktop probe cloned the Prism instance, downloaded exact NeoForge 21.1.235, and launched the historical candidate artifact with SHA-256 `da76826dd757e9f52b1cfc61fb9902812a77c328321edae14428f329c2a16eb0`. The graphical Linux client reached Minecraft 1.21.1, LWJGL 3.3.3, SEF initialization, configuration loading, and the GUI atlas. The clone, candidate, logs, and process were removed. This remains historical Linux client fixture evidence. The current contract uses the Minecraft Java client fixture as the sole client evidence surface and does not require separate macOS or Windows client captures. `EXT-001` remains conditional for a changed or exercised non client host specific path.
+
+Hosted matrix run `33732626666` reran the complete candidate audit from historical commit `2cb01b8ecf91eaa90d0f0284e6f1bc2b52058323`. Linux, macOS, and Windows passed the native writer, opened object identity, failure preservation, dedicated server, dependency, packaged artifact, and sanitized evidence gates. Linux verified packaged client startup and the GUI atlas. macOS and Windows recorded explicit hosted display blockers and remained supported targets. The Windows packaged client reader now waits for transient `latest.log` locks to clear after process tree shutdown. This run is historical; the current candidate and current hosted runtime result are recorded above.
+
+A prior merge-revision matrix run `33738411285` tested synthetic merge commit `646234240649a3552c50970a32b9beae9a0313a3` for branch head `830fb9af4cbe79694314cfebd2b6863311a1f55c`. Linux, macOS, and Windows all passed native writer, opened-object identity, object-swap, failure-preservation, rotation, restart, dedicated-server, dependency, packaged-artifact, and sanitized-evidence gates at that revision. The server process had to remain alive after `Done` until the workflow sent `stop` and then exit with code zero. Ubuntu passed packaged client startup and a five-second liveness gate after the GUI atlas marker. macOS and Windows recorded only their known hosted graphics signatures, `NSGL` and `WGL`, and remain supported targets. The independent review reported no actionable findings. This run is historical and is retained for comparison only.
+
 ## Phase ledger
 
 | Scope | Requirement bullets | Status | Current evidence |
@@ -52,10 +64,10 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 The current worktree has the following verified evidence:
 
-- All 516 unit tests pass.
+- All 534 unit tests pass with zero failures and zero skipped tests.
 - All 41 required GameTests pass.
 - Required GameTests inspect all 694 catalog actions and 315 shortcuts, compile 2,213 representative parser variants, and execute 358 safe read only routes against the live dispatcher.
-- All twenty confirmed findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary.
+- All twenty confirmed source findings in `audit.md` are repaired and have regression coverage appropriate to their failure boundary. The independent review has two additional filesystem portability blockers recorded in `docs/SECURITY_REVIEW.md`.
 - NeoForge `21.1.235` resolves through ModDevGradle, passes compilation, the unit suite, all GameTests, the clean build, dedicated server startup and shutdown, headless client startup, and exact packaged dependency metadata inspection.
 - `./gradlew build compileFallbackRuntimeJava generateProjectReferences generatePerformanceReport` passes.
 - The dedicated server reaches `Done` with the admission mixin loaded, then stops and saves every dimension through the timeout shutdown path.
@@ -64,7 +76,8 @@ The current worktree has the following verified evidence:
 - The changed source and documentation contain no detected private-key material, credentials, local absolute paths, debug printing, or TODO markers.
 - The built JAR contains the permission hierarchy resolver, admission mixin, offline action executor, server-control execution service, disguise proxy service, and mixin configuration. It contains no log, run, environment, PEM, or key paths.
 - The live dispatcher `/feed <player>` regression test proves food becomes `20`, saturation becomes `0.0F`, and health remains unchanged.
-- The current JAR is `sef-2.0.0.jar`, 3,368,441 bytes, with SHA-256 `bae28cfe7fe1adba8b9dc5c174713d5fcbf3e28dfa48ff168d7ea530dd9ace78` and SHA-512 `510057da06788c5d5398e43463a19d2decda7078c6fb25fca06df7b30b06b89515a4bb487c9a27c506daf9fb13daab50b8912506ac1801567238b012620b6fd5`.
+- The current JAR is `sef-2.0.0.jar`, 3,389,497 bytes, with SHA-256 `6d8288b296bdad7ca3d44bafaf41b262d2daf550f113aae5eac07177552fe648` and SHA-512 `273ac65a056869428b25a62720d3676e303f6c6da3119dce09c95f8f15550922380b60b02b16c2f54243f90eff88676584462954e9f1e6c82ef3f65de2a50ec1`. The branch candidate artifact is bound to the exact tested revision in the restricted packet. Hosted runtime checks passed on Linux, macOS, and Windows.
+- The current pull request matrix is the required gate for candidate build, native writer and opened object identity checks, failure preservation, rotation, restart, dependency insight, ZIP and duplicate runtime scans, packaged dedicated server workflows, and sanitized evidence upload on Linux, macOS, and Windows. The Minecraft Java client fixture on Ubuntu is the sole client evidence surface and must use the same candidate artifact. No separate operating system client evidence is required by the current audit contract. `EXT-002` retains separate platform supplied alert dispositions in the restricted Phase 001 evidence packet.
 - The latest regression coverage proves that cross-dimension home replacement respects the destination dimension quota and that secondary player-warp inspection requires the management permission.
 
 This evidence does not complete the multiplayer, LuckPerms, GUI visual, InvSee, admission-capacity, or disguise-animation matrices in `test.md`.

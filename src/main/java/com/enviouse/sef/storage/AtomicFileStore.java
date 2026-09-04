@@ -1,5 +1,7 @@
 package com.enviouse.sef.storage;
 
+import com.enviouse.sef.audit.NativeAuditFileProvider;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -14,6 +16,7 @@ import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Set;
 
 public final class AtomicFileStore {
@@ -172,7 +175,7 @@ public final class AtomicFileStore {
         return normalized;
     }
 
-    static void createSafeDirectories(Path directory) throws IOException {
+    public static void createSafeDirectories(Path directory) throws IOException {
         Path normalized = normalized(directory);
         Path current = normalized.getRoot();
         if (current == null) {
@@ -185,7 +188,11 @@ public final class AtomicFileStore {
                         current,
                         BasicFileAttributes.class,
                         LinkOption.NOFOLLOW_LINKS);
-                if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
+                if (attributes.isSymbolicLink() && !isTrustedMacSystemAlias(current)) {
+                    throw new UnsafeStoragePathException(
+                            "Managed directory path contains a non directory entry");
+                }
+                if (!attributes.isSymbolicLink() && !attributes.isDirectory()) {
                     throw new UnsafeStoragePathException(
                             "Managed directory path contains a non directory entry");
                 }
@@ -202,11 +209,7 @@ public final class AtomicFileStore {
     static void forceDirectory(Path directory) throws IOException {
         Path normalized = normalized(directory);
         validateExistingParents(normalized);
-        try (FileChannel channel = FileChannel.open(normalized, StandardOpenOption.READ)) {
-            channel.force(true);
-        } catch (UnsupportedOperationException exception) {
-            throw new IOException("Directory durability is unsupported", exception);
-        }
+        NativeAuditFileProvider.forceDirectory(normalized);
     }
 
     private static void durableCopy(Path source, Path destination) throws IOException {
@@ -309,7 +312,11 @@ public final class AtomicFileStore {
                     current,
                     BasicFileAttributes.class,
                     LinkOption.NOFOLLOW_LINKS);
-            if (attributes.isSymbolicLink() || !attributes.isDirectory()) {
+            if (attributes.isSymbolicLink() && !isTrustedMacSystemAlias(current)) {
+                throw new UnsafeStoragePathException(
+                        "Managed path contains a symbolic link or non directory parent");
+            }
+            if (!attributes.isSymbolicLink() && !attributes.isDirectory()) {
                 throw new UnsafeStoragePathException(
                         "Managed path contains a symbolic link or non directory parent");
             }
@@ -333,6 +340,24 @@ public final class AtomicFileStore {
 
     private static Path normalized(Path path) {
         return path.toAbsolutePath().normalize();
+    }
+
+    private static boolean isTrustedMacSystemAlias(Path path) {
+        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            return false;
+        }
+        Path root = path.getRoot();
+        if (root == null || !root.equals(path.getParent())) {
+            return false;
+        }
+        try {
+            Path resolved = path.toRealPath();
+            Path privateRoot = root.resolve("private");
+            return resolved.startsWith(privateRoot)
+                    && Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException exception) {
+            return false;
+        }
     }
 
     private static Path requireParent(Path path) throws IOException {

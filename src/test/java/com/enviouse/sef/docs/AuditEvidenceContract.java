@@ -11,6 +11,7 @@ import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.time.Instant;
@@ -376,9 +377,26 @@ public final class AuditEvidenceContract {
         }
         for (Path component : absolute) {
             current = current.resolve(component);
-            if (Files.isSymbolicLink(current)) {
+            if (Files.isSymbolicLink(current) && !isTrustedMacSystemAlias(current)) {
                 throw new IllegalArgumentException("evidence path cannot contain symlinks");
             }
+        }
+    }
+
+    private static boolean isTrustedMacSystemAlias(Path path) {
+        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            return false;
+        }
+        Path root = path.getRoot();
+        if (root == null || !root.equals(path.getParent())) {
+            return false;
+        }
+        try {
+            Path resolved = path.toRealPath();
+            return resolved.startsWith(root.resolve("private"))
+                    && Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException exception) {
+            return false;
         }
     }
 

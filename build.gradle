@@ -22,6 +22,11 @@ base {
     archivesName = mod_id
 }
 
+tasks.withType(org.gradle.api.tasks.bundling.AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
 sourceSets {
@@ -101,6 +106,28 @@ neoForge {
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
         }
 
+        // This run config exercises a packaged candidate from the game directory mods folder.
+        // It deliberately omits the local source mod so the packaged jar is the loaded mod.
+        candidateGameTestServer {
+            type = "gameTestServer"
+            loadedMods = []
+            sourceSet = sourceSets.fallbackRuntime
+            gameDirectory = file(providers.gradleProperty('sefCandidateGameDirectory').orElse('run-candidate').get())
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+
+        // This run config starts a packaged candidate in a disposable dedicated server directory.
+        // It deliberately omits the local source mod so the packaged jar is the loaded mod.
+        candidateServer {
+            server()
+            loadedMods = []
+            sourceSet = sourceSets.fallbackRuntime
+            gameDirectory = file(providers.gradleProperty('sefCandidateServerGameDirectory').orElse('run-candidate-server').get())
+            programArgument '--nogui'
+            programArgument '--port=25575'
+        }
+
         data {
             data()
 
@@ -151,6 +178,11 @@ sourceSets.main.resources {
 
 
 dependencies {
+    // Native audit descriptor checks use the JNA API already supplied by the pinned NeoForge runtime.
+    // Keep this compile only so the mod does not embed a second native runtime.
+    compileOnly 'net.java.dev.jna:jna:5.14.0'
+    compileOnly 'net.java.dev.jna:jna-platform:5.14.0'
+
     // --- Optional integration APIs (compile-time only; each guarded at runtime via ModList.isLoaded) ---
     // LuckPerms platform-agnostic API — unchanged at 5.4 for 1.21.1 (Maven Central)
     compileOnly 'net.luckperms:api:5.4'
@@ -222,11 +254,301 @@ tasks.register('generateAuditInventory') {
     }
 }
 
+tasks.register('generateAuditDependencyManifest') {
+    description = 'Generate a sanitized candidate and platform dependency manifest.'
+    notCompatibleWithConfigurationCache('Captures resolved dependency metadata for an external audit manifest.')
+    dependsOn tasks.named('jar')
+    outputs.upToDateWhen { false }
+    def manifest = layout.buildDirectory.file('audit/platform-dependency-manifest.txt')
+    def javaToolchainLauncher = javaToolchains.launcherFor {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+    outputs.file(manifest)
+    def projectVersion = project.version.toString()
+    def modId = project.findProperty('mod_id')?.toString() ?: 'unknown'
+    def minecraftVersion = project.findProperty('minecraft_version')?.toString() ?: 'unknown'
+    def neoForgeVersion = project.findProperty('neo_version')?.toString() ?: 'unknown'
+    def candidateCommitProperty = providers.gradleProperty('sefAuditCandidateCommit')
+    def archivesName = project.base.archivesName.get()
+    def configurationsToCapture = [
+            'compileClasspath',
+            'runtimeClasspath',
+            'fallbackRuntimeRuntimeClasspath',
+            'testRuntimeClasspath'
+    ]
+    doLast {
+        def gitHeadProcess = ['git', 'rev-parse', 'HEAD'].execute(null, project.rootDir)
+        gitHeadProcess.waitFor()
+        if (gitHeadProcess.exitValue() != 0) {
+            throw new GradleException('unable to resolve the checked out git revision')
+        }
+        def candidateCommit = gitHeadProcess.in.text.trim()
+        if (!(candidateCommit ==~ /[0-9a-f]{40}/)) {
+            throw new GradleException("checked out git revision is not a full commit hash: ${candidateCommit}")
+        }
+        def suppliedCandidateCommit = candidateCommitProperty.orNull ?: System.getenv('GITHUB_SHA')
+        if (suppliedCandidateCommit != null
+                && (!(suppliedCandidateCommit ==~ /[0-9a-f]{40}/) || suppliedCandidateCommit != candidateCommit)) {
+            throw new GradleException(
+                    "candidate commit binding does not match the checked out revision. "
+                            + "expected=${candidateCommit}, supplied=${suppliedCandidateCommit}")
+        }
+        def dirtyProcess = new ProcessBuilder(
+                'git', 'status', '--porcelain=v1', '-z', '--untracked-files=all')
+                .directory(project.rootDir)
+                .redirectErrorStream(true)
+                .start()
+        def dirtyOutput = dirtyProcess.inputStream.bytes
+        dirtyProcess.waitFor()
+        if (dirtyProcess.exitValue() != 0) {
+            throw new GradleException('unable to verify that the checked out tree is clean')
+        }
+        def dirtyFiles = new String(dirtyOutput, java.nio.charset.StandardCharsets.UTF_8)
+                .split('\u0000')
+                .findAll { !it.isEmpty() }
+        def dirtyTrackedFiles = dirtyFiles.findAll { !it.startsWith('?? ') }
+        if (!dirtyTrackedFiles.isEmpty()) {
+            throw new GradleException("audit manifest requires a clean tracked tree: ${dirtyTrackedFiles.join(' | ')}")
+        }
+        def untrackedBuildInputs = dirtyFiles.findAll { entry ->
+            if (!entry.startsWith('?? ')) {
+                return false
+            }
+            def path = entry.substring(3)
+            path.startsWith('src/')
+                    || path == 'buildSrc'
+                    || path.startsWith('buildSrc/')
+                    || path == 'gradle'
+                    || path.startsWith('gradle/')
+                    || path in ['build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/libs.versions.toml']
+        }
+        if (!untrackedBuildInputs.isEmpty()) {
+            throw new GradleException("audit manifest rejects untracked build inputs: ${untrackedBuildInputs.join(' | ')}")
+        }
+        File output = manifest.get().asFile
+        output.parentFile.mkdirs()
+        def digest = { File file, String algorithm ->
+            java.security.MessageDigest messageDigest = java.security.MessageDigest.getInstance(algorithm)
+            file.withInputStream { input ->
+                byte[] buffer = new byte[16 * 1024]
+                int read
+                while ((read = input.read(buffer)) != -1) {
+                    if (read > 0) {
+                        messageDigest.update(buffer, 0, read)
+                    }
+                }
+            }
+            messageDigest.digest().collect { byte value -> String.format('%02x', value & 0xff) }.join()
+        }
+        def coordinate = { artifact ->
+            def module = artifact.moduleVersion.id
+            "${module.group}:${module.name}:${module.version}"
+        }
+        def dependencyPaths = { configuration ->
+            def pathsByCoordinate = [:].withDefault { [] as Set }
+            def visit
+            visit = { dependency, path, ancestors ->
+                def current = "${dependency.moduleGroup}:${dependency.moduleName}:${dependency.moduleVersion}"
+                def nextPath = path + current
+                if (!ancestors.add(current)) {
+                    return
+                }
+                pathsByCoordinate[current] << nextPath.join(' -> ')
+                dependency.children.toList().sort { left, right ->
+                    "${left.moduleGroup}:${left.moduleName}:${left.moduleVersion}" <=>
+                            "${right.moduleGroup}:${right.moduleName}:${right.moduleVersion}"
+                }.each { child ->
+                    visit(child, nextPath, new LinkedHashSet<>(ancestors))
+                }
+            }
+            configuration.resolvedConfiguration.firstLevelModuleDependencies.toList().sort { left, right ->
+                "${left.moduleGroup}:${left.moduleName}:${left.moduleVersion}" <=>
+                        "${right.moduleGroup}:${right.moduleName}:${right.moduleVersion}"
+            }.each { dependency ->
+                visit(dependency, [], new LinkedHashSet<>())
+            }
+            pathsByCoordinate
+        }
+        def javaToolchainMetadata = javaToolchainLauncher.get().metadata
+        def javaToolchainVersion = javaToolchainMetadata.languageVersion.asInt()
+        if (javaToolchainVersion != 21) {
+            throw new GradleException("audit manifest requires Java 21, resolved ${javaToolchainVersion}")
+        }
+        def lines = [
+                'manifest_version=1',
+                "project_version=${projectVersion}",
+                "mod_id=${modId}",
+                "minecraft_version=${minecraftVersion}",
+                "neoforge_version=${neoForgeVersion}",
+                "java_version=${javaToolchainVersion}",
+                "java_runtime_version=${javaToolchainMetadata.javaRuntimeVersion}",
+                "java_vendor=${javaToolchainMetadata.vendor}",
+                "gradle_runtime_java_version=${System.getProperty('java.version')}",
+                "os_name=${System.getProperty('os.name')}",
+                "os_arch=${System.getProperty('os.arch')}",
+                "candidate_commit=${candidateCommit}",
+                'jna_declaration=compileOnly',
+                'jna_runtime_owner=unresolved'
+        ]
+        def artifacts = []
+        def jnaRuntimePathsByCoordinate = [:].withDefault { [] as Set }
+        configurationsToCapture.each { configurationName ->
+            def configuration = configurations.findByName(configurationName)
+            if (configuration == null) {
+                throw new GradleException("required audit configuration is missing: ${configurationName}")
+            }
+            if (!configuration.canBeResolved) {
+                throw new GradleException("required audit configuration cannot be resolved: ${configurationName}")
+            }
+            try {
+                def pathsByCoordinate = dependencyPaths(configuration)
+                configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
+                    File file = artifact.file
+                    if (file.isFile()) {
+                        def artifactCoordinate = coordinate(artifact)
+                        def paths = pathsByCoordinate[artifactCoordinate].toList().sort()
+                        artifacts << [
+                                configuration: configurationName,
+                                coordinate: artifactCoordinate,
+                                fileName: file.name,
+                                classifier: artifact.classifier ?: '',
+                                extension: artifact.extension ?: '',
+                                type: artifact.type ?: '',
+                                size: file.length(),
+                                sha256: digest(file, 'SHA-256'),
+                                sha512: digest(file, 'SHA-512'),
+                                paths: paths
+                        ]
+                        if (configurationName == 'runtimeClasspath'
+                                && artifactCoordinate.startsWith('net.java.dev.jna:')) {
+                            jnaRuntimePathsByCoordinate[artifactCoordinate].addAll(paths)
+                        }
+                    }
+                }
+            } catch (Exception exception) {
+                throw new GradleException(
+                        "required audit configuration could not be resolved: ${configurationName}",
+                        exception)
+            }
+        }
+        artifacts.sort { left, right ->
+            [left.configuration, left.coordinate, left.fileName].join('\u0000') <=>
+                    [right.configuration, right.coordinate, right.fileName].join('\u0000')
+        }.each { artifact ->
+            def pathText = artifact.paths.isEmpty()
+                    ? "variant_component:${artifact.coordinate}|file:${artifact.fileName}|classifier:${artifact.classifier}|extension:${artifact.extension}|type:${artifact.type}"
+                    : artifact.paths.join(' || ')
+            lines << "artifact=${artifact.configuration}|${artifact.coordinate}|${artifact.fileName}|${artifact.size}|sha256:${artifact.sha256}|sha512:${artifact.sha512}|paths:${pathText}"
+        }
+
+        def expectedJnaCoordinates = [
+                'net.java.dev.jna:jna:5.14.0',
+                'net.java.dev.jna:jna-platform:5.14.0'
+        ] as Set
+        def runtimeJnaCoordinates = artifacts.findAll { artifact ->
+            artifact.configuration == 'runtimeClasspath'
+                    && artifact.coordinate.startsWith('net.java.dev.jna:')
+        }.collect { artifact -> artifact.coordinate.toString() } as Set
+        if (runtimeJnaCoordinates != expectedJnaCoordinates) {
+            throw new GradleException(
+                    "runtimeClasspath must resolve both pinned NeoForge JNA artifacts. "
+                            + "expected=${expectedJnaCoordinates.toList().sort()}, "
+                            + "resolved=${runtimeJnaCoordinates.toList().sort()}")
+        }
+        expectedJnaCoordinates.toList().sort().each { jnaCoordinate ->
+            lines << "jna_runtime_coordinate=${jnaCoordinate}"
+        }
+
+        def expectedRuntimeOwner = 'net.neoforged:minecraft-dependencies:1.21.1'
+        expectedJnaCoordinates.toList().sort().each { jnaCoordinate ->
+            def paths = jnaRuntimePathsByCoordinate[jnaCoordinate].toList().sort()
+            if (paths.isEmpty()) {
+                throw new GradleException("runtime JNA coordinate has no dependency path: ${jnaCoordinate}")
+            }
+            def invalidPath = paths.find { path ->
+                !path.split(' -> ').toList().contains(expectedRuntimeOwner)
+            }
+            if (invalidPath != null) {
+                throw new GradleException(
+                        "runtime JNA ownership must resolve through the pinned NeoForge runtime for "
+                                + "${jnaCoordinate}. invalid_path=${invalidPath}")
+            }
+        }
+        def runtimeOwner = expectedRuntimeOwner
+        lines[lines.findIndexOf { it.startsWith('jna_runtime_owner=') }] =
+                "jna_runtime_owner=${runtimeOwner}"
+        expectedJnaCoordinates.toList().sort().each { jnaCoordinate ->
+            jnaRuntimePathsByCoordinate[jnaCoordinate].toList().sort().each { path ->
+                lines << "jna_runtime_path=${jnaCoordinate}|${path}"
+            }
+        }
+
+        File candidate = layout.buildDirectory.file("libs/${archivesName}-${projectVersion}.jar").get().asFile
+        if (candidate.isFile()) {
+            def nativeEntryPattern = java.util.regex.Pattern.compile(
+                    '(?i)(^|/)(?:com/sun/jna/|jnidispatch/|(?:jna|jna-platform)(?:-[^/]*)?\\.jar$|.*\\.(?:dll|dylib|so)$)')
+            boolean duplicateNativeRuntime = false
+            int entryCount = 0
+            new java.util.zip.ZipFile(candidate).withCloseable { zip ->
+                def entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    String name = entries.nextElement().name
+                    entryCount++
+                    if (nativeEntryPattern.matcher(name).find()) {
+                        duplicateNativeRuntime = true
+                    }
+                }
+            }
+            lines << "candidate_mod_jar=${candidate.name}"
+            lines << "candidate_mod_jar_size=${candidate.length()}"
+            lines << "candidate_mod_jar_sha256=${digest(candidate, 'SHA-256')}"
+            lines << "candidate_mod_jar_sha512=${digest(candidate, 'SHA-512')}"
+            lines << "candidate_mod_jar_entry_count=${entryCount}"
+            lines << "candidate_mod_jar_embeds_duplicate_native_runtime=${duplicateNativeRuntime}"
+            if (duplicateNativeRuntime) {
+                throw new GradleException("candidate mod jar embeds duplicate native runtime entries: ${candidate.name}")
+            }
+        } else {
+            throw new GradleException("candidate mod jar is missing: ${candidate.name}")
+        }
+        java.nio.file.Files.writeString(
+                output.toPath(),
+                lines.join(System.lineSeparator()) + System.lineSeparator(),
+                java.nio.charset.StandardCharsets.UTF_8)
+    }
+}
+
+tasks.register('runAuditWriterProbe', JavaExec) {
+    description = 'Run the disposable cross platform native audit writer probe.'
+    notCompatibleWithConfigurationCache('Uses the selected packaged candidate to construct the verification classpath.')
+    dependsOn testClasses, tasks.named('jar')
+    def mainOutputFiles = sourceSets.main.output.files
+    def testSupportClasspath = sourceSets.test.runtimeClasspath.filter { file ->
+        !mainOutputFiles.contains(file)
+    }
+    classpath = files(sourceSets.test.output, testSupportClasspath)
+    mainClass = 'com.enviouse.sef.audit.AuditRuntimeProbe'
+    args layout.buildDirectory.dir('audit/native-writer-runtime').get().asFile.absolutePath
+    doFirst {
+        File candidateJar = providers.gradleProperty('sefAuditProbeCandidateJar').isPresent()
+                ? project.file(providers.gradleProperty('sefAuditProbeCandidateJar').get())
+                : layout.buildDirectory.file("libs/${project.base.archivesName.get()}-${project.version}.jar").get().asFile
+        if (!candidateJar.isFile()) {
+            throw new GradleException("audit writer probe candidate JAR is missing: ${candidateJar}")
+        }
+        classpath = files(sourceSets.test.output, testSupportClasspath, candidateJar)
+    }
+}
+
 tasks.register('generatePerformanceReport') {
     dependsOn test
 }
 
 tasks.named('runServer') {
+    standardInput = System.in
+}
+
+tasks.named('runCandidateServer') {
     standardInput = System.in
 }
 

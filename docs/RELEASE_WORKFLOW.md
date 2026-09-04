@@ -26,6 +26,16 @@ ref: envy/sef2_complete
 
 The workflow runs unit tests, all registered GameTests, the Gradle build, metadata checks, JAR inspection, and SHA-256 and SHA-512 hashing. It uploads the JAR and release manifest as workflow evidence. It never reads platform tokens and never uploads to either platform.
 
+The Phase 001 security gate also requires the resolved dependency graphs and remote alert snapshot to be captured at the release commit. Do not treat an open remote alert as dismissed. Record candidate configuration, packaged reachability, and the installed runtime provider in the release evidence. A development resolution override is not release remediation when the universal JAR does not embed or replace the platform library. Release preparation remains blocked until the dependency runtime decision is approved and verified.
+
+Capture the dependency and platform ownership manifest at the same candidate revision:
+
+```bash
+./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
+```
+
+On Windows PowerShell, run `.\gradlew.bat generateAuditDependencyManifest --no-configuration-cache "-PsefAuditCandidateCommit=$((git rev-parse HEAD).Trim())" --console=plain`. Retain `build/audit/platform-dependency-manifest.txt` with the restricted release evidence. The manifest is sanitized, includes normalized dependency paths and artifact digests, identifies the NeoForge runtime owner for JNA and JNA Platform, and fails to provide closure if that owner cannot be resolved. It does not replace authoritative advisory, installed-runtime, or compatible-remediation evidence required by `EXT-002`.
+
 The equivalent local checks are:
 
 ```bash
@@ -33,6 +43,8 @@ The equivalent local checks are:
 ./gradlew runGameTestServer -Pmod_version=2.0.0 --no-daemon
 ./gradlew build -Pmod_version=2.0.0 --no-daemon
 ```
+
+The cross platform audit also stages the exact candidate JAR in fresh game directory `mods` folders and runs `runCandidateGameTestServer` with `-PsefCandidateGameDirectory`. That run disables the local source mod and requires all 41 packaged GameTests to pass on Linux, macOS, and Windows. It then starts `runCandidateServer` from a separate disposable directory and requires the same packaged JAR to load, reach the dedicated server `Done` line, and stop cleanly. The runtime manifests record the candidate mods path, dedicated server evidence, artifact digests, and the native writer identity trace. The trace records before and after opened object identity, type, link count, native flush, and same object assertions, while the probe verifies that a rejected target preserves prior valid bytes. The client evidence workflow launches `runFallbackClient` with the packaged JAR through the Ubuntu Minecraft Java client fixture, which must reach the LWJGL backend and GUI atlas. No separate operating system client evidence is required. macOS and Windows remain supported targets and retain direct non client runtime evidence when their host specific paths are changed or exercised. Server and client logs are sanitized for hosted runner paths before upload, and raw logs are never uploaded.
 
 Inspect `build/libs/sef-2.0.0.jar`, its metadata, its contents, and both checksum files before continuing.
 

@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -31,8 +30,9 @@ class BoundaryInventoryGeneratorTest {
                 .findFirst()
                 .orElse(null);
         assertNotNull(nativeWriter);
-        assertFalse(nativeWriter.get("sourceAvailable").getAsBoolean());
-        assertEquals("finding", nativeWriter.get("disposition").getAsString());
+        assertTrue(nativeWriter.has("sourceAvailable"));
+        assertEquals(nativeWriter.get("sourceAvailable").getAsBoolean() ? "implemented" : "finding",
+                nativeWriter.get("disposition").getAsString());
     }
 
     @Test

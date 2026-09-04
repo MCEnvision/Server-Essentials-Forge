@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -283,7 +284,9 @@ public final class OfflinePlayerInventoryAdapter {
 
     private static void validateDirectory(Path directory, boolean create) throws IOException {
         for (Path current = directory; current != null; current = current.getParent()) {
-            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS) && Files.isSymbolicLink(current)) {
+            if (Files.exists(current, LinkOption.NOFOLLOW_LINKS)
+                    && Files.isSymbolicLink(current)
+                    && !isTrustedMacSystemAlias(current)) {
                 throw new IOException("offline inventory path contains a symbolic link");
             }
         }
@@ -292,7 +295,24 @@ public final class OfflinePlayerInventoryAdapter {
         }
         if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)
                 || Files.isSymbolicLink(directory)) {
-            throw new IOException("offline inventory directory is unavailable or unsafe");
+                throw new IOException("offline inventory directory is unavailable or unsafe");
+        }
+    }
+
+    private static boolean isTrustedMacSystemAlias(Path path) {
+        if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("mac")) {
+            return false;
+        }
+        Path root = path.getRoot();
+        if (root == null || !root.equals(path.getParent())) {
+            return false;
+        }
+        try {
+            Path resolved = path.toRealPath();
+            return resolved.startsWith(root.resolve("private"))
+                    && Files.isDirectory(resolved, LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException exception) {
+            return false;
         }
     }
 

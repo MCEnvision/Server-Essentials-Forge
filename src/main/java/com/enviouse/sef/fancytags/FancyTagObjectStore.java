@@ -1,6 +1,7 @@
 package com.enviouse.sef.fancytags;
 
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.storage.AtomicFileStore;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -89,7 +90,7 @@ public final class FancyTagObjectStore {
                     && Files.isSymbolicLink(directory)) {
                 throw new IOException("Fancy Tags storage directory cannot be a symbolic link");
             }
-            Files.createDirectories(directory);
+            AtomicFileStore.createSafeDirectories(directory);
         }
     }
 
@@ -100,7 +101,9 @@ public final class FancyTagObjectStore {
             String hash = sha256(canonical);
             Path destination = objectPath(hash);
             if (Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
-                byte[] existing = Files.readAllBytes(destination);
+                byte[] existing = AtomicFileStore.readBounded(
+                        destination,
+                        limits.maximumEncodedBytes());
                 if (!MessageDigest.isEqual(existing, canonical) || !hash.equals(sha256(existing))) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.STORAGE_ERROR,
@@ -140,7 +143,7 @@ public final class FancyTagObjectStore {
         if (length < 1L || length > limits.maximumEncodedBytes()) {
             throw new IOException("tag object length is invalid");
         }
-        byte[] bytes = Files.readAllBytes(path);
+        byte[] bytes = AtomicFileStore.readBounded(path, limits.maximumEncodedBytes());
         if (!hash.equals(sha256(bytes))) {
             throw new IOException("tag object hash mismatch");
         }
@@ -178,7 +181,9 @@ public final class FancyTagObjectStore {
                         : new Observation(size, modified, now);
                 next.put(normalized, current);
                 if (!current.firstObservedAt().plus(settleInterval).isAfter(now)) {
-                    byte[] bytes = Files.readAllBytes(normalized);
+                    byte[] bytes = AtomicFileStore.readBounded(
+                            normalized,
+                            limits.maximumEncodedBytes());
                     if (bytes.length != size
                             || Files.size(normalized) != size
                             || !Files.getLastModifiedTime(
@@ -237,7 +242,9 @@ public final class FancyTagObjectStore {
                     candidate.contentHash()))) {
                 return ActionResult.failure(ActionResult.ReasonCode.CONFLICT, "import candidate changed after review");
             }
-            byte[] bytes = Files.readAllBytes(source);
+            byte[] bytes = AtomicFileStore.readBounded(
+                    source,
+                    limits.maximumEncodedBytes());
             if (bytes.length != size
                     || !candidate.contentHash().equals(sha256(bytes))
                     || Files.size(source) != size
@@ -261,7 +268,9 @@ public final class FancyTagObjectStore {
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "invalid import candidate");
         }
         try {
-            byte[] bytes = Files.readAllBytes(source);
+            byte[] bytes = AtomicFileStore.readBounded(
+                    source,
+                    limits.maximumEncodedBytes());
             if (Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)
                     && !Files.isSymbolicLink(source)
                     && candidate.contentHash().equals(sha256(bytes))
@@ -447,7 +456,9 @@ public final class FancyTagObjectStore {
                                 output.write(buffer, 0, count);
                             }
                         }
-                        byte[] bytes = Files.readAllBytes(stagedObject);
+                        byte[] bytes = AtomicFileStore.readBounded(
+                                stagedObject,
+                                limits.maximumEncodedBytes());
                         byte[] canonical = canonicalize(bytes);
                         if (!hash.equals(sha256(bytes)) || !Arrays.equals(bytes, canonical)) {
                             throw new IOException("tag backup object is not canonical");
@@ -484,7 +495,9 @@ public final class FancyTagObjectStore {
             for (String hash : staged.hashes()) {
                 Path source = staged.root().resolve(hash + ".png").normalize();
                 requireInside(staged.root(), source);
-                byte[] bytes = Files.readAllBytes(source);
+                byte[] bytes = AtomicFileStore.readBounded(
+                        source,
+                        limits.maximumEncodedBytes());
                 if (!hash.equals(sha256(bytes)) || !Arrays.equals(bytes, canonicalize(bytes))) {
                     return ActionResult.failure(ActionResult.ReasonCode.INVALID_DEFINITION, "staged tag object changed");
                 }
@@ -499,7 +512,9 @@ public final class FancyTagObjectStore {
             for (String hash : staged.hashes()) {
                 Path destination = objectPath(hash);
                 if (!Files.isRegularFile(destination, LinkOption.NOFOLLOW_LINKS)) {
-                    publish(destination, Files.readAllBytes(staged.root().resolve(hash + ".png")));
+                    publish(destination, AtomicFileStore.readBounded(
+                            staged.root().resolve(hash + ".png"),
+                            limits.maximumEncodedBytes()));
                 } else {
                     read(hash);
                 }
@@ -709,7 +724,7 @@ public final class FancyTagObjectStore {
 
     private void publish(Path destination, byte[] bytes) throws IOException {
         requireInside(root, destination);
-        Files.createDirectories(destination.getParent());
+        AtomicFileStore.createSafeDirectories(destination.getParent());
         Path temporary = Files.createTempFile(temporaryRoot, "object-", ".tmp");
         try {
             Files.write(temporary, bytes);
