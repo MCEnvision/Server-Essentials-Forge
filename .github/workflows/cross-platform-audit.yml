@@ -411,11 +411,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "windows dependency graph failed with exit code $LASTEXITCODE" }
           $jnaInsight = (& .\gradlew.bat --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna --console=plain 2>&1 | Out-String)
           if ($LASTEXITCODE -ne 0) { throw "windows jna dependency insight failed with exit code $LASTEXITCODE" }
-          if ($jnaInsight -notmatch '(?m)^net\.java\.dev\.jna:jna:5\.14\.0$') { throw 'windows JNA dependency insight did not resolve jna 5.14.0' }
+          if ($jnaInsight -notmatch 'net\.java\.dev\.jna:jna:5\.14\.0(?:\s|$)') { throw 'windows JNA dependency insight did not resolve jna 5.14.0' }
           if ($jnaInsight -notmatch '(?m)^.*--- net\.neoforged:minecraft-dependencies:1\.21\.1') { throw 'windows JNA dependency insight did not prove NeoForge ownership' }
           $jnaPlatformInsight = (& .\gradlew.bat --no-daemon dependencyInsight --configuration runtimeClasspath --dependency net.java.dev.jna:jna-platform --console=plain 2>&1 | Out-String)
           if ($LASTEXITCODE -ne 0) { throw "windows jna platform dependency insight failed with exit code $LASTEXITCODE" }
-          if ($jnaPlatformInsight -notmatch '(?m)^net\.java\.dev\.jna:jna-platform:5\.14\.0$') { throw 'windows JNA platform dependency insight did not resolve jna-platform 5.14.0' }
+          if ($jnaPlatformInsight -notmatch 'net\.java\.dev\.jna:jna-platform:5\.14\.0(?:\s|$)') { throw 'windows JNA platform dependency insight did not resolve jna-platform 5.14.0' }
           if ($jnaPlatformInsight -notmatch '(?m)^.*--- net\.neoforged:minecraft-dependencies:1\.21\.1') { throw 'windows JNA platform dependency insight did not prove NeoForge ownership' }
 
       - name: sanitize linux or macos backend evidence
@@ -549,16 +549,34 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw "jar integrity listing failed for $path with exit code $LASTEXITCODE" }
             return @($entries -split "`r?`n" | Where-Object { $_ -ne '' })
           }
+          function Get-JarContentManifest([string] $path) {
+            $temp = Join-Path $env:RUNNER_TEMP ([guid]::NewGuid().ToString())
+            New-Item -ItemType Directory -Force -Path $temp | Out-Null
+            try {
+              Push-Location $temp
+              & jar xf $path
+              if ($LASTEXITCODE -ne 0) { throw "jar content extraction failed for $path with exit code $LASTEXITCODE" }
+              return @(Get-ChildItem -LiteralPath $temp -Recurse -File | ForEach-Object {
+                $relative = [System.IO.Path]::GetRelativePath($temp, $_.FullName).Replace('\', '/')
+                "$relative=$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())"
+              } | Sort-Object)
+            } finally {
+              Pop-Location
+              Remove-Item -LiteralPath $temp -Recurse -Force -ErrorAction SilentlyContinue
+            }
+          }
           $nativePattern = '(?i)(^|/)(com/sun/jna/|jnidispatch/|jna-platform/|(jna|jna-platform)(-[^/]*)?\.jar$|.*\.(dll|dylib|so)$)'
           $artifactEntries = Get-JarEntries $artifact.FullName
           $hostEntries = Get-JarEntries $hostArtifact.FullName
           if ($artifactEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in candidate jar' }
           if ($hostEntries | Where-Object { $_ -match $nativePattern }) { throw 'duplicate native runtime entries found in host jar' }
+          $artifactContentManifest = Get-JarContentManifest $artifact.FullName
+          $hostContentManifest = Get-JarContentManifest $hostArtifact.FullName
+          if (($artifactContentManifest -join "`n") -ne ($hostContentManifest -join "`n")) { throw 'host build artifact content does not match downloaded candidate' }
           $sha256 = (Get-FileHash $artifact -Algorithm SHA256).Hash.ToLower()
           $sha512 = (Get-FileHash $artifact -Algorithm SHA512).Hash.ToLower()
           $hostSha256 = (Get-FileHash $hostArtifact -Algorithm SHA256).Hash.ToLower()
           $hostSha512 = (Get-FileHash $hostArtifact -Algorithm SHA512).Hash.ToLower()
-          if ($hostSha256 -ne $sha256) { throw 'host build artifact does not match downloaded candidate' }
           $candidateRuntimeVerified = Test-Path -LiteralPath 'build/candidate-gametest.verification.complete' -PathType Leaf
           $candidateDedicatedServerVerified = (Test-Path -LiteralPath 'build/candidate-server.verification.complete' -PathType Leaf) -and (Test-Path -LiteralPath 'build/candidate-server-runtime.sanitized.log' -PathType Leaf)
           @(
@@ -571,6 +589,7 @@ jobs:
             "candidate_runtime=mods/$($artifact.Name)"
             "candidate_runtime_verified=$($candidateRuntimeVerified.ToString().ToLower())"
             "candidate_dedicated_server_verified=$($candidateDedicatedServerVerified.ToString().ToLower())"
+            'host_build_content_equal=true'
             'candidate_dedicated_server_log=candidate-server-runtime.sanitized.log'
             'client_runtime_verified=separate-client-evidence-workflow'
             'client_runtime_blocked=separate-client-evidence-workflow'
