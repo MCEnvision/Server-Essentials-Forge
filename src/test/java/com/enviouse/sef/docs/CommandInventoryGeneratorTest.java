@@ -61,6 +61,13 @@ class CommandInventoryGeneratorTest {
                         + inventory.get("pipelineCallSiteCount").getAsInt());
         assertTrue(inventory.get("dynamicPipelineCallSiteCount").getAsInt() > 0);
         assertTrue(inventory.get("literalPipelineActionCount").getAsInt() > 0);
+        assertEquals(
+                inventory.get("dynamicPipelineCallSiteCount").getAsInt(),
+                inventory.getAsJsonArray("dynamicPipelineCallSites").size());
+        assertEquals(
+                inventory.get("pipelineCallSiteCount").getAsInt(),
+                inventory.get("literalPipelineCallSiteCount").getAsInt()
+                        + inventory.get("dynamicPipelineCallSiteCount").getAsInt());
         for (var element : inventory.getAsJsonArray("rows")) {
             JsonObject row = element.getAsJsonObject();
             if (row.get("category").getAsString().equals("command")) {

@@ -162,7 +162,12 @@ public final class CommandInventoryGenerator {
         inventory.addProperty("pipelineCallSiteCount", executionAudit.callSites().size());
         inventory.addProperty("literalPipelineActionCount", executionAudit.literalLocations().size());
         inventory.addProperty("dynamicPipelineCallSiteCount", executionAudit.dynamicLocations().size());
-        inventory.add("pipelineCallSites", callSites(executionAudit.callSites()));
+        inventory.addProperty(
+                "literalPipelineCallSiteCount",
+                executionAudit.callSites().size() - executionAudit.dynamicLocations().size());
+        inventory.add("dynamicPipelineCallSites", callSites(executionAudit.callSites().stream()
+                .filter(value -> value.actionId().isBlank())
+                .toList()));
         inventory.add("rows", rows);
         AuditEvidenceContract.validateCommandInventory(inventory);
         return inventory;
