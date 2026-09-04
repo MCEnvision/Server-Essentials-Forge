@@ -60,7 +60,7 @@ public final class BundleCompiler {
         }
 
         for (BundleDefinition definition : normalized.values()) {
-            ActionResult<Void> local = validateLocal(definition, normalized.keySet());
+            ActionResult<Void> local = validateLocal(definition, normalized);
             if (!local.successful()) {
                 return ActionResult.failure(local.reason(), definition.id() + ". " + local.detail());
             }
@@ -85,7 +85,10 @@ public final class BundleCompiler {
         return ActionResult.success(Map.copyOf(compiled));
     }
 
-    private ActionResult<Void> validateLocal(BundleDefinition definition, Set<String> bundleIds) {
+    private ActionResult<Void> validateLocal(
+            BundleDefinition definition,
+            Map<String, BundleDefinition> definitions
+    ) {
         if (!ID.matcher(definition.id()).matches()) {
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_DEFINITION, "invalid bundle id");
         }
@@ -108,8 +111,17 @@ public final class BundleCompiler {
             if (step.kind() == StepKind.SEF_ACTION && catalog.find(step.targetId()).isEmpty()) {
                 return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "unknown action " + step.targetId());
             }
-            if (step.kind() == StepKind.BUNDLE && !bundleIds.contains(step.targetId())) {
-                return ActionResult.failure(ActionResult.ReasonCode.NOT_FOUND, "unknown bundle " + step.targetId());
+            if (step.kind() == StepKind.BUNDLE) {
+                BundleDefinition nested = definitions.get(step.targetId());
+                if (nested == null) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.NOT_FOUND,
+                            "unknown bundle " + step.targetId());
+                }
+                ActionResult<Void> policy = validateNestedPolicy(definition, nested);
+                if (!policy.successful()) {
+                    return ActionResult.failure(policy.reason(), step.id() + ". " + policy.detail());
+                }
             }
             if (step.kind() == StepKind.DELAY
                     && (step.delay().isNegative() || step.delay().isZero() || step.delay().compareTo(Duration.ofHours(1)) > 0)) {
@@ -123,6 +135,58 @@ public final class BundleCompiler {
             if (step.kind() == StepKind.RAW_COMMAND) {
                 return ActionResult.failure(ActionResult.ReasonCode.POLICY_DENIED, "raw command steps are forbidden");
             }
+        }
+        return ActionResult.success(null);
+    }
+
+    private ActionResult<Void> validateNestedPolicy(
+            BundleDefinition parent,
+            BundleDefinition nested
+    ) {
+        if (nested.authorizationMode() != parent.authorizationMode()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle changes authorization mode");
+        }
+        if (!nested.additionalPermissionId().equals(parent.additionalPermissionId())) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle changes additional permission");
+        }
+        if (!nested.sourceTypes().containsAll(parent.sourceTypes())) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle narrows source classes");
+        }
+        if (nested.maximumTargets() < parent.maximumTargets()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle lowers target cap");
+        }
+        if (nested.actionsPerTick() < parent.actionsPerTick()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle lowers the action pace");
+        }
+        if (nested.maximumDuration().compareTo(parent.maximumDuration()) < 0) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle lowers the execution deadline");
+        }
+        if (nested.confirmationRequired() && !parent.confirmationRequired()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle requires confirmation the parent omits");
+        }
+        if (nested.auditClass().ordinal() > parent.auditClass().ordinal()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle requires stronger audit policy");
+        }
+        if (nested.executionMode() != parent.executionMode()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.POLICY_DENIED,
+                    "nested bundle changes failure handling");
         }
         return ActionResult.success(null);
     }

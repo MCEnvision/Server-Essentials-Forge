@@ -350,6 +350,38 @@ class KernelCommandContractTest {
     }
 
     @Test
+    void bundleCompilerRejectsNestedPolicyWeakening() {
+        CapabilityManifest capabilities = capabilities("sef.test.use");
+        CommandCatalog catalog = catalog(capabilities);
+        BundleCompiler compiler = new BundleCompiler(catalog, 8, 3, 10, 20);
+        BundleCompiler.BundleDefinition child = new BundleCompiler.BundleDefinition(
+                1,
+                "custom:child",
+                1,
+                BundleCompiler.DefinitionState.DRAFT,
+                true,
+                "sef.extra",
+                Set.of(CommandDefinition.SourceType.PLAYER),
+                BundleCompiler.AuthorizationMode.STRICT_ACTOR,
+                BundleCompiler.ExecutionMode.STOP_ON_FAILURE,
+                1,
+                1,
+                Duration.ofMinutes(1),
+                true,
+                AuditService.AuditClass.WORKFLOW_EXECUTION,
+                List.of(step("action", BundleCompiler.StepKind.SEF_ACTION, "sef:test")));
+        BundleCompiler.BundleDefinition parent = bundle(
+                "custom:parent",
+                List.of(step("nested", BundleCompiler.StepKind.BUNDLE, child.id())));
+
+        ActionResult<Map<String, BundleCompiler.CompiledBundle>> result = compiler.compileAll(Map.of(
+                child.id(), child,
+                parent.id(), parent));
+        assertEquals(ActionResult.ReasonCode.POLICY_DENIED, result.reason());
+        assertTrue(result.detail().contains("additional permission"));
+    }
+
+    @Test
     void commandWrapperRejectsNestedOriginsAndWrapperRoots() {
         UUID correlation = UUID.randomUUID();
         CommandWrapperService.Request direct = new CommandWrapperService.Request(
