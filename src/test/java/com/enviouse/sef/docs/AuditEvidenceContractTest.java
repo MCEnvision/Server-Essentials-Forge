@@ -1,6 +1,7 @@
 package com.enviouse.sef.docs;
 
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -113,6 +114,27 @@ class AuditEvidenceContractTest {
 
         JsonArray empty = new JsonArray();
         AuditEvidenceContract.validateInventorySet(empty);
+    }
+
+    @Test
+    void commandInventorySchemaRejectsMissingJoinsAndCountDrift() {
+        JsonObject inventory = CommandInventoryGenerator.generate();
+        AuditEvidenceContract.validateCommandInventory(inventory);
+
+        JsonObject missingCommandJoin = inventory.deepCopy();
+        missingCommandJoin.getAsJsonArray("rows").asList().stream()
+                .map(JsonElement::getAsJsonObject)
+                .filter(row -> row.get("category").getAsString().equals("command"))
+                .findFirst()
+                .orElseThrow()
+                .remove("featureId");
+        assertThrows(IllegalArgumentException.class,
+                () -> AuditEvidenceContract.validateCommandInventory(missingCommandJoin));
+
+        JsonObject countDrift = inventory.deepCopy();
+        countDrift.addProperty("routeCount", inventory.get("routeCount").getAsInt() + 1);
+        assertThrows(IllegalArgumentException.class,
+                () -> AuditEvidenceContract.validateCommandInventory(countDrift));
     }
 
     @Test

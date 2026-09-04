@@ -2,9 +2,13 @@ package com.enviouse.sef.docs;
 
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.kernel.command.ShortcutRegistry;
 import com.enviouse.sef.permissions.PermissionManifest;
 import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -131,9 +135,9 @@ public final class CommandInventoryGenerator {
         AuditEvidenceContract.validateInventorySet(rows);
         JsonObject inventory = new JsonObject();
         inventory.addProperty("schemaVersion", AuditEvidenceContract.SCHEMA_VERSION);
-        inventory.addProperty("inventoryId", "sef-command-inventory-p000");
-        inventory.addProperty("phase", "SEFAUD-PHASE-000");
-        inventory.addProperty("task", "P000-TASK-003");
+        inventory.addProperty("inventoryId", "sef-command-inventory-p003");
+        inventory.addProperty("phase", "SEFAUD-PHASE-003");
+        inventory.addProperty("task", "P003-TASK-001");
         inventory.addProperty("source", "sealed runtime command and permission registries");
         inventory.addProperty("catalogActionCount", KernelServices.catalog().size());
         inventory.addProperty("routeCount", KernelServices.catalog().routes().size());
@@ -141,11 +145,76 @@ public final class CommandInventoryGenerator {
         inventory.addProperty("permissionCount", PermissionManifest.definitions().size());
         inventory.addProperty("unavailableFamilyCount", UNAVAILABLE_FAMILIES.size());
         inventory.add("rows", rows);
+        AuditEvidenceContract.validateCommandInventory(inventory);
+        return inventory;
+    }
+
+    /**
+     * Adds the live dispatcher projection to the sealed registry inventory.
+     * The caller must invoke this after both command registration handlers run.
+     */
+    public static JsonObject generateLive(CommandDispatcher<CommandSourceStack> dispatcher) {
+        if (dispatcher == null) {
+            throw new IllegalArgumentException("live command dispatcher is required");
+        }
+        JsonObject inventory = generate();
+        Set<String> roots = new TreeSet<>();
+        dispatcher.getRoot().getChildren().forEach(node -> roots.add(node.getName().toLowerCase(
+                java.util.Locale.ROOT)));
+        JsonArray rootRows = new JsonArray();
+        for (String root : roots) {
+            JsonObject row = row(
+                    "dispatcher-root",
+                    root,
+                    "SEFAUD-PHASE-003",
+                    "runtime",
+                    "implemented",
+                    "src/main/java/com/enviouse/sef/events/CommandRegistrationHandler.java");
+            row.addProperty("registered", true);
+            rootRows.add(row);
+        }
+        inventory.addProperty("dispatcherRootCount", roots.size());
+        inventory.add("dispatcherRoots", rootRows);
+
+        JsonArray rows = inventory.getAsJsonArray("rows");
+        for (JsonElement element : rows) {
+            JsonObject row = element.getAsJsonObject();
+            if (!"shortcut".equals(row.get("category").getAsString())) {
+                continue;
+            }
+            String root = row.get("semanticKey").getAsString();
+            ShortcutRegistry.Diagnostic diagnostic = KernelServices.shortcuts().diagnostics().stream()
+                    .filter(value -> value.root().equals(root))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("shortcut diagnostic is missing " + root));
+            row.addProperty("registrationStatus", diagnostic.status().name().toLowerCase(java.util.Locale.ROOT));
+            row.addProperty("registrationDetail", diagnostic.detail());
+            row.addProperty("registered", roots.contains(root));
+            if ((diagnostic.status() == ShortcutRegistry.Status.ACTIVE
+                    || diagnostic.status() == ShortcutRegistry.Status.ACTIVE_OVERRIDE)
+                    && !roots.contains(root)) {
+                throw new IllegalStateException("active shortcut root was not registered " + root);
+            }
+        }
+        AuditEvidenceContract.validateCommandInventory(inventory);
         return inventory;
     }
 
     public static Path write(Path approvedExternalRoot, String fileName) throws IOException {
         JsonObject inventory = generate();
+        return AuditEvidenceContract.writeInventory(
+                approvedExternalRoot,
+                fileName,
+                inventory,
+                inventory.getAsJsonArray("rows"));
+    }
+
+    public static Path writeLive(
+            Path approvedExternalRoot,
+            String fileName,
+            CommandDispatcher<CommandSourceStack> dispatcher
+    ) throws IOException {
+        JsonObject inventory = generateLive(dispatcher);
         return AuditEvidenceContract.writeInventory(
                 approvedExternalRoot,
                 fileName,

@@ -177,6 +177,139 @@ public final class AuditEvidenceContract {
         }
     }
 
+    public static void validateCommandInventory(JsonObject inventory) {
+        if (inventory == null) {
+            throw new IllegalArgumentException("command inventory is required");
+        }
+        requireVersion(inventory, "command inventory");
+        requireString(inventory, "inventoryId");
+        requireString(inventory, "phase");
+        if (!PHASE_ID.matcher(inventory.get("phase").getAsString()).matches()) {
+            throw new IllegalArgumentException("invalid command inventory phase");
+        }
+        requireString(inventory, "task");
+        requireString(inventory, "source");
+        requireInteger(inventory, "catalogActionCount");
+        requireInteger(inventory, "routeCount");
+        requireInteger(inventory, "shortcutCount");
+        requireInteger(inventory, "permissionCount");
+        requireInteger(inventory, "unavailableFamilyCount");
+        if (!inventory.has("rows") || !inventory.get("rows").isJsonArray()) {
+            throw new IllegalArgumentException("command inventory rows are required");
+        }
+        JsonArray rows = inventory.getAsJsonArray("rows");
+        validateInventorySet(rows);
+
+        Set<String> actions = new HashSet<>();
+        Set<String> routes = new HashSet<>();
+        Set<String> shortcuts = new HashSet<>();
+        Set<String> permissions = new HashSet<>();
+        int actionCount = 0;
+        int routeCount = 0;
+        int shortcutCount = 0;
+        int permissionCount = 0;
+        int unavailableCount = 0;
+        for (JsonElement element : rows) {
+            JsonObject row = element.getAsJsonObject();
+            String category = row.get("category").getAsString();
+            switch (category) {
+                case "command" -> {
+                    actionCount++;
+                    if (!actions.add(row.get("semanticKey").getAsString())) {
+                        throw new IllegalArgumentException("duplicate command action");
+                    }
+                    requireString(row, "canonicalRoute");
+                    requireString(row, "featureId");
+                    requireString(row, "accessClass");
+                    requireString(row, "auditClass");
+                    requireString(row, "targetBehavior");
+                    requireBoolean(row, "pipelineEnforced");
+                    requireStringArray(row, "permissionIds", true);
+                    requireStringArray(row, "sourceTypes", true);
+                    requireStringArray(row, "convenienceRoots", false);
+                }
+                case "route" -> {
+                    routeCount++;
+                    if (!routes.add(row.get("semanticKey").getAsString())) {
+                        throw new IllegalArgumentException("duplicate command route");
+                    }
+                    requireString(row, "actionId");
+                    if (!actions.contains(row.get("actionId").getAsString())) {
+                        throw new IllegalArgumentException("route points to an unknown command");
+                    }
+                }
+                case "shortcut" -> {
+                    shortcutCount++;
+                    if (!shortcuts.add(row.get("semanticKey").getAsString())) {
+                        throw new IllegalArgumentException("duplicate command shortcut");
+                    }
+                    requireString(row, "actionId");
+                    if (!actions.contains(row.get("actionId").getAsString())) {
+                        throw new IllegalArgumentException("shortcut points to an unknown command");
+                    }
+                    requireString(row, "adapter");
+                    requireString(row, "collisionMode");
+                    requireNumber(row, "structuralRevision");
+                    if (row.has("registrationStatus")) {
+                        requireString(row, "registrationStatus");
+                        if (!Set.of("active", "active_override", "disabled", "canonical_only", "conflict",
+                                "restart_required").contains(row.get("registrationStatus").getAsString())) {
+                            throw new IllegalArgumentException("invalid shortcut registration status");
+                        }
+                        requireString(row, "registrationDetail");
+                        requireBoolean(row, "registered");
+                    }
+                }
+                case "permission" -> {
+                    permissionCount++;
+                    if (!permissions.add(row.get("semanticKey").getAsString())) {
+                        throw new IllegalArgumentException("duplicate command permission");
+                    }
+                    requireBoolean(row, "default");
+                    requireString(row, "name");
+                }
+                case "unavailable" -> {
+                    unavailableCount++;
+                    requireBoolean(row, "runtimeHandler");
+                    requireBoolean(row, "capabilityAdvertised");
+                    if (row.get("runtimeHandler").getAsBoolean()
+                            || row.get("capabilityAdvertised").getAsBoolean()) {
+                        throw new IllegalArgumentException("unavailable family is advertised");
+                    }
+                }
+                default -> throw new IllegalArgumentException("unknown command inventory category " + category);
+            }
+        }
+        requireCount(inventory, "catalogActionCount", actionCount);
+        requireCount(inventory, "routeCount", routeCount);
+        requireCount(inventory, "shortcutCount", shortcutCount);
+        requireCount(inventory, "permissionCount", permissionCount);
+        requireCount(inventory, "unavailableFamilyCount", unavailableCount);
+        if (inventory.has("dispatcherRootCount")) {
+            requireInteger(inventory, "dispatcherRootCount");
+            if (!inventory.has("dispatcherRoots") || !inventory.get("dispatcherRoots").isJsonArray()) {
+                throw new IllegalArgumentException("dispatcher root rows are required");
+            }
+            JsonArray dispatcherRoots = inventory.getAsJsonArray("dispatcherRoots");
+            if (dispatcherRoots.size() != inventory.get("dispatcherRootCount").getAsInt()) {
+                throw new IllegalArgumentException("dispatcher root count does not match rows");
+            }
+            Set<String> rootKeys = new HashSet<>();
+            for (JsonElement element : dispatcherRoots) {
+                if (!element.isJsonObject()) {
+                    throw new IllegalArgumentException("dispatcher root row must be an object");
+                }
+                JsonObject row = element.getAsJsonObject();
+                validateInventoryRow(row);
+                if (!"dispatcher-root".equals(row.get("category").getAsString())
+                        || !rootKeys.add(row.get("semanticKey").getAsString())) {
+                    throw new IllegalArgumentException("invalid dispatcher root row");
+                }
+                requireBoolean(row, "registered");
+            }
+        }
+    }
+
     public static Path write(Path approvedExternalRoot, String fileName, JsonObject rawRecord) throws IOException {
         if (approvedExternalRoot == null || fileName == null || !fileName.matches("[A-Za-z0-9._-]+\\.json")) {
             throw new IllegalArgumentException("evidence output name is invalid");
@@ -320,6 +453,33 @@ public final class AuditEvidenceContract {
                 || !object.getAsJsonPrimitive("schemaVersion").isNumber()
                 || object.get("schemaVersion").getAsInt() != SCHEMA_VERSION) {
             throw new IllegalArgumentException("unsupported " + kind + " schema version");
+        }
+    }
+
+    private static void requireBoolean(JsonObject object, String field) {
+        if (!object.has(field) || !object.get(field).isJsonPrimitive()
+                || !object.getAsJsonPrimitive(field).isBoolean()) {
+            throw new IllegalArgumentException("missing " + field);
+        }
+    }
+
+    private static void requireNumber(JsonObject object, String field) {
+        if (!object.has(field) || !object.get(field).isJsonPrimitive()
+                || !object.getAsJsonPrimitive(field).isNumber()) {
+            throw new IllegalArgumentException("missing " + field);
+        }
+    }
+
+    private static void requireInteger(JsonObject object, String field) {
+        requireNumber(object, field);
+        if (object.get(field).getAsInt() < 0) {
+            throw new IllegalArgumentException("invalid " + field);
+        }
+    }
+
+    private static void requireCount(JsonObject object, String field, int actual) {
+        if (object.get(field).getAsInt() != actual) {
+            throw new IllegalArgumentException(field + " does not match rows");
         }
     }
 
