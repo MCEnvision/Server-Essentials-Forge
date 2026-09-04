@@ -314,6 +314,10 @@ tasks.register('generateAuditDependencyManifest') {
             }
             def path = entry.substring(3)
             path.startsWith('src/')
+                    || path == 'buildSrc'
+                    || path.startsWith('buildSrc/')
+                    || path == 'gradle'
+                    || path.startsWith('gradle/')
                     || path in ['build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/libs.versions.toml']
         }
         if (!untrackedBuildInputs.isEmpty()) {
