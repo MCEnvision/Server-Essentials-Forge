@@ -95,7 +95,7 @@ public class ServerCommonPacketListenerImplMixin {
 			TraceHandler.trace(pickUppingPlayer, "Pickup Animation", pickupPacket.getItemId() + "x" + pickupPacket.getAmount());
 			callbackInfo.cancel();
 		}
-		else if (VanishConfig.CONFIG.hidePlayersFromWorld.get()) {
+		else if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld)) {
 			PlayerList playerList = receivingPlayer.server.getPlayerList();
 			Holder<SoundEvent> suppressedSound = null;
 			Player vanishedIndirectCause = null;
@@ -173,7 +173,7 @@ public class ServerCommonPacketListenerImplMixin {
 			if (VanishUtil.isVanished(FieldHolder.leavingPlayer, player))
 				vanishedPlayers.add(FieldHolder.leavingPlayer);
 
-			if (VanishConfig.CONFIG.hideSystemMessages.get() || VanishConfig.CONFIG.hidePlayerNameInSystemMessages.get()) {
+			if (VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages) || VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInSystemMessages)) {
 				ServerPlayer vanishedSender = null;
 				Object[] args = content.getArgs();
 
@@ -191,12 +191,12 @@ public class ServerCommonPacketListenerImplMixin {
 				}
 
 				if (vanishedSender != null) {
-					if (VanishConfig.CONFIG.hideSystemMessages.get()) {
+					if (VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages)) {
 						TraceHandler.trace(vanishedSender, "Announcement", component.getString());
 						callbackInfo.cancel();
 					}
-					else if (VanishConfig.CONFIG.hidePlayerNameInSystemMessages.get()) {
-						Component replacement = Component.literal(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get());
+					else if (VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInSystemMessages)) {
+						Component replacement = Component.literal(VanishConfig.get(VanishConfig.CONFIG.vanishedPlayerNameReplacement));
 
 						TraceHandler.trace(vanishedSender, Component.literal("Player Name (now \"").append(replacement).append("\")"), component.getString());
 						args[0] = replacement;
@@ -206,7 +206,7 @@ public class ServerCommonPacketListenerImplMixin {
 				}
 			}
 
-			if (VanishConfig.CONFIG.removeModdedSystemMessageReferences.get() && !key.startsWith("commands.message.display.incoming") && !key.startsWith("chat.type.")) {
+			if (VanishConfig.get(VanishConfig.CONFIG.removeModdedSystemMessageReferences) && !key.startsWith("commands.message.display.incoming") && !key.startsWith("chat.type.")) {
 				for (Object arg : content.getArgs()) {
 					if (arg instanceof Component componentArg) {
 						String potentialPlayerName = componentArg.getString();

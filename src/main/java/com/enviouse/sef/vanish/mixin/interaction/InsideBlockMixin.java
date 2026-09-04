@@ -20,7 +20,7 @@ public abstract class InsideBlockMixin {
 
 	@Inject(method = "entityInside", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$cancelEntityInsideBlock(BlockState state, Level level, BlockPos pos, Entity entity, CallbackInfo ci) {
-		if (VanishUtil.isVanished(entity) && VanishConfig.CONFIG.preventBlockInteractions.get())
+		if (VanishUtil.isVanished(entity) && VanishConfig.get(VanishConfig.CONFIG.preventBlockInteractions))
 			ci.cancel();
 	}
 }

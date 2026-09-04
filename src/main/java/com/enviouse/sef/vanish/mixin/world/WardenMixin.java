@@ -14,7 +14,7 @@ import com.enviouse.sef.vanish.VanishUtil;
 public abstract class WardenMixin {
 	@Inject(method = "canTargetEntity", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/monster/warden/Warden;isAlliedTo(Lnet/minecraft/world/entity/Entity;)Z"), cancellable = true)
 	public void vanishmod$excludeVanished(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-		if (VanishConfig.CONFIG.hidePlayersFromWorld.get() && VanishUtil.isVanished(entity))
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld) && VanishUtil.isVanished(entity))
 			cir.setReturnValue(false);
 	}
 }

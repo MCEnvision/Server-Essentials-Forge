@@ -97,7 +97,7 @@ public class VanishEventListener {
 			if (player.level().getGameTime() % 20 == 0)
 				VanishUtil.recheckVanished(player);
 
-			if (ServerEssentialsForge.mc2discordDetected && VanishConfig.CONFIG.forceSyncHiddenList.get()) {
+			if (ServerEssentialsForge.mc2discordDetected && VanishConfig.get(VanishConfig.CONFIG.forceSyncHiddenList)) {
 				boolean isVanished = VanishUtil.isVanished(player);
 
 				if (isVanished != Mc2DiscordCompat.isHidden(player))
@@ -142,7 +142,7 @@ public class VanishEventListener {
 
 	@SubscribeEvent
 	public static void onChangeTarget(LivingChangeTargetEvent event) {
-		if (VanishConfig.CONFIG.hidePlayersFromWorld.get()) {
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld)) {
 			if (event.getNewAboutToBeSetTarget() instanceof ServerPlayer player && VanishUtil.isVanished(player))
 				event.setCanceled(true);
 		}
@@ -150,7 +150,7 @@ public class VanishEventListener {
 
 	@SubscribeEvent
 	public static void onProjectileImpact(ProjectileImpactEvent event) {
-		if (VanishConfig.CONFIG.hidePlayersFromWorld.get()) {
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld)) {
 			if (event.getRayTraceResult() instanceof EntityHitResult hitResult && VanishUtil.isVanished(hitResult.getEntity(), event.getProjectile().getOwner()))
 				event.setCanceled(true);
 		}
@@ -159,7 +159,7 @@ public class VanishEventListener {
 	@SubscribeEvent
 	public static void onVanillaGameEvent(VanillaGameEvent event) {
 		if (event.getCause() instanceof ServerPlayer player) {
-			if (VanishConfig.CONFIG.hidePlayersFromWorld.get() && VanishUtil.isVanished(player))
+			if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld) && VanishUtil.isVanished(player))
 				event.setCanceled(true);
 		}
 	}

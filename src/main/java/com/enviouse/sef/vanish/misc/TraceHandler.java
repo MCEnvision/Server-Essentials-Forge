@@ -43,7 +43,7 @@ public class TraceHandler {
 
 		permissionText.add("Players with sef.vanishsee." + vanishLevel + " (or lower number) permission");
 
-		if (VanishConfig.CONFIG.seeVanishedTeamPlayers.get())
+		if (VanishConfig.get(VanishConfig.CONFIG.seeVanishedTeamPlayers))
 			permissionText.add("Members of your team");
 
 
@@ -57,15 +57,15 @@ public class TraceHandler {
 
 		player.sendSystemMessage(Component.literal("# §nTrace Status§r:"));
 		player.sendSystemMessage(Component.literal("# §bAlways enabled§r: Hiding from the tab list and hiding your skin"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hidePlayersFromWorld.get()).append("Hiding from the world, like through suppressing sounds and particles"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hidePlayersFromPlayerLists.get()).append("Hiding from other player lists, like the server player list in the multiplayer screen"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.disableCommandTargeting.get()).append("Hiding from player selectors in commands, like the /give command"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hideChatMessages.get()).append("Hiding chat and /teammsg messages"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hideSystemMessages.get()).append("Hiding join, leave, advancement and death messages"));
-		player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hidePlayerNameInChat.get()).append("Hiding your player name in public chat messages, replacing it with \"").append(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get()).append("\""));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld)).append("Hiding from the world, like through suppressing sounds and particles"));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromPlayerLists)).append("Hiding from other player lists, like the server player list in the multiplayer screen"));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.disableCommandTargeting)).append("Hiding from player selectors in commands, like the /give command"));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hideChatMessages)).append("Hiding chat and /teammsg messages"));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages)).append("Hiding join, leave, advancement and death messages"));
+		player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInChat)).append("Hiding your player name in public chat messages, replacing it with \"").append(VanishConfig.get(VanishConfig.CONFIG.vanishedPlayerNameReplacement)).append("\""));
 
-		if (!VanishConfig.CONFIG.hideSystemMessages.get())
-            player.sendSystemMessage(getTracePrefix(VanishConfig.CONFIG.hidePlayerNameInSystemMessages.get()).append("Hiding your player name in system messages, replacing it with \"").append(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get()).append("\""));
+		if (!VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages))
+            player.sendSystemMessage(getTracePrefix(VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInSystemMessages)).append("Hiding your player name in system messages, replacing it with \"").append(VanishConfig.get(VanishConfig.CONFIG.vanishedPlayerNameReplacement)).append("\""));
 
 		player.sendSystemMessage(visibleForComponent);
 	}

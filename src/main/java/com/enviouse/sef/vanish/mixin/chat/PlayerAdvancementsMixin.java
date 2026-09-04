@@ -23,7 +23,7 @@ public abstract class PlayerAdvancementsMixin {
 		// lambda$award$2 is verified against NeoForge 21.1.235.
 	@Redirect(method = "lambda$award$2", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;broadcastSystemMessage(Lnet/minecraft/network/chat/Component;Z)V"))
 	public void vanishmod$hideAdvancementMessage(PlayerList playerList, Component message, boolean overlay) {
-		if (VanishConfig.CONFIG.hideSystemMessages.get() && VanishUtil.isVanished(this.player)) {
+		if (VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages) && VanishUtil.isVanished(this.player)) {
 			// Only send to players who can see the vanished player
 			for (ServerPlayer observer : playerList.getPlayers()) {
 				if (VanishUtil.playerAllowedToSeeOther(observer, this.player, VanishUtil.isVanished(observer), true)) {

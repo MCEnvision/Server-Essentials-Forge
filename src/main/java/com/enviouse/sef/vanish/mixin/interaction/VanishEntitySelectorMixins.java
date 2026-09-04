@@ -31,7 +31,7 @@ public class VanishEntitySelectorMixins {
 			@WrapOperation(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntities(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
 			private List<Entity> vanishmod$preventMinecartCollision(Level level, Entity entity, AABB aabb, Operation<List<Entity>> original) {
 				List<Entity> entities = original.call(level, entity, aabb);
-				if (!VanishConfig.CONFIG.preventEntityCollisions.get())
+				if (!VanishConfig.get(VanishConfig.CONFIG.preventEntityCollisions))
 					return entities;
 				return entities.stream()
 						.filter(VanishUtil.NO_SPECTATORS_AND_NO_VANISH)
@@ -45,7 +45,7 @@ public class VanishEntitySelectorMixins {
 			@WrapOperation(method = "angerNearbyBees", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/level/Level;getEntitiesOfClass(Ljava/lang/Class;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;"))
 			private List<LivingEntity> vanishmod$preventBeeAnger(Level level, Class<LivingEntity> entityClass, AABB aabb, Operation<List<LivingEntity>> original) {
 				List<LivingEntity> entities = original.call(level, entityClass, aabb);
-				if (!VanishConfig.CONFIG.hidePlayersFromWorld.get())
+				if (!VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld))
 					return entities;
 				return entities.stream()
 						.filter(VanishUtil.NO_SPECTATORS_AND_NO_VANISH)

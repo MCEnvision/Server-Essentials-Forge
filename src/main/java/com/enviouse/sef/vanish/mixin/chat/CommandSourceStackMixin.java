@@ -32,7 +32,7 @@ public abstract class CommandSourceStackMixin {
 	//Filters the list of online players that is used for player name suggestions in the e.g. /team command, so vanished player names are not suggested for non-permitted players
 	@Inject(method = "getOnlinePlayerNames", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$filterCommandSuggestionPlayerList(CallbackInfoReturnable<Collection<String>> callbackInfo) {
-		if (VanishConfig.CONFIG.hidePlayersFromPlayerLists.get() && isPlayer()) {
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromPlayerLists) && isPlayer()) {
 			List<String> filteredOnlinePlayerNames = new ArrayList<>();
 
 			for (String name : server.getPlayerNames()) {

@@ -16,7 +16,7 @@ public class SleepStatusMixin {
 	//Fixes that vanished players are taken into account when calculating the amount of players needed for the night to be skipped
 	@ModifyVariable(method = "update", at = @At(value = "HEAD"), argsOnly = true)
 	public List<ServerPlayer> vanishmod$updatePlayers(List<ServerPlayer> original) {
-		if (VanishConfig.CONFIG.hidePlayersFromWorld.get())
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld))
 			return VanishUtil.removeVanishedFromPlayerList(original, null);
 
 		return original;

@@ -249,7 +249,7 @@ public class VanishCommand {
 		}
 
 		if (!isVanishing) {
-			ctx.getSource().sendSuccess(() -> VanishUtil.VANISHMOD_PREFIX.copy().append(Component.translatable(VanishConfig.CONFIG.onUnvanishMessage.get(), player.getDisplayName())), true);
+			ctx.getSource().sendSuccess(() -> VanishUtil.VANISHMOD_PREFIX.copy().append(Component.translatable(VanishConfig.get(VanishConfig.CONFIG.onUnvanishMessage), player.getDisplayName())), true);
 
 			if (TraceHandler.isTracing(player))
 				setTrace(ctx, player, false);
@@ -258,7 +258,7 @@ public class VanishCommand {
 		VanishingHandler.toggleVanish(player, isVanishing ? level : VanishUtil.getVanishLevel(player));
 
 		if (isVanishing)
-			ctx.getSource().sendSuccess(() -> VanishUtil.VANISHMOD_PREFIX.copy().append(Component.translatable(VanishConfig.CONFIG.onVanishMessage.get(), player.getDisplayName())).append(Component.literal(" (Level " + level + ")").withStyle(net.minecraft.ChatFormatting.GRAY)), true);
+			ctx.getSource().sendSuccess(() -> VanishUtil.VANISHMOD_PREFIX.copy().append(Component.translatable(VanishConfig.get(VanishConfig.CONFIG.onVanishMessage), player.getDisplayName())).append(Component.literal(" (Level " + level + ")").withStyle(net.minecraft.ChatFormatting.GRAY)), true);
 
 			return 1;
 		}

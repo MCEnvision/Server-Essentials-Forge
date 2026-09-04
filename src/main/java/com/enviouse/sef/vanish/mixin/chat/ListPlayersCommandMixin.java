@@ -18,7 +18,7 @@ public class ListPlayersCommandMixin {
 	//Filter result of the /list command when non-permitted players use it
 	@Redirect(method = "format", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/players/PlayerList;getPlayers()Ljava/util/List;"))
 	private static List<ServerPlayer> vanishmod$redirectGetPlayers(PlayerList playerList, CommandSourceStack source) {
-		if (VanishConfig.CONFIG.hidePlayersFromPlayerLists.get())
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromPlayerLists))
 			return VanishUtil.removeVanishedFromPlayerList(playerList.getPlayers(), source.getEntity());
 
 		return playerList.getPlayers();

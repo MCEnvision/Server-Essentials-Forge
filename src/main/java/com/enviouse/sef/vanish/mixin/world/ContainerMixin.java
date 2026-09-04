@@ -19,13 +19,13 @@ public abstract class ContainerMixin {
 
 	@Inject(method = "startOpen", at = @At("HEAD"), cancellable = true)
 	public void vanishmod$cancelOpenAnimation(Player player, CallbackInfo ci) {
-		if (player instanceof ServerPlayer serverPlayer && VanishConfig.CONFIG.preventContainerAnimations.get() && VanishUtil.isVanished(serverPlayer))
+		if (player instanceof ServerPlayer serverPlayer && VanishConfig.get(VanishConfig.CONFIG.preventContainerAnimations) && VanishUtil.isVanished(serverPlayer))
 			ci.cancel();
 	}
 
 	@Inject(method = "stopOpen", at = @At("HEAD"), cancellable = true)
 	public void vanishmod$cancelCloseAnimation(Player player, CallbackInfo ci) {
-		if (player instanceof ServerPlayer serverPlayer && VanishConfig.CONFIG.preventContainerAnimations.get() && VanishUtil.isVanished(serverPlayer))
+		if (player instanceof ServerPlayer serverPlayer && VanishConfig.get(VanishConfig.CONFIG.preventContainerAnimations) && VanishUtil.isVanished(serverPlayer))
 			ci.cancel();
 	}
 }

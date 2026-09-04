@@ -183,7 +183,7 @@ public class VanishUtil {
 	}
 
 	public static boolean checkTeamVisibility(Entity player, Entity otherPlayer) {
-		if (!VanishConfig.CONFIG.seeVanishedTeamPlayers.get())
+		if (!VanishConfig.get(VanishConfig.CONFIG.seeVanishedTeamPlayers))
 			return false;
 
 		Team team = player.getTeam();
@@ -260,7 +260,7 @@ public class VanishUtil {
 	}
 
 	public static MutableComponent getVanishedStatusText(ServerPlayer player, boolean isVanished) {
-		return Component.translatable(isVanished ? VanishConfig.CONFIG.onVanishQuery.get() : VanishConfig.CONFIG.onUnvanishQuery.get(), player.getDisplayName());
+		return Component.translatable(isVanished ? VanishConfig.get(VanishConfig.CONFIG.onVanishQuery) : VanishConfig.get(VanishConfig.CONFIG.onUnvanishQuery), player.getDisplayName());
 	}
 
 	public static ResourceKey<ChatType> getChatTypeRegistryKey(ChatType.Bound chatType, Player player) {

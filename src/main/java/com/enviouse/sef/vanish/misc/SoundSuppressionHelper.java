@@ -34,7 +34,7 @@ public class SoundSuppressionHelper {
 			java.util.Collections.synchronizedMap(new java.util.WeakHashMap<>());
 
 	public static boolean shouldCapturePlayers() {
-		return VanishConfig.CONFIG.indirectSoundSuppression.get() || VanishConfig.CONFIG.indirectParticleSuppression.get();
+		return VanishConfig.get(VanishConfig.CONFIG.indirectSoundSuppression) || VanishConfig.get(VanishConfig.CONFIG.indirectParticleSuppression);
 	}
 
 	public static void updateVanishedPlayerMap(ServerPlayer player, boolean vanished) {
@@ -90,7 +90,7 @@ public class SoundSuppressionHelper {
 		if (player != null)
 			return VanishUtil.isVanished(player, forPlayer) ? player : null;
 
-		if (!VanishConfig.CONFIG.indirectSoundSuppression.get())
+		if (!VanishConfig.get(VanishConfig.CONFIG.indirectSoundSuppression))
 			return null;
 
 		Player vanishedSoundCause = SoundSuppressionHelper.getVanishedPlayerInteractedWith(level, soundOrigin, forPlayer);
@@ -112,7 +112,7 @@ public class SoundSuppressionHelper {
 		if (player != null)
 			return VanishUtil.isVanished(player, forPlayer) ? player : null;
 
-		if (!VanishConfig.CONFIG.indirectSoundSuppression.get() || soundOrigin == null)
+		if (!VanishConfig.get(VanishConfig.CONFIG.indirectSoundSuppression) || soundOrigin == null)
 			return null;
 
 		Player vanishedSoundCause = SoundSuppressionHelper.getVanishedPlayerInteractedWith(level, soundOrigin, forPlayer);
@@ -135,7 +135,7 @@ public class SoundSuppressionHelper {
 		if (player != null)
 			return VanishUtil.isVanished(player, forPlayer) ? player : null;
 
-		if (!VanishConfig.CONFIG.indirectParticleSuppression.get())
+		if (!VanishConfig.get(VanishConfig.CONFIG.indirectParticleSuppression))
 			return null;
 
 		Player vanishedParticleCause = SoundSuppressionHelper.getVanishedPlayerInteractedWith(level, particleOrigin, forPlayer);

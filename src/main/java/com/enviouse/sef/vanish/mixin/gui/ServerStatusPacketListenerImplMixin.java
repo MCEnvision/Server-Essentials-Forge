@@ -23,7 +23,7 @@ public class ServerStatusPacketListenerImplMixin {
 			if (VanishLifecyclePolicy.shouldUseFilteredStatus(
 					VanishConfig.SERVER_SPEC.isLoaded(),
 					FieldHolder.vanishedServerStatus != null,
-					() -> VanishConfig.CONFIG.hidePlayersFromPlayerLists.get())) {
+					() -> VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromPlayerLists))) {
 			status = FieldHolder.vanishedServerStatus;
 			cachedStatus = null;
 		}

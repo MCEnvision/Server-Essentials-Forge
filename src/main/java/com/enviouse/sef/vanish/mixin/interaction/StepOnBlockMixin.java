@@ -21,7 +21,7 @@ public abstract class StepOnBlockMixin {
 
 	@Inject(method = "stepOn", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$cancelEntityStepOnBlock(Level level, BlockPos pos, BlockState state, Entity entity, CallbackInfo ci) {
-		if (VanishUtil.isVanished(entity) && VanishConfig.CONFIG.preventBlockInteractions.get())
+		if (VanishUtil.isVanished(entity) && VanishConfig.get(VanishConfig.CONFIG.preventBlockInteractions))
 			ci.cancel();
 	}
 }

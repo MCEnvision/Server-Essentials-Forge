@@ -29,7 +29,7 @@ public class EntityMixin {
 	//Makes a vanished player pretend that they are invisible serverside, so e.g. minimap mods hide those players
 	@Inject(method = "isInvisible", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$isInvisible(CallbackInfoReturnable<Boolean> callbackInfo) {
-		if ((Object) this instanceof ServerPlayer player && VanishConfig.CONFIG.spoofVanishedPlayerInvisibility.get() && VanishUtil.isVanished(player))
+		if ((Object) this instanceof ServerPlayer player && VanishConfig.get(VanishConfig.CONFIG.spoofVanishedPlayerInvisibility) && VanishUtil.isVanished(player))
 			callbackInfo.setReturnValue(true);
 	}
 
@@ -41,7 +41,7 @@ public class EntityMixin {
 
 		if (self instanceof ServerPlayer player) {
 			actor = player;
-		} else if (VanishConfig.CONFIG.hideTraceableEntities.get() && self instanceof TraceableEntity traceableEntity && traceableEntity.getOwner() instanceof ServerPlayer owner) {
+		} else if (VanishConfig.get(VanishConfig.CONFIG.hideTraceableEntities) && self instanceof TraceableEntity traceableEntity && traceableEntity.getOwner() instanceof ServerPlayer owner) {
 			actor = owner;
 		}
 
@@ -62,7 +62,7 @@ public class EntityMixin {
 	// Prevent vanished players and their traceable entities from producing sounds
 	@Inject(method = "playSound(Lnet/minecraft/sounds/SoundEvent;FF)V", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$preventSound(SoundEvent soundEvent, float volume, float pitch, CallbackInfo ci) {
-		if (!VanishConfig.CONFIG.preventSounds.get()) return;
+		if (!VanishConfig.get(VanishConfig.CONFIG.preventSounds)) return;
 
 		Entity self = (Entity) (Object) this;
 		ServerPlayer actor = null;

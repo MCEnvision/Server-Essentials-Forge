@@ -20,7 +20,7 @@ public class VibrationSystemMixin {
 	@Inject(method = "handleGameEvent", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$preventVibrations(ServerLevel level, Holder<GameEvent> gameEvent, GameEvent.Context context, Vec3 pos, CallbackInfoReturnable<Boolean> cir) {
 		Entity sourceEntity = context.sourceEntity();
-		if (sourceEntity != null && VanishUtil.isVanished(sourceEntity) && VanishConfig.CONFIG.preventVibrations.get())
+		if (sourceEntity != null && VanishUtil.isVanished(sourceEntity) && VanishConfig.get(VanishConfig.CONFIG.preventVibrations))
 			cir.setReturnValue(false);
 	}
 }

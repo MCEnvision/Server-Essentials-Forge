@@ -33,13 +33,13 @@ public class CombatTrackerMixin {
 
 	@Unique
 	private Component vanishmod$filter(Component deathMessage) {
-		if ((VanishConfig.CONFIG.hideSystemMessages.get() || VanishConfig.CONFIG.hidePlayerNameInSystemMessages.get()) && deathMessage != null && deathMessage.getContents() instanceof TranslatableContents content && content.getArgs().length > 1 && content.getArgs()[1] instanceof Component playerName) {
+		if ((VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages) || VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInSystemMessages)) && deathMessage != null && deathMessage.getContents() instanceof TranslatableContents content && content.getArgs().length > 1 && content.getArgs()[1] instanceof Component playerName) {
 			for (ServerPlayer killer : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
 				if (killer.getDisplayName().getString().equals(playerName.getString()) && VanishUtil.isVanished(killer)) {
-					if (VanishConfig.CONFIG.hideSystemMessages.get())
+					if (VanishConfig.get(VanishConfig.CONFIG.hideSystemMessages))
 						deathMessage = Component.translatable("death.attack.generic", content.getArgs()[0]);
-					else if (VanishConfig.CONFIG.hidePlayerNameInSystemMessages.get())
-						content.getArgs()[1] = Component.literal(VanishConfig.CONFIG.vanishedPlayerNameReplacement.get());
+					else if (VanishConfig.get(VanishConfig.CONFIG.hidePlayerNameInSystemMessages))
+						content.getArgs()[1] = Component.literal(VanishConfig.get(VanishConfig.CONFIG.vanishedPlayerNameReplacement));
 				}
 
 			}

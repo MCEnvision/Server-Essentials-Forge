@@ -69,7 +69,7 @@ public class VanishingHandler {
 				if (otherPlayerVanished)
 					changingPlayer.connection.send(changingAllowedToSeeOther ? ClientboundPlayerInfoUpdatePacket.createPlayerInitializing(List.of(otherPlayer)) : new ClientboundPlayerInfoRemovePacket(List.of(otherPlayer.getUUID())));
 
-				if (VanishConfig.CONFIG.hidePlayersFromWorld.get()) {
+				if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromWorld)) {
 					//If the other player cannot see the vanishing player, destroy the changing player entity for the other player
 					if (vanishes && !otherAllowedToSeeChanging)
 						otherPlayer.connection.send(new ClientboundRemoveEntitiesPacket(changingPlayer.getId()));
@@ -91,7 +91,7 @@ public class VanishingHandler {
 	}
 
 	public static void sendJoinOrLeaveMessageToPlayers(List<ServerPlayer> playerList, ServerPlayer sender, boolean leaveMessage, boolean beforeStatusChange) {
-		if (VanishConfig.CONFIG.sendFakeJoinLeaveMessages.get() && leaveMessage != beforeStatusChange && sender.server.getPlayerList().getPlayers().contains(sender)) { //Only send fake messages if the player has actually fully joined the server before this method is invoked
+		if (VanishConfig.get(VanishConfig.CONFIG.sendFakeJoinLeaveMessages) && leaveMessage != beforeStatusChange && sender.server.getPlayerList().getPlayers().contains(sender)) { //Only send fake messages if the player has actually fully joined the server before this method is invoked
 			Component message = Component.translatable(leaveMessage ? "multiplayer.player.left" : "multiplayer.player.joined", sender.getDisplayName()).withStyle(ChatFormatting.YELLOW);
 
 			for (ServerPlayer receiver : playerList) {

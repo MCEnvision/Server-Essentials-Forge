@@ -10,6 +10,20 @@ public class VanishConfig {
 	public static final ModConfigSpec SERVER_SPEC;
 	public static final Config CONFIG;
 
+	/**
+	 * Reads a server config value safely from common code that can also execute on a client.
+	 * NeoForge keeps server config values unloaded on a standalone client, so direct reads from
+	 * mixins can throw before the server has sent its configuration. The declared default preserves
+	 * the existing behavior until the authoritative server value is available.
+	 */
+	public static <T> T get(ConfigValue<T> value) {
+		try {
+			return value.get();
+		} catch (IllegalStateException exception) {
+			return value.getDefault();
+		}
+	}
+
 	static {
 		final Pair<Config, ModConfigSpec> specPair = new ModConfigSpec.Builder().configure(Config::new);
 

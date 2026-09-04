@@ -15,7 +15,7 @@ public abstract class InteractionLivingEntityMixin {
 	// Prevent vanished players from being pushable
 	@WrapOperation(method = "isPushable", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;isSpectator()Z"))
 	public boolean vanishmod$preventPushing(LivingEntity entity, Operation<Boolean> original) {
-		return original.call(entity) || (VanishConfig.CONFIG.preventEntityCollisions.get() && VanishUtil.isVanished(entity));
+		return original.call(entity) || (VanishConfig.get(VanishConfig.CONFIG.preventEntityCollisions) && VanishUtil.isVanished(entity));
 	}
 }
 

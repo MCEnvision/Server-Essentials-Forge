@@ -19,7 +19,7 @@ public abstract class FallOnBlockMixin {
 
 	@Inject(method = "fallOn", at = @At("HEAD"), cancellable = true)
 	private void vanishmod$cancelEntityFallOnBlock(Level level, BlockState state, BlockPos pos, Entity entity, float fallDistance, CallbackInfo ci) {
-		if (VanishUtil.isVanished(entity) && VanishConfig.CONFIG.preventBlockInteractions.get())
+		if (VanishUtil.isVanished(entity) && VanishConfig.get(VanishConfig.CONFIG.preventBlockInteractions))
 			ci.cancel();
 	}
 }

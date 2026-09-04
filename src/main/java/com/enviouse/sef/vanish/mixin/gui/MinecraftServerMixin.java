@@ -42,7 +42,7 @@ public abstract class MinecraftServerMixin {
 	//Constructs an alternative ServerStatus that accounts for vanished players after the main one has been constructed
 	@Inject(method = {"runServer", "tickServer"}, at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;resetStatusCache(Lnet/minecraft/network/protocol/status/ServerStatus;)V"))
 	private void vanishmod$onBuildServerStatus(CallbackInfo callbackInfo) {
-		if (VanishConfig.CONFIG.hidePlayersFromPlayerLists.get()) {
+		if (VanishConfig.get(VanishConfig.CONFIG.hidePlayersFromPlayerLists)) {
 				PlayerList list = getPlayerList();
 				List<ServerPlayer> unvanishedPlayers = VanishListProjection.visibleCopy(
 						list.getPlayers(),
