@@ -53,6 +53,24 @@ class CommandInventoryGeneratorTest {
     }
 
     @Test
+    void executorCallsitesAreRecordedAndUnknownLiteralActionsFailTheInventory() {
+        JsonObject inventory = CommandInventoryGenerator.generate();
+        assertTrue(
+                inventory.get("pipelineCallSiteCount").getAsInt() >= 100,
+                "expected at least 100 executor callsites, found "
+                        + inventory.get("pipelineCallSiteCount").getAsInt());
+        assertTrue(inventory.get("dynamicPipelineCallSiteCount").getAsInt() > 0);
+        assertTrue(inventory.get("literalPipelineActionCount").getAsInt() > 0);
+        for (var element : inventory.getAsJsonArray("rows")) {
+            JsonObject row = element.getAsJsonObject();
+            if (row.get("category").getAsString().equals("command")) {
+                assertTrue(row.has("pipelineCallSites"));
+                assertTrue(row.has("pipelineCallSiteDisposition"));
+            }
+        }
+    }
+
+    @Test
     void generationIsDeterministicAndCanWriteOnlyToExternalRoot() throws Exception {
         JsonObject first = CommandInventoryGenerator.generate();
         JsonObject second = CommandInventoryGenerator.generate();

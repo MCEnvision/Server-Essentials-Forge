@@ -49,6 +49,15 @@ public final class CommandInventoryGenerator {
         Set<String> actionIds = new TreeSet<>();
         for (CommandDefinition definition : KernelServices.catalog().entries()) {
             actionIds.add(definition.id());
+        }
+        CommandExecutionCallSiteAudit.Report executionAudit =
+                CommandExecutionCallSiteAudit.scan(Path.of("src/main/java"), actionIds);
+        if (!executionAudit.unknownLiteralActions().isEmpty()) {
+            throw new IllegalStateException(
+                    "command executor uses unknown literal action ids "
+                            + executionAudit.unknownLiteralActions());
+        }
+        for (CommandDefinition definition : KernelServices.catalog().entries()) {
             JsonObject row = row(
                     "command",
                     definition.id(),
@@ -68,6 +77,12 @@ public final class CommandInventoryGenerator {
                     .sorted()
                     .toList()));
             row.add("convenienceRoots", strings(definition.convenienceRoots()));
+            List<String> callSites = executionAudit.literalLocations()
+                    .getOrDefault(definition.id(), List.of());
+            row.add("pipelineCallSites", strings(callSites));
+            row.addProperty(
+                    "pipelineCallSiteDisposition",
+                    callSites.isEmpty() ? "dynamic_or_indirect" : "literal_action_argument");
             rows.add(row);
         }
 
@@ -144,6 +159,10 @@ public final class CommandInventoryGenerator {
         inventory.addProperty("shortcutCount", KernelServices.shortcuts().size());
         inventory.addProperty("permissionCount", PermissionManifest.definitions().size());
         inventory.addProperty("unavailableFamilyCount", UNAVAILABLE_FAMILIES.size());
+        inventory.addProperty("pipelineCallSiteCount", executionAudit.callSites().size());
+        inventory.addProperty("literalPipelineActionCount", executionAudit.literalLocations().size());
+        inventory.addProperty("dynamicPipelineCallSiteCount", executionAudit.dynamicLocations().size());
+        inventory.add("pipelineCallSites", callSites(executionAudit.callSites()));
         inventory.add("rows", rows);
         AuditEvidenceContract.validateCommandInventory(inventory);
         return inventory;
@@ -253,6 +272,22 @@ public final class CommandInventoryGenerator {
         java.util.stream.StreamSupport.stream(values.spliterator(), false)
                 .sorted()
                 .forEach(result::add);
+        return result;
+    }
+
+    private static JsonArray callSites(List<CommandExecutionCallSiteAudit.CallSite> values) {
+        JsonArray result = new JsonArray();
+        for (CommandExecutionCallSiteAudit.CallSite value : values) {
+            JsonObject row = new JsonObject();
+            row.addProperty("sourceLocation", value.sourceLocation());
+            row.addProperty("actionExpression", value.actionExpression());
+            if (!value.actionId().isBlank()) {
+                row.addProperty("actionId", value.actionId());
+            } else {
+                row.addProperty("actionDisposition", "dynamic_or_indirect");
+            }
+            result.add(row);
+        }
         return result;
     }
 
