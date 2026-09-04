@@ -293,14 +293,26 @@ tasks.register('generateAuditDependencyManifest') {
                     "candidate commit binding does not match the checked out revision. "
                             + "expected=${candidateCommit}, supplied=${suppliedCandidateCommit}")
         }
-        def dirtyProcess = ['git', 'status', '--porcelain', '--untracked-files=no'].execute(null, project.rootDir)
+        def dirtyProcess = ['git', 'status', '--porcelain', '--untracked-files=all'].execute(null, project.rootDir)
         dirtyProcess.waitFor()
         if (dirtyProcess.exitValue() != 0) {
             throw new GradleException('unable to verify that the checked out tree is clean')
         }
-        def dirtyTrackedFiles = dirtyProcess.in.text.trim()
+        def dirtyFiles = dirtyProcess.in.readLines()
+        def dirtyTrackedFiles = dirtyFiles.findAll { !it.startsWith('?? ') }
         if (!dirtyTrackedFiles.isEmpty()) {
-            throw new GradleException("audit manifest requires a clean tracked tree: ${dirtyTrackedFiles}")
+            throw new GradleException("audit manifest requires a clean tracked tree: ${dirtyTrackedFiles.join(' | ')}")
+        }
+        def untrackedBuildInputs = dirtyFiles.findAll { entry ->
+            if (!entry.startsWith('?? ')) {
+                return false
+            }
+            def path = entry.substring(3)
+            path.startsWith('src/')
+                    || path in ['build.gradle', 'settings.gradle', 'gradle.properties', 'gradle/libs.versions.toml']
+        }
+        if (!untrackedBuildInputs.isEmpty()) {
+            throw new GradleException("audit manifest rejects untracked build inputs: ${untrackedBuildInputs.join(' | ')}")
         }
         File output = manifest.get().asFile
         output.parentFile.mkdirs()

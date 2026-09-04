@@ -118,8 +118,8 @@ jobs:
           client_console_log="$GITHUB_WORKSPACE/build/candidate-client-console.log"
           client_runtime_log="$client_game_dir/logs/latest.log"
           client_pid_file="$client_game_dir/client-session.pid"
+          rm -rf "$client_game_dir"
           mkdir -p "$client_game_dir/mods"
-          rm -f "$client_pid_file"
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
           command -v xvfb-run
@@ -140,19 +140,25 @@ jobs:
           if [ -z "$client_pid" ]; then
             client_pid="$client_launcher_pid"
           fi
+          client_session_alive() {
+            pgrep -s "$client_pid" >/dev/null 2>&1
+          }
+          client_java_alive() {
+            pgrep -s "$client_pid" -x java >/dev/null 2>&1 || pgrep -s "$client_pid" -f '(^|/)java([[:space:]]|$)' >/dev/null 2>&1
+          }
           startup_verified=0
           startup_stability_failed=0
           for _ in $(seq 1 180); do
             if grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_runtime_log" 2>/dev/null || grep -Fq 'Created: 1024x512x0 minecraft:textures/atlas/gui.png-atlas' "$client_console_log" 2>/dev/null; then
               startup_verified=1
               for _ in $(seq 1 5); do
-                if ! kill -0 "$client_pid" 2>/dev/null; then
+                if ! client_session_alive || ! client_java_alive; then
                   startup_verified=0
                   startup_stability_failed=1
                   break
                 fi
                 sleep 1
-                if ! kill -0 "$client_pid" 2>/dev/null; then
+                if ! client_session_alive || ! client_java_alive; then
                   startup_verified=0
                   startup_stability_failed=1
                   break
@@ -160,7 +166,7 @@ jobs:
               done
               break
             fi
-            if ! kill -0 "$client_pid" 2>/dev/null; then
+            if ! client_session_alive; then
               break
             fi
             sleep 1
