@@ -23,7 +23,8 @@ public final class AuditService {
 
     public static boolean accepting(AuditClass auditClass) {
         Objects.requireNonNull(auditClass, "auditClass");
-        return auditClass == AuditClass.NONE || SecurityAuditService.health().running();
+        SecurityAuditService.Health health = SecurityAuditService.health();
+        return auditClass == AuditClass.NONE || (health.running() && health.writerAlive());
     }
 
     public record Event(
