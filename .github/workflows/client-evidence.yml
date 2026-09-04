@@ -121,9 +121,24 @@ jobs:
           cp "$candidate_jar" "$client_game_dir/mods/$candidate_name"
           test -f "$client_game_dir/mods/$candidate_name"
           command -v xvfb-run
+          client_pid_file="$client_game_dir/client-session.pid"
           client_command=(xvfb-run -a ./gradlew runFallbackClient --console=plain "-PsefFallbackClientGameDirectory=$client_game_dir" -PsefFallbackClientUsername=SEFAuditPackaged)
-          setsid "${client_command[@]}" > "$client_console_log" 2>&1 &
-          client_pid=$!
+          setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$client_pid_file" "${client_command[@]}" > "$client_console_log" 2>&1 &
+          client_launcher_pid=$!
+          client_pid=""
+          for _ in $(seq 1 30); do
+            if [ -s "$client_pid_file" ]; then
+              client_pid="$(cat "$client_pid_file")"
+              break
+            fi
+            if ! kill -0 "$client_launcher_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ -z "$client_pid" ]; then
+            client_pid="$client_launcher_pid"
+          fi
           startup_verified=0
           startup_stability_failed=0
           for _ in $(seq 1 180); do
@@ -148,26 +163,28 @@ jobs:
             fi
             sleep 1
           done
-          stop_group() {
-            local process_pid="$1"
-            kill -TERM -- "-$process_pid" 2>/dev/null || true
+          stop_session() {
+            local session_pid="$1"
+            pkill -TERM -s "$session_pid" 2>/dev/null || true
+            kill -TERM -- "-$session_pid" 2>/dev/null || true
           }
-          force_group() {
-            local process_pid="$1"
-            kill -KILL -- "-$process_pid" 2>/dev/null || true
+          force_session() {
+            local session_pid="$1"
+            pkill -KILL -s "$session_pid" 2>/dev/null || true
+            kill -KILL -- "-$session_pid" 2>/dev/null || true
           }
-          stop_group "$client_pid"
+          stop_session "$client_pid"
           for _ in $(seq 1 30); do
-            if ! kill -0 "$client_pid" 2>/dev/null; then
+            if ! pgrep -s "$client_pid" >/dev/null 2>&1; then
               break
             fi
             sleep 1
           done
-          if kill -0 "$client_pid" 2>/dev/null; then
+          if pgrep -s "$client_pid" >/dev/null 2>&1; then
             echo 'packaged client did not stop after the bounded grace period' >&2
-            force_group "$client_pid"
+            force_session "$client_pid"
             for _ in $(seq 1 30); do
-              if ! kill -0 "$client_pid" 2>/dev/null; then
+              if ! pgrep -s "$client_pid" >/dev/null 2>&1; then
                 break
               fi
               sleep 1
@@ -175,10 +192,10 @@ jobs:
           fi
           if pgrep -s "$client_pid" >/dev/null 2>&1; then
             echo 'packaged client process group did not terminate completely' >&2
-            force_group "$client_pid"
+            force_session "$client_pid"
             exit 1
           fi
-          wait "$client_pid" 2>/dev/null || true
+          wait "$client_launcher_pid" 2>/dev/null || true
           if [ -f "$client_runtime_log" ]; then
             cat "$client_runtime_log" > "$client_log"
             printf '\n' >> "$client_log"

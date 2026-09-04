@@ -119,6 +119,7 @@ jobs:
           fi
           candidate_downloaded_sha256="$(candidate_digest256 "$candidate_jar")"
           test "$candidate_downloaded_sha256" = "$candidate_expected_sha256"
+          candidate_sha256_before="$candidate_downloaded_sha256"
           ./gradlew clean test build runAuditWriterProbe --no-configuration-cache --console=plain -PsefAuditProbeCandidateJar="$candidate_jar"
           ./gradlew generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
           grep -F "candidate_commit=$(git rev-parse HEAD)" build/audit/platform-dependency-manifest.txt
@@ -129,7 +130,7 @@ jobs:
           candidate_game_dir="$GITHUB_WORKSPACE/build/candidate-runtime"
           mkdir -p "$candidate_game_dir/mods"
           cp "$candidate_jar" "$candidate_game_dir/mods/$candidate_name"
-          candidate_sha256_before="$(candidate_digest256 "$candidate_jar")"
+          test "$(candidate_digest256 "$candidate_jar")" = "$candidate_sha256_before"
           ./gradlew runCandidateGameTestServer --console=plain -PsefCandidateGameDirectory="$candidate_game_dir" 2>&1 | tee build/candidate-runtime.log
           grep -F "/mods/$candidate_name" build/candidate-runtime.log
           grep -F "All 41 required tests passed" build/candidate-runtime.log
@@ -259,8 +260,10 @@ jobs:
           New-Item -ItemType Directory -Force -Path (Join-Path $candidateGameDir 'mods') | Out-Null
           Copy-Item $candidateJar.FullName (Join-Path $candidateGameDir 'mods' $candidateJar.Name)
           $candidateSha256Before = (Get-FileHash $candidateJar.FullName -Algorithm SHA256).Hash.ToLower()
-          .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" 2>&1 | Tee-Object -FilePath build/candidate-runtime.log
-          if ($LASTEXITCODE -ne 0) { throw "windows candidate GameTests failed with exit code $LASTEXITCODE" }
+          & .\gradlew.bat runCandidateGameTestServer --console=plain "-PsefCandidateGameDirectory=$candidateGameDir" *> build/candidate-runtime.log
+          $gameTestExitCode = $LASTEXITCODE
+          Get-Content -LiteralPath 'build/candidate-runtime.log' | Write-Host
+          if ($gameTestExitCode -ne 0) { throw "windows candidate GameTests failed with exit code $gameTestExitCode" }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern ("mods[\\/]" + [regex]::Escape($candidateJar.Name)))) { throw 'candidate jar was not loaded from the mods directory' }
           if (-not (Select-String -Path build/candidate-runtime.log -Pattern 'All 41 required tests passed')) { throw 'packaged candidate GameTests did not pass' }
           New-Item -ItemType File -Force -Path 'build/candidate-gametest.verification.complete' | Out-Null
