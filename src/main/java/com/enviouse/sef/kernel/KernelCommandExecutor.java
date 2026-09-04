@@ -42,9 +42,7 @@ public final class KernelCommandExecutor {
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
             return false;
         }
-        CommandDefinition definition = definition(actionId);
-        return AuditService.accepting(definition.auditClass())
-                && permissions(source, definition, additionalPermissions).granted();
+        return permissions(source, definition(actionId), additionalPermissions).granted();
     }
 
     @SafeVarargs
