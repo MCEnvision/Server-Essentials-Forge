@@ -64,6 +64,14 @@ jobs:
           if-no-files-found: error
           path: build/candidate
 
+  client-evidence:
+    name: client evidence
+    needs: build-candidate
+    uses: ./.github/workflows/client-evidence.yml
+    permissions:
+      actions: read
+      contents: read
+
   runtime:
     name: runtime ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

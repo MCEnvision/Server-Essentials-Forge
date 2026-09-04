@@ -293,7 +293,11 @@ tasks.register('generateAuditDependencyManifest') {
                     "candidate commit binding does not match the checked out revision. "
                             + "expected=${candidateCommit}, supplied=${suppliedCandidateCommit}")
         }
-        def dirtyProcess = ['git', 'status', '--porcelain', '--untracked-files=all'].execute(null, project.rootDir)
+        def dirtyProcess = new ProcessBuilder(
+                'git', 'status', '--porcelain', '--untracked-files=all')
+                .directory(project.rootDir)
+                .redirectErrorStream(true)
+                .start()
         dirtyProcess.waitFor()
         if (dirtyProcess.exitValue() != 0) {
             throw new GradleException('unable to verify that the checked out tree is clean')

@@ -1,73 +1,16 @@
 name: client evidence
 
 on:
-  pull_request:
-    branches: [master]
-  push:
-    branches: [master]
+  workflow_call:
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
-  build-client-candidate:
-    name: build client candidate
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-
-    steps:
-      - name: check out source
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: set up java
-        uses: actions/setup-java@c5195efecf7bdfc987ee8bae7a71cb8b11521c00
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
-
-      - name: validate wrapper
-        uses: gradle/actions/wrapper-validation@017a9effdb900e5b5b2fddfb590a105619dca3c3
-
-      - name: build candidate
-        run: |
-          set -euo pipefail
-          chmod +x ./gradlew
-          expected_commit="$GITHUB_SHA"
-          test "$(git rev-parse HEAD)" = "$expected_commit"
-          ./gradlew clean test build runGameTestServer generateAuditDependencyManifest --no-configuration-cache -PsefAuditCandidateCommit="$(git rev-parse HEAD)" --console=plain
-          mkdir -p build/candidate
-          candidate_artifact="build/libs/$(sed -n 's/^mod_id=//p' gradle.properties | head -n 1)-$(sed -n 's/^mod_version=//p' gradle.properties | head -n 1).jar"
-          test -f "$candidate_artifact"
-          cp "$candidate_artifact" build/candidate/
-          candidate_name="$(basename "$candidate_artifact")"
-          cp build/audit/platform-dependency-manifest.txt build/candidate/platform-dependency-manifest.txt
-          grep -F "candidate_commit=$(git rev-parse HEAD)" build/candidate/platform-dependency-manifest.txt
-          grep -F 'jna_runtime_owner=net.neoforged:minecraft-dependencies:1.21.1' build/candidate/platform-dependency-manifest.txt
-          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna:5.14.0' build/candidate/platform-dependency-manifest.txt
-          grep -F 'jna_runtime_coordinate=net.java.dev.jna:jna-platform:5.14.0' build/candidate/platform-dependency-manifest.txt
-          grep -F 'candidate_mod_jar_embeds_duplicate_native_runtime=false' build/candidate/platform-dependency-manifest.txt
-          (cd build/candidate && sha256sum "$candidate_name" > sha256.txt)
-          (cd build/candidate && sha512sum "$candidate_name" > sha512.txt)
-          printf '%s\n' "commit=$(git rev-parse HEAD)" > build/candidate/manifest.txt
-          cat build/candidate/sha256.txt >> build/candidate/manifest.txt
-          cat build/candidate/sha512.txt >> build/candidate/manifest.txt
-
-      - name: upload candidate artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: cross-platform-candidate
-          if-no-files-found: error
-          path: build/candidate
-
   client-evidence:
     name: client evidence ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    needs: build-client-candidate
     timeout-minutes: 30
     strategy:
       fail-fast: false
