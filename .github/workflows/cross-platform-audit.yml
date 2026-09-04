@@ -166,7 +166,13 @@ jobs:
           trap cleanup_server EXIT
           exec 3<> "$server_input"
           server_pid_file="$candidate_server_dir/server-session.pid"
-          setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$server_pid_file" ./gradlew runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidate_server_dir" <&3 > build/candidate-server-runtime.log 2>&1 &
+          server_command=(./gradlew runCandidateServer --console=plain "-PsefCandidateServerGameDirectory=$candidate_server_dir")
+          if command -v setsid >/dev/null 2>&1; then
+            setsid bash -c 'printf "%s" "$$" > "$1"; shift; exec "$@"' launcher "$server_pid_file" "${server_command[@]}" <&3 > build/candidate-server-runtime.log 2>&1 &
+          else
+            command -v python3 >/dev/null 2>&1
+            python3 -c 'import os, sys; os.setsid(); open(sys.argv[1], "w", encoding="utf-8").write(str(os.getpid())); os.execvp(sys.argv[2], sys.argv[2:])' "$server_pid_file" "${server_command[@]}" <&3 > build/candidate-server-runtime.log 2>&1 &
+          fi
           server_launcher_pid=$!
           server_pid=""
           for _ in $(seq 1 30); do

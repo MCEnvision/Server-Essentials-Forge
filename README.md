@@ -210,6 +210,8 @@ Linux and macOS:
 ./gradlew build
 ./gradlew runServer
 ./gradlew runClient
+mkdir -p /path/to/fresh/candidate-runtime/mods
+cp build/libs/sef-2.0.0.jar /path/to/fresh/candidate-runtime/mods/
 ./gradlew runCandidateGameTestServer -PsefCandidateGameDirectory=/path/to/fresh/candidate-runtime
 ```
 
@@ -221,6 +223,8 @@ Windows:
 .\gradlew.bat build
 .\gradlew.bat runServer
 .\gradlew.bat runClient
+New-Item -ItemType Directory -Force C:\path\to\fresh\candidate-runtime\mods
+Copy-Item build\libs\sef-2.0.0.jar C:\path\to\fresh\candidate-runtime\mods\
 .\gradlew.bat runCandidateGameTestServer -PsefCandidateGameDirectory=C:\path\to\fresh\candidate-runtime
 ```
 

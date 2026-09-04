@@ -362,7 +362,13 @@ tasks.register('generateAuditDependencyManifest') {
         def jnaRuntimePathsByCoordinate = [:].withDefault { [] as Set }
         configurationsToCapture.each { configurationName ->
             def configuration = configurations.findByName(configurationName)
-            if (configuration != null && configuration.canBeResolved) {
+            if (configuration == null) {
+                throw new GradleException("required audit configuration is missing: ${configurationName}")
+            }
+            if (!configuration.canBeResolved) {
+                throw new GradleException("required audit configuration cannot be resolved: ${configurationName}")
+            }
+            try {
                 def pathsByCoordinate = dependencyPaths(configuration)
                 configuration.resolvedConfiguration.resolvedArtifacts.each { artifact ->
                     File file = artifact.file
@@ -387,6 +393,10 @@ tasks.register('generateAuditDependencyManifest') {
                         }
                     }
                 }
+            } catch (Exception exception) {
+                throw new GradleException(
+                        "required audit configuration could not be resolved: ${configurationName}",
+                        exception)
             }
         }
         artifacts.sort { left, right ->
