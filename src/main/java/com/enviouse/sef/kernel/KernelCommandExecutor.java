@@ -205,7 +205,7 @@ public final class KernelCommandExecutor {
             effectiveParameters.put("operation_id", operation.operationId().toString());
         }
         String dimensionId = dimensionId(source);
-        KernelServices.commandJournal().attachOrBegin(source, actionId);
+        UUID commandEventId = KernelServices.commandJournal().attachOrBegin(source, actionId);
         ActionResult<Void> controlAuthorization =
                 MinecraftServerControlRuntime.authorizeAction(source, definition);
         if (!controlAuthorization.successful()) {
@@ -296,7 +296,7 @@ public final class KernelCommandExecutor {
 
         try (CommandExecutionService.Lease lease = started.value()) {
             int result;
-            try (CommandAuditScope ignored = CommandAuditScope.open(definition.id())) {
+            try (CommandAuditScope ignored = CommandAuditScope.open(definition.id(), commandEventId)) {
                 result = action.getAsInt();
             } catch (RuntimeException exception) {
                 lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
@@ -438,6 +438,10 @@ public final class KernelCommandExecutor {
                 "permission_providers", String.join(",", providers),
                 "permission_default_use", String.join(",", defaultUses),
                 "permission_denials", denialReasons.isEmpty() ? "none" : String.join(",", denialReasons)));
+    }
+
+    public static UUID actorId(CommandSourceStack source) {
+        return actorId(source, sourceType(source));
     }
 
     private static UUID actorId(CommandSourceStack source, CommandDefinition.SourceType sourceType) {

@@ -2,6 +2,7 @@ package com.enviouse.sef.kernel;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Marks the synchronous domain work owned by the shared command executor.
@@ -9,22 +10,30 @@ import java.util.Optional;
  * the same command while retaining their direct API audit behavior.
  */
 public final class CommandAuditScope implements AutoCloseable {
-    private static final ThreadLocal<String> CURRENT = new ThreadLocal<>();
+    private static final ThreadLocal<Context> CURRENT = new ThreadLocal<>();
 
-    private final String previous;
+    private final Context previous;
     private boolean closed;
 
-    private CommandAuditScope(String actionId) {
+    private CommandAuditScope(String actionId, UUID correlationId) {
         previous = CURRENT.get();
-        CURRENT.set(actionId);
+        CURRENT.set(new Context(actionId, correlationId));
     }
 
     public static CommandAuditScope open(String actionId) {
-        return new CommandAuditScope(Objects.requireNonNull(actionId, "actionId"));
+        return open(actionId, null);
+    }
+
+    public static CommandAuditScope open(String actionId, UUID correlationId) {
+        return new CommandAuditScope(Objects.requireNonNull(actionId, "actionId"), correlationId);
     }
 
     public static Optional<String> currentActionId() {
-        return Optional.ofNullable(CURRENT.get());
+        return Optional.ofNullable(CURRENT.get()).map(Context::actionId);
+    }
+
+    public static Optional<UUID> currentCorrelationId() {
+        return Optional.ofNullable(CURRENT.get()).map(Context::correlationId);
     }
 
     public static boolean active() {
@@ -42,5 +51,8 @@ public final class CommandAuditScope implements AutoCloseable {
         } else {
             CURRENT.set(previous);
         }
+    }
+
+    private record Context(String actionId, UUID correlationId) {
     }
 }

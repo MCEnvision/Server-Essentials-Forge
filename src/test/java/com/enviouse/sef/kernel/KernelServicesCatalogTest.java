@@ -115,6 +115,23 @@ class KernelServicesCatalogTest {
     }
 
     @Test
+    void asynchronousCommandAuditCompletionsCarrySharedCorrelation() throws IOException {
+        Path projectRoot = Path.of("").toAbsolutePath();
+        while (projectRoot != null
+                && !Files.isRegularFile(projectRoot.resolve("settings.gradle"))
+                && !Files.isRegularFile(projectRoot.resolve("settings.gradle.kts"))) {
+            projectRoot = projectRoot.getParent();
+        }
+        assertTrue(projectRoot != null, "project source was not found");
+        Path root = projectRoot.resolve("src/main/java/com/enviouse/sef");
+        for (String relative : Set.of("storage/StorageCommands.java", "alts/CheckAltsCommand.java")) {
+            String source = Files.readString(root.resolve(relative), StandardCharsets.UTF_8);
+            assertTrue(source.contains("AuditService.Event.completion("), relative);
+            assertTrue(source.contains("CommandAuditScope.currentCorrelationId()"), relative);
+        }
+    }
+
+    @Test
     void phaseSixAndSevenActionsAndShortcutsHaveCatalogOwnership() {
         KernelServices.initialize();
         Set<String> requiredActions = Set.of(

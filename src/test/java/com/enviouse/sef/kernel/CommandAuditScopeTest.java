@@ -2,22 +2,33 @@ package com.enviouse.sef.kernel;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CommandAuditScopeTest {
     @Test
-    void scopeRestoresThePreviousCommandBoundary() {
+    void nestedScopesRestoreActionAndCorrelation() {
+        UUID outerCorrelation = UUID.randomUUID();
+        UUID innerCorrelation = UUID.randomUUID();
+
         assertFalse(CommandAuditScope.active());
-        try (CommandAuditScope outer = CommandAuditScope.open("sef:test.outer")) {
+        try (CommandAuditScope outer = CommandAuditScope.open("sef:outer", outerCorrelation)) {
             assertTrue(CommandAuditScope.active());
-            assertEquals("sef:test.outer", CommandAuditScope.currentActionId().orElseThrow());
-            try (CommandAuditScope inner = CommandAuditScope.open("sef:test.inner")) {
-                assertEquals("sef:test.inner", CommandAuditScope.currentActionId().orElseThrow());
+            assertEquals("sef:outer", CommandAuditScope.currentActionId().orElseThrow());
+            assertEquals(outerCorrelation, CommandAuditScope.currentCorrelationId().orElseThrow());
+
+            try (CommandAuditScope inner = CommandAuditScope.open("sef:inner", innerCorrelation)) {
+                assertEquals("sef:inner", CommandAuditScope.currentActionId().orElseThrow());
+                assertEquals(innerCorrelation, CommandAuditScope.currentCorrelationId().orElseThrow());
             }
-            assertEquals("sef:test.outer", CommandAuditScope.currentActionId().orElseThrow());
+
+            assertEquals("sef:outer", CommandAuditScope.currentActionId().orElseThrow());
+            assertEquals(outerCorrelation, CommandAuditScope.currentCorrelationId().orElseThrow());
         }
         assertFalse(CommandAuditScope.active());
+        assertTrue(CommandAuditScope.currentCorrelationId().isEmpty());
     }
 }

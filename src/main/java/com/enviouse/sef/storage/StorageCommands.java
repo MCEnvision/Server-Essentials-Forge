@@ -1,8 +1,11 @@
 package com.enviouse.sef.storage;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -58,6 +61,9 @@ public final class StorageCommands {
         boolean mayExportAlts = PermissionService.has(source, PermissionsHandler.checkAltsExport)
                 && PermissionService.has(source, PermissionsHandler.checkAltsIpView);
         String issuer = source.getTextName();
+        java.util.UUID parentJobId = CommandAuditScope.currentCorrelationId().orElse(null);
+        java.util.UUID actorId = KernelCommandExecutor.actorId(source);
+        String sourceType = KernelCommandExecutor.sourceType(source).name();
         boolean accepted = StorageExportService.submit(() -> {
             try {
                 Path snapshot = StorageService.exportManagedSnapshot(
@@ -66,25 +72,33 @@ public final class StorageCommands {
                                 source.getServer().getServerDirectory().resolve("config").resolve("sef")),
                         exportRoot,
                         status -> mayExportAlts || !status.path().getFileName().toString().equals("alt_data.json"));
-                SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                        "storage",
-                        "export",
+                AuditService.record(AuditService.Event.completion(
+                        SecurityAuditService.currentSessionId(),
+                        actorId,
                         issuer,
-                        snapshot.getFileName().toString(),
-                        "sef storage",
-                        "success",
-                        mayExportAlts ? "alternate account data included" : "alternate account data excluded"));
+                        sourceType,
+                        "sef:storage.export",
+                        Map.of("export_file", snapshot.getFileName().toString()),
+                        AuditService.Result.SUCCESS,
+                        ActionResult.ReasonCode.SUCCESS,
+                        "command",
+                        parentJobId,
+                        AuditService.AuditClass.SENSITIVE_ACCESS));
                 source.getServer().execute(() -> source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                         "&aExported managed storage to &e" + snapshot.getFileName()), false));
             } catch (IOException exception) {
-                SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                        "storage",
-                        "export",
+                AuditService.record(AuditService.Event.completion(
+                        SecurityAuditService.currentSessionId(),
+                        actorId,
                         issuer,
-                        "",
-                        "sef storage",
-                        "failed",
-                        exception.getClass().getSimpleName()));
+                        sourceType,
+                        "sef:storage.export",
+                        Map.of("failure", exception.getClass().getSimpleName()),
+                        AuditService.Result.FAILED,
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command",
+                        parentJobId,
+                        AuditService.AuditClass.SENSITIVE_ACCESS));
                 source.getServer().execute(() -> source.sendFailure(
                         TextFormatter.stringToFormattedText("&cManaged storage export failed.")));
             }

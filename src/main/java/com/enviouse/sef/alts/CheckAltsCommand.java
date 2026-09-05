@@ -1,11 +1,13 @@
 package com.enviouse.sef.alts;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
@@ -176,19 +178,41 @@ public class CheckAltsCommand {
                             .resolve("serverconfig").resolve("sef").resolve("exports");
                     com.google.gson.JsonObject snapshot = tracker.buildExport(includeRaw);
                     String issuer = source.getTextName();
+                    java.util.UUID actorId = KernelCommandExecutor.actorId(source);
+                    java.util.UUID parentJobId = CommandAuditScope.currentCorrelationId().orElse(null);
+                    String sourceType = KernelCommandExecutor.sourceType(source).name();
                     boolean accepted = StorageExportService.submit(() -> {
                         try {
                             java.nio.file.Path exported = AltTracker.writeExport(directory, snapshot);
-                            SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                                    "privacy", "export", issuer, "alternate account records", "checkalts",
-                                    "success", includeRaw ? "raw permitted" : "redacted"));
+                            AuditService.record(AuditService.Event.completion(
+                                    SecurityAuditService.currentSessionId(),
+                                    actorId,
+                                    issuer,
+                                    sourceType,
+                                    "sef:identity.alts",
+                                    Map.of("export_file", exported.getFileName().toString(),
+                                            "include_raw", Boolean.toString(includeRaw)),
+                                    AuditService.Result.SUCCESS,
+                                    ActionResult.ReasonCode.SUCCESS,
+                                    "command",
+                                    parentJobId,
+                                    AuditService.AuditClass.SENSITIVE_ACCESS));
                             source.getServer().execute(() -> source.sendSuccess(
                                     () -> TextFormatter.stringToFormattedText(
                                             "&aExported alternate account data to &e" + exported.getFileName()), false));
                         } catch (java.io.IOException exception) {
-                            SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                                    "privacy", "export", issuer, "alternate account records", "checkalts",
-                                    "failed", exception.getClass().getSimpleName()));
+                            AuditService.record(AuditService.Event.completion(
+                                    SecurityAuditService.currentSessionId(),
+                                    actorId,
+                                    issuer,
+                                    sourceType,
+                                    "sef:identity.alts",
+                                    Map.of("failure", exception.getClass().getSimpleName()),
+                                    AuditService.Result.FAILED,
+                                    ActionResult.ReasonCode.STORAGE_ERROR,
+                                    "command",
+                                    parentJobId,
+                                    AuditService.AuditClass.SENSITIVE_ACCESS));
                             source.getServer().execute(() -> source.sendFailure(
                                     TextFormatter.stringToFormattedText("&cAlternate account export failed.")));
                         }

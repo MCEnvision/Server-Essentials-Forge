@@ -113,6 +113,33 @@ class AuditServiceTest {
     }
 
     @Test
+    void asynchronousCompletionPreservesCommandCorrelationAndSafeMetadata() {
+        UUID sessionId = UUID.randomUUID();
+        UUID actorId = UUID.randomUUID();
+        UUID parentJobId = UUID.randomUUID();
+        AuditService.Event event = AuditService.Event.completion(
+                sessionId,
+                actorId,
+                "operator",
+                "CONSOLE",
+                "sef:storage.export",
+                Map.of("export_file", "snapshot.json"),
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                "command",
+                parentJobId,
+                AuditService.AuditClass.SENSITIVE_ACCESS);
+
+        assertEquals(sessionId, event.sessionId());
+        assertEquals(actorId, event.actorId());
+        assertEquals(parentJobId, event.parentJobId());
+        assertTrue(event.stepCorrelationId() != null);
+        assertEquals("snapshot.json", event.normalizedParameters().get("export_file"));
+        assertEquals("async", event.providerContext().get("completion"));
+        assertEquals(AuditService.RedactionClass.METADATA, event.redactionClass());
+    }
+
+    @Test
     void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
         Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
         SecurityAuditService.start(temporaryDirectory, 7, 1);
