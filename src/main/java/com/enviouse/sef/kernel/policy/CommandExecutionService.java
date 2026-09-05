@@ -125,8 +125,13 @@ public final class CommandExecutionService {
             warmups.clear(request.actorId());
         } else if (!policy.warmup().isZero()) {
             if (request.warmupPosition() == null) {
-                audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
-                        policy.auditClass(), elapsedMillis(startedNanos), cooldownContext);
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.INVALID_INPUT, policy.auditClass(), elapsedMillis(startedNanos),
+                        cooldownContext)) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, "warmup position is required");
             }
             UUID targetId = request.targetIds().isEmpty() ? null : request.targetIds().getFirst();
@@ -395,13 +400,18 @@ public final class CommandExecutionService {
                             && committed.reason() != ActionResult.ReasonCode.COST_UNAVAILABLE) {
                         cooldowns.clear(request.actorId(), request.actionId());
                     }
-                    audit(request,
+                    boolean audited = audit(request,
                             committed.reason() == ActionResult.ReasonCode.COST_UNAVAILABLE
                                     ? AuditService.Result.OUTCOME_UNKNOWN
                                     : AuditService.Result.FAILED,
                             committed.reason(),
                             policy.auditClass(),
                             elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
+                    if (!audited && auditExpected) {
+                        return ActionResult.failure(
+                                ActionResult.ReasonCode.STORAGE_ERROR,
+                                "command audit could not be persisted safely");
+                    }
                     return committed;
                 }
                 boolean audited = audit(
@@ -429,12 +439,17 @@ public final class CommandExecutionService {
                         "cost refund could not be completed safely");
             }
             if (!refunded.successful()) {
-                audit(request,
+                boolean audited = audit(request,
                         AuditService.Result.OUTCOME_UNKNOWN,
                         refunded.reason(),
                         policy.auditClass(),
                         elapsedMillis(startedNanos),
                         merge(cooldownContext, cost.auditContext()));
+                if (!audited && auditExpected) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return refunded;
             }
             if (!cooldownNotAcquired) {
@@ -443,8 +458,13 @@ public final class CommandExecutionService {
             ActionResult.ReasonCode reason = failureReason == null
                     ? ActionResult.ReasonCode.PROVIDER_ERROR
                     : failureReason;
-            audit(request, AuditService.Result.FAILED, reason, policy.auditClass(),
+            boolean audited = audit(request, AuditService.Result.FAILED, reason, policy.auditClass(),
                     elapsedMillis(startedNanos), merge(cooldownContext, cost.auditContext()));
+            if (!audited && auditExpected) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(reason, "action failed");
         }
 

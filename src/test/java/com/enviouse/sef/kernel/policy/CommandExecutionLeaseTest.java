@@ -72,6 +72,28 @@ class CommandExecutionLeaseTest {
     }
 
     @Test
+    void failedCompletionFailsClosedWhenMandatoryAuditWriterHasFailed() throws Exception {
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<AuditService> audit = mockStatic(AuditService.class)) {
+            audit.when(() -> AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION)).thenReturn(true);
+            audit.when(() -> AuditService.record(any(AuditService.Event.class))).thenReturn(false);
+            Fixture fixture = fixture(
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    new RecordingReservation(ActionResult.success(null), ActionResult.success(null)));
+            CommandExecutionService.Lease lease = fixture.begin();
+
+            ActionResult<Void> result = lease.complete(false, ActionResult.ReasonCode.INVALID_INPUT);
+
+            assertFalse(result.successful());
+            assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
+            assertEquals(1, fixture.reservation.refundCalls);
+            assertTrue(fixture.cooldowns.inspect(fixture.actor, "sef:test").allowed());
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
     void rejectedExecutionFailsClosedWhenMandatoryAuditWriterHasFailed() {
         try (MockedStatic<AuditService> audit = mockStatic(AuditService.class)) {
             audit.when(() -> AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION)).thenReturn(true);
@@ -82,6 +104,28 @@ class CommandExecutionLeaseTest {
 
             ActionResult<CommandExecutionService.Lease> result =
                     fixture.executions.begin(request(fixture.actor, false));
+
+            assertFalse(result.successful());
+            assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
+            assertEquals(0, reservation.commitCalls);
+            assertEquals(0, reservation.refundCalls);
+        }
+    }
+
+    @Test
+    void warmupInputRejectionFailsClosedWhenMandatoryAuditWriterHasFailed() {
+        try (MockedStatic<AuditService> audit = mockStatic(AuditService.class)) {
+            audit.when(() -> AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION)).thenReturn(true);
+            audit.when(() -> AuditService.record(any(AuditService.Event.class))).thenReturn(false);
+            RecordingReservation reservation = new RecordingReservation(
+                    ActionResult.success(null), ActionResult.success(null));
+            Fixture fixture = fixture(
+                    AuditService.AuditClass.ADMIN_ACTION,
+                    reservation,
+                    Duration.ofSeconds(1));
+
+            ActionResult<CommandExecutionService.Lease> result =
+                    fixture.executions.begin(request(fixture.actor, true, null));
 
             assertFalse(result.successful());
             assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
@@ -179,6 +223,14 @@ class CommandExecutionLeaseTest {
     }
 
     private static Fixture fixture(AuditService.AuditClass auditClass, RecordingReservation reservation) {
+        return fixture(auditClass, reservation, Duration.ZERO);
+    }
+
+    private static Fixture fixture(
+            AuditService.AuditClass auditClass,
+            RecordingReservation reservation,
+            Duration warmup
+    ) {
         FeatureGateService gates = new FeatureGateService();
         gates.publish(new FeatureGateService.Snapshot(2L, Map.of("sef.test", true), Map.of(), Map.of()));
         CommandPolicyService policies = new CommandPolicyService(gates);
@@ -189,7 +241,7 @@ class CommandExecutionLeaseTest {
                 false,
                 false,
                 Duration.ofMinutes(5),
-                Duration.ZERO,
+                warmup,
                 BigDecimal.ONE,
                 auditClass));
         CooldownService cooldowns = new CooldownService();
@@ -221,6 +273,14 @@ class CommandExecutionLeaseTest {
     }
 
     private static CommandExecutionService.Request request(UUID actor, boolean permissionGranted) {
+        return request(actor, permissionGranted, null);
+    }
+
+    private static CommandExecutionService.Request request(
+            UUID actor,
+            boolean permissionGranted,
+            WarmupService.Position warmupPosition
+    ) {
         return new CommandExecutionService.Request(
                 UUID.randomUUID(),
                 actor,
@@ -234,7 +294,7 @@ class CommandExecutionLeaseTest {
                 false,
                 "",
                 null,
-                null,
+                warmupPosition,
                 Set.of(),
                 Map.of(),
                 List.of(),
