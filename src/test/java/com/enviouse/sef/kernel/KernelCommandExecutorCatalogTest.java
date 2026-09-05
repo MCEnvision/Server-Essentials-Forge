@@ -5,6 +5,7 @@ import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.enviouse.sef.permissions.DelegatedPermissionScope;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.commands.CommandSource;
@@ -730,6 +731,70 @@ class KernelCommandExecutorCatalogTest {
         assertFalse(event.toString().contains("not-a-number"));
         assertEquals(1, feedback.size());
         assertEquals("The configured command cost could not be calculated.", feedback.getFirst());
+    }
+
+    @Test
+    void delegatedScopeMismatchAuditsRejectedActionWithoutInvokingCallback() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000018");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+        AtomicInteger invocations = new AtomicInteger();
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            DelegatedPermissionScope.preview(
+                    actorId,
+                    "core",
+                    "sef:other.action",
+                    Set.of(),
+                    () -> KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("secret", "delegated-secret"),
+                            invocations::incrementAndGet));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        assertEquals(0, invocations.get());
+        assertEquals(1, feedback.size());
+        assertEquals("The delegated execution grant does not cover this action.", feedback.getFirst());
+        assertEquals(1, events.size());
+        JsonObject event = events.getFirst();
+        assertEquals("sef:core.test", event.get("actionId").getAsString());
+        assertEquals("rejected", event.get("result").getAsString());
+        assertEquals("policy_denied", event.get("reasonCode").getAsString());
+        assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+        assertEquals("player", event.get("sourceType").getAsString());
+        assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+        assertFalse(event.toString().contains("delegated-secret"));
     }
 
     private static MockedStatic<PermissionAPI> denyingPermissionApi() {

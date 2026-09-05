@@ -41,6 +41,7 @@ public final class KernelCommandExecutor {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(actionId, "actionId");
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            rejectDelegatedScope(source, actionId);
             return false;
         }
         CommandDefinition definition = knownDefinition(actionId);
@@ -117,8 +118,7 @@ public final class KernelCommandExecutor {
         Objects.requireNonNull(reason, "reason");
         Objects.requireNonNull(detail, "detail");
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cThe delegated execution grant does not cover this action."));
+            rejectDelegatedScope(source, actionId);
             return 0;
         }
         CommandDefinition definition = knownDefinition(actionId);
@@ -173,8 +173,7 @@ public final class KernelCommandExecutor {
         Objects.requireNonNull(targetIds, "targetIds");
         Objects.requireNonNull(action, "action");
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cThe delegated execution grant does not cover this action."));
+            rejectDelegatedScope(source, actionId);
             return 0;
         }
 
@@ -359,6 +358,38 @@ public final class KernelCommandExecutor {
     private static void rejectUnknownAction(CommandSourceStack source) {
         source.sendFailure(TextFormatter.stringToFormattedText(
                 "&cThat command action is unavailable."));
+    }
+
+    private static void rejectDelegatedScope(CommandSourceStack source, String actionId) {
+        CommandDefinition definition = knownDefinition(actionId);
+        boolean recorded = true;
+        if (definition != null) {
+            CommandDefinition.SourceType sourceType = sourceType(source);
+            KernelServices.commandJournal().attachOrBegin(source, definition.id());
+            if (!AuditService.accepting(definition.auditClass())) {
+                recorded = false;
+            } else {
+                recorded = AuditService.record(AuditService.Event.metadata(
+                        SecurityAuditService.currentSessionId(),
+                        actorId(source, sourceType),
+                        Objects.requireNonNullElse(source.getTextName(), ""),
+                        sourceType.name(),
+                        definition.id(),
+                        List.of(),
+                        AuditService.Result.REJECTED,
+                        ActionResult.ReasonCode.POLICY_DENIED,
+                        "command",
+                        definition.auditClass()));
+            }
+            KernelServices.commandJournal().finishCurrent(
+                    ObservationContracts.LifecycleStage.REJECTED,
+                    0,
+                    ActionResult.ReasonCode.POLICY_DENIED.name().toLowerCase(Locale.ROOT));
+        }
+        source.sendFailure(TextFormatter.stringToFormattedText(
+                recorded
+                        ? "&cThe delegated execution grant does not cover this action."
+                        : "&cMandatory command audit is unavailable. This action is blocked."));
     }
 
     private static PermissionSummary permissions(
