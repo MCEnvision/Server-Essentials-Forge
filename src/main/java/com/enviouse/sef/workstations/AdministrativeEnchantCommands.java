@@ -1,8 +1,6 @@
 package com.enviouse.sef.workstations;
 
 import com.enviouse.sef.TextFormatter;
-import com.enviouse.sef.audit.AuditService;
-import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
@@ -388,7 +386,6 @@ public final class AdministrativeEnchantCommands {
             }
             return fail(source, "the enchantment operation was rolled back");
         }
-        audit(source, plans, operation);
         String label = switch (operation) {
             case APPLY -> "enchantment applied at level " + level;
             case REMOVE -> "enchantment removed";
@@ -628,20 +625,6 @@ public final class AdministrativeEnchantCommands {
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("sha256 is unavailable", exception);
         }
-    }
-
-    private static void audit(CommandSourceStack source, List<Plan> plans, Operation operation) {
-        AuditService.record(AuditService.Event.metadata(
-                SecurityAuditService.currentSessionId(),
-                source.getEntity() == null ? new java.util.UUID(0L, 0L) : source.getEntity().getUUID(),
-                source.getTextName(),
-                source.getEntity() == null ? "console" : "player",
-                "sef:enchant." + operation.name().toLowerCase(java.util.Locale.ROOT),
-                plans.stream().map(plan -> plan.player().getUUID()).toList(),
-                AuditService.Result.SUCCESS,
-                ActionResult.ReasonCode.SUCCESS,
-                "command",
-                AuditService.AuditClass.ADMIN_ACTION));
     }
 
     private static boolean has(CommandSourceStack source, String id) {

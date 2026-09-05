@@ -3,6 +3,10 @@ package com.enviouse.sef.kernel;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import org.junit.jupiter.api.Test;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Set;
 import java.util.Map;
 
@@ -154,5 +158,27 @@ class KernelServicesCatalogTest {
         var recipe = KernelServices.catalog().find("sef:inventory.recipe").orElseThrow();
         assertEquals("recipe", recipe.canonicalRoute());
         assertEquals(Set.of(CommandDefinition.SourceType.PLAYER), recipe.sourceTypes());
+    }
+
+    @Test
+    void administrativeEnchantRoutesUseTheSharedExecutorAsTheirOnlyAuditBoundary() throws IOException {
+        Path sourcePath = Path.of("").toAbsolutePath();
+        for (int depth = 0; depth < 8 && sourcePath != null; depth++) {
+            Path candidate = sourcePath.resolve(
+                    "src/main/java/com/enviouse/sef/workstations/AdministrativeEnchantCommands.java");
+            if (Files.isRegularFile(candidate)) {
+                sourcePath = candidate;
+                break;
+            }
+            sourcePath = sourcePath.getParent();
+        }
+        assertTrue(sourcePath != null && Files.isRegularFile(sourcePath), "project source was not found");
+        String source = Files.readString(sourcePath, StandardCharsets.UTF_8);
+
+        assertFalse(source.contains("AuditService.record"));
+        assertFalse(source.contains("SecurityAuditService.record"));
+        assertEquals(
+                3,
+                source.lines().filter(line -> line.contains("KernelCommandExecutor.execute(")).count());
     }
 }
