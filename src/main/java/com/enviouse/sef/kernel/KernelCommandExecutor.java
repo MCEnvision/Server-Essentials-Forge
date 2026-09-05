@@ -39,10 +39,12 @@ public final class KernelCommandExecutor {
             PermissionNode<Boolean>... additionalPermissions
     ) {
         Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(actionId, "actionId");
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
             return false;
         }
-        return permissions(source, definition(actionId), additionalPermissions).granted();
+        CommandDefinition definition = knownDefinition(actionId);
+        return definition != null && permissions(source, definition, additionalPermissions).granted();
     }
 
     /**
@@ -51,7 +53,15 @@ public final class KernelCommandExecutor {
      */
     public static boolean authorizeControl(CommandSourceStack source, String actionId) {
         Objects.requireNonNull(source, "source");
-        CommandDefinition definition = definition(actionId);
+        Objects.requireNonNull(actionId, "actionId");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            return false;
+        }
+        CommandDefinition definition = knownDefinition(actionId);
+        if (definition == null) {
+            rejectUnknownAction(source);
+            return false;
+        }
         if (!AuditService.accepting(definition.auditClass())) {
             source.sendFailure(TextFormatter.stringToFormattedText(
                     "&cMandatory command audit is unavailable. This action is blocked."));
@@ -103,6 +113,7 @@ public final class KernelCommandExecutor {
             String detail
     ) {
         Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(actionId, "actionId");
         Objects.requireNonNull(reason, "reason");
         Objects.requireNonNull(detail, "detail");
         if (!DelegatedPermissionScope.actionAllowed(actionId)) {
@@ -110,7 +121,11 @@ public final class KernelCommandExecutor {
                     "&cThe delegated execution grant does not cover this action."));
             return 0;
         }
-        CommandDefinition definition = definition(actionId);
+        CommandDefinition definition = knownDefinition(actionId);
+        if (definition == null) {
+            rejectUnknownAction(source);
+            return 0;
+        }
         if (!AuditService.accepting(definition.auditClass())) {
             source.sendFailure(TextFormatter.stringToFormattedText(
                     "&cMandatory command audit is unavailable. This action is blocked."));
@@ -153,6 +168,7 @@ public final class KernelCommandExecutor {
             PermissionNode<Boolean>... additionalPermissions
     ) {
         Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(actionId, "actionId");
         Objects.requireNonNull(normalizedParameters, "normalizedParameters");
         Objects.requireNonNull(targetIds, "targetIds");
         Objects.requireNonNull(action, "action");
@@ -162,7 +178,11 @@ public final class KernelCommandExecutor {
             return 0;
         }
 
-        CommandDefinition definition = definition(actionId);
+        CommandDefinition definition = knownDefinition(actionId);
+        if (definition == null) {
+            rejectUnknownAction(source);
+            return 0;
+        }
         if (!AuditService.accepting(definition.auditClass())) {
             KernelServices.commandJournal().finishCurrent(
                     ObservationContracts.LifecycleStage.REJECTED,
@@ -319,9 +339,13 @@ public final class KernelCommandExecutor {
         return CommandDefinition.SourceType.EXTERNAL_ADAPTER;
     }
 
-    private static CommandDefinition definition(String actionId) {
-        return KernelServices.catalog().find(actionId)
-                .orElseThrow(() -> new IllegalStateException("Unknown kernel action " + actionId));
+    private static CommandDefinition knownDefinition(String actionId) {
+        return KernelServices.catalog().find(actionId).orElse(null);
+    }
+
+    private static void rejectUnknownAction(CommandSourceStack source) {
+        source.sendFailure(TextFormatter.stringToFormattedText(
+                "&cThat command action is unavailable."));
     }
 
     private static PermissionSummary permissions(

@@ -75,6 +75,46 @@ class KernelCommandExecutorCatalogTest {
     }
 
     @Test
+    void unknownDynamicActionIdsFailClosedWithoutInvokingCallbacks() {
+        KernelServices.initialize();
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                null);
+        AtomicInteger invocations = new AtomicInteger();
+
+        assertFalse(KernelCommandExecutor.canUse(source, "sef:unknown.dynamic.action"));
+        assertFalse(KernelCommandExecutor.authorizeControl(source, "sef:unknown.dynamic.action"));
+        assertEquals(
+                0,
+                KernelCommandExecutor.execute(
+                        source,
+                        "sef:unknown.dynamic.action",
+                        Map.of(),
+                        invocations::incrementAndGet));
+
+        assertEquals(0, invocations.get());
+        assertEquals(2, feedback.size());
+        assertTrue(feedback.stream().allMatch(message ->
+                message.equals("That command action is unavailable.")));
+    }
+
+    @Test
     void customLeaseAdaptersFailClosedWhenServerControlPolicyDenies() {
         KernelServices.initialize();
         SecurityAuditService.start(temporaryDirectory, 7, 1);
