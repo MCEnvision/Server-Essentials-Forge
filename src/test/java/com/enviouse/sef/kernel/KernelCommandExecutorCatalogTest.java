@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -204,6 +205,120 @@ class KernelCommandExecutorCatalogTest {
                 "denied feedback must remain bounded");
     }
 
+    @Test
+    void successfulExecutionPersistsBoundedMetadataActorAndTargetCorrelation() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000011");
+        UUID targetId = UUID.fromString("00000000-0000-0000-0000-000000000012");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            assertEquals(
+                    1,
+                    KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("mode", "safe", "message_length", "12"),
+                            List.of(targetId),
+                            false,
+                            () -> 1));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        assertEquals(1, events.size());
+        JsonObject event = events.getFirst();
+        assertEquals("sef:core.test", event.get("actionId").getAsString());
+        assertEquals("success", event.get("result").getAsString());
+        assertEquals("success", event.get("reasonCode").getAsString());
+        assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+        assertEquals("tester", event.get("actorUsername").getAsString());
+        assertEquals(targetId.toString(), event.getAsJsonArray("targetUuids").get(0).getAsString());
+        assertEquals("safe", event.getAsJsonObject("normalizedParameters").get("mode").getAsString());
+        assertEquals("12", event.getAsJsonObject("normalizedParameters").get("message_length").getAsString());
+        assertEquals("player", event.get("sourceType").getAsString());
+        assertEquals("player", event.getAsJsonObject("providerContext").get("source_class").getAsString());
+    }
+
+    @Test
+    void failedExecutionAuditsProviderFailureAndDoesNotLeakCallbackDetails() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000013");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("mode", "safe"),
+                            () -> 0));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        JsonObject event = JsonParser.parseString(Files.readAllLines(auditFile, StandardCharsets.UTF_8).getFirst())
+                .getAsJsonObject();
+        assertEquals("sef:core.test", event.get("actionId").getAsString());
+        assertEquals("failed", event.get("result").getAsString());
+        assertEquals("provider_error", event.get("reasonCode").getAsString());
+        assertEquals("safe", event.getAsJsonObject("normalizedParameters").get("mode").getAsString());
+        assertFalse(event.toString().contains("callback"));
+        assertFalse(event.toString().contains("stack"));
+    }
+
     private static MockedStatic<PermissionAPI> denyingPermissionApi() {
         return mockStatic(PermissionAPI.class, invocation -> {
             String method = invocation.getMethod().getName();
@@ -212,6 +327,19 @@ class KernelCommandExecutorCatalogTest {
             }
             if (method.equals("getActivePermissionHandler")) {
                 return "sef:test-deny";
+            }
+            return Answers.RETURNS_DEFAULTS.answer(invocation);
+        });
+    }
+
+    private static MockedStatic<PermissionAPI> grantingPermissionApi() {
+        return mockStatic(PermissionAPI.class, invocation -> {
+            String method = invocation.getMethod().getName();
+            if (method.equals("getPermission") || method.equals("getOfflinePermission")) {
+                return true;
+            }
+            if (method.equals("getActivePermissionHandler")) {
+                return "sef:test-grant";
             }
             return Answers.RETURNS_DEFAULTS.answer(invocation);
         });
