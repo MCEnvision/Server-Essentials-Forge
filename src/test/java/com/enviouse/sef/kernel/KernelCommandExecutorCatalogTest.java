@@ -336,13 +336,16 @@ class KernelCommandExecutorCatalogTest {
                 mock(MinecraftServer.class),
                 player);
 
-        try (MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+        try (MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class);
+                MockedStatic<AuditService> audit = mockStatic(AuditService.class, Answers.CALLS_REAL_METHODS)) {
             control.when(() -> MinecraftServerControlRuntime.authorizeAction(
                             org.mockito.ArgumentMatchers.eq(source),
                             org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
                     .thenReturn(ActionResult.failure(
                             ActionResult.ReasonCode.POLICY_DENIED,
                             "control policy denied"));
+            audit.when(() -> AuditService.record(org.mockito.ArgumentMatchers.any(AuditService.Event.class)))
+                    .thenReturn(false);
             assertFalse(KernelCommandExecutor.authorizeControl(
                     source,
                     KernelServices.catalog().entries().getFirst().id()));
@@ -351,7 +354,61 @@ class KernelCommandExecutorCatalogTest {
         }
 
         assertEquals(1, feedback.size());
-        assertTrue(feedback.getFirst().contains("control policy denied"));
+        assertTrue(feedback.getFirst().contains("Mandatory command audit is unavailable"));
+    }
+
+    @Test
+    void sharedExecutorBlocksServerControlRejectionWhenAuditRecordFails() {
+        KernelServices.initialize();
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000021"));
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, net.minecraft.network.chat.Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+        AtomicInteger invocations = new AtomicInteger();
+
+        try (MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class);
+                MockedStatic<AuditService> audit = mockStatic(AuditService.class, Answers.CALLS_REAL_METHODS)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.failure(
+                            ActionResult.ReasonCode.POLICY_DENIED,
+                            "control policy denied"));
+            audit.when(() -> AuditService.record(org.mockito.ArgumentMatchers.any(AuditService.Event.class)))
+                    .thenReturn(false);
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            KernelServices.catalog().entries().getFirst().id(),
+                            Map.of(),
+                            invocations::incrementAndGet));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        assertEquals(0, invocations.get());
+        assertEquals(1, feedback.size());
+        assertTrue(feedback.getFirst().contains("Mandatory command audit is unavailable"));
     }
 
     @Test

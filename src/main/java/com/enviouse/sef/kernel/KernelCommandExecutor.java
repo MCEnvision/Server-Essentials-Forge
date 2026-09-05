@@ -73,7 +73,7 @@ public final class KernelCommandExecutor {
             return true;
         }
         CommandDefinition.SourceType sourceType = sourceType(source);
-        AuditService.record(AuditService.Event.metadata(
+        boolean recorded = AuditService.record(AuditService.Event.metadata(
                 SecurityAuditService.currentSessionId(),
                 actorId(source, sourceType),
                 Objects.requireNonNullElse(source.getTextName(), ""),
@@ -85,7 +85,9 @@ public final class KernelCommandExecutor {
                 "server_control",
                 definition.auditClass()));
         source.sendFailure(TextFormatter.stringToFormattedText(
-                "&c" + authorization.detail()));
+                recorded
+                        ? "&c" + authorization.detail()
+                        : "&cMandatory command audit is unavailable. This action is blocked."));
         return false;
     }
 
@@ -213,7 +215,7 @@ public final class KernelCommandExecutor {
                     ObservationContracts.LifecycleStage.REJECTED,
                     null,
                     controlAuthorization.reason().name().toLowerCase(Locale.ROOT));
-            AuditService.record(AuditService.Event.metadata(
+            boolean recorded = AuditService.record(AuditService.Event.metadata(
                     SecurityAuditService.currentSessionId(),
                     actorId,
                     Objects.requireNonNullElse(source.getTextName(), ""),
@@ -225,7 +227,9 @@ public final class KernelCommandExecutor {
                     "server_control",
                     definition.auditClass()));
             source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&c" + controlAuthorization.detail()));
+                    recorded
+                            ? "&c" + controlAuthorization.detail()
+                            : "&cMandatory command audit is unavailable. This action is blocked."));
             return 0;
         }
 
