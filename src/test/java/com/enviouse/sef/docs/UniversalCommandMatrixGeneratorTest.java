@@ -143,6 +143,17 @@ class UniversalCommandMatrixGeneratorTest {
                 evidence.resolve("catalog-console-runtime.json"),
                 record.toString(),
                 StandardCharsets.UTF_8);
+        JsonObject argumentRecord = record.deepCopy();
+        JsonObject argumentRow = row.deepCopy();
+        argumentRow.addProperty("actionId", "sef:gui.client.status");
+        argumentRow.addProperty("canonicalRoute", "sef client status");
+        argumentRow.addProperty("redactionSafe", true);
+        argumentRecord.getAsJsonArray("rows").remove(0);
+        argumentRecord.getAsJsonArray("rows").add(argumentRow);
+        Files.writeString(
+                evidence.resolve("catalog-console-argument-runtime.json"),
+                argumentRecord.toString(),
+                StandardCharsets.UTF_8);
         String oldRoot = System.getProperty("sef.audit.evidenceRoot");
         String oldCommit = System.getProperty("sef.audit.candidateCommit");
         String oldSha256 = System.getProperty("sef.audit.candidateSha256");
@@ -160,6 +171,20 @@ class UniversalCommandMatrixGeneratorTest {
                     .getAsJsonObject("audit").get("status").getAsString());
             assertEquals("pass", action.getAsJsonObject("dimensions")
                     .getAsJsonObject("linux_shared_runtime").get("status").getAsString());
+            JsonObject argumentAction = matrix.getAsJsonArray("rows").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(value -> value.get("semanticKey").getAsString().equals("sef:gui.client.status"))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("pass", argumentAction.getAsJsonObject("dimensions")
+                    .getAsJsonObject("redaction").get("status").getAsString());
+            assertEquals(
+                    "catalog-console-argument-runtime.json",
+                    argumentAction.getAsJsonObject("dimensions")
+                            .getAsJsonObject("redaction")
+                            .getAsJsonArray("evidence")
+                            .get(0)
+                            .getAsString());
         } finally {
             restoreProperty("sef.audit.evidenceRoot", oldRoot);
             restoreProperty("sef.audit.candidateCommit", oldCommit);

@@ -320,61 +320,68 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
         add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, duplicate-runtime inspection, and shared executor audit joins pass; domain action sink joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         if (runtimeEvidence.successful(action.get("semanticKey").getAsString())) {
-            add(dimensions, "audit", "pass", "catalog-wide console execution emitted one bounded correlated audit event", "catalog-console-runtime.json");
-            add(dimensions, "redaction", "pass", "catalog-wide console execution emitted metadata-only redaction without raw command parameters", "catalog-console-runtime.json");
-            add(dimensions, "linux_shared_runtime", "pass", "catalog-wide console route executed on the canonical Linux runtime", "catalog-console-runtime.json");
+            String evidence = runtimeEvidence.evidenceFor(action.get("semanticKey").getAsString());
+            add(dimensions, "audit", "pass", "catalog-wide console execution emitted one bounded correlated audit event", evidence);
+            add(dimensions, "redaction", "pass", "catalog-wide console execution emitted metadata-only redaction without raw command parameters", evidence);
+            add(dimensions, "linux_shared_runtime", "pass", "catalog-wide console route executed on the canonical Linux runtime", evidence);
         }
         return dimensions;
     }
 
-    private record RuntimeEvidence(Map<String, JsonObject> successfulRows) {
+    private record RuntimeEvidence(
+            Map<String, JsonObject> successfulRows,
+            Map<String, String> evidenceSources
+    ) {
         private static RuntimeEvidence load() {
             String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
             String expectedCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
             String expectedSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
             if (evidenceRoot.isEmpty() || expectedCommit.isEmpty() || expectedSha256.isEmpty()) {
-                return new RuntimeEvidence(Map.of());
-            }
-            Path file = Path.of(evidenceRoot).toAbsolutePath().normalize()
-                    .resolve("catalog-console-runtime.json");
-            if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
-                return new RuntimeEvidence(Map.of());
+                return new RuntimeEvidence(Map.of(), Map.of());
             }
             try {
-                JsonObject record = JsonParser.parseString(
-                        Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-                if (record.get("schemaVersion").getAsInt() != 1
-                        || !expectedCommit.equals(record.get("candidateCommit").getAsString())
-                        || !expectedSha256.equals(record.get("candidateSha256").getAsString())
-                        || !record.get("candidateCommit").getAsString().matches("[0-9a-f]{40}")
-                        || !record.get("candidateSha256").getAsString().matches("[0-9a-f]{64}")) {
-                    throw new IllegalArgumentException("catalog runtime evidence identity does not match candidate");
-                }
                 Map<String, JsonObject> successful = new LinkedHashMap<>();
-                for (JsonElement element : record.getAsJsonArray("rows")) {
-                    JsonObject row = element.getAsJsonObject();
-                    String actionId = row.get("actionId").getAsString();
-                    if (!row.get("result").getAsString().equals("success")
-                            || row.get("auditEventCount").getAsInt() != 1
-                            || !row.get("sourceType").getAsString().equals("console")
-                            || !row.get("auditResult").getAsString().equals("success")
-                            || !row.get("auditClass").getAsString().equals("metadata_only")
-                            || !row.get("redactionClass").getAsString().equals("metadata")
-                            || !row.get("commandDigest").getAsString().matches("[0-9a-f]{64}")) {
+                Map<String, String> evidenceSources = new LinkedHashMap<>();
+                Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+                for (String fileName : List.of(
+                        "catalog-console-runtime.json",
+                        "catalog-console-argument-runtime.json")) {
+                    Path file = root.resolve(fileName);
+                    if (!Files.isRegularFile(file) || Files.isSymbolicLink(file)) {
                         continue;
                     }
-                    JsonObject previous = successful.putIfAbsent(actionId, row);
-                    if (previous != null
-                            && (!previous.get("result").equals(row.get("result"))
-                            || !previous.get("auditEventCount").equals(row.get("auditEventCount"))
-                            || !previous.get("sourceType").equals(row.get("sourceType"))
-                            || !previous.get("auditResult").equals(row.get("auditResult"))
-                            || !previous.get("auditClass").equals(row.get("auditClass"))
-                            || !previous.get("redactionClass").equals(row.get("redactionClass")))) {
-                        throw new IllegalArgumentException("inconsistent catalog runtime evidence action " + actionId);
+                    JsonObject record = JsonParser.parseString(
+                            Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+                    if (record.get("schemaVersion").getAsInt() != 1
+                            || !expectedCommit.equals(record.get("candidateCommit").getAsString())
+                            || !expectedSha256.equals(record.get("candidateSha256").getAsString())
+                            || !record.get("candidateCommit").getAsString().matches("[0-9a-f]{40}")
+                            || !record.get("candidateSha256").getAsString().matches("[0-9a-f]{64}")) {
+                        throw new IllegalArgumentException("catalog runtime evidence identity does not match candidate");
+                    }
+                    for (JsonElement element : record.getAsJsonArray("rows")) {
+                        JsonObject row = element.getAsJsonObject();
+                        String actionId = row.get("actionId").getAsString();
+                        if (!row.get("result").getAsString().equals("success")
+                                || row.get("auditEventCount").getAsInt() != 1
+                                || !row.get("sourceType").getAsString().equals("console")
+                                || !row.get("auditResult").getAsString().equals("success")
+                                || !row.get("auditClass").getAsString().equals("metadata_only")
+                                || !row.get("redactionClass").getAsString().equals("metadata")
+                                || row.has("redactionSafe") && !row.get("redactionSafe").getAsBoolean()
+                                || !row.get("commandDigest").getAsString().matches("[0-9a-f]{64}")) {
+                            continue;
+                        }
+                        JsonObject previous = successful.putIfAbsent(actionId, row);
+                        if (previous == null) {
+                            evidenceSources.put(actionId, fileName);
+                        } else if (!sameProjection(previous, row)) {
+                            throw new IllegalArgumentException(
+                                    "inconsistent catalog runtime evidence action " + actionId);
+                        }
                     }
                 }
-                return new RuntimeEvidence(Map.copyOf(successful));
+                return new RuntimeEvidence(Map.copyOf(successful), Map.copyOf(evidenceSources));
             } catch (RuntimeException | IOException exception) {
                 throw new IllegalStateException("catalog runtime evidence is invalid", exception);
             }
@@ -382,6 +389,19 @@ public final class UniversalCommandMatrixGenerator {
 
         private boolean successful(String actionId) {
             return successfulRows.containsKey(actionId);
+        }
+
+        private String evidenceFor(String actionId) {
+            return evidenceSources.getOrDefault(actionId, "catalog-console-runtime.json");
+        }
+
+        private static boolean sameProjection(JsonObject first, JsonObject second) {
+            return first.get("result").equals(second.get("result"))
+                    && first.get("auditEventCount").equals(second.get("auditEventCount"))
+                    && first.get("sourceType").equals(second.get("sourceType"))
+                    && first.get("auditResult").equals(second.get("auditResult"))
+                    && first.get("auditClass").equals(second.get("auditClass"))
+                    && first.get("redactionClass").equals(second.get("redactionClass"));
         }
     }
 
