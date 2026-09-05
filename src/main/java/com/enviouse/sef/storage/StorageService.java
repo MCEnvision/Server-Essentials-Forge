@@ -298,6 +298,9 @@ public final class StorageService {
                     || !include.test(status)) {
                 continue;
             }
+            if (!Files.exists(source, LinkOption.NOFOLLOW_LINKS)) {
+                continue;
+            }
             byte[] content = AtomicFileStore.readBounded(source, MAX_DOCUMENT_BYTES);
             Path target = snapshot.resolve(source.getFileName());
             if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {

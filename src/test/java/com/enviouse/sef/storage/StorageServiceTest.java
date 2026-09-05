@@ -175,6 +175,26 @@ class StorageServiceTest {
     }
 
     @Test
+    void exportsSkipMissingManagedDocuments() throws Exception {
+        Path missing = temporaryDirectory.resolve("missing.json");
+        StorageService.read(missing, "missing export", 1);
+
+        Path present = temporaryDirectory.resolve("present.json");
+        JsonObject data = new JsonObject();
+        data.addProperty("value", "safe");
+        StorageService.write(present, "present export", 1, data, null);
+        StorageService.read(present, "present export", 1);
+
+        Path snapshot = StorageService.exportManagedSnapshot(
+                List.of(temporaryDirectory),
+                temporaryDirectory.resolve("exports"),
+                ignored -> true);
+
+        assertTrue(Files.exists(snapshot.resolve("present.json")));
+        assertFalse(Files.exists(snapshot.resolve("missing.json")));
+    }
+
+    @Test
     void missingCanonicalFileRecoversThePreviousCompleteGeneration() throws Exception {
         Path path = temporaryDirectory.resolve("recover.json");
         JsonObject first = new JsonObject();
