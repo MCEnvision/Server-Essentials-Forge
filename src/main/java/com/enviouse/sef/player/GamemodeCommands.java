@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
@@ -102,12 +103,16 @@ public final class GamemodeCommands {
     private static int change(
             CommandSourceStack source,
             ServerPlayer target,
-            GameType mode,
+        GameType mode,
             boolean other,
             PermissionNode<Boolean>... routePermissions
     ) {
         if (target == null) {
-            return fail(source, "An explicit online target is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:gamemode." + modeName(mode),
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online target is required.");
         }
         if (other && !eligible(source, target)) {
             return fail(source, "That player is unavailable.");

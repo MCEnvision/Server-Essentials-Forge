@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
@@ -183,7 +184,11 @@ public final class InventoryUtilityCommands {
 
     private static int clear(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            return fail(source, "An explicit online target is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:inventory.clear",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online target is required.");
         }
         boolean self = source.getPlayer() == target;
         if (!self && !eligible(source, target)) {
@@ -210,7 +215,11 @@ public final class InventoryUtilityCommands {
     private static int enderChest(CommandSourceStack source, ServerPlayer target) {
         ServerPlayer viewer = source.getPlayer();
         if (viewer == null || target == null) {
-            return fail(source, "This command requires an online player.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:inventory.enderchest",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command requires an online player.");
         }
         boolean self = viewer == target;
         if (!self && !eligible(source, target)) {

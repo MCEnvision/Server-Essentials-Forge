@@ -223,7 +223,7 @@ public final class SocialCommands {
     }
 
     private static int ignore(CommandSourceStack source, ServerPlayer target) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.ignore");
         if (player == null || player == target) return 0;
         return KernelCommandExecutor.execute(
                 source,
@@ -241,7 +241,7 @@ public final class SocialCommands {
     }
 
     private static int ignoreList(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.ignore");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.ignore", Map.of("operation", "list"), () -> {
             Set<UUID> ignored = KernelServices.social().preferences(player.getUUID()).ignoredPlayers();
@@ -251,13 +251,13 @@ public final class SocialCommands {
     }
 
     private static int toggleSpy(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return setSpy(source, !KernelServices.social().preferences(player.getUUID()).socialSpyRequested());
     }
 
     private static int setSpy(CommandSourceStack source, boolean enabled) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of(
                 "operation", enabled ? "enable" : "disable"), () -> {
@@ -282,7 +282,7 @@ public final class SocialCommands {
             SocialRepository.SpyAudience audience,
             boolean enable
     ) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of(
                 "operation", "audience",
@@ -301,7 +301,7 @@ public final class SocialCommands {
             boolean add,
             boolean replace
     ) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         if (VanishUtil.isVanished(target, player)
                 && !PermissionService.has(player, PermissionsHandler.socialSpyViewVanished)) {
@@ -346,7 +346,7 @@ public final class SocialCommands {
     }
 
     private static int selectedClear(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of("operation", "selected_clear"), () -> {
             SocialRepository.SocialPreferences current = KernelServices.social().preferences(player.getUUID());
@@ -358,7 +358,7 @@ public final class SocialCommands {
     }
 
     private static int selectedList(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of("operation", "selected_list"), () -> {
             Set<UUID> selected = KernelServices.social().preferences(player.getUUID()).spySelectedPlayers();
@@ -370,7 +370,7 @@ public final class SocialCommands {
     }
 
     private static int match(CommandSourceStack source, SocialRepository.SpyMatch match) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of(
                 "operation", "match",
@@ -384,7 +384,7 @@ public final class SocialCommands {
     }
 
     private static int content(CommandSourceStack source, boolean content) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         if (content && !PermissionService.has(player, PermissionsHandler.socialSpyViewContent)) {
             fail(source, "Social spy content permission is required.");
@@ -402,7 +402,7 @@ public final class SocialCommands {
     }
 
     private static int route(CommandSourceStack source, String route, boolean add) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of(
                 "operation", add ? "route_add" : "route_remove",
@@ -424,7 +424,7 @@ public final class SocialCommands {
     }
 
     private static int routesReset(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of("operation", "filter_reset"), () -> {
             SocialRepository.SocialPreferences current = KernelServices.social().preferences(player.getUUID());
@@ -436,7 +436,7 @@ public final class SocialCommands {
     }
 
     private static int status(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of("operation", "status"),
                 () -> statusOutput(source), PermissionsHandler.socialSpyStatus);
@@ -463,7 +463,7 @@ public final class SocialCommands {
     }
 
     private static int recent(CommandSourceStack source, int count) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.spy");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.spy", Map.of(
                 "operation", "recent",

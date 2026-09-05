@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
@@ -247,7 +248,11 @@ public final class ModerationControlCommands {
 
     private static int listWarnings(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            return fail(source, "An explicit online player is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:moderation.warns",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online player is required.");
         }
         boolean self = source.getPlayer() == target;
         if (!self && (!PermissionService.has(source, PermissionsHandler.warnCommand)

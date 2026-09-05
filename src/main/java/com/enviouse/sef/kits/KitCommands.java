@@ -156,7 +156,11 @@ public final class KitCommands {
 
     private static int listForClaim(CommandSourceStack source) {
         if (source.getPlayer() == null || !has(source, "commands.kit")) {
-            return fail(source, "You do not have permission to use kits.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:kit.claim",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command requires a player with kit permission.");
         }
         return execute(source, "sef:kit.claim", Map.of("operation", "list"), List.of(), () -> {
             ServerPlayer player = source.getPlayer();
@@ -240,7 +244,11 @@ public final class KitCommands {
     private static int claim(CommandSourceStack source, String id) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "This command requires a player.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:kit.claim",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command requires a player.");
         }
         Optional<KitRepository.Kit> found = find(source, id);
         if (found.isEmpty()) {
