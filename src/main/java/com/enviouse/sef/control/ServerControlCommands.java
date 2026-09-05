@@ -351,15 +351,21 @@ public final class ServerControlCommands {
                                         ServerControlCatalog.require(operation.featureId()),
                                         "manage")))
                         .toList();
-        return page(
+        return KernelCommandExecutor.execute(
                 source,
-                "server control recovery",
-                visible,
-                requestedPage,
-                operation -> "&e" + operation.id()
-                        + " &8| &f" + operation.featureId()
-                        + " &8| &7record " + operation.recordId()
-                        + " &8| &7" + value(operation.detail()));
+                "sef:control.status",
+                Map.of(
+                        "view", "recovery",
+                        "page", Integer.toString(requestedPage)),
+                () -> page(
+                        source,
+                        "server control recovery",
+                        visible,
+                        requestedPage,
+                        operation -> "&e" + operation.id()
+                                + " &8| &f" + operation.featureId()
+                                + " &8| &7record " + operation.recordId()
+                                + " &8| &7" + value(operation.detail())));
     }
 
     private static int reconcile(
@@ -391,26 +397,37 @@ public final class ServerControlCommands {
         } else {
             return fail(source, "outcome must be applied or not_applied");
         }
-        ActionResult<ServerControlRepository.ExecutionOperation> result =
-                KernelServices.serverControls().reconcileExecution(
-                        operationId,
-                        actorId(source),
-                        applied,
-                        note);
-        if (!result.successful()) {
-            return fail(source, detail(result));
-        }
-        try {
-            KernelServices.serverControls().flush();
-        } catch (java.io.IOException | RuntimeException exception) {
-            return fail(source, "execution reconciliation could not be durably saved");
-        }
-        success(
+        return execute(
                 source,
-                "execution reconciled as "
-                        + result.value().status().name().toLowerCase(Locale.ROOT)
-                        + ", " + operationId);
-        return 1;
+                "sef:control." + feature.id() + ".manage",
+                Map.of(
+                        "feature", feature.id(),
+                        "operation", "reconcile",
+                        "execution", operationId.toString(),
+                        "outcome", applied ? "applied" : "not_applied"),
+                () -> {
+                    ActionResult<ServerControlRepository.ExecutionOperation> result =
+                            KernelServices.serverControls().reconcileExecution(
+                                    operationId,
+                                    actorId(source),
+                                    applied,
+                                    note);
+                    if (!result.successful()) {
+                        return fail(source, detail(result));
+                    }
+                    try {
+                        KernelServices.serverControls().flush();
+                    } catch (java.io.IOException | RuntimeException exception) {
+                        return fail(source, "execution reconciliation could not be durably saved");
+                    }
+                    success(
+                            source,
+                            "execution reconciled as "
+                                    + result.value().status().name().toLowerCase(Locale.ROOT)
+                                    + ", " + operationId);
+                    return 1;
+                },
+                permission(feature, "manage"));
     }
 
     private static int list(
@@ -546,16 +563,27 @@ public final class ServerControlCommands {
         if (!mayTargetRecord(source, current, feature)) {
             return 0;
         }
-        var preview = KernelServices.serverControlExecutions().preview(recordId, expectedRevision);
-        info(source, feature.title() + " execution preview");
-        preview.effects().forEach(effect -> info(source, effect));
-        if (!preview.missingFields().isEmpty()) {
-            info(source, "missing fields " + String.join(", ", preview.missingFields()));
-        }
-        info(source, "confirmation " + preview.confirmationRequired()
-                + ", reversible " + preview.reversible()
-                + ", result " + preview.detail());
-        return preview.ready() ? 1 : 0;
+        return execute(
+                source,
+                "sef:control." + feature.id() + ".manage",
+                Map.of(
+                        "feature", feature.id(),
+                        "record", recordId.toString(),
+                        "operation", "preview",
+                        "revision", Long.toString(expectedRevision)),
+                () -> {
+                    var preview = KernelServices.serverControlExecutions().preview(recordId, expectedRevision);
+                    info(source, feature.title() + " execution preview");
+                    preview.effects().forEach(effect -> info(source, effect));
+                    if (!preview.missingFields().isEmpty()) {
+                        info(source, "missing fields " + String.join(", ", preview.missingFields()));
+                    }
+                    info(source, "confirmation " + preview.confirmationRequired()
+                            + ", reversible " + preview.reversible()
+                            + ", result " + preview.detail());
+                    return preview.ready() ? 1 : 0;
+                },
+                permission(feature, "manage"));
     }
 
     private static int executeRecord(
@@ -685,21 +713,37 @@ public final class ServerControlCommands {
             return fail(source, "record not found");
         }
         boolean sensitive = !feature.sensitive() || has(source, permission(feature, "sensitive"));
-        info(source, feature.title() + ", " + record.id());
-        info(source, "state " + record.state().name().toLowerCase(Locale.ROOT)
-                + ", revision " + record.revision()
-                + ", title " + record.title());
-        if (sensitive) {
-            info(source, "details " + value(record.details()));
-            info(source, "owner " + record.ownerId()
-                    + ", subject " + (record.subjectId() == null ? "none" : record.subjectId()));
-            info(source, "created " + record.createdAt()
-                    + ", updated " + record.updatedAt()
-                    + ", expires " + (record.expiresAt() == null ? "never" : record.expiresAt()));
-        } else {
-            info(source, "sensitive fields are redacted");
-        }
-        return 1;
+        String action = manage
+                ? "sef:control." + feature.id() + ".manage"
+                : "sef:control." + feature.id() + ".view";
+        String requiredPermission = manage
+                ? permission(feature, "manage")
+                : permission(feature, "view");
+        return execute(
+                source,
+                action,
+                Map.of(
+                        "feature", feature.id(),
+                        "record", record.id().toString(),
+                        "operation", "view"),
+                () -> {
+                    info(source, feature.title() + ", " + record.id());
+                    info(source, "state " + record.state().name().toLowerCase(Locale.ROOT)
+                            + ", revision " + record.revision()
+                            + ", title " + record.title());
+                    if (sensitive) {
+                        info(source, "details " + value(record.details()));
+                        info(source, "owner " + record.ownerId()
+                                + ", subject " + (record.subjectId() == null ? "none" : record.subjectId()));
+                        info(source, "created " + record.createdAt()
+                                + ", updated " + record.updatedAt()
+                                + ", expires " + (record.expiresAt() == null ? "never" : record.expiresAt()));
+                    } else {
+                        info(source, "sensitive fields are redacted");
+                    }
+                    return 1;
+                },
+                requiredPermission);
     }
 
     private static int history(CommandSourceStack source, String recordInput, int requestedPage) {
@@ -717,16 +761,25 @@ public final class ServerControlCommands {
         if (!has(source, permission(feature, "manage"))) {
             return fail(source, "you cannot view record history");
         }
-        return page(
+        return execute(
                 source,
-                feature.title() + " history",
-                KernelServices.serverControls().history(recordId),
-                requestedPage,
-                entry -> "&e" + entry.occurredAt()
-                        + " &8| &f" + entry.before().name().toLowerCase(Locale.ROOT)
-                        + " &7to &f" + entry.after().name().toLowerCase(Locale.ROOT)
-                        + " &8| &7r" + entry.recordRevision()
-                        + " &8| &7" + value(entry.note()));
+                "sef:control." + feature.id() + ".manage",
+                Map.of(
+                        "feature", feature.id(),
+                        "record", record.id().toString(),
+                        "operation", "history",
+                        "page", Integer.toString(requestedPage)),
+                () -> page(
+                        source,
+                        feature.title() + " history",
+                        KernelServices.serverControls().history(recordId),
+                        requestedPage,
+                        entry -> "&e" + entry.occurredAt()
+                                + " &8| &f" + entry.before().name().toLowerCase(Locale.ROOT)
+                                + " &7to &f" + entry.after().name().toLowerCase(Locale.ROOT)
+                                + " &8| &7r" + entry.recordRevision()
+                                + " &8| &7" + value(entry.note())),
+                permission(feature, "manage"));
     }
 
     private static int create(
