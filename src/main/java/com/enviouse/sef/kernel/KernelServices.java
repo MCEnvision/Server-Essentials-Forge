@@ -461,7 +461,9 @@ public final class KernelServices {
                     exception);
             return;
         }
-        long revision = CONFIG_REVISION.incrementAndGet();
+        long revision = CONFIG_REVISION.updateAndGet(current -> Math.max(
+                current + 1L,
+                featureGates.snapshot().revision() + 1L));
         final CommandCostSchedule replacementCommandCosts;
         try {
             replacementCommandCosts = CommandCostSchedule.parse(
