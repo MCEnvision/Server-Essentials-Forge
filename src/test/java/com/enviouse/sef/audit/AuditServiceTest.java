@@ -143,6 +143,7 @@ class AuditServiceTest {
     void typedInteractionPreservesActorTargetAndBoundedParameters() {
         UUID actorId = UUID.randomUUID();
         UUID targetId = UUID.randomUUID();
+        UUID parentJobId = UUID.randomUUID();
         AuditService.Event event = AuditService.Event.interaction(
                 UUID.randomUUID(),
                 actorId,
@@ -154,6 +155,7 @@ class AuditServiceTest {
                 AuditService.Result.FAILED,
                 ActionResult.ReasonCode.STORAGE_ERROR,
                 "gui",
+                parentJobId,
                 AuditService.RedactionClass.ITEM_METADATA,
                 AuditService.AuditClass.SENSITIVE_ACCESS);
 
@@ -163,6 +165,7 @@ class AuditServiceTest {
         assertEquals("4", event.normalizedParameters().get("slot"));
         assertEquals(AuditService.RedactionClass.ITEM_METADATA, event.redactionClass());
         assertEquals(AuditService.Result.FAILED, event.result());
+        assertEquals(parentJobId, event.parentJobId());
     }
 
     @Test

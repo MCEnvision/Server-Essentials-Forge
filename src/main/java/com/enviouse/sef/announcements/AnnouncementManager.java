@@ -2,10 +2,12 @@ package com.enviouse.sef.announcements;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.commands.CommandRootPolicy;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.storage.StorageLifecycle;
 import com.enviouse.sef.storage.repository.StorageRepository;
@@ -20,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.io.IOException;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -494,14 +497,60 @@ public class AnnouncementManager {
             String result,
             String reason
     ) {
-        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                "announcement",
-                "execute command",
+        UUID correlationId = UUID.nameUUIDFromBytes(
+                ("sef:announcement:" + announcement.id()).getBytes(StandardCharsets.UTF_8));
+        AuditService.record(AuditService.Event.interaction(
+                SecurityAuditService.currentSessionId(),
+                actorId(announcement.createdBy()),
                 announcement.createdBy(),
-                announcement.id(),
-                root,
-                result,
-                reason));
+                "SCHEDULED_TASK",
+                "sef:announcement.command",
+                List.of(),
+                Map.of(
+                        "announcement_id", announcement.id(),
+                        "root", root,
+                        "result", result,
+                        "reason", reason),
+                auditResult(result),
+                auditReason(result, reason),
+                "announcement",
+                correlationId,
+                AuditService.RedactionClass.METADATA,
+                AuditService.AuditClass.DELEGATED_EXECUTION));
+    }
+
+    private static UUID actorId(String value) {
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException exception) {
+            return UUID.nameUUIDFromBytes(("sef:announcement-owner:" + value)
+                    .getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    private static AuditService.Result auditResult(String result) {
+        return switch (result.toLowerCase(Locale.ROOT)) {
+            case "success" -> AuditService.Result.SUCCESS;
+            case "denied" -> AuditService.Result.REJECTED;
+            case "outcome_unknown" -> AuditService.Result.OUTCOME_UNKNOWN;
+            default -> AuditService.Result.FAILED;
+        };
+    }
+
+    private static ActionResult.ReasonCode auditReason(String result, String detail) {
+        if ("success".equalsIgnoreCase(result)) {
+            return ActionResult.ReasonCode.SUCCESS;
+        }
+        String candidate = detail.toUpperCase(Locale.ROOT).replace(' ', '_');
+        try {
+            return ActionResult.ReasonCode.valueOf(candidate);
+        } catch (IllegalArgumentException exception) {
+            return switch (result.toLowerCase(Locale.ROOT)) {
+                case "denied" -> ActionResult.ReasonCode.POLICY_DENIED;
+                case "outcome_unknown" -> ActionResult.ReasonCode.PROVIDER_ERROR;
+                default -> ActionResult.ReasonCode.PROVIDER_ERROR;
+            };
+        }
     }
 
     private static long secondsToTicks(long seconds) {

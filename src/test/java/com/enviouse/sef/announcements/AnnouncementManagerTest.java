@@ -76,10 +76,17 @@ class AnnouncementManagerTest {
 
         verify(server, never()).getCommands();
         JsonObject audit = onlyAuditEvent();
-        assertEquals("execute command", audit.get("actionId").getAsString());
-        assertEquals("denied", audit.get("result").getAsString());
-        assertEquals("feature disabled", audit.get("reasonCode").getAsString());
-        assertEquals("notice", audit.getAsJsonObject("normalizedParameters").get("target").getAsString());
+        assertEquals("sef:announcement.command", audit.get("actionId").getAsString());
+        assertEquals("rejected", audit.get("result").getAsString());
+        assertEquals("feature_disabled", audit.get("reasonCode").getAsString());
+        assertEquals("scheduled_task", audit.get("sourceType").getAsString());
+        assertEquals("delegated_execution", audit.get("auditClass").getAsString());
+        assertEquals(
+                "denied",
+                audit.getAsJsonObject("normalizedParameters").get("result").getAsString());
+        assertEquals(
+                "feature disabled",
+                audit.getAsJsonObject("normalizedParameters").get("reason").getAsString());
     }
 
     @Test
@@ -119,8 +126,11 @@ class AnnouncementManagerTest {
 
         JsonObject audit = onlyAuditEvent();
         assertEquals("success", audit.get("result").getAsString());
-        assertEquals("result 1", audit.get("reasonCode").getAsString());
-        assertEquals("say", audit.get("origin").getAsString());
+        assertEquals("success", audit.get("reasonCode").getAsString());
+        assertEquals("announcement", audit.get("origin").getAsString());
+        assertEquals(
+                "say",
+                audit.getAsJsonObject("normalizedParameters").get("root").getAsString());
     }
 
     @Test

@@ -178,6 +178,37 @@ public final class AuditService {
                 RedactionClass redactionClass,
                 AuditClass auditClass
         ) {
+            return interaction(
+                    sessionId,
+                    actorId,
+                    actorName,
+                    sourceType,
+                    actionId,
+                    targetIds,
+                    parameters,
+                    result,
+                    reason,
+                    origin,
+                    null,
+                    redactionClass,
+                    auditClass);
+        }
+
+        public static Event interaction(
+                UUID sessionId,
+                UUID actorId,
+                String actorName,
+                String sourceType,
+                String actionId,
+                List<UUID> targetIds,
+                Map<String, String> parameters,
+                Result result,
+                ActionResult.ReasonCode reason,
+                String origin,
+                UUID parentJobId,
+                RedactionClass redactionClass,
+                AuditClass auditClass
+        ) {
             return new Event(
                     1,
                     UUID.randomUUID(),
@@ -193,7 +224,7 @@ public final class AuditService {
                     reason,
                     0L,
                     origin,
-                    null,
+                    parentJobId,
                     null,
                     0L,
                     0L,
