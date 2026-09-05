@@ -184,6 +184,64 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void everyEnabledArgumentFreeConsoleRouteReachesTheSharedDispatcher(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> executed = new LinkedHashSet<>();
+        Map<String, Integer> results = new LinkedHashMap<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                failures.add(definition.id() + ", workflow, " + exception.getMessage());
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                if (!variant.fields().isEmpty()) {
+                    continue;
+                }
+                String command = render(variant);
+                if (command.isBlank() || !executed.add(command)) {
+                    continue;
+                }
+                try {
+                    int result = dispatcher.execute(command, source);
+                    results.merge(result > 0 ? "positive" : "non_positive", 1, Integer::sum);
+                } catch (Exception exception) {
+                    failures.add(definition.id() + ", " + command + ", "
+                            + exception.getClass().getSimpleName());
+                }
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Argument free console route, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "argument free console route execution failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!executed.isEmpty(), "no enabled argument free console routes were executed");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Argument free console routes executed {}, result classes {}",
+                executed.size(),
+                results);
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void representativeMetadataOnlyConsoleRoutesEmitBoundedAudit(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
