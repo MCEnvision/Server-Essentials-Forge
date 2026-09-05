@@ -194,12 +194,28 @@ class KernelCommandExecutorCatalogTest {
         assertEquals(auditedDefinitions, events.size());
         Set<String> observedActions = new LinkedHashSet<>();
         for (JsonObject event : events) {
+            CommandDefinition definition = KernelServices.catalog()
+                    .find(event.get("actionId").getAsString())
+                    .orElseThrow(() -> new AssertionError(
+                            "audit event references an unknown catalog action "
+                                    + event.get("actionId").getAsString()));
             assertEquals("rejected", event.get("result").getAsString());
             assertEquals("invalid_input", event.get("reasonCode").getAsString());
             assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
             assertEquals("tester", event.get("actorUsername").getAsString());
             assertEquals("player", event.get("sourceType").getAsString());
+            assertEquals("command", event.get("origin").getAsString());
+            assertEquals(
+                    definition.auditClass().name().toLowerCase(java.util.Locale.ROOT),
+                    event.get("auditClass").getAsString());
+            assertEquals("metadata", event.get("redactionClass").getAsString());
+            assertFalse(event.get("eventId").getAsString().isBlank());
+            assertFalse(event.get("serverSessionId").getAsString().isBlank());
+            assertTrue(event.get("definitionRevision").getAsLong() >= 0L);
+            assertTrue(event.get("policyRevision").getAsLong() >= 0L);
             assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+            assertTrue(event.getAsJsonArray("targetUuids").isEmpty());
+            assertTrue(event.getAsJsonObject("providerContext").entrySet().isEmpty());
             assertFalse(event.toString().contains("synthetic bounded rejection"));
             observedActions.add(event.get("actionId").getAsString());
         }
