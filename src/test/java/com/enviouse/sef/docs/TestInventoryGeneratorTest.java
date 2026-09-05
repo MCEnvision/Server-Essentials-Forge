@@ -22,7 +22,7 @@ class TestInventoryGeneratorTest {
         AuditEvidenceContract.validateInventorySet(inventory.getAsJsonArray("rows"));
         assertTrue(inventory.get("testSourceFileCount").getAsInt() > 0);
         assertTrue(inventory.get("unitTestCount").getAsInt() > 0);
-        assertEquals(44, inventory.get("gameTestCount").getAsInt());
+        assertEquals(45, inventory.get("gameTestCount").getAsInt());
         assertTrue(inventory.get("fixtureCount").getAsInt() > 0);
         assertTrue(inventory.get("workflowCount").getAsInt() > 0);
         assertTrue(inventory.get("generatedReferenceCount").getAsInt() > 0);

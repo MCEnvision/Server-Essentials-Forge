@@ -282,6 +282,96 @@ public final class GuiWorkflowGameTests {
     }
 
     @GameTest(template = "empty", timeoutTicks = 400)
+    public static void everyServerControlMetadataOnlyConsoleRouteEmitsBoundedAudit(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> executed = new LinkedHashSet<>();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                    || !definition.id().startsWith("sef:control.")
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                if (!variant.fields().isEmpty()) {
+                    continue;
+                }
+                String command = render(variant);
+                String routeKey = definition.id() + "|" + command;
+                if (command.isBlank() || !executed.add(routeKey)) {
+                    continue;
+                }
+                Set<String> before = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id()),
+                                128)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
+                int result;
+                try {
+                    result = dispatcher.execute(command, source);
+                } catch (Exception exception) {
+                    failures.add(definition.id() + ", " + command + ", "
+                            + exception.getClass().getSimpleName());
+                    continue;
+                }
+                var event = SecurityAuditService.recent(
+                                candidate -> candidate.actionId().equals(definition.id())
+                                        && !before.contains(candidate.eventId()),
+                                1)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+                if (event == null) {
+                    failures.add(definition.id() + ", " + command + ", missing audit event");
+                    continue;
+                }
+                boolean resultProjectionMatches = result > 0
+                        ? "success".equals(event.result())
+                        : !"success".equals(event.result());
+                if (!"console".equals(event.sourceType())
+                        || event.actorUuid().isBlank()
+                        || event.actorUsername().isBlank()
+                        || !resultProjectionMatches
+                        || !"metadata_only".equals(event.auditClass())
+                        || !"metadata".equals(event.redactionClass())
+                        || !event.targetUuids().isEmpty()
+                        || event.normalizedParameters().values().stream()
+                                .anyMatch(value -> value.contains(command))) {
+                    failures.add(definition.id() + ", " + command + ", unsafe audit projection");
+                }
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Metadata only console catalog audit, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "metadata only console catalog audit failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!executed.isEmpty(), "no argument free metadata only console routes were executed");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Argument free metadata only console audit covered {} unique routes",
+                executed.size());
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty", timeoutTicks = 400)
     public static void representativeMetadataOnlyPlayerRoutesExecuteAndAudit(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
         var dispatcher = server.getCommands().getDispatcher();

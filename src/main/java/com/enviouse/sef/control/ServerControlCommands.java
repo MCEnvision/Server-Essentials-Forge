@@ -296,36 +296,48 @@ public final class ServerControlCommands {
     }
 
     private static int catalog(CommandSourceStack source, int requestedPage) {
-        List<ServerControlCatalog.FeatureDefinition> visible = ServerControlCatalog.FEATURES.stream()
-                .filter(feature -> hasAny(
-                        source,
-                        permission(feature, "view"),
-                        permission(feature, "create"),
-                        permission(feature, "manage")))
-                .toList();
-        return page(
+        return KernelCommandExecutor.execute(
                 source,
-                "server control catalog",
-                visible,
-                requestedPage,
-                feature -> "&e" + feature.id()
-                        + " &8| &7" + feature.title()
-                        + " &8| &f" + feature.category()
-                        + (feature.dangerous() ? " &8| &cdangerous" : ""));
+                "sef:control.catalog",
+                Map.of("page", Integer.toString(requestedPage)),
+                () -> {
+                    List<ServerControlCatalog.FeatureDefinition> visible = ServerControlCatalog.FEATURES.stream()
+                            .filter(feature -> hasAny(
+                                    source,
+                                    permission(feature, "view"),
+                                    permission(feature, "create"),
+                                    permission(feature, "manage")))
+                            .toList();
+                    return page(
+                            source,
+                            "server control catalog",
+                            visible,
+                            requestedPage,
+                            feature -> "&e" + feature.id()
+                                    + " &8| &7" + feature.title()
+                                    + " &8| &f" + feature.category()
+                                    + (feature.dangerous() ? " &8| &cdangerous" : ""));
+                });
     }
 
     private static int status(CommandSourceStack source) {
-        var diagnostic = KernelServices.serverControls().diagnostic();
-        info(source, "server control repository");
-        info(source, "records " + diagnostic.records()
-                + ", active " + diagnostic.activeRecords()
-                + ", history " + diagnostic.historyEntries());
-        info(source, "executions " + diagnostic.executions()
-                + ", incomplete " + diagnostic.incompleteExecutions());
-        info(source, "revision " + diagnostic.revision()
-                + ", state " + diagnostic.state().name().toLowerCase(Locale.ROOT)
-                + ", dirty " + diagnostic.dirty());
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:control.status",
+                Map.of(),
+                () -> {
+                    var diagnostic = KernelServices.serverControls().diagnostic();
+                    info(source, "server control repository");
+                    info(source, "records " + diagnostic.records()
+                            + ", active " + diagnostic.activeRecords()
+                            + ", history " + diagnostic.historyEntries());
+                    info(source, "executions " + diagnostic.executions()
+                            + ", incomplete " + diagnostic.incompleteExecutions());
+                    info(source, "revision " + diagnostic.revision()
+                            + ", state " + diagnostic.state().name().toLowerCase(Locale.ROOT)
+                            + ", dirty " + diagnostic.dirty());
+                    return 1;
+                });
     }
 
     private static int recovery(CommandSourceStack source, int requestedPage) {
@@ -410,24 +422,35 @@ public final class ServerControlCommands {
                 && !has(source, permission(feature, "manage"))) {
             return fail(source, "you cannot view this feature");
         }
-        boolean manage = has(source, permission(feature, "manage"));
-        UUID actor = actorId(source);
-        List<ServerControlRepository.ControlRecord> visible = KernelServices.serverControls()
-                .records(feature.id())
-                .stream()
-                .filter(record -> manage
-                        || record.ownerId().equals(actor)
-                        || actor.equals(record.subjectId()))
-                .toList();
-        return page(
+        String actionId = has(source, permission(feature, "view"))
+                ? "sef:control." + feature.id() + ".view"
+                : "sef:control." + feature.id() + ".manage";
+        return KernelCommandExecutor.execute(
                 source,
-                feature.title(),
-                visible,
-                requestedPage,
-                record -> "&e" + record.id()
-                        + " &8| &f" + record.title()
-                        + " &8| &7" + record.state().name().toLowerCase(Locale.ROOT)
-                        + " &8| &7r" + record.revision());
+                actionId,
+                Map.of(
+                        "feature", feature.id(),
+                        "page", Integer.toString(requestedPage)),
+                () -> {
+                    boolean manage = has(source, permission(feature, "manage"));
+                    UUID actor = actorId(source);
+                    List<ServerControlRepository.ControlRecord> visible = KernelServices.serverControls()
+                            .records(feature.id())
+                            .stream()
+                            .filter(record -> manage
+                                    || record.ownerId().equals(actor)
+                                    || actor.equals(record.subjectId()))
+                            .toList();
+                    return page(
+                            source,
+                            feature.title(),
+                            visible,
+                            requestedPage,
+                            record -> "&e" + record.id()
+                                    + " &8| &f" + record.title()
+                                    + " &8| &7" + record.state().name().toLowerCase(Locale.ROOT)
+                                    + " &8| &7r" + record.revision());
+                });
     }
 
     private static int fields(
@@ -435,19 +458,31 @@ public final class ServerControlCommands {
             ServerControlCatalog.FeatureDefinition feature,
             int requestedPage
     ) {
-        ServerControlSchemaRegistry.FeatureSchema schema =
-                ServerControlSchemaRegistry.require(feature.id());
-        info(source, "workflow " + schema.workflowId()
-                + ", screen " + schema.screen().name().toLowerCase(Locale.ROOT)
-                + ", hud " + schema.hud().name().toLowerCase(Locale.ROOT));
-        return page(
+        String actionId = has(source, permission(feature, "view"))
+                ? "sef:control." + feature.id() + ".view"
+                : "sef:control." + feature.id() + ".manage";
+        return KernelCommandExecutor.execute(
                 source,
-                feature.title() + " fields",
-                schema.fields(),
-                requestedPage,
-                field -> "&e" + field.id()
-                        + " &8| &f" + field.type().name().toLowerCase(Locale.ROOT)
-                        + " &8| &7" + (field.required() ? "required" : "optional"));
+                actionId,
+                Map.of(
+                        "feature", feature.id(),
+                        "page", Integer.toString(requestedPage),
+                        "view", "fields"),
+                () -> {
+                    ServerControlSchemaRegistry.FeatureSchema schema =
+                            ServerControlSchemaRegistry.require(feature.id());
+                    info(source, "workflow " + schema.workflowId()
+                            + ", screen " + schema.screen().name().toLowerCase(Locale.ROOT)
+                            + ", hud " + schema.hud().name().toLowerCase(Locale.ROOT));
+                    return page(
+                            source,
+                            feature.title() + " fields",
+                            schema.fields(),
+                            requestedPage,
+                            field -> "&e" + field.id()
+                                    + " &8| &f" + field.type().name().toLowerCase(Locale.ROOT)
+                                    + " &8| &7" + (field.required() ? "required" : "optional"));
+                });
     }
 
     private static int configure(
