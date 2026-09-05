@@ -71,6 +71,29 @@ class KernelCommandExecutorCatalogTest {
         assertTrue(
                 failures.isEmpty(),
                 () -> "catalog actions bypassed a denying permission provider, "
+                + String.join(", ", failures.stream().limit(12).toList()));
+    }
+
+    @Test
+    void everyCatalogActionResolvesPermissionGrantThroughTheSharedManifest() {
+        KernelServices.initialize();
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+        when(player.getUUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000004"));
+
+        List<String> failures = new ArrayList<>();
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi()) {
+            for (CommandDefinition definition : KernelServices.catalog().entries()) {
+                if (!KernelCommandExecutor.canUse(source, definition.id())) {
+                    failures.add(definition.id());
+                }
+            }
+        }
+
+        assertTrue(
+                failures.isEmpty(),
+                () -> "catalog actions did not resolve a granted manifest permission, "
                         + String.join(", ", failures.stream().limit(12).toList()));
     }
 
@@ -112,6 +135,81 @@ class KernelCommandExecutorCatalogTest {
         assertEquals(2, feedback.size());
         assertTrue(feedback.stream().allMatch(message ->
                 message.equals("That command action is unavailable.")));
+    }
+
+    @Test
+    void everyCatalogActionRejectsWithBoundedFeedbackAndCorrelatedAudit() throws Exception {
+        KernelServices.initialize();
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        ServerPlayer player = mock(ServerPlayer.class);
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000003");
+        when(player.getUUID()).thenReturn(actorId);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        List<CommandDefinition> definitions = KernelServices.catalog().entries();
+        try {
+            for (CommandDefinition definition : definitions) {
+                assertEquals(
+                        0,
+                        KernelCommandExecutor.reject(
+                                source,
+                                definition.id(),
+                                ActionResult.ReasonCode.INVALID_INPUT,
+                                "synthetic bounded rejection"),
+                        definition.id());
+            }
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        long auditedDefinitions = definitions.stream()
+                .filter(definition -> definition.auditClass() != AuditService.AuditClass.NONE)
+                .count();
+        assertEquals(definitions.size(), feedback.size());
+        assertEquals(auditedDefinitions, events.size());
+        Set<String> observedActions = new LinkedHashSet<>();
+        for (JsonObject event : events) {
+            assertEquals("rejected", event.get("result").getAsString());
+            assertEquals("invalid_input", event.get("reasonCode").getAsString());
+            assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+            assertEquals("tester", event.get("actorUsername").getAsString());
+            assertEquals("player", event.get("sourceType").getAsString());
+            assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+            assertFalse(event.toString().contains("synthetic bounded rejection"));
+            observedActions.add(event.get("actionId").getAsString());
+        }
+        assertEquals(
+                definitions.stream()
+                        .filter(definition -> definition.auditClass() != AuditService.AuditClass.NONE)
+                        .map(CommandDefinition::id)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)),
+                observedActions);
+        assertTrue(feedback.stream().allMatch(message -> message.length() <= 256));
     }
 
     @Test
