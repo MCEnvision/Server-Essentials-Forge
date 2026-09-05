@@ -140,6 +140,32 @@ class AuditServiceTest {
     }
 
     @Test
+    void typedInteractionPreservesActorTargetAndBoundedParameters() {
+        UUID actorId = UUID.randomUUID();
+        UUID targetId = UUID.randomUUID();
+        AuditService.Event event = AuditService.Event.interaction(
+                UUID.randomUUID(),
+                actorId,
+                "operator",
+                "GUI",
+                "sef:inventory.view",
+                List.of(targetId),
+                Map.of("operation", "modify", "slot", "4"),
+                AuditService.Result.FAILED,
+                ActionResult.ReasonCode.STORAGE_ERROR,
+                "gui",
+                AuditService.RedactionClass.ITEM_METADATA,
+                AuditService.AuditClass.SENSITIVE_ACCESS);
+
+        assertEquals(actorId, event.actorId());
+        assertEquals(List.of(targetId), event.targetIds());
+        assertEquals("modify", event.normalizedParameters().get("operation"));
+        assertEquals("4", event.normalizedParameters().get("slot"));
+        assertEquals(AuditService.RedactionClass.ITEM_METADATA, event.redactionClass());
+        assertEquals(AuditService.Result.FAILED, event.result());
+    }
+
+    @Test
     void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
         Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
         SecurityAuditService.start(temporaryDirectory, 7, 1);

@@ -163,6 +163,47 @@ public final class AuditService {
                     "",
                     auditClass);
         }
+
+        public static Event interaction(
+                UUID sessionId,
+                UUID actorId,
+                String actorName,
+                String sourceType,
+                String actionId,
+                List<UUID> targetIds,
+                Map<String, String> parameters,
+                Result result,
+                ActionResult.ReasonCode reason,
+                String origin,
+                RedactionClass redactionClass,
+                AuditClass auditClass
+        ) {
+            return new Event(
+                    1,
+                    UUID.randomUUID(),
+                    Instant.now(),
+                    sessionId,
+                    actorId,
+                    actorName,
+                    sourceType,
+                    actionId,
+                    targetIds,
+                    parameters,
+                    result,
+                    reason,
+                    0L,
+                    origin,
+                    null,
+                    null,
+                    0L,
+                    0L,
+                    Map.of(),
+                    redactionClass,
+                    List.of(),
+                    null,
+                    "",
+                    auditClass);
+        }
     }
 
     public enum AuditClass {

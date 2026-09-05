@@ -1,6 +1,7 @@
 package com.enviouse.sef.invsee;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.kernel.KernelServices;
@@ -18,6 +19,7 @@ import net.minecraft.world.item.ItemStack;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 final class OfflineInvSeeMenu extends AbstractContainerMenu {
     private final ServerPlayer viewer;
@@ -103,16 +105,44 @@ final class OfflineInvSeeMenu extends AbstractContainerMenu {
         }
         try {
             snapshot = adapter.commit(snapshot, offlineInventory);
-            SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                    "inventory",
-                    "offline_modify",
+            AuditService.record(AuditService.Event.interaction(
+                    SecurityAuditService.currentSessionId(),
+                    viewer.getUUID(),
                     viewer.getGameProfile().getName(),
-                    snapshot.targetName(),
-                    "invsee_offline_v" + OfflinePlayerInventoryAdapter.ADAPTER_VERSION,
-                    "allowed",
-                    "slot " + slotId + ", click " + clickType.name()
-                            + ", revision " + snapshot.revision()));
+                    "GUI",
+                    "sef:inventory.view",
+                    List.of(snapshot.targetId()),
+                    Map.of(
+                            "mode", "offline",
+                            "operation", "modify",
+                            "adapter_version", Integer.toString(OfflinePlayerInventoryAdapter.ADAPTER_VERSION),
+                            "slot", Integer.toString(slotId),
+                            "click", clickType.name(),
+                            "revision", snapshot.revision()),
+                    AuditService.Result.SUCCESS,
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SUCCESS,
+                    "gui",
+                    AuditService.RedactionClass.ITEM_METADATA,
+                    AuditService.AuditClass.SENSITIVE_ACCESS));
         } catch (IOException | RuntimeException exception) {
+            AuditService.record(AuditService.Event.interaction(
+                    SecurityAuditService.currentSessionId(),
+                    viewer.getUUID(),
+                    viewer.getGameProfile().getName(),
+                    "GUI",
+                    "sef:inventory.view",
+                    List.of(snapshot.targetId()),
+                    Map.of(
+                            "mode", "offline",
+                            "operation", "modify",
+                            "slot", Integer.toString(slotId),
+                            "click", clickType.name(),
+                            "failure", exception.getClass().getSimpleName()),
+                    AuditService.Result.FAILED,
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.STORAGE_ERROR,
+                    "gui",
+                    AuditService.RedactionClass.ITEM_METADATA,
+                    AuditService.AuditClass.SENSITIVE_ACCESS));
             restore(offlineInventory, targetBefore);
             restore(viewer.getInventory(), viewerBefore);
             setCarried(carriedBefore);

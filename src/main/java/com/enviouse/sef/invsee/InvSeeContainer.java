@@ -1,6 +1,7 @@
 package com.enviouse.sef.invsee;
 
 import com.enviouse.sef.TextFormatter;
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
@@ -25,6 +26,7 @@ import net.neoforged.neoforge.items.SlotItemHandler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Editable InvSee container that directly references the target player's inventory.
@@ -341,14 +343,24 @@ public class InvSeeContainer extends AbstractContainerMenu {
 
     private void auditModification(int slotId, ClickType clickType) {
         if (!ConfigHandler.config.invSeeAuditModifications.get()) return;
-        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                "inventory",
-                "modify",
+        AuditService.record(AuditService.Event.interaction(
+                SecurityAuditService.currentSessionId(),
+                viewer.getUUID(),
                 viewer.getGameProfile().getName(),
-                target.getGameProfile().getName(),
-                "invsee",
-                "allowed",
-                "page " + page + ", slot " + slotId + ", click " + clickType.name()));
+                "GUI",
+                "sef:inventory.view",
+                List.of(target.getUUID()),
+                Map.of(
+                        "mode", "online",
+                        "operation", "modify",
+                        "page", Integer.toString(page),
+                        "slot", Integer.toString(slotId),
+                        "click", clickType.name()),
+                AuditService.Result.SUCCESS,
+                com.enviouse.sef.kernel.ActionResult.ReasonCode.SUCCESS,
+                "gui",
+                AuditService.RedactionClass.ITEM_METADATA,
+                AuditService.AuditClass.SENSITIVE_ACCESS));
     }
 
     private static String capitalize(String s) {
