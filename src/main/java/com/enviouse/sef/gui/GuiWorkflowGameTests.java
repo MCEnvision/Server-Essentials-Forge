@@ -471,6 +471,70 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 300)
+    public static void representativePlayerSourceRoutesEmitAttributedAudit(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var target = helper.makeMockServerPlayerInLevel();
+        helper.runAfterDelay(20, () -> {
+            Map<String, String> routes = Map.of(
+                    "getpos", "sef:utility.getpos",
+                    "compass", "sef:utility.compass",
+                    "depth", "sef:utility.depth");
+            List<String> failures = new ArrayList<>();
+            int executed = 0;
+
+            for (Map.Entry<String, String> route : routes.entrySet()) {
+                Set<String> before = SecurityAuditService.recent(
+                                event -> event.actionId().equals(route.getValue()),
+                                128)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
+                int result;
+                try {
+                    result = dispatcher.execute(route.getKey(), target.createCommandSourceStack());
+                } catch (Exception exception) {
+                    failures.add(route.getKey() + ", " + exception.getClass().getSimpleName());
+                    continue;
+                }
+                var event = SecurityAuditService.recent(
+                                candidate -> candidate.actionId().equals(route.getValue())
+                                        && !before.contains(candidate.eventId()),
+                                1)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+                if (result <= 0 || event == null) {
+                    failures.add(route.getKey() + ", result or audit missing");
+                    continue;
+                }
+                if (!"player".equals(event.sourceType())
+                        || !target.getUUID().toString().equals(event.actorUuid())
+                        || target.getGameProfile().getName().isBlank()
+                        || !target.getGameProfile().getName().equals(event.actorUsername())
+                        || !"success".equals(event.result())
+                        || !"metadata_only".equals(event.auditClass())
+                        || !"metadata".equals(event.redactionClass())
+                        || !event.targetUuids().contains(target.getUUID().toString())
+                        || event.normalizedParameters().values().stream()
+                                .anyMatch(value -> value.contains(route.getKey()))) {
+                    failures.add(route.getKey() + ", unsafe player audit projection");
+                    continue;
+                }
+                executed++;
+            }
+
+            failures.forEach(failure ->
+                    ServerEssentialsForge.LOGGER.error("[SEF] Player source audit, {}", failure));
+            helper.assertTrue(
+                    failures.isEmpty(),
+                    "player source audit failed, " + String.join("; ", failures));
+            helper.assertTrue(executed == routes.size(), "player source audit did not cover every route");
+            helper.succeed();
+        });
+    }
+
     private static boolean routeMatchesCommand(String canonicalRoute, String command) {
         String route = canonicalRoute.toLowerCase(java.util.Locale.ROOT).strip();
         String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
