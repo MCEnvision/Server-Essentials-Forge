@@ -27,7 +27,9 @@ import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Registers the {@code /banned} command suite.
@@ -55,6 +57,7 @@ import java.util.UUID;
  */
 public class BannedItemsCommands {
     private static BannedItemsManager manager;
+    private static final Pattern COMPOUND_DURATION = Pattern.compile("(?:\\d+[smhd])+", Pattern.CASE_INSENSITIVE);
 
     public static void setManager(BannedItemsManager mgr) { manager = mgr; }
 
@@ -286,7 +289,10 @@ public class BannedItemsCommands {
     private static int doAdd(CommandContext<CommandSourceStack> ctx, String durationStr,
                              boolean announce, String reason) {
         String item = ResourceLocationArgument.getId(ctx, "item").toString();
-        long durMs = parseDurationMs(durationStr);
+        Long durMs = parseDuration(ctx.getSource(), durationStr);
+        if (durMs == null) {
+            return 0;
+        }
         String issuer = sourceName(ctx.getSource());
         boolean added = manager.addBan(item, reason == null ? "" : reason, durMs, issuer, announce);
         if (!added) {
@@ -322,7 +328,10 @@ public class BannedItemsCommands {
             return 0;
         }
         String item = rl.toString();
-        long durMs = parseDurationMs(durationStr);
+        Long durMs = parseDuration(ctx.getSource(), durationStr);
+        if (durMs == null) {
+            return 0;
+        }
         String issuer = sourceName(ctx.getSource());
         boolean added = manager.addBan(item, reason == null ? "" : reason, durMs, issuer, announce);
         if (!added) {
@@ -349,7 +358,10 @@ public class BannedItemsCommands {
     private static int doUpdate(CommandContext<CommandSourceStack> ctx,
                                 String durationStr, Boolean announce, String reason) {
         String item = ResourceLocationArgument.getId(ctx, "item").toString();
-        Long durMs = durationStr == null ? null : parseDurationMs(durationStr);
+        Long durMs = durationStr == null ? null : parseDuration(ctx.getSource(), durationStr);
+        if (durationStr != null && durMs == null) {
+            return 0;
+        }
         boolean ok = manager.updateBan(item, reason, durMs, announce);
         if (!ok) {
             ctx.getSource().sendFailure(fmt("&cNot banned (cannot update): &e" + item));
@@ -468,6 +480,15 @@ public class BannedItemsCommands {
         return v ? "&2enabled" : "&cdisabled";
     }
 
+    private static Long parseDuration(CommandSourceStack source, String input) {
+        try {
+            return parseDurationMs(input);
+        } catch (IllegalArgumentException exception) {
+            source.sendFailure(fmt("&cInvalid duration. Use infinite, seconds, or values such as 30s, 5m, 1h30m, or 2d."));
+            return null;
+        }
+    }
+
     private static MutableComponent fmt(String s) {
         return (MutableComponent) TextFormatter.stringToFormattedText(s);
     }
@@ -476,35 +497,57 @@ public class BannedItemsCommands {
      * Parses durations like {@code 30s}, {@code 5m}, {@code 1h30m}, {@code 2d12h},
      * {@code infinite}/{@code permanent}/{@code inf}/{@code forever}/{@code perm}.
      * Returns milliseconds, or {@code -1} for infinite. Plain numbers are seconds.
+     * Invalid input is rejected instead of being interpreted as infinite.
      */
     public static long parseDurationMs(String input) {
-        if (input == null || input.isEmpty()) return -1L;
-        String s = input.trim().toLowerCase();
+        if (input == null) {
+            throw new IllegalArgumentException("Duration is required");
+        }
+        String s = input.trim().toLowerCase(Locale.ROOT);
+        if (s.isEmpty()) {
+            throw new IllegalArgumentException("Duration is required");
+        }
         if (s.equals("infinite") || s.equals("inf") || s.equals("forever")
                 || s.equals("perm") || s.equals("permanent")) return -1L;
-        long total = 0L;
-        long current = 0L;
-        boolean sawAnyDigit = false;
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c >= '0' && c <= '9') {
-                current = current * 10 + (c - '0');
-                sawAnyDigit = true;
-            } else {
-                long mult;
-                switch (c) {
-                    case 's': mult = 1000L; break;
-                    case 'm': mult = 60L * 1000L; break;
-                    case 'h': mult = 60L * 60L * 1000L; break;
-                    case 'd': mult = 24L * 60L * 60L * 1000L; break;
-                    default: return -1L; // unknown suffix → treat as bad input → infinite
+        if (s.chars().allMatch(Character::isDigit)) {
+            try {
+                long duration = Math.multiplyExact(Long.parseLong(s), 1000L);
+                if (duration <= 0L) {
+                    throw new IllegalArgumentException("Duration must be greater than zero");
                 }
-                total += current * mult;
-                current = 0L;
+                return duration;
+            } catch (ArithmeticException | NumberFormatException exception) {
+                throw new IllegalArgumentException("Duration is outside bounds", exception);
             }
         }
-        // bare number with no suffix — treat as seconds
-        if (current > 0L && sawAnyDigit) total += current * 1000L;
-        return total <= 0L ? -1L : total;
+        if (!COMPOUND_DURATION.matcher(s).matches()) {
+            throw new IllegalArgumentException("Duration format is invalid");
+        }
+        long total = 0L;
+        long current = 0L;
+        try {
+            for (int i = 0; i < s.length(); i++) {
+                char value = s.charAt(i);
+                if (Character.isDigit(value)) {
+                    current = Math.addExact(Math.multiplyExact(current, 10L), value - '0');
+                    continue;
+                }
+                long multiplier = switch (value) {
+                    case 's' -> 1_000L;
+                    case 'm' -> 60_000L;
+                    case 'h' -> 3_600_000L;
+                    case 'd' -> 86_400_000L;
+                    default -> throw new IllegalArgumentException("Duration format is invalid");
+                };
+                total = Math.addExact(total, Math.multiplyExact(current, multiplier));
+                current = 0L;
+            }
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("Duration is outside bounds", exception);
+        }
+        if (total <= 0L) {
+            throw new IllegalArgumentException("Duration must be greater than zero");
+        }
+        return total;
     }
 }
