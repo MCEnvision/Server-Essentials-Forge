@@ -224,6 +224,7 @@ public final class GuiWorkflowGameTests {
         Map<String, Integer> results = new LinkedHashMap<>();
         Map<String, Integer> unjoinedByDisposition = new LinkedHashMap<>();
         List<String> unjoinedDetails = new ArrayList<>();
+        List<String> expectedNonApplicableDetails = new ArrayList<>();
         int unjoinedRows = 0;
         for (Map.Entry<String, List<CommandDefinition>> candidate : candidates.entrySet()) {
             String command = candidate.getKey();
@@ -275,11 +276,14 @@ public final class GuiWorkflowGameTests {
                         .findFirst()
                         .orElse(null);
                 if (event == null) {
+                    if (definition.targetBehavior() == CommandDefinition.TargetBehavior.REQUIRED_PLAYER) {
+                        expectedNonApplicableDetails.add(
+                                definition.id() + "|" + definition.canonicalRoute() + "|requires_player_argument");
+                        continue;
+                    }
                     unjoinedRows++;
                     String disposition = definitionEvents.isEmpty()
-                            ? definition.targetBehavior() == CommandDefinition.TargetBehavior.REQUIRED_PLAYER
-                                    ? "requires_player_argument"
-                                    : result <= 0 ? "non_positive_without_event" : "missing_event"
+                            ? result <= 0 ? "non_positive_without_event" : "missing_event"
                             : "event_route_mismatch";
                     unjoinedByDisposition.merge(disposition, 1, Integer::sum);
                     unjoinedDetails.add(
@@ -318,10 +322,12 @@ public final class GuiWorkflowGameTests {
                 results);
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Argument free console audit rows without an observed event {}, "
-                        + "exact route ownership remains open for those rows, dispositions {}, sample {}",
+                        + "expected non applicable rows {}, dispositions {}, samples {}, expected samples {}",
                 unjoinedRows,
+                expectedNonApplicableDetails.size(),
                 unjoinedByDisposition,
-                unjoinedDetails.stream().limit(24).toList());
+                unjoinedDetails.stream().limit(24).toList(),
+                expectedNonApplicableDetails.stream().limit(24).toList());
         helper.succeed();
     }
 
