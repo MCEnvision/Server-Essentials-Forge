@@ -140,12 +140,13 @@ public final class ServerControlCommands {
                                         IntegerArgumentType.getInteger(context, "page")))))
                 .then(Commands.literal("manage")
                         .requires(source -> has(source, permission(feature, "manage")))
-                        .executes(context -> list(context.getSource(), feature, 1))
+                        .executes(context -> list(context.getSource(), feature, 1, true))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
                                 .executes(context -> list(
                                         context.getSource(),
                                         feature,
-                                        IntegerArgumentType.getInteger(context, "page")))))
+                                        IntegerArgumentType.getInteger(context, "page"),
+                                        true))))
                 .then(Commands.literal("create")
                         .requires(source -> has(source, permission(feature, "create")))
                         .then(Commands.argument("title", StringArgumentType.string())
@@ -435,11 +436,22 @@ public final class ServerControlCommands {
             ServerControlCatalog.FeatureDefinition feature,
             int requestedPage
     ) {
+        return list(source, feature, requestedPage, false);
+    }
+
+    private static int list(
+            CommandSourceStack source,
+            ServerControlCatalog.FeatureDefinition feature,
+            int requestedPage,
+            boolean manageRoute
+    ) {
         if (!has(source, permission(feature, "view"))
                 && !has(source, permission(feature, "manage"))) {
             return fail(source, "you cannot view this feature");
         }
-        String actionId = has(source, permission(feature, "view"))
+        String actionId = manageRoute
+                ? "sef:control." + feature.id() + ".manage"
+                : has(source, permission(feature, "view"))
                 ? "sef:control." + feature.id() + ".view"
                 : "sef:control." + feature.id() + ".manage";
         return KernelCommandExecutor.execute(
