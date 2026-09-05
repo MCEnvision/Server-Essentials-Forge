@@ -1022,6 +1022,7 @@ The ModDevGradle unit test environment boots Minecraft and NeoForge for tests th
 67. Super-enchanting minimum, maximum, removal, invalid-range, and stale-configuration behavior.
 68. Nine required GameTests, including teleport safety, exact condensation totals, incomplete recipe nonmutation, persistent build and freeze enforcement, inventory lock item use and drop enforcement, and repository freeze mirror cleanup without persistent data deletion.
 69. Legacy moderation target admission for hierarchy, exemption, vanish, self-target, console, and explicit bypass states before warning, mute, freeze, inventory-lock, or building-lock mutation.
+70. Metadata-only console route execution verifies real actor attribution, result mapping, redaction class, bounded target and parameter projections, and audit event correlation on the live dispatcher.
 
 The historical phase records retain the exact development commands and earlier findings. The current authoritative completion state is [the SEF 2 acceptance ledger](docs/SEF2_ACCEPTANCE.md). It records the current 534-test unit suite, 41 required GameTests, complete command route and parser coverage, dedicated-server and client-startup checks, migration and recovery fixtures, performance budgets, security review, JAR inspection, the dependency closure blocker, and the multiplayer and interactive gates that remain open. The twenty confirmed source defects from the full repository audit are repaired and documented in [audit.md](audit.md).
 
