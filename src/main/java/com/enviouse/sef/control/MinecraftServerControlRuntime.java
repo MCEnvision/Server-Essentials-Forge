@@ -1302,7 +1302,7 @@ public final class MinecraftServerControlRuntime {
                     "sleep vote threshold command is unavailable");
         }
         try {
-            if (server.getCommands().getDispatcher().execute(parsed) <= 0) {
+            if (server.getCommands().getDispatcher().execute(parsed) < 0) {
                 return ActionResult.failure(
                         ActionResult.ReasonCode.PROVIDER_ERROR,
                         "sleep vote threshold could not be applied");
@@ -1356,7 +1356,7 @@ public final class MinecraftServerControlRuntime {
         }
         for (var parsed : parsedCommands) {
             try {
-                if (server.getCommands().getDispatcher().execute(parsed) <= 0) {
+                if (server.getCommands().getDispatcher().execute(parsed) < 0) {
                     return ActionResult.failure(
                             ActionResult.ReasonCode.PROVIDER_ERROR,
                             "gamerule definition could not be applied");
