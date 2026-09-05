@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.level.ServerPlayer;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.misc.TraceHandler;
@@ -91,8 +92,11 @@ public class VanishCommand {
 	}
 
 	private static int failConsoleOnly(CommandSourceStack source, String commandDesc) {
-		source.sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append(commandDesc + " can only be used by players."));
-		return 0;
+		return KernelCommandExecutor.reject(
+				source,
+				"sef:vanish.manage",
+				ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+				commandDesc + " can only be used by players.");
 	}
 
 	private static int vanishSelfConsoleAware(CommandContext<CommandSourceStack> ctx, int requestedLevel) {

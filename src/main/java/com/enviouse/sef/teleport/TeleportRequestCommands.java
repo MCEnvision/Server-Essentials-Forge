@@ -247,7 +247,8 @@ public final class TeleportRequestCommands {
                         PermissionsHandler.teleportAskAllCommand,
                         "sef:teleport.request.all"))
                 .executes(context -> {
-                    ServerPlayer actor = TeleportCommandSupport.player(context.getSource());
+                    ServerPlayer actor = TeleportCommandSupport.player(
+                            context.getSource(), "sef:teleport.request.all");
                     if (actor == null) {
                         return 0;
                     }

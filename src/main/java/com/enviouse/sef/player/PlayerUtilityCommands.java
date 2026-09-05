@@ -367,7 +367,7 @@ public final class PlayerUtilityCommands {
             return target == null
                     ? KernelCommandExecutor.reject(
                             source,
-                            "sef:utility.ptime",
+                            "sef:utility.exp",
                             com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
                             "An explicit online target is required.")
                     : unavailable(source);
@@ -403,7 +403,7 @@ public final class PlayerUtilityCommands {
             return target == null
                     ? KernelCommandExecutor.reject(
                             source,
-                            "sef:utility.pweather",
+                            "sef:utility.ptime",
                             com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
                             "An explicit online target is required.")
                     : unavailable(source);
@@ -425,7 +425,13 @@ public final class PlayerUtilityCommands {
             boolean other
     ) {
         if (target == null || other && !eligible(source, target)) {
-            return unavailable(source);
+            return target == null
+                    ? KernelCommandExecutor.reject(
+                            source,
+                            "sef:utility.pweather",
+                            com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                            "An explicit online target is required.")
+                    : unavailable(source);
         }
         PlayerStateService.PersonalWeather parsed = switch (weather.toLowerCase(Locale.ROOT)) {
             case "clear" -> PlayerStateService.PersonalWeather.CLEAR;

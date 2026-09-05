@@ -53,7 +53,10 @@ public final class WarpCommands {
                         source,
                         PermissionsHandler.warpsCommand,
                         "sef:teleport.warp.list"))
-                .executes(context -> listServerWarps(context.getSource())));
+                .executes(context -> listServerWarps(
+                        context.getSource(),
+                        "sef:teleport.warp.list",
+                        PermissionsHandler.warpsCommand)));
         dispatcher.register(Commands.literal(coexist ? "sefsetwarp" : "setwarp")
                 .requires(source -> TeleportCommandSupport.has(
                         source,
@@ -118,7 +121,10 @@ public final class WarpCommands {
                         source,
                         PermissionsHandler.warpCommand,
                         "sef:teleport.warp.use"))
-                .executes(context -> listServerWarps(context.getSource()));
+                .executes(context -> listServerWarps(
+                        context.getSource(),
+                        "sef:teleport.warp.use",
+                        PermissionsHandler.warpCommand));
         node.then(Commands.literal("edit")
                 .requires(source -> TeleportCommandSupport.has(
                         source,
@@ -228,7 +234,23 @@ public final class WarpCommands {
         return moved;
     }
 
-    private static int listServerWarps(CommandSourceStack source) {
+    private static int listServerWarps(
+            CommandSourceStack source,
+            String actionId,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
+    ) {
+        return KernelCommandExecutor.execute(
+                source,
+                actionId,
+                java.util.Map.of("operation", "list"),
+                () -> listServerWarpsInternal(source, permission),
+                permission);
+    }
+
+    private static int listServerWarpsInternal(
+            CommandSourceStack source,
+            net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
+    ) {
         boolean hidden = TeleportCommandSupport.has(source, PermissionsHandler.warpHiddenView);
         List<WarpRecord> warps = KernelServices.teleports().serverWarps(hidden).stream()
                 .filter(warp -> warp.status() == WarpRecord.Status.ACTIVE)

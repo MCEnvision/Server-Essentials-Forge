@@ -88,7 +88,8 @@ public final class CoreTeleportCommands {
                                         "group:" + StringArgumentType.getString(context, "name")))))
                 .then(Commands.literal("dimension")
                         .executes(context -> {
-                            ServerPlayer player = TeleportCommandSupport.player(context.getSource());
+                            ServerPlayer player = TeleportCommandSupport.player(
+                                    context.getSource(), "sef:teleport.spawn.set");
                             return player == null
                                     ? 0
                                     : setSpawn(
@@ -122,7 +123,8 @@ public final class CoreTeleportCommands {
                         PermissionsHandler.setRandomTeleportCommand,
                         "sef:teleport.random.set"))
                 .executes(context -> {
-                    ServerPlayer player = TeleportCommandSupport.player(context.getSource());
+                    ServerPlayer player = TeleportCommandSupport.player(
+                            context.getSource(), "sef:teleport.random.set");
                     if (player == null) {
                         return 0;
                     }
@@ -309,7 +311,10 @@ public final class CoreTeleportCommands {
     }
 
     private static int setSpawn(CommandSourceStack source, String key) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        String actionId = key.startsWith("rtp:center:")
+                ? "sef:teleport.random.set"
+                : "sef:teleport.spawn.set";
+        ServerPlayer player = TeleportCommandSupport.player(source, actionId);
         if (player == null) {
             return 0;
         }
@@ -338,6 +343,15 @@ public final class CoreTeleportCommands {
     }
 
     private static int spawnInfo(CommandSourceStack source) {
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:teleport.spawn.info",
+                java.util.Map.of("operation", "list"),
+                () -> spawnInfoInternal(source),
+                PermissionsHandler.spawnInfoCommand);
+    }
+
+    private static int spawnInfoInternal(CommandSourceStack source) {
         List<TeleportRepository.SpawnRecord> spawns = KernelServices.teleports().spawns();
         if (spawns.isEmpty()) {
             TeleportCommandSupport.info(source, "No custom spawn layers are configured.");
@@ -431,7 +445,9 @@ public final class CoreTeleportCommands {
             ServerPlayer destination,
             boolean override
     ) {
-        ServerPlayer actor = TeleportCommandSupport.player(source);
+        ServerPlayer actor = TeleportCommandSupport.player(
+                source,
+                override ? "sef:teleport.direct.override" : "sef:teleport.direct");
         if (actor == null || moving == null || destination == null) {
             return 0;
         }
@@ -455,7 +471,9 @@ public final class CoreTeleportCommands {
             ServerPlayer moving,
             boolean override
     ) {
-        ServerPlayer actor = TeleportCommandSupport.player(source);
+        ServerPlayer actor = TeleportCommandSupport.player(
+                source,
+                override ? "sef:teleport.direct.override" : "sef:teleport.direct.here");
         if (actor == null || !TeleportCommandSupport.mayTarget(source, actor, moving, false)) {
             return 0;
         }
@@ -472,7 +490,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int teleportPosition(CommandSourceStack source, Vec3 position) {
-        ServerPlayer actor = TeleportCommandSupport.player(source);
+        ServerPlayer actor = TeleportCommandSupport.player(source, "sef:teleport.direct.position");
         if (actor == null) {
             return 0;
         }
@@ -496,7 +514,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int teleportAll(CommandSourceStack source) {
-        ServerPlayer actor = TeleportCommandSupport.player(source);
+        ServerPlayer actor = TeleportCommandSupport.player(source, "sef:teleport.direct.all");
         if (actor == null) {
             return 0;
         }
@@ -525,7 +543,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int queueOffline(CommandSourceStack source, String identity, Vec3 position) {
-        ServerPlayer actor = TeleportCommandSupport.player(source);
+        ServerPlayer actor = TeleportCommandSupport.player(source, "sef:teleport.direct.offline");
         if (actor == null) {
             return 0;
         }
