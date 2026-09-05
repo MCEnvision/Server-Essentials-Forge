@@ -45,6 +45,39 @@ public final class KernelCommandExecutor {
         return permissions(source, definition(actionId), additionalPermissions).granted();
     }
 
+    /**
+     * Applies the server-control policy gate for command adapters that must
+     * keep a custom lease around their domain operation.
+     */
+    public static boolean authorizeControl(CommandSourceStack source, String actionId) {
+        Objects.requireNonNull(source, "source");
+        CommandDefinition definition = definition(actionId);
+        if (!AuditService.accepting(definition.auditClass())) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMandatory command audit is unavailable. This action is blocked."));
+            return false;
+        }
+        ActionResult<Void> authorization = MinecraftServerControlRuntime.authorizeAction(source, definition);
+        if (authorization.successful()) {
+            return true;
+        }
+        CommandDefinition.SourceType sourceType = sourceType(source);
+        AuditService.record(AuditService.Event.metadata(
+                SecurityAuditService.currentSessionId(),
+                actorId(source, sourceType),
+                Objects.requireNonNullElse(source.getTextName(), ""),
+                sourceType.name(),
+                definition.id(),
+                List.of(),
+                AuditService.Result.REJECTED,
+                authorization.reason(),
+                "server_control",
+                definition.auditClass()));
+        source.sendFailure(TextFormatter.stringToFormattedText(
+                "&c" + authorization.detail()));
+        return false;
+    }
+
     @SafeVarargs
     public static int execute(
             CommandSourceStack source,

@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
@@ -160,6 +161,9 @@ final class TeleportCommandSupport {
             IntConsumer asynchronousCompletion,
             boolean surfaceOnly
     ) {
+        if (!KernelCommandExecutor.authorizeControl(source, actionId)) {
+            return 0;
+        }
         PermissionService.Decision permission = PermissionService.decide(actor, actionPermission);
         String dimension = actor.serverLevel().dimension().location().toString();
         Set<WarmupService.CancelReason> cancellation = new LinkedHashSet<>();

@@ -10,6 +10,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.KernelServices;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.policy.CommandExecutionService;
@@ -397,6 +398,9 @@ public final class VirtualWorkstationCommands {
             String actionId,
             ToIntFunction<ServerPlayer> action
     ) {
+        if (!KernelCommandExecutor.authorizeControl(source, actionId)) {
+            return 0;
+        }
         String dimension = player.serverLevel().dimension().location().toString();
         PermissionService.Decision permissionDecision = PermissionService.decide(player, permission);
         final String quotedCost;

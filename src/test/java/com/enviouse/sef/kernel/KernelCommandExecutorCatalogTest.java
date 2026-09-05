@@ -2,6 +2,7 @@ package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -30,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -69,6 +71,51 @@ class KernelCommandExecutorCatalogTest {
                 failures.isEmpty(),
                 () -> "catalog actions bypassed a denying permission provider, "
                         + String.join(", ", failures.stream().limit(12).toList()));
+    }
+
+    @Test
+    void customLeaseAdaptersFailClosedWhenServerControlPolicyDenies() {
+        KernelServices.initialize();
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000002"));
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, net.minecraft.network.chat.Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        try (MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.failure(
+                            ActionResult.ReasonCode.POLICY_DENIED,
+                            "control policy denied"));
+            assertFalse(KernelCommandExecutor.authorizeControl(
+                    source,
+                    KernelServices.catalog().entries().getFirst().id()));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        assertEquals(1, feedback.size());
+        assertTrue(feedback.getFirst().contains("control policy denied"));
     }
 
     @Test
