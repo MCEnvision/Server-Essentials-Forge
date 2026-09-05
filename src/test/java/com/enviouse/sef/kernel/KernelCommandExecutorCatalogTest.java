@@ -1,7 +1,10 @@
 package com.enviouse.sef.kernel;
 
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -17,12 +20,18 @@ import org.mockito.Answers;
 import org.mockito.MockedStatic;
 
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.when;
@@ -43,6 +52,9 @@ class KernelCommandExecutorCatalogTest {
         ServerPlayer player = mock(ServerPlayer.class);
         when(source.getEntity()).thenReturn(player);
         when(player.getUUID()).thenReturn(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
 
         List<String> failures = new ArrayList<>();
         try (MockedStatic<PermissionAPI> permissions = denyingPermissionApi()) {
@@ -60,7 +72,7 @@ class KernelCommandExecutorCatalogTest {
     }
 
     @Test
-    void everyCatalogActionRefusesExecutionBeforeInvokingTheActionWhenPermissionProviderDenies() {
+    void everyCatalogActionRefusesExecutionBeforeInvokingTheActionWhenPermissionProviderDenies() throws Exception {
         KernelServices.initialize();
         SecurityAuditService.start(temporaryDirectory, 7, 1);
         ServerPlayer player = mock(ServerPlayer.class);
@@ -82,7 +94,17 @@ class KernelCommandExecutorCatalogTest {
                 player);
 
         List<String> failures = new ArrayList<>();
+        List<String> feedback = new ArrayList<>();
         AtomicInteger invocations = new AtomicInteger();
+        when(output.acceptsFailure()).thenReturn(true);
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, net.minecraft.network.chat.Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        Set<String> auditedActions = KernelServices.catalog().entries().stream()
+                .filter(definition -> definition.auditClass() != AuditService.AuditClass.NONE)
+                .map(CommandDefinition::id)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
         try (MockedStatic<PermissionAPI> permissions = denyingPermissionApi()) {
             for (CommandDefinition definition : KernelServices.catalog().entries()) {
                 int result = KernelCommandExecutor.execute(
@@ -105,6 +127,34 @@ class KernelCommandExecutorCatalogTest {
         assertTrue(
                 invocations.get() == 0,
                 () -> "permission denied catalog actions invoked their callbacks " + invocations.get() + " times");
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> auditEvents = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        assertEquals(
+                KernelServices.catalog().entries().size(),
+                feedback.size(),
+                "every denied catalog action must return bounded permission feedback");
+        assertEquals(
+                auditedActions.size(),
+                auditEvents.size(),
+                "every audited catalog action must emit one denial event");
+        Set<String> observedActions = new LinkedHashSet<>();
+        for (JsonObject event : auditEvents) {
+            assertEquals("rejected", event.get("result").getAsString());
+            assertTrue(!event.get("reasonCode").getAsString().isBlank());
+            assertEquals("tester", event.get("actorUsername").getAsString());
+            assertEquals("player", event.get("sourceType").getAsString());
+            assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+            observedActions.add(event.get("actionId").getAsString());
+        }
+        assertEquals(auditedActions, observedActions);
+        assertTrue(
+                feedback.stream().allMatch(message -> message.length() <= 256),
+                "denied feedback must remain bounded");
     }
 
     private static MockedStatic<PermissionAPI> denyingPermissionApi() {

@@ -284,11 +284,11 @@ public final class UniversalCommandMatrixGenerator {
         JsonObject dimensions = new JsonObject();
         add(dimensions, "registration", "pass", "live catalog and dispatcher route ownership", "task-025-inventory/command-inventory-live.json");
         add(dimensions, "discovery", "pass", "catalog-wide live route resolution GameTest", "task-024-remediation-gametest.log");
-        add(dimensions, "authority", "partial", "shared policy tests are not an action-level grant and revoke join", "task-028-universal-matrix-ledger.md");
+        add(dimensions, "authority", "partial", "catalog-wide denial execution proves callbacks are blocked, but action-level grant and revoke joins remain open", "task-087-catalog-execute-denial-report.md");
         add(dimensions, "sources", "partial", "source coverage is representative and still needs action-level applicability", "task-028-universal-matrix-ledger.md");
         add(dimensions, "targets", "partial", "target policy coverage is representative and still needs action-level effect oracles", "task-028-universal-matrix-ledger.md");
         add(dimensions, "arguments", "partial", "representative parser corpus does not prove each action effect", "task-024-remediation-gametest.log");
-        add(dimensions, "policy", "partial", "shared pipeline contracts pass; per-action policy joins remain open", "task-028-universal-matrix-ledger.md");
+        add(dimensions, "policy", "partial", "catalog-wide denial execution proves the shared policy boundary is reached, but per-action policy joins remain open", "task-087-catalog-execute-denial-report.md");
         add(dimensions, "preview", "partial", "confirmation and revision contracts are covered for selected routes", "task-028-universal-matrix-ledger.md");
         String auditClass = action.get("auditClass").getAsString();
         if (auditClass.equals("metadata_only")) {
@@ -299,13 +299,13 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "failure", "open", "action-specific zero-side-effect and failure cut-point oracle is required", "task-028-universal-matrix-ledger.md");
         add(dimensions, "persistence", "partial", "Phase 002 owner contracts exist but each command effect needs a direct join", "task-028-universal-matrix-ledger.md");
         add(dimensions, "route_equivalence", "partial", "indirect route contracts pass selected equality cases", "task-028-universal-matrix-ledger.md");
-        add(dimensions, "feedback", "partial", "feedback classes pass focused tests but are not joined to every action", "task-024-security-review.md");
-        add(dimensions, "audit", "partial", "native writer and audit sink classes pass; per-action correlation remains open", "task-024-security-review.md");
-        add(dimensions, "redaction", "partial", "redaction contract passes focused tests; per-action sensitive fields remain open", "task-024-security-review.md");
+        add(dimensions, "feedback", "partial", "catalog-wide denied execution emits bounded feedback, but success and failure variants are not joined to every action", "task-087-catalog-execute-denial-report.md");
+        add(dimensions, "audit", "partial", "catalog-wide denied execution emits correlated redacted denial events and native writer evidence passes, but per-action success and failure joins remain open", "task-087-catalog-execute-denial-report.md");
+        add(dimensions, "redaction", "partial", "catalog-wide denied execution keeps normalized parameters empty, but per-action sensitive fields remain open", "task-087-catalog-execute-denial-report.md");
         add(dimensions, "client_fixture", "partial", "packaged client load and connection pass; full action interaction is open", "task-024-client-crash-remediation-report.md");
         add(dimensions, "linux_shared_runtime", "partial", "dedicated server and representative runtime proofs pass; universal effects remain open", "task-024-remediation-gametest.log");
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
-        add(dimensions, "native_dependency", "partial", "candidate dependency and native writer identity pass; action-level joins remain open", "task-024-remediation-dependency-manifest.txt");
+        add(dimensions, "native_dependency", "partial", "candidate dependency and native writer identity pass; action-level joins remain open", "task-086-native-frozen-report.md");
         return dimensions;
     }
 
