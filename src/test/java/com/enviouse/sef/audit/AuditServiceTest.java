@@ -169,6 +169,26 @@ class AuditServiceTest {
     }
 
     @Test
+    void eventFieldsNormalizeControlFormatAndLineCharacters() {
+        AuditService.Event event = AuditService.Event.interaction(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                "En\u202Evy\u2028name",
+                "GUI",
+                "sef:test.action",
+                List.of(),
+                Map.of("target", "first\u2029second\tthird"),
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                "command",
+                AuditService.RedactionClass.METADATA,
+                AuditService.AuditClass.ADMIN_ACTION);
+
+        assertEquals("En vy name", event.actorName());
+        assertEquals("first second third", event.normalizedParameters().get("target"));
+    }
+
+    @Test
     void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
         Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
         SecurityAuditService.start(temporaryDirectory, 7, 1);

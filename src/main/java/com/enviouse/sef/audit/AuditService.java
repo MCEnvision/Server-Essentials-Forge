@@ -298,11 +298,27 @@ public final class AuditService {
         if (value == null) {
             return "";
         }
-        String sanitized = value.codePoints()
-                .filter(codePoint -> !Character.isISOControl(codePoint))
-                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
-                .toString()
-                .trim();
-        return sanitized.length() <= maximumLength ? sanitized : sanitized.substring(0, maximumLength);
+        StringBuilder sanitized = new StringBuilder(Math.min(value.length(), maximumLength));
+        boolean previousWhitespace = false;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            offset += Character.charCount(codePoint);
+            boolean whitespace = Character.isWhitespace(codePoint)
+                    || Character.isISOControl(codePoint)
+                    || Character.getType(codePoint) == Character.FORMAT;
+            if (whitespace) {
+                if (!previousWhitespace && sanitized.length() < maximumLength) {
+                    sanitized.append(' ');
+                }
+                previousWhitespace = true;
+                continue;
+            }
+            if (sanitized.length() + Character.charCount(codePoint) > maximumLength) {
+                break;
+            }
+            sanitized.appendCodePoint(codePoint);
+            previousWhitespace = false;
+        }
+        return sanitized.toString().trim();
     }
 }
