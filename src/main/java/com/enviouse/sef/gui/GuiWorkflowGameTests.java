@@ -228,8 +228,12 @@ public final class GuiWorkflowGameTests {
         for (Map.Entry<String, List<CommandDefinition>> candidate : candidates.entrySet()) {
             String command = candidate.getKey();
             Set<String> actionIds = candidate.getValue().stream()
+                    .filter(definition -> routeOwnedByDefinition(definition, command))
                     .map(CommandDefinition::id)
                     .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            if (actionIds.isEmpty()) {
+                continue;
+            }
             Set<String> before = SecurityAuditService.recent(
                             event -> actionIds.contains(event.actionId()),
                             128)
@@ -255,6 +259,9 @@ public final class GuiWorkflowGameTests {
                             event -> actionIds.contains(event.actionId()) && !before.contains(event.eventId()),
                             128);
             for (CommandDefinition definition : candidate.getValue()) {
+                if (!routeOwnedByDefinition(definition, command)) {
+                    continue;
+                }
                 if (definition.auditClass() == AuditService.AuditClass.NONE
                         || noAuditExpected.contains(definition.id())) {
                     continue;
@@ -264,7 +271,7 @@ public final class GuiWorkflowGameTests {
                         .toList();
                 var event = definitionEvents.stream()
                         .filter(candidateEvent -> candidateEvent.actionId().equals(definition.id())
-                                && routeMatchesCommand(definition.canonicalRoute(), command))
+                                && routeOwnedByDefinition(definition, command))
                         .findFirst()
                         .orElse(null);
                 if (event == null) {
@@ -353,6 +360,9 @@ public final class GuiWorkflowGameTests {
                 if (command.isBlank() || !executed.add(command)) {
                     continue;
                 }
+                if (!routeOwnedByDefinition(definition, command)) {
+                    continue;
+                }
                 java.time.Instant startedAt = java.time.Instant.now();
                 int result;
                 try {
@@ -373,7 +383,7 @@ public final class GuiWorkflowGameTests {
                         .filter(candidate -> {
                             var auditedDefinition = KernelServices.catalog().find(candidate.actionId()).orElse(null);
                             return auditedDefinition != null
-                                    && routeMatchesCommand(auditedDefinition.canonicalRoute(), command);
+                                    && routeOwnedByDefinition(auditedDefinition, command);
                         })
                         .toList();
                 if (routeEvents.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
@@ -415,6 +425,17 @@ public final class GuiWorkflowGameTests {
         String route = canonicalRoute.toLowerCase(java.util.Locale.ROOT).strip();
         String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
         return normalizedCommand.equals(route) || normalizedCommand.startsWith(route + " ");
+    }
+
+    private static boolean routeOwnedByDefinition(CommandDefinition definition, String command) {
+        if (!routeMatchesCommand(definition.canonicalRoute(), command)) {
+            return false;
+        }
+        int ownerLength = definition.canonicalRoute().length();
+        return KernelServices.catalog().entries().stream()
+                .filter(candidate -> !candidate.id().equals(definition.id()))
+                .filter(candidate -> routeMatchesCommand(candidate.canonicalRoute(), command))
+                .noneMatch(candidate -> candidate.canonicalRoute().length() > ownerLength);
     }
 
     private static boolean positiveRouteNeedsNoAudit(String command) {
@@ -555,6 +576,9 @@ public final class GuiWorkflowGameTests {
                 String command = render(variant);
                 String routeKey = definition.id() + "|" + command;
                 if (command.isBlank() || !executed.add(routeKey)) {
+                    continue;
+                }
+                if (!routeOwnedByDefinition(definition, command)) {
                     continue;
                 }
                 Set<String> before = SecurityAuditService.recent(
