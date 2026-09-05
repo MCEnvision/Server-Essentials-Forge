@@ -357,6 +357,24 @@ public final class GuiWorkflowGameTests {
     }
 
     private static void writeCatalogRuntimeEvidence(JsonArray runtimeRows) throws Exception {
+        writeCatalogRuntimeEvidence(
+                "catalog-console-runtime.json",
+                "everyEnabledArgumentFreeConsoleRouteReachesTheSharedDispatcher",
+                runtimeRows);
+    }
+
+    private static void writeCatalogArgumentRuntimeEvidence(JsonArray runtimeRows) throws Exception {
+        writeCatalogRuntimeEvidence(
+                "catalog-console-argument-runtime.json",
+                "everyMetadataOnlyConsoleVariantExecutesWithRepresentativeArguments",
+                runtimeRows);
+    }
+
+    private static void writeCatalogRuntimeEvidence(
+            String fileName,
+            String source,
+            JsonArray runtimeRows
+    ) throws Exception {
         String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
         if (evidenceRoot.isEmpty()) {
             return;
@@ -369,15 +387,15 @@ public final class GuiWorkflowGameTests {
         }
         Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
         Files.createDirectories(root);
-        Path output = root.resolve("catalog-console-runtime.json");
+        Path output = root.resolve(fileName);
         if (Files.isSymbolicLink(output)) {
-            throw new IllegalArgumentException("catalog runtime evidence target is a symlink");
+            throw new IllegalArgumentException("catalog runtime evidence target is a symlink, " + fileName);
         }
         JsonObject record = new JsonObject();
         record.addProperty("schemaVersion", 1);
         record.addProperty("candidateCommit", candidateCommit);
         record.addProperty("candidateSha256", candidateSha256);
-        record.addProperty("source", "everyEnabledArgumentFreeConsoleRouteReachesTheSharedDispatcher");
+        record.addProperty("source", source);
         record.addProperty("rowCount", runtimeRows.size());
         record.add("rows", runtimeRows);
         Files.writeString(
@@ -979,6 +997,116 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 600)
+    public static void everyMetadataOnlyConsoleVariantExecutesWithRepresentativeArguments(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        var target = helper.makeMockServerPlayerInLevel();
+        List<String> failures = new ArrayList<>();
+        Set<String> executed = new LinkedHashSet<>();
+        JsonArray runtimeRows = new JsonArray();
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                failures.add(definition.id() + ", workflow, " + exception.getMessage());
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                if (variant.fields().isEmpty()) {
+                    continue;
+                }
+                String command = render(variant, target.getGameProfile().getName());
+                if (command.isBlank() || !executed.add(command)
+                        || !routeOwnedByDefinition(definition, command)) {
+                    continue;
+                }
+                Set<String> before = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id()),
+                                128)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
+                int result;
+                try {
+                    result = dispatcher.execute(command, source);
+                } catch (Exception exception) {
+                    failures.add(definition.id() + ", " + command + ", "
+                            + exception.getClass().getSimpleName());
+                    continue;
+                }
+                List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id())
+                                        && !before.contains(event.eventId()),
+                                16);
+                var event = events.stream().findFirst().orElse(null);
+                boolean redactionSafe = event != null
+                        && event.normalizedParameters().values().stream()
+                                .noneMatch(value -> value.contains(command)
+                                        || value.contains(target.getGameProfile().getName()));
+                if (result <= 0 || event == null || events.size() != 1
+                        || !"console".equals(event.sourceType())
+                        || event.actorUuid().isBlank()
+                        || event.actorUsername().isBlank()
+                        || event.serverSessionId().isBlank()
+                        || !"success".equals(event.result())
+                        || !"metadata_only".equals(event.auditClass())
+                        || !"metadata".equals(event.redactionClass())
+                        || !redactionSafe) {
+                    failures.add(definition.id() + ", " + command + ", unsafe argument audit projection, result "
+                            + result + ", events " + events.size());
+                    continue;
+                }
+                JsonObject runtimeRow = new JsonObject();
+                runtimeRow.addProperty("actionId", definition.id());
+                runtimeRow.addProperty("canonicalRoute", definition.canonicalRoute());
+                runtimeRow.addProperty("commandDigest", digest(command));
+                runtimeRow.addProperty("result", "success");
+                runtimeRow.addProperty("auditEventCount", events.size());
+                runtimeRow.addProperty("sourceType", event.sourceType());
+                runtimeRow.addProperty("auditResult", event.result());
+                runtimeRow.addProperty("auditClass", event.auditClass());
+                runtimeRow.addProperty("redactionClass", event.redactionClass());
+                runtimeRow.addProperty("redactionSafe", redactionSafe);
+                runtimeRows.add(runtimeRow);
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only argument route, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "metadata-only argument execution failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(!executed.isEmpty(), "no metadata-only argument routes were discovered");
+        helper.assertTrue(runtimeRows.size() > 0, "no metadata-only argument routes produced runtime evidence");
+        try {
+            writeCatalogArgumentRuntimeEvidence(runtimeRows);
+        } catch (Exception exception) {
+            helper.fail("catalog argument runtime evidence could not be written, "
+                    + exception.getClass().getSimpleName());
+            return;
+        }
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Metadata-only argument routes executed {}, evidence rows {}",
+                executed.size(),
+                runtimeRows.size());
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void everyPlayerFacingActionCompilesToATypedWorkflow(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
@@ -1107,7 +1235,8 @@ public final class GuiWorkflowGameTests {
         return variant.segments().stream()
                 .map(segment -> segment.literal()
                         ? segment.value()
-                        : fields.get(segment.value()).type() == GuiWorkflowCompiler.FieldType.PLAYER
+                        : (fields.get(segment.value()).type() == GuiWorkflowCompiler.FieldType.PLAYER
+                                || fields.get(segment.value()).type() == GuiWorkflowCompiler.FieldType.PLAYERS)
                         ? playerValue
                         : representative(fields.get(segment.value())))
                 .reduce((left, right) -> left + " " + right)
