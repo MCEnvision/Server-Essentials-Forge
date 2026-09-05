@@ -671,6 +671,9 @@ public final class GuiWorkflowGameTests {
         }
         String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
         String normalizedRoute = route.toLowerCase(java.util.Locale.ROOT).strip();
+        if (normalizedRoute.equals("all") && !normalizedCommand.contains(" ")) {
+            return true;
+        }
         if (normalizedCommand.contains(normalizedRoute)) {
             return true;
         }
