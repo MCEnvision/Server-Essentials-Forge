@@ -451,7 +451,12 @@ public final class GuiWorkflowGameTests {
                 if (!routeOwnedByDefinition(definition, command)) {
                     continue;
                 }
-                java.time.Instant startedAt = java.time.Instant.now();
+                Set<String> before = SecurityAuditService.recent(
+                                candidate -> candidate.actionId().equals(definition.id()),
+                                128)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
                 int result;
                 try {
                     result = dispatcher.execute(command, source);
@@ -465,7 +470,8 @@ public final class GuiWorkflowGameTests {
                 }
                 positiveRoutes++;
                 List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
-                                candidate -> !java.time.Instant.parse(candidate.timestamp()).isBefore(startedAt),
+                                candidate -> candidate.actionId().equals(definition.id())
+                                        && !before.contains(candidate.eventId()),
                                 32);
                 List<SecurityAuditService.AuditEvent> routeEvents = events.stream()
                         .filter(candidate -> {
