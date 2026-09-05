@@ -2,6 +2,7 @@ package com.enviouse.sef.gui;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.audit.AuditService;
+import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.gui.protocol.OfflineActionRepository;
 import com.enviouse.sef.gui.protocol.OfflineActionService;
 import com.enviouse.sef.kernel.KernelServices;
@@ -183,6 +184,87 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 400)
+    public static void representativeMetadataOnlyPlayerRoutesExecuteAndAudit(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var target = helper.makeMockServerPlayerInLevel();
+        var source = server.createCommandSourceStack();
+        helper.runAfterDelay(20, () -> {
+            Set<String> representativeActions = Set.of(
+                    "sef:utility.exp",
+                    "sef:utility.ptime",
+                    "sef:utility.pweather");
+            List<String> failures = new ArrayList<>();
+            Set<String> executed = new LinkedHashSet<>();
+            int attempted = 0;
+
+            for (var definition : KernelServices.catalog().entries()) {
+                if (definition.auditClass() != AuditService.AuditClass.METADATA_ONLY
+                        || !representativeActions.contains(definition.id())
+                        || !definition.sourceTypes().contains(CommandDefinition.SourceType.PLAYER)) {
+                    continue;
+                }
+                boolean enabled = KernelServices.featureGates().decide(
+                        definition.featureId(),
+                        FeatureGateService.Context.server(definition.id())).enabled();
+                if (!enabled) {
+                    continue;
+                }
+                GuiWorkflowCompiler.WorkflowDefinition workflow;
+                try {
+                    workflow = GuiWorkflowCompiler.compileStructure(definition, dispatcher);
+                } catch (IllegalArgumentException exception) {
+                    failures.add(definition.id() + ", workflow, " + exception.getMessage());
+                    continue;
+                }
+                for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                    if (variant.fields().stream().noneMatch(
+                            field -> field.type() == GuiWorkflowCompiler.FieldType.PLAYER)) {
+                        continue;
+                    }
+                    String command = render(variant, target.getUUID().toString());
+                    if (command.isBlank() || !executed.add(command)) {
+                        continue;
+                    }
+                    int before = SecurityAuditService.recent(
+                            event -> event.actionId().equals(definition.id()),
+                            128).size();
+                    try {
+                        int result = dispatcher.execute(command, source);
+                        if (result <= 0) {
+                            failures.add(definition.id() + ", " + command + ", zero result");
+                            continue;
+                        }
+                        attempted++;
+                    } catch (Exception exception) {
+                        failures.add(definition.id() + ", " + command + ", "
+                                + exception.getClass().getSimpleName() + ", " + exception.getMessage());
+                        continue;
+                    }
+                    int after = SecurityAuditService.recent(
+                            event -> event.actionId().equals(definition.id()),
+                            128).size();
+                    if (after <= before) {
+                        failures.add(definition.id() + ", " + command + ", missing audit event");
+                    }
+                }
+            }
+
+            failures.forEach(failure ->
+                    ServerEssentialsForge.LOGGER.error("[SEF] Metadata-only command execution, {}", failure));
+            helper.assertTrue(
+                    failures.isEmpty(),
+                    "metadata-only command execution failed, "
+                            + String.join("; ", failures.stream().limit(8).toList()));
+            helper.assertTrue(attempted > 0, "no representative metadata-only commands were executed");
+            ServerEssentialsForge.LOGGER.info(
+                    "[SEF] Representative metadata-only command execution covered {} unique routes",
+                    attempted);
+            helper.succeed();
+        });
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void everyConsoleWorkflowVariantAcceptsRepresentativeArguments(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
@@ -351,6 +433,21 @@ public final class GuiWorkflowGameTests {
         return variant.segments().stream()
                 .map(segment -> segment.literal()
                         ? segment.value()
+                        : representative(fields.get(segment.value())))
+                .reduce((left, right) -> left + " " + right)
+                .orElse("");
+    }
+
+    private static String render(GuiWorkflowCompiler.Variant variant, String playerValue) {
+        var fields = variant.fields().stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        GuiWorkflowCompiler.Field::id,
+                        field -> field));
+        return variant.segments().stream()
+                .map(segment -> segment.literal()
+                        ? segment.value()
+                        : fields.get(segment.value()).type() == GuiWorkflowCompiler.FieldType.PLAYER
+                        ? playerValue
                         : representative(fields.get(segment.value())))
                 .reduce((left, right) -> left + " " + right)
                 .orElse("");
