@@ -319,6 +319,115 @@ class KernelCommandExecutorCatalogTest {
         assertFalse(event.toString().contains("stack"));
     }
 
+    @Test
+    void unavailableMandatoryAuditBlocksBeforeInvokingTheAction() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000014");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+        AtomicInteger invocations = new AtomicInteger();
+
+        SecurityAuditService.shutdown();
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("mode", "safe"),
+                            invocations::incrementAndGet));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        assertEquals(0, invocations.get());
+        assertEquals(1, feedback.size());
+        assertTrue(feedback.getFirst().contains("audit"));
+        assertFalse(AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION));
+    }
+
+    @Test
+    void callbackExceptionProducesSafeFailureAuditAndFeedback() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000015");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("mode", "safe"),
+                            () -> {
+                                throw new IllegalStateException("secret callback detail");
+                            }));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        JsonObject event = JsonParser.parseString(Files.readAllLines(auditFile, StandardCharsets.UTF_8).getFirst())
+                .getAsJsonObject();
+        assertEquals("failed", event.get("result").getAsString());
+        assertEquals("provider_error", event.get("reasonCode").getAsString());
+        assertFalse(event.toString().contains("secret callback detail"));
+        assertEquals(1, feedback.size());
+        assertEquals("That action could not be completed safely.", feedback.getFirst());
+    }
+
     private static MockedStatic<PermissionAPI> denyingPermissionApi() {
         return mockStatic(PermissionAPI.class, invocation -> {
             String method = invocation.getMethod().getName();
