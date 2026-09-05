@@ -548,7 +548,8 @@ public final class CommandEventJournal {
                 return "";
             }
             String sanitized = value.replace("\r", "\\r").replace("\n", "\\n").codePoints()
-                    .filter(codePoint -> !Character.isISOControl(codePoint))
+                    .filter(codePoint -> !Character.isISOControl(codePoint)
+                            && Character.getType(codePoint) != Character.FORMAT)
                     .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append)
                     .toString()
                     .trim();

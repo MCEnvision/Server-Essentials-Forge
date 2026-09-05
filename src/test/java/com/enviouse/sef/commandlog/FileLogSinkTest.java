@@ -147,6 +147,44 @@ class FileLogSinkTest {
     }
 
     @Test
+    void commandRecordRemovesUnicodeFormatCharactersFromObserverText() {
+        UUID actor = UUID.randomUUID();
+        CommandEventJournal.CommandRecord record = new CommandEventJournal.CommandRecord(
+                1,
+                UUID.randomUUID(),
+                null,
+                UUID.randomUUID(),
+                Instant.now(),
+                ObservationContracts.LifecycleStage.COMPLETED,
+                actor,
+                actor,
+                "En\u202Evy",
+                CommandDefinition.SourceType.PLAYER,
+                "minecraft:over\u200Bworld",
+                0,
+                64,
+                0,
+                "sa\u202Ey",
+                "sef:test.\u200Bsay",
+                "/sa\u202Ey",
+                CommandRedactionPolicy.RedactionClass.PUBLIC,
+                Set.of(),
+                "player\u200B",
+                false,
+                1,
+                1L,
+                "provider\u202Edetail");
+
+        assertEquals("Envy", record.actorName());
+        assertEquals("minecraft:overworld", record.dimensionId());
+        assertEquals("say", record.root());
+        assertEquals("sef:test.say", record.actionId());
+        assertEquals("/say", record.commandDisplay());
+        assertEquals("player", record.origin());
+        assertEquals("providerdetail", record.detail());
+    }
+
+    @Test
     void typedCaptureFiltersApplyWithoutSuppressingSecurityRoots() {
         FileLogSink sink = new FileLogSink();
         UUID actor = UUID.randomUUID();
