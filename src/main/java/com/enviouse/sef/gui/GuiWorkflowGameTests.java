@@ -396,6 +396,10 @@ public final class GuiWorkflowGameTests {
                     failures.add(definition.id() + ", " + command + ", missing audit event");
                     continue;
                 }
+                if (!positiveRouteNeedsNoAudit(command) && routeEvents.size() != 1) {
+                    failures.add(definition.id() + ", " + command + ", expected one audit event but saw "
+                            + routeEvents.size());
+                }
                 for (var event : routeEvents) {
                     var auditedDefinition = KernelServices.catalog().find(event.actionId()).orElse(null);
                     if (!"console".equals(event.sourceType())
