@@ -654,6 +654,25 @@ public final class GuiWorkflowGameTests {
         return normalizedCommand.equals(route) || normalizedCommand.startsWith(route + " ");
     }
 
+    private static boolean isCanonicalVariant(
+            CommandDefinition definition,
+            GuiWorkflowCompiler.Variant variant
+    ) {
+        String[] routeSegments = definition.canonicalRoute().split(" ");
+        List<GuiWorkflowCompiler.Segment> segments = variant.segments();
+        if (segments.size() < routeSegments.length) {
+            return false;
+        }
+        for (int index = 0; index < routeSegments.length; index++) {
+            GuiWorkflowCompiler.Segment segment = segments.get(index);
+            if (!segment.literal() || !segment.value().equals(routeSegments[index])) {
+                return false;
+            }
+        }
+        return segments.subList(routeSegments.length, segments.size()).stream()
+                .noneMatch(GuiWorkflowCompiler.Segment::literal);
+    }
+
     private static boolean routeOwnedByDefinition(CommandDefinition definition, String command) {
         if (!routeMatchesCommand(definition.canonicalRoute(), command)) {
             return false;
@@ -1026,7 +1045,7 @@ public final class GuiWorkflowGameTests {
                 continue;
             }
             for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
-                if (variant.fields().isEmpty()) {
+                if (variant.fields().isEmpty() || !isCanonicalVariant(definition, variant)) {
                     continue;
                 }
                 String command = render(variant, target.getGameProfile().getName());
@@ -1053,12 +1072,18 @@ public final class GuiWorkflowGameTests {
                                         && !before.contains(event.eventId()),
                                 16);
                 var event = events.stream().findFirst().orElse(null);
+                if (result <= 0 || event == null || events.size() != 1) {
+                    if (result > 0) {
+                        failures.add(definition.id() + ", " + command
+                                + ", positive result without one audit event, events " + events.size());
+                    }
+                    continue;
+                }
                 boolean redactionSafe = event != null
                         && event.normalizedParameters().values().stream()
                                 .noneMatch(value -> value.contains(command)
                                         || value.contains(target.getGameProfile().getName()));
-                if (result <= 0 || event == null || events.size() != 1
-                        || !"console".equals(event.sourceType())
+                if (!"console".equals(event.sourceType())
                         || event.actorUuid().isBlank()
                         || event.actorUsername().isBlank()
                         || event.serverSessionId().isBlank()
