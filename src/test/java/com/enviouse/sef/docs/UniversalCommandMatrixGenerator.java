@@ -186,15 +186,16 @@ public final class UniversalCommandMatrixGenerator {
                         "universal matrix row status is stronger than its dimensions for "
                                 + row.get("semanticKey").getAsString());
             }
-            if (category.equals("command-matrix")) {
-                commands++;
-                if (!actionIds.add(row.get("semanticKey").getAsString())) {
-                    throw new IllegalArgumentException("duplicate universal command action");
-                }
+                if (category.equals("command-matrix")) {
+                    commands++;
+                    if (!actionIds.add(row.get("semanticKey").getAsString())) {
+                        throw new IllegalArgumentException("duplicate universal command action");
+                    }
                 if (!row.has("actionId") || !row.has("canonicalRoute") || !row.has("permissionIds")
                         || !row.has("sourceTypes") || !row.has("orderedRoutes")) {
                     throw new IllegalArgumentException("universal command ownership fields are missing");
                 }
+                validateAuditJoin(row);
                 if (!row.getAsJsonArray("orderedRoutes").toString().contains(
                         row.get("canonicalRoute").getAsString())) {
                     throw new IllegalArgumentException("canonical route is absent from ordered routes");
@@ -263,6 +264,7 @@ public final class UniversalCommandMatrixGenerator {
                 .forEach(orderedRoutes::add);
         action.getAsJsonArray("convenienceRoots").forEach(orderedRoutes::add);
         row.add("orderedRoutes", orderedRoutes);
+        row.add("auditJoin", auditJoin(action));
         row.add("dimensions", commandDimensions(action));
         row.addProperty("status", "open");
         return row;
@@ -332,6 +334,82 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "host_specific_runtime", "not_applicable", "no host-specific unavailable path was exercised", "task-025-audit-inventory-report.md");
         add(dimensions, "native_dependency", "not_applicable", "unavailable execution does not reach a native writer", "task-028-universal-matrix-ledger.md");
         return dimensions;
+    }
+
+    private static JsonObject auditJoin(JsonObject action) {
+        String auditClass = action.get("auditClass").getAsString();
+        boolean required = !auditClass.equals("none");
+        JsonObject join = new JsonObject();
+        join.addProperty("required", required);
+        join.addProperty("auditClass", auditClass);
+        join.addProperty(
+                "eventWriter",
+                required
+                        ? "AuditService.record -> SecurityAuditService.record"
+                        : "not_applicable");
+        join.addProperty(
+                "nativeSink",
+                required
+                        ? "SecurityAuditService.writerLoop -> NativeAuditFileProvider.append"
+                        : "not_applicable");
+        join.addProperty(
+                "optionalObservationSink",
+                "CommandEventJournal.append -> FileLogSink.submit");
+        join.addProperty("runtimeDependencyManifest", required
+                ? "platform-dependency-manifest.txt"
+                : "not_applicable");
+        join.add("pipelineCallSites", action.getAsJsonArray("pipelineCallSites").deepCopy());
+        join.addProperty(
+                "pipelineCallSiteDisposition",
+                action.get("pipelineCallSiteDisposition").getAsString());
+        JsonArray writerSources = new JsonArray();
+        writerSources.add("src/main/java/com/enviouse/sef/audit/AuditService.java");
+        writerSources.add("src/main/java/com/enviouse/sef/audit/SecurityAuditService.java");
+        join.add("writerSources", writerSources);
+        JsonArray sinkSources = new JsonArray();
+        sinkSources.add("src/main/java/com/enviouse/sef/audit/NativeAuditFileProvider.java");
+        sinkSources.add("src/main/java/com/enviouse/sef/commandlog/CommandEventJournal.java");
+        sinkSources.add("src/main/java/com/enviouse/sef/commandlog/FileLogSink.java");
+        join.add("sinkSources", sinkSources);
+        return join;
+    }
+
+    private static void validateAuditJoin(JsonObject row) {
+        if (!row.has("auditJoin") || !row.get("auditJoin").isJsonObject()) {
+            throw new IllegalArgumentException("universal command audit join is required");
+        }
+        JsonObject join = row.getAsJsonObject("auditJoin");
+        if (!join.has("required") || !join.get("required").isJsonPrimitive()
+                || !join.getAsJsonPrimitive("required").isBoolean()) {
+            throw new IllegalArgumentException("universal command audit join requirement is invalid");
+        }
+        if (!join.has("auditClass") || !join.get("auditClass").isJsonPrimitive()
+                || !join.getAsJsonPrimitive("auditClass").isString()
+                || !join.get("auditClass").getAsString().equals(row.get("auditClass").getAsString())) {
+            throw new IllegalArgumentException("universal command audit join class is invalid");
+        }
+        for (String field : List.of(
+                "eventWriter",
+                "nativeSink",
+                "optionalObservationSink",
+                "runtimeDependencyManifest",
+                "pipelineCallSiteDisposition")) {
+            if (!join.has(field) || !join.get(field).isJsonPrimitive()
+                    || !join.getAsJsonPrimitive(field).isString()
+                    || join.get(field).getAsString().isBlank()) {
+                throw new IllegalArgumentException("universal command audit join field is invalid " + field);
+            }
+        }
+        if (!join.has("pipelineCallSites") || !join.get("pipelineCallSites").isJsonArray()
+                || !join.has("writerSources") || !join.get("writerSources").isJsonArray()
+                || !join.has("sinkSources") || !join.get("sinkSources").isJsonArray()) {
+            throw new IllegalArgumentException("universal command audit join sources are required");
+        }
+        boolean required = join.get("required").getAsBoolean();
+        if (required && (join.getAsJsonArray("writerSources").isEmpty()
+                || join.getAsJsonArray("sinkSources").isEmpty())) {
+            throw new IllegalArgumentException("required universal command audit join has no writer or sink");
+        }
     }
 
     private static void add(JsonObject dimensions, String name, String status, String reason, String evidence) {

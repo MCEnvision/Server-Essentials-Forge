@@ -32,6 +32,18 @@ class UniversalCommandMatrixGeneratorTest {
         assertEquals("src/main/java/com/enviouse/sef/kernel/KernelServices.java",
                 matrix.getAsJsonArray("rows").get(0).getAsJsonObject()
                         .getAsJsonArray("sourceLocations").get(0).getAsString());
+        matrix.getAsJsonArray("rows").asList().stream()
+                .filter(row -> row.getAsJsonObject().get("category").getAsString().equals("command-matrix"))
+                .forEach(row -> {
+                    JsonObject command = row.getAsJsonObject();
+                    JsonObject join = command.getAsJsonObject("auditJoin");
+                    assertEquals(command.get("auditClass").getAsString(), join.get("auditClass").getAsString());
+                    assertTrue(join.has("eventWriter"));
+                    assertTrue(join.has("nativeSink"));
+                    assertTrue(join.has("pipelineCallSites"));
+                    assertTrue(join.has("writerSources"));
+                    assertTrue(join.has("sinkSources"));
+                });
     }
 
     @Test
@@ -87,6 +99,19 @@ class UniversalCommandMatrixGeneratorTest {
                 .findFirst()
                 .orElseThrow();
         firstCommand.addProperty("status", "partial");
+        assertThrows(IllegalArgumentException.class,
+                () -> UniversalCommandMatrixGenerator.validate(matrix));
+    }
+
+    @Test
+    void validatorRejectsMissingAuditJoin() {
+        JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+        JsonObject firstCommand = matrix.getAsJsonArray("rows").asList().stream()
+                .map(element -> element.getAsJsonObject())
+                .filter(row -> row.get("category").getAsString().equals("command-matrix"))
+                .findFirst()
+                .orElseThrow();
+        firstCommand.remove("auditJoin");
         assertThrows(IllegalArgumentException.class,
                 () -> UniversalCommandMatrixGenerator.validate(matrix));
     }
