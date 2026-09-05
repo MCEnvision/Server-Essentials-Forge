@@ -591,6 +591,88 @@ class KernelCommandExecutorCatalogTest {
     }
 
     @Test
+    void everyCatalogActionAuditsCallbackFailureWithoutInvokingASecondCallback() throws Exception {
+        KernelServices.initialize();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000020");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        List<CommandDefinition> definitions = KernelServices.catalog().entries();
+        Set<String> callbackActions = new LinkedHashSet<>();
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            for (CommandDefinition definition : definitions) {
+                int result = KernelCommandExecutor.execute(
+                        source,
+                        definition.id(),
+                        Map.of(),
+                        () -> {
+                            callbackActions.add(definition.id());
+                            return 0;
+                });
+                assertEquals(0, result, definition.id());
+            }
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        long auditedDefinitions = definitions.stream()
+                .filter(definition -> definition.auditClass() != AuditService.AuditClass.NONE)
+                .count();
+        assertEquals(auditedDefinitions, events.size());
+        Set<String> observedActions = new LinkedHashSet<>();
+        for (JsonObject event : events) {
+            String actionId = event.get("actionId").getAsString();
+            if (callbackActions.contains(actionId)) {
+                assertEquals("failed", event.get("result").getAsString());
+                assertEquals("provider_error", event.get("reasonCode").getAsString());
+            } else {
+                assertEquals("rejected", event.get("result").getAsString());
+            }
+            assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+            assertEquals("tester", event.get("actorUsername").getAsString());
+            assertEquals("player", event.get("sourceType").getAsString());
+            assertEquals("command", event.get("origin").getAsString());
+            assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+            assertTrue(event.getAsJsonArray("targetUuids").isEmpty());
+            assertFalse(event.toString().contains("callback-secret"));
+            observedActions.add(actionId);
+        }
+        assertEquals(
+                definitions.stream()
+                        .filter(definition -> definition.auditClass() != AuditService.AuditClass.NONE)
+                        .map(CommandDefinition::id)
+                        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new)),
+                observedActions);
+    }
+
+    @Test
     void failedExecutionAuditsProviderFailureAndDoesNotLeakCallbackDetails() throws Exception {
         KernelServices.initialize();
         UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000013");
