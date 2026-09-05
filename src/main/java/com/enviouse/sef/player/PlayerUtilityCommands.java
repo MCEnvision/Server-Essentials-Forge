@@ -92,7 +92,11 @@ public final class PlayerUtilityCommands {
                 .executes(context -> {
                     ServerPlayer player = context.getSource().getPlayer();
                     return player == null
-                            ? fail(context.getSource(), "An explicit online target is required.")
+                            ? KernelCommandExecutor.reject(
+                                    context.getSource(),
+                                    "sef:utility." + literal,
+                                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                                    "An explicit online target is required.")
                             : action.run(context.getSource(), player, false);
                 })
                 .then(IdentityArguments.online("player")
@@ -303,7 +307,11 @@ public final class PlayerUtilityCommands {
     ) {
         ServerPlayer target = explicit == null ? source.getPlayer() : explicit;
         if (target == null) {
-            return fail(source, "An explicit online target is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:utility.speed",
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online target is required.");
         }
         if (other && !eligible(source, target)) {
             return unavailable(source);
@@ -334,7 +342,11 @@ public final class PlayerUtilityCommands {
     private static int expStatus(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "An explicit online target is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:utility.exp",
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online target is required.");
         }
         return execute(source, "sef:utility.exp", Map.of("operation", "status"),
                 List.of(player.getUUID()), () -> {
@@ -352,7 +364,13 @@ public final class PlayerUtilityCommands {
             boolean other
     ) {
         if (target == null || other && !eligible(source, target)) {
-            return unavailable(source);
+            return target == null
+                    ? KernelCommandExecutor.reject(
+                            source,
+                            "sef:utility.ptime",
+                            com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                            "An explicit online target is required.")
+                    : unavailable(source);
         }
         String permission = "commands.exp" + (other ? ".others" : "");
         return execute(source, "sef:utility.exp", Map.of(
@@ -382,7 +400,13 @@ public final class PlayerUtilityCommands {
             boolean other
     ) {
         if (target == null || other && !eligible(source, target)) {
-            return unavailable(source);
+            return target == null
+                    ? KernelCommandExecutor.reject(
+                            source,
+                            "sef:utility.pweather",
+                            com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                            "An explicit online target is required.")
+                    : unavailable(source);
         }
         String permission = "commands.ptime" + (other ? ".others" : "");
         return execute(source, "sef:utility.ptime",
@@ -448,7 +472,11 @@ public final class PlayerUtilityCommands {
 
     private static int getPos(CommandSourceStack source, ServerPlayer target) {
         if (target == null) {
-            return unavailable(source);
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:utility.getpos",
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online target is required.");
         }
         boolean other = source.getPlayer() != target;
         if (other && !eligible(source, target)) {

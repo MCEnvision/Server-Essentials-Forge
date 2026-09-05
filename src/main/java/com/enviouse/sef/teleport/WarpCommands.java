@@ -536,7 +536,10 @@ public final class WarpCommands {
                         source,
                         PermissionsHandler.playerWarpCommand,
                         "sef:teleport.player_warp.use"))
-                .executes(context -> listPlayerWarps(context.getSource(), null));
+        .executes(context -> listPlayerWarps(
+                context.getSource(),
+                null,
+                "sef:teleport.player_warp.use"));
         if (management) {
             node.then(Commands.literal("info")
                     .requires(source -> TeleportCommandSupport.has(
@@ -621,11 +624,15 @@ public final class WarpCommands {
                         source,
                         PermissionsHandler.playerWarpsCommand,
                         "sef:teleport.player_warp.list"))
-                .executes(context -> listPlayerWarps(context.getSource(), null))
+                .executes(context -> listPlayerWarps(
+                        context.getSource(),
+                        null,
+                        "sef:teleport.player_warp.list"))
                 .then(IdentityArguments.online("player")
                         .executes(context -> listPlayerWarps(
                                 context.getSource(),
-                                IdentityArguments.getOnline(context, "player"))));
+                                IdentityArguments.getOnline(context, "player"),
+                                "sef:teleport.player_warp.list")));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> publicationNode() {
@@ -785,7 +792,7 @@ public final class WarpCommands {
     }
 
     private static int visitPlayerWarp(CommandSourceStack source, String reference) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.player_warp.use");
         if (player == null) {
             return 0;
         }
@@ -819,8 +826,8 @@ public final class WarpCommands {
         return moved;
     }
 
-    private static int listPlayerWarps(CommandSourceStack source, ServerPlayer owner) {
-        ServerPlayer viewer = TeleportCommandSupport.player(source);
+    private static int listPlayerWarps(CommandSourceStack source, ServerPlayer owner, String actionId) {
+        ServerPlayer viewer = TeleportCommandSupport.player(source, actionId);
         if (viewer == null) {
             return 0;
         }
@@ -843,7 +850,7 @@ public final class WarpCommands {
     }
 
     private static int createPlayerWarp(CommandSourceStack source, String name, HomeRecord sourceHome) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.player_warp.use");
         if (player == null) {
             return 0;
         }
@@ -1192,7 +1199,7 @@ public final class WarpCommands {
     }
 
     private static int listTransfers(CommandSourceStack source) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.player_warp.use");
         if (player == null) {
             return 0;
         }
@@ -1446,19 +1453,26 @@ public final class WarpCommands {
     }
 
     private static int listReports(CommandSourceStack source) {
-        List<TeleportRepository.WarpReport> reports =
-                KernelServices.teleports().reports(TeleportRepository.ReportStatus.OPEN);
-        if (reports.isEmpty()) {
-            TeleportCommandSupport.info(source, "There are no open player warp reports.");
-            return 0;
-        }
-        reports.forEach(report -> TeleportCommandSupport.info(
+        return KernelCommandExecutor.execute(
                 source,
-                report.id() + ", warp " + report.warpId()
-                        + ", revision " + report.warpRevision()
-                        + ", reporter " + report.reporterId()
-                        + ", " + report.reason()));
-        return reports.size();
+                "sef:teleport.player_warp.use",
+                java.util.Map.of("operation", "moderate_reports"),
+                () -> {
+                    List<TeleportRepository.WarpReport> reports =
+                            KernelServices.teleports().reports(TeleportRepository.ReportStatus.OPEN);
+                    if (reports.isEmpty()) {
+                        TeleportCommandSupport.info(source, "There are no open player warp reports.");
+                        return 0;
+                    }
+                    reports.forEach(report -> TeleportCommandSupport.info(
+                            source,
+                            report.id() + ", warp " + report.warpId()
+                                    + ", revision " + report.warpRevision()
+                                    + ", reporter " + report.reporterId()
+                                    + ", " + report.reason()));
+                    return reports.size();
+                },
+                PermissionsHandler.playerWarpModerate);
     }
 
     private static int setReportStatus(

@@ -56,6 +56,19 @@ final class TeleportCommandSupport {
         }
     }
 
+    static ServerPlayer player(CommandSourceStack source, String actionId) {
+        try {
+            return source.getPlayerOrException();
+        } catch (Exception exception) {
+            KernelCommandExecutor.reject(
+                    source,
+                    actionId,
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command can only be used by a player.");
+            return null;
+        }
+    }
+
     static boolean actionEnabled(CommandSourceStack source, String actionId) {
         return KernelServices.catalog().find(actionId)
                 .map(definition -> {

@@ -79,8 +79,11 @@ public final class MailCommands {
     private static int send(CommandSourceStack source, String identity, String body) {
         ServerPlayer sender = source.getPlayer();
         if (sender == null) {
-            fail(source, "Only players can send mail.");
-            return 0;
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:social.mail",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "Only players can send mail.");
         }
         if (body.isBlank()
                 || body.length() > ConfigHandler.config.mailMaximumLength.get()
@@ -138,7 +141,13 @@ public final class MailCommands {
 
     private static int list(CommandSourceStack source, int page) {
         ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
+        if (player == null) {
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:social.mail",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "Only players can view mail.");
+        }
         return KernelCommandExecutor.execute(source, "sef:social.mail", Map.of(
                 "operation", "list",
                 "page", Integer.toString(page)), () -> {
@@ -167,7 +176,13 @@ public final class MailCommands {
 
     private static int readAll(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
+        if (player == null) {
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:social.mail",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "Only players can read mail.");
+        }
         return KernelCommandExecutor.execute(source, "sef:social.mail", Map.of("operation", "read"), () -> {
             int count = 0;
             for (SocialRepository.MailRecord record : KernelServices.social().mail(player.getUUID(), false)) {
@@ -184,7 +199,13 @@ public final class MailCommands {
 
     private static int mutate(CommandSourceStack source, String id, SocialRepository.MailMutation mutation) {
         ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
+        if (player == null) {
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:social.mail",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "Only players can modify mail.");
+        }
         UUID mailId;
         try {
             mailId = UUID.fromString(id);
@@ -208,7 +229,13 @@ public final class MailCommands {
 
     private static int clear(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
-        if (player == null) return 0;
+        if (player == null) {
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:social.mail",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "Only players can clear mail.");
+        }
         return KernelCommandExecutor.execute(source, "sef:social.mail", Map.of("operation", "clear"), () -> {
             int removed = KernelServices.social().clearMail(player.getUUID());
             success(source, "Cleared " + removed + " mail messages.");

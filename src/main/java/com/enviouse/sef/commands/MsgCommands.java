@@ -69,6 +69,13 @@ public class MsgCommands {
         dispatcher.register(Commands.literal("msg")
             .requires(MsgCommands::canUse)
             .executes(ctx -> {
+                if (ctx.getSource().getPlayer() == null) {
+                    return KernelCommandExecutor.reject(
+                            ctx.getSource(),
+                            "sef:social.message",
+                            ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                            "This command can only be used by a player.");
+                }
                 if (GuiWorkflowService.openBare(ctx.getSource(), "sef:social.message")) {
                     return 1;
                 }

@@ -273,7 +273,11 @@ public final class EconomyCommands {
     private static int balanceSelf(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "An explicit player is required from this command source.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:economy.balance",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit player is required from this command source.");
         }
         return balance(source, player.getUUID(), player.getUUID(), "sef:economy.balance", false);
     }

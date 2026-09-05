@@ -201,7 +201,7 @@ public final class SocialCommands {
     }
 
     private static int toggleMessages(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.message.toggle");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.message.toggle", Map.of(), () -> {
             SocialRepository.SocialPreferences current = KernelServices.social().preferences(player.getUUID());
@@ -212,7 +212,7 @@ public final class SocialCommands {
     }
 
     private static int toggleReplies(CommandSourceStack source) {
-        ServerPlayer player = player(source);
+        ServerPlayer player = player(source, "sef:social.reply.toggle");
         if (player == null) return 0;
         return KernelCommandExecutor.execute(source, "sef:social.reply.toggle", Map.of(), () -> {
             SocialRepository.SocialPreferences current = KernelServices.social().preferences(player.getUUID());
@@ -503,6 +503,18 @@ public final class SocialCommands {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
             fail(source, "This command can only be used by a player.");
+        }
+        return player;
+    }
+
+    private static ServerPlayer player(CommandSourceStack source, String actionId) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            KernelCommandExecutor.reject(
+                    source,
+                    actionId,
+                    com.enviouse.sef.kernel.ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command can only be used by a player.");
         }
         return player;
     }

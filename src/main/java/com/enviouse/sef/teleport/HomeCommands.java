@@ -47,7 +47,7 @@ public final class HomeCommands {
                         "sef:teleport.home.set"))
                 .executes(context -> setHome(
                         context.getSource(),
-                        TeleportCommandSupport.player(context.getSource()),
+                        TeleportCommandSupport.player(context.getSource(), "sef:teleport.home.set"),
                         KernelServices.teleportSettings().defaultHomeName(),
                         false,
                         "sef:teleport.home.set",
@@ -55,7 +55,7 @@ public final class HomeCommands {
                 .then(Commands.argument("name", StringArgumentType.word())
                         .executes(context -> setHome(
                                 context.getSource(),
-                                TeleportCommandSupport.player(context.getSource()),
+                                TeleportCommandSupport.player(context.getSource(), "sef:teleport.home.set"),
                                 StringArgumentType.getString(context, "name"),
                                 false,
                                 "sef:teleport.home.set",
@@ -63,7 +63,7 @@ public final class HomeCommands {
                         .then(Commands.literal("confirm")
                                 .executes(context -> setHome(
                                         context.getSource(),
-                                        TeleportCommandSupport.player(context.getSource()),
+                                        TeleportCommandSupport.player(context.getSource(), "sef:teleport.home.set"),
                                         StringArgumentType.getString(context, "name"),
                                         true,
                                         "sef:teleport.home.set",
@@ -96,7 +96,9 @@ public final class HomeCommands {
                         "sef:teleport.home.list"))
                 .executes(context -> listHomes(
                         context.getSource(),
-                        TeleportCommandSupport.player(context.getSource())))
+                        TeleportCommandSupport.player(
+                                context.getSource(),
+                                "sef:teleport.home.list")))
                 .then(IdentityArguments.online("player")
                         .requires(source -> TeleportCommandSupport.has(source, PermissionsHandler.homesOthersCommand))
                         .executes(context -> {
@@ -352,7 +354,7 @@ public final class HomeCommands {
     }
 
     private static int home(CommandSourceStack source, String name) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.home.use");
         if (player == null) {
             return 0;
         }

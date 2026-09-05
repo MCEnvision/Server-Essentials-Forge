@@ -96,6 +96,52 @@ public final class KernelCommandExecutor {
                 additionalPermissions);
     }
 
+    public static int reject(
+            CommandSourceStack source,
+            String actionId,
+            ActionResult.ReasonCode reason,
+            String detail
+    ) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(reason, "reason");
+        Objects.requireNonNull(detail, "detail");
+        if (!DelegatedPermissionScope.actionAllowed(actionId)) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cThe delegated execution grant does not cover this action."));
+            return 0;
+        }
+        CommandDefinition definition = definition(actionId);
+        if (!AuditService.accepting(definition.auditClass())) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMandatory command audit is unavailable. This action is blocked."));
+            return 0;
+        }
+        CommandDefinition.SourceType sourceType = sourceType(source);
+        KernelServices.commandJournal().attachOrBegin(source, actionId);
+        boolean recorded = AuditService.record(AuditService.Event.metadata(
+                SecurityAuditService.currentSessionId(),
+                actorId(source, sourceType),
+                Objects.requireNonNullElse(source.getTextName(), ""),
+                sourceType.name(),
+                definition.id(),
+                List.of(),
+                AuditService.Result.REJECTED,
+                reason,
+                "command",
+                definition.auditClass()));
+        KernelServices.commandJournal().finishCurrent(
+                ObservationContracts.LifecycleStage.REJECTED,
+                0,
+                reason.name().toLowerCase(Locale.ROOT));
+        if (!recorded) {
+            source.sendFailure(TextFormatter.stringToFormattedText(
+                    "&cMandatory command audit is unavailable. This action is blocked."));
+            return 0;
+        }
+        source.sendFailure(TextFormatter.stringToFormattedText("&c" + detail));
+        return 0;
+    }
+
     @SafeVarargs
     public static int execute(
             CommandSourceStack source,

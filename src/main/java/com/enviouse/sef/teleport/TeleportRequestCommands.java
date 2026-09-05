@@ -122,7 +122,9 @@ public final class TeleportRequestCommands {
                         PermissionsHandler.tpToggleCommand,
                         "sef:teleport.request.toggle"))
                 .executes(context -> {
-                    ServerPlayer player = TeleportCommandSupport.player(context.getSource());
+                    ServerPlayer player = TeleportCommandSupport.player(
+                            context.getSource(),
+                            "sef:teleport.request.toggle");
                     if (player == null) {
                         return 0;
                     }
@@ -189,7 +191,9 @@ public final class TeleportRequestCommands {
                         PermissionsHandler.tpBlockCommand,
                         "sef:teleport.request.block"))
                 .executes(context -> {
-                    ServerPlayer player = TeleportCommandSupport.player(context.getSource());
+                    ServerPlayer player = TeleportCommandSupport.player(
+                            context.getSource(),
+                            "sef:teleport.request.block");
                     if (player == null) {
                         return 0;
                     }
@@ -212,7 +216,9 @@ public final class TeleportRequestCommands {
                         PermissionsHandler.tpAutoAcceptCommand,
                         "sef:teleport.request.auto"))
                 .executes(context -> {
-                    ServerPlayer player = TeleportCommandSupport.player(context.getSource());
+                    ServerPlayer player = TeleportCommandSupport.player(
+                            context.getSource(),
+                            "sef:teleport.request.auto");
                     if (player == null) {
                         return 0;
                     }
@@ -285,7 +291,7 @@ public final class TeleportRequestCommands {
             String actionId,
             net.neoforged.neoforge.server.permission.nodes.PermissionNode<Boolean> permission
     ) {
-        ServerPlayer sender = TeleportCommandSupport.player(source);
+        ServerPlayer sender = TeleportCommandSupport.player(source, actionId);
         if (sender == null) {
             return 0;
         }
@@ -359,7 +365,7 @@ public final class TeleportRequestCommands {
     }
 
     private static int accept(CommandSourceStack source, UUID senderId) {
-        ServerPlayer target = TeleportCommandSupport.player(source);
+        ServerPlayer target = TeleportCommandSupport.player(source, "sef:teleport.request.accept");
         if (target == null) {
             return 0;
         }
@@ -466,7 +472,7 @@ public final class TeleportRequestCommands {
     }
 
     private static int deny(CommandSourceStack source, UUID senderId) {
-        ServerPlayer target = TeleportCommandSupport.player(source);
+        ServerPlayer target = TeleportCommandSupport.player(source, "sef:teleport.request.deny");
         if (target == null) {
             return 0;
         }
@@ -493,7 +499,7 @@ public final class TeleportRequestCommands {
     }
 
     private static int cancel(CommandSourceStack source, UUID targetId) {
-        ServerPlayer sender = TeleportCommandSupport.player(source);
+        ServerPlayer sender = TeleportCommandSupport.player(source, "sef:teleport.request.cancel");
         if (sender == null) {
             return 0;
         }
@@ -523,7 +529,7 @@ public final class TeleportRequestCommands {
     }
 
     private static int list(CommandSourceStack source) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.request.list");
         if (player == null) {
             return 0;
         }

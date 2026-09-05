@@ -212,7 +212,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int back(CommandSourceStack source, boolean deathOnly) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.back");
         if (player == null) {
             return 0;
         }
@@ -255,7 +255,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int spawn(CommandSourceStack source) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.spawn");
         if (player == null) {
             return 0;
         }
@@ -354,7 +354,7 @@ public final class CoreTeleportCommands {
     }
 
     private static int randomTeleport(CommandSourceStack source) {
-        ServerPlayer player = TeleportCommandSupport.player(source);
+        ServerPlayer player = TeleportCommandSupport.player(source, "sef:teleport.random");
         if (player == null) {
             return 0;
         }
