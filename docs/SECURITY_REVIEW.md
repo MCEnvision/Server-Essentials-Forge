@@ -50,6 +50,8 @@ A prior merge-revision matrix run `33738411285` tested a historical synthetic me
 
 ## Authority and backdoor review
 
+The exact current head `a4d1ef0` was rebuilt after the documentation evidence commit. It produced the same 3,419,409 byte `sef-2.0.0.jar` artifact with SHA-256 `1ae4c4c14aa4e60ff1fb97ad59ed22da548a6254f04db2fb51aecb38be507533` and SHA-512 `b5d530618a987cdd67b58a167b0189e889b70dd9d2adcf3b0e181bb13ac84d5e07516db8089e3f7715acd48ad0f00c90624e1ec07d0e2aea68b83320a09954d7`. The final disposable build passed and was cleaned up.
+
 The rebuilt candidate at source commit `6789484` passes the complete Gradle build. The packaged `sef-2.0.0.jar` is 3,419,409 bytes with SHA-256 `1ae4c4c14aa4e60ff1fb97ad59ed22da548a6254f04db2fb51aecb38be507533` and SHA-512 `b5d530618a987cdd67b58a167b0189e889b70dd9d2adcf3b0e181bb13ac84d5e07516db8089e3f7715acd48ad0f00c90624e1ec07d0e2aea68b83320a09954d7`. The disposable build worktree and output were removed after hashing. This artifact supersedes the prior pre route fix hash for subsequent evidence joins.
 
 The latest live dispatcher audit at source commit `35ad0be9b7d0b6055202b449ad4907fd8fbec9f7` found and repaired two catalog boundary mismatches. The inventory clear action now uses the registered `clearinventory` canonical route, and the recipe action no longer advertises console execution because its implementation requires an executing player and held item. The focused catalog regression passes, and the disposable server rerun passes all 47 required GameTests with 511 enabled argument free console routes and no route exceptions. This closes the discovered catalog route and source policy defects but does not establish complete per action effect, persistence, client fixture, or dependency advisory closure.
