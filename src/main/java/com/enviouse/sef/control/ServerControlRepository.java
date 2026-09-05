@@ -2,6 +2,7 @@ package com.enviouse.sef.control;
 
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.storage.InstantJsonAdapter;
 import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.storage.repository.StorageRepository;
@@ -1047,6 +1048,9 @@ public final class ServerControlRepository implements StorageRepository {
             AuditService.Result result,
             ActionResult.ReasonCode reason
     ) {
+        if (CommandAuditScope.active()) {
+            return;
+        }
         AuditService.record(AuditService.Event.metadata(
                 UUID.randomUUID(),
                 actorId,

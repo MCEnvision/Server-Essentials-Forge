@@ -296,7 +296,7 @@ public final class KernelCommandExecutor {
 
         try (CommandExecutionService.Lease lease = started.value()) {
             int result;
-            try {
+            try (CommandAuditScope ignored = CommandAuditScope.open(definition.id())) {
                 result = action.getAsInt();
             } catch (RuntimeException exception) {
                 lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
