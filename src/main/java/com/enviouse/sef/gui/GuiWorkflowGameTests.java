@@ -477,7 +477,8 @@ public final class GuiWorkflowGameTests {
                         .filter(candidate -> {
                             var auditedDefinition = KernelServices.catalog().find(candidate.actionId()).orElse(null);
                             return auditedDefinition != null
-                                    && routeOwnedByDefinition(auditedDefinition, command);
+                                    && routeOwnedByDefinition(auditedDefinition, command)
+                                    && auditEventMatchesCommand(candidate, command);
                         })
                         .toList();
                 if (routeEvents.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
@@ -658,6 +659,25 @@ public final class GuiWorkflowGameTests {
         String route = canonicalRoute.toLowerCase(java.util.Locale.ROOT).strip();
         String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
         return normalizedCommand.equals(route) || normalizedCommand.startsWith(route + " ");
+    }
+
+    private static boolean auditEventMatchesCommand(
+            SecurityAuditService.AuditEvent event,
+            String command
+    ) {
+        String route = event.normalizedParameters().get("route");
+        if (route == null || route.isBlank()) {
+            return true;
+        }
+        String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
+        String normalizedRoute = route.toLowerCase(java.util.Locale.ROOT).strip();
+        if (normalizedCommand.contains(normalizedRoute)) {
+            return true;
+        }
+        String confirmationAlias = normalizedRoute.endsWith(" all")
+                ? normalizedRoute.substring(0, normalizedRoute.length() - 4) + " confirm"
+                : "";
+        return !confirmationAlias.isBlank() && normalizedCommand.contains(confirmationAlias);
     }
 
     private static boolean isCanonicalVariant(
