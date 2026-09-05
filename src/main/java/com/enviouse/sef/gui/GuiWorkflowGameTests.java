@@ -190,8 +190,7 @@ public final class GuiWorkflowGameTests {
         var dispatcher = server.getCommands().getDispatcher();
         var source = server.createCommandSourceStack();
         List<String> failures = new ArrayList<>();
-        Set<String> executed = new LinkedHashSet<>();
-        Map<String, Integer> results = new LinkedHashMap<>();
+        Map<String, List<CommandDefinition>> candidates = new LinkedHashMap<>();
 
         for (var definition : KernelServices.catalog().entries()) {
             if (!definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
@@ -215,15 +214,71 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 String command = render(variant);
-                if (command.isBlank() || !executed.add(command)) {
+                if (command.isBlank()) {
                     continue;
                 }
-                try {
-                    int result = dispatcher.execute(command, source);
-                    results.merge(result > 0 ? "positive" : "non_positive", 1, Integer::sum);
-                } catch (Exception exception) {
-                    failures.add(definition.id() + ", " + command + ", "
-                            + exception.getClass().getSimpleName());
+                candidates.computeIfAbsent(command, ignored -> new ArrayList<>()).add(definition);
+            }
+        }
+
+        Map<String, Integer> results = new LinkedHashMap<>();
+        for (Map.Entry<String, List<CommandDefinition>> candidate : candidates.entrySet()) {
+            String command = candidate.getKey();
+            Set<String> actionIds = candidate.getValue().stream()
+                    .map(CommandDefinition::id)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+            Set<String> before = SecurityAuditService.recent(
+                            event -> actionIds.contains(event.actionId()),
+                            128)
+                    .stream()
+                    .map(SecurityAuditService.AuditEvent::eventId)
+                    .collect(java.util.stream.Collectors.toSet());
+            int result;
+            try {
+                result = dispatcher.execute(command, source);
+                results.merge(result > 0 ? "positive" : "non_positive", 1, Integer::sum);
+            } catch (Exception exception) {
+                failures.add(String.join(", ", candidate.getValue().stream()
+                        .map(CommandDefinition::id)
+                        .toList()) + ", " + command + ", "
+                        + exception.getClass().getSimpleName());
+                continue;
+            }
+
+            Set<String> noAuditExpected = positiveRouteNeedsNoAudit(command)
+                    ? actionIds
+                    : Set.of();
+            List<SecurityAuditService.AuditEvent> newEvents = SecurityAuditService.recent(
+                            event -> actionIds.contains(event.actionId()) && !before.contains(event.eventId()),
+                            128);
+            for (CommandDefinition definition : candidate.getValue()) {
+                if (definition.auditClass() == AuditService.AuditClass.NONE
+                        || noAuditExpected.contains(definition.id())) {
+                    continue;
+                }
+                var event = newEvents.stream()
+                        .filter(candidateEvent -> candidateEvent.actionId().equals(definition.id())
+                                && routeMatchesCommand(definition.canonicalRoute(), command))
+                        .findFirst()
+                        .orElse(null);
+                if (event == null) {
+                    failures.add(definition.id() + ", " + command + ", missing audit event");
+                    continue;
+                }
+                boolean resultProjectionMatches = result > 0
+                        ? "success".equals(event.result())
+                        : !"success".equals(event.result());
+                if (!"console".equals(event.sourceType())
+                        || event.actorUuid().isBlank()
+                        || event.actorUsername().isBlank()
+                        || event.serverSessionId().isBlank()
+                        || event.eventId().isBlank()
+                        || !resultProjectionMatches
+                        || !definition.auditClass().name().toLowerCase(java.util.Locale.ROOT)
+                                .equals(event.auditClass())
+                        || event.normalizedParameters().values().stream()
+                                .anyMatch(value -> value.contains(command))) {
+                    failures.add(definition.id() + ", " + command + ", unsafe audit projection");
                 }
             }
         }
@@ -234,10 +289,10 @@ public final class GuiWorkflowGameTests {
                 failures.isEmpty(),
                 "argument free console route execution failed, "
                         + String.join("; ", failures.stream().limit(8).toList()));
-        helper.assertTrue(!executed.isEmpty(), "no enabled argument free console routes were executed");
+        helper.assertTrue(!candidates.isEmpty(), "no enabled argument free console routes were discovered");
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Argument free console routes executed {}, result classes {}",
-                executed.size(),
+                candidates.size(),
                 results);
         helper.succeed();
     }
