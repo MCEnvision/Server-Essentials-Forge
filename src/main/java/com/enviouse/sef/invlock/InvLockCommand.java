@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
@@ -31,6 +32,10 @@ public class InvLockCommand {
     }
 
     private static int executeInvLock(CommandSourceStack source, ServerPlayer target) {
+        if (!LegacyTargetPolicy.mayTarget(source, target, "exempt.invlock", true)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         String adminName;
         try {
             adminName = source.getPlayerOrException().getGameProfile().getName();

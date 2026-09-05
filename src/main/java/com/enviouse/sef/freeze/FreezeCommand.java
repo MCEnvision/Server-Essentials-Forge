@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -50,6 +51,10 @@ public class FreezeCommand {
     }
 
     private static int executeFreeze(CommandSourceStack source, ServerPlayer target, String durationStr, String reason) {
+        if (!mayTarget(source, target, true)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         String adminName;
         try {
             adminName = source.getPlayerOrException().getGameProfile().getName();
@@ -76,6 +81,10 @@ public class FreezeCommand {
     }
 
     private static int executeUnfreeze(CommandSourceStack source, ServerPlayer target) {
+        if (!mayTarget(source, target, true)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         String adminName;
         try {
             adminName = source.getPlayerOrException().getGameProfile().getName();
@@ -91,5 +100,9 @@ public class FreezeCommand {
 
         FreezeManager.unfreezePlayer(target.getUUID(), adminName, source.getServer());
         return 1;
+    }
+
+    private static boolean mayTarget(CommandSourceStack source, ServerPlayer target, boolean rejectSelf) {
+        return LegacyTargetPolicy.mayTarget(source, target, "exempt.freeze", rejectSelf);
     }
 }

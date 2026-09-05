@@ -6,6 +6,7 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -98,6 +99,10 @@ public class WarnCommand {
     }
 
     private static int executeAdd(CommandSourceStack source, ServerPlayer target, String durationStr, String reason) {
+        if (!mayTarget(source, target, true)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         WarnManager manager = CommandRegistrationHandler.getWarnManager();
         if (manager == null) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
@@ -156,6 +161,10 @@ public class WarnCommand {
     }
 
     private static int executeCheck(CommandSourceStack source, ServerPlayer target) {
+        if (!mayTarget(source, target, false)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         WarnManager manager = CommandRegistrationHandler.getWarnManager();
         if (manager == null) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
@@ -197,6 +206,10 @@ public class WarnCommand {
     }
 
     private static int executeRemove(CommandSourceStack source, ServerPlayer target, int warnId) {
+        if (!mayTarget(source, target, true)) {
+            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+            return 0;
+        }
         WarnManager manager = CommandRegistrationHandler.getWarnManager();
         if (manager == null) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
@@ -224,5 +237,9 @@ public class WarnCommand {
 
         ServerEssentialsForge.LOGGER.info("[WARN] Warning #{} removed for {}", warnId, target.getGameProfile().getName());
         return 1;
+    }
+
+    private static boolean mayTarget(CommandSourceStack source, ServerPlayer target, boolean rejectSelf) {
+        return LegacyTargetPolicy.mayTarget(source, target, "exempt.warn", rejectSelf);
     }
 }
