@@ -134,6 +134,29 @@ public final class ServerControlGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void sleepVoteAppliesValidatedPercentage(GameTestHelper helper) {
+        int previous = helper.getLevel().getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE);
+        try {
+            ActionResult<ServerControlExecutionService.Execution> result = execute(
+                    helper,
+                    "sleep_vote",
+                    Map.of(
+                            "field.required_percent", "75",
+                            "field.acceleration_seconds", "1",
+                            "field.ignore_afk", "true",
+                            "field.clear_weather", "false"));
+
+            helper.assertTrue(result.successful(), result.detail());
+            helper.assertTrue(
+                    helper.getLevel().getGameRules().getInt(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE) == 75,
+                    "sleep vote threshold did not change the gamerule");
+        } finally {
+            helper.getLevel().getGameRules().getRule(GameRules.RULE_PLAYERS_SLEEPING_PERCENTAGE).set(previous, null);
+        }
+        helper.succeed();
+    }
+
+    @GameTest(template = "empty")
     public static void worldPolicyRejectsTheWholeBatchBeforeMutation(GameTestHelper helper) {
         boolean previous = helper.getLevel().getGameRules().getBoolean(GameRules.RULE_DAYLIGHT);
         ActionResult<ServerControlExecutionService.Execution> result = execute(

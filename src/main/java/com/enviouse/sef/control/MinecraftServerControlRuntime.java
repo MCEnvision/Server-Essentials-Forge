@@ -1284,10 +1284,34 @@ public final class MinecraftServerControlRuntime {
         if (server == null) {
             return ActionResult.failure(ActionResult.ReasonCode.SOURCE_NOT_ALLOWED, "server source is unavailable");
         }
-        int percentage = (int) number(record, "required_percent", 100L);
-        server.getCommands().performPrefixedCommand(
-                server.createCommandSourceStack().withSuppressedOutput(),
-                "gamerule playersSleepingPercentage " + percentage);
+        long configuredPercentage = number(record, "required_percent", 100L);
+        if (configuredPercentage < 1L || configuredPercentage > 100L) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.INVALID_INPUT,
+                    "sleep vote threshold must be between 1 and 100 percent");
+        }
+        int percentage = (int) configuredPercentage;
+        String command = "gamerule playersSleepingPercentage " + percentage;
+        var source = server.createCommandSourceStack().withSuppressedOutput();
+        var parsed = server.getCommands().getDispatcher().parse(command, source);
+        if (parsed.getReader().canRead()
+                || parsed.getContext().getCommand() == null
+                || !parsed.getExceptions().isEmpty()) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.INVALID_INPUT,
+                    "sleep vote threshold command is unavailable");
+        }
+        try {
+            if (server.getCommands().getDispatcher().execute(parsed) <= 0) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.PROVIDER_ERROR,
+                        "sleep vote threshold could not be applied");
+            }
+        } catch (Exception exception) {
+            return ActionResult.failure(
+                    ActionResult.ReasonCode.PROVIDER_ERROR,
+                    "sleep vote threshold could not be applied");
+        }
         return ActionResult.success("sleep vote threshold set to " + percentage + " percent");
     }
 
@@ -1318,6 +1342,7 @@ public final class MinecraftServerControlRuntime {
             commands.add("gamerule " + pair[0].strip() + " " + pair[1].strip());
         }
         var source = server.createCommandSourceStack().withLevel(level).withSuppressedOutput();
+        List<com.mojang.brigadier.ParseResults<CommandSourceStack>> parsedCommands = new ArrayList<>();
         for (String command : commands) {
             var parsed = server.getCommands().getDispatcher().parse(command, source);
             if (parsed.getReader().canRead()
@@ -1327,9 +1352,20 @@ public final class MinecraftServerControlRuntime {
                         ActionResult.ReasonCode.INVALID_INPUT,
                         "gamerule definition is unavailable");
             }
+            parsedCommands.add(parsed);
         }
-        for (String command : commands) {
-            server.getCommands().performPrefixedCommand(source, command);
+        for (var parsed : parsedCommands) {
+            try {
+                if (server.getCommands().getDispatcher().execute(parsed) <= 0) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.PROVIDER_ERROR,
+                            "gamerule definition could not be applied");
+                }
+            } catch (Exception exception) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.PROVIDER_ERROR,
+                        "gamerule definition could not be applied");
+            }
         }
         return ActionResult.success("world policy applied " + commands.size() + " gamerules");
     }
