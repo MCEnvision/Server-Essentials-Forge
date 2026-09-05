@@ -303,11 +303,13 @@ public final class KernelCommandExecutor {
             try (CommandAuditScope ignored = CommandAuditScope.open(definition.id(), commandEventId)) {
                 result = action.getAsInt();
             } catch (RuntimeException exception) {
-                lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
+                ActionResult<Void> completed = lease.complete(false, ActionResult.ReasonCode.PROVIDER_ERROR);
                 KernelServices.commandJournal().finishCurrent(
                         ObservationContracts.LifecycleStage.FAILED,
                         null,
-                        exception.getClass().getSimpleName());
+                        completed.successful()
+                                ? exception.getClass().getSimpleName()
+                                : completed.reason().name().toLowerCase(Locale.ROOT));
                 com.enviouse.sef.ServerEssentialsForge.LOGGER.error(
                         "[SEF] Kernel action {} failed",
                         definition.id(),

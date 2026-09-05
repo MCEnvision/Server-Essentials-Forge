@@ -890,6 +890,62 @@ class KernelCommandExecutorCatalogTest {
     }
 
     @Test
+    void callbackExceptionPreservesMandatoryAuditFailureInJournal() throws Exception {
+        KernelServices.initialize();
+        KernelServices.commandJournal().clearRuntime();
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000016");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+        CommandDefinition definition = KernelServices.catalog().find("sef:core.test").orElseThrow();
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<AuditService> audit = mockStatic(AuditService.class);
+                MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            audit.when(() -> AuditService.accepting(definition.auditClass())).thenReturn(true);
+            audit.when(() -> AuditService.record(
+                    org.mockito.ArgumentMatchers.any(AuditService.Event.class))).thenReturn(false);
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            definition.id(),
+                            Map.of("mode", "safe"),
+                            () -> {
+                                throw new IllegalStateException("secret callback detail");
+                            }));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        var record = KernelServices.commandJournal().recent(16, true).stream()
+                .filter(candidate -> candidate.actionId().equals(definition.id()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("storage_error", record.detail());
+    }
+
+    @Test
     void invalidConfiguredCostAuditsRejectedCommandWithoutLeakingCostDetail() throws Exception {
         KernelServices.initialize();
         String previousCosts = ConfigHandler.config.economyCommandCosts.get();
