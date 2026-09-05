@@ -9,6 +9,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -323,8 +324,12 @@ public final class AdminPanelCommands {
         execution.control().fixedArguments().entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> command.append(' ').append(entry.getValue()));
-        source.getServer().getCommands().performPrefixedCommand(source, command.toString());
-        return 1;
+        try {
+            return source.getServer().getCommands().getDispatcher().execute(command.toString(), source);
+        } catch (CommandSyntaxException exception) {
+            source.sendFailure(Component.literal("That panel control could not be completed safely."));
+            return 0;
+        }
     }
 
     private static int create(CommandSourceStack source, String panelId, String title) {
