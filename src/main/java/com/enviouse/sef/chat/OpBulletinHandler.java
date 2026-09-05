@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.storage.StorageService;
 import com.enviouse.sef.storage.StorageLifecycle;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Op-bulletin system: stores messages that are shown to operators on login.
@@ -160,37 +162,49 @@ public class OpBulletinHandler {
                     })))
             .then(Commands.literal("list")
                 .executes(ctx -> {
-                    if (bulletins.isEmpty()) {
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&7No bulletins configured"), false);
-                        return 1;
-                    }
-                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━ Op Bulletins ━━━━━━━━"), false);
-                    for (int i = 0; i < bulletins.size(); i++) {
-                        final int idx = i + 1;
-                        final String b = bulletins.get(i);
-                        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&e" + idx + ". &7" + b), false);
-                    }
-                    return 1;
+                    return KernelCommandExecutor.execute(
+                            ctx.getSource(),
+                            "sef:announcement.bulletin",
+                            Map.of("operation", "list"),
+                            () -> {
+                                if (bulletins.isEmpty()) {
+                                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&7No bulletins configured"), false);
+                                    return 1;
+                                }
+                                ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&6━━━━━━━━ Op Bulletins ━━━━━━━━"), false);
+                                for (int i = 0; i < bulletins.size(); i++) {
+                                    final int idx = i + 1;
+                                    final String b = bulletins.get(i);
+                                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&e" + idx + ". &7" + b), false);
+                                }
+                                return 1;
+                            });
                 }))
             .then(Commands.literal("clear")
                 .executes(ctx -> {
-                    try {
-                        writable();
-                    } catch (IllegalStateException exception) {
-                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                                "&c" + exception.getMessage()));
-                        return 0;
-                    }
-                    List<String> previous = List.copyOf(bulletins);
-                    bulletins.clear();
-                    if (!save()) {
-                        bulletins.addAll(previous);
-                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                                "&cThe bulletin clear could not be persisted."));
-                        return 0;
-                    }
-                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aAll bulletins cleared"), false);
-                    return 1;
+                    return KernelCommandExecutor.execute(
+                            ctx.getSource(),
+                            "sef:announcement.bulletin",
+                            Map.of("operation", "clear"),
+                            () -> {
+                                try {
+                                    writable();
+                                } catch (IllegalStateException exception) {
+                                    ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                            "&c" + exception.getMessage()));
+                                    return 0;
+                                }
+                                List<String> previous = List.copyOf(bulletins);
+                                bulletins.clear();
+                                if (!save()) {
+                                    bulletins.addAll(previous);
+                                    ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                                            "&cThe bulletin clear could not be persisted."));
+                                    return 0;
+                                }
+                                ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aAll bulletins cleared"), false);
+                                return 1;
+                            });
                 })));
     }
 

@@ -325,13 +325,15 @@ public final class ApprovalCommands {
     }
 
     private static int list(CommandSourceStack source, int requestedPage) {
-        List<ApprovalRepository.ApprovalRequest> values =
-                KernelServices.approvals().requests(null, null);
-        return page(source, "approval requests", values, requestedPage, request ->
-                "&e" + request.id()
-                        + " &8| &f" + request.actionId()
-                        + " &8| &7" + request.state().name().toLowerCase(Locale.ROOT)
-                        + " &8| &7r" + request.revision());
+        return execute(source, "sef:approval.list", Map.of("page", Integer.toString(requestedPage)), List.of(), () -> {
+            List<ApprovalRepository.ApprovalRequest> values =
+                    KernelServices.approvals().requests(null, null);
+            return page(source, "approval requests", values, requestedPage, request ->
+                    "&e" + request.id()
+                            + " &8| &f" + request.actionId()
+                            + " &8| &7" + request.state().name().toLowerCase(Locale.ROOT)
+                            + " &8| &7r" + request.revision());
+        });
     }
 
     private static int history(CommandSourceStack source, String requestInput, int requestedPage) {
