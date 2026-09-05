@@ -2,6 +2,7 @@ package com.enviouse.sef.docs;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -114,5 +115,63 @@ class UniversalCommandMatrixGeneratorTest {
         firstCommand.remove("auditJoin");
         assertThrows(IllegalArgumentException.class,
                 () -> UniversalCommandMatrixGenerator.validate(matrix));
+    }
+
+    @Test
+    void matrixConsumesOnlyCandidateBoundCatalogRuntimeEvidence() throws Exception {
+        Path evidence = temporaryDirectory.resolve("runtime-evidence");
+        Files.createDirectories(evidence);
+        JsonObject record = new JsonObject();
+        record.addProperty("schemaVersion", 1);
+        record.addProperty("candidateCommit", "0123456789abcdef0123456789abcdef01234567");
+        record.addProperty("candidateSha256", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        record.addProperty("source", "test");
+        record.addProperty("rowCount", 1);
+        JsonObject row = new JsonObject();
+        row.addProperty("actionId", "sef:core.info");
+        row.addProperty("canonicalRoute", "sef info");
+        row.addProperty("commandDigest", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+        row.addProperty("result", "success");
+        row.addProperty("auditEventCount", 1);
+        row.addProperty("sourceType", "console");
+        row.addProperty("auditResult", "success");
+        row.addProperty("auditClass", "metadata_only");
+        row.addProperty("redactionClass", "metadata");
+        record.add("rows", new com.google.gson.JsonArray());
+        record.getAsJsonArray("rows").add(row);
+        Files.writeString(
+                evidence.resolve("catalog-console-runtime.json"),
+                record.toString(),
+                StandardCharsets.UTF_8);
+        String oldRoot = System.getProperty("sef.audit.evidenceRoot");
+        String oldCommit = System.getProperty("sef.audit.candidateCommit");
+        String oldSha256 = System.getProperty("sef.audit.candidateSha256");
+        try {
+            System.setProperty("sef.audit.evidenceRoot", evidence.toString());
+            System.setProperty("sef.audit.candidateCommit", record.get("candidateCommit").getAsString());
+            System.setProperty("sef.audit.candidateSha256", record.get("candidateSha256").getAsString());
+            JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+            JsonObject action = matrix.getAsJsonArray("rows").asList().stream()
+                    .map(JsonElement::getAsJsonObject)
+                    .filter(value -> value.get("semanticKey").getAsString().equals("sef:core.info"))
+                    .findFirst()
+                    .orElseThrow();
+            assertEquals("pass", action.getAsJsonObject("dimensions")
+                    .getAsJsonObject("audit").get("status").getAsString());
+            assertEquals("pass", action.getAsJsonObject("dimensions")
+                    .getAsJsonObject("linux_shared_runtime").get("status").getAsString());
+        } finally {
+            restoreProperty("sef.audit.evidenceRoot", oldRoot);
+            restoreProperty("sef.audit.candidateCommit", oldCommit);
+            restoreProperty("sef.audit.candidateSha256", oldSha256);
+        }
+    }
+
+    private static void restoreProperty(String key, String value) {
+        if (value == null) {
+            System.clearProperty(key);
+        } else {
+            System.setProperty(key, value);
+        }
     }
 }

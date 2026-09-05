@@ -10,6 +10,8 @@ import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.enviouse.sef.kernel.command.ShortcutRegistry;
 import com.enviouse.sef.kernel.policy.FeatureGateService;
 import com.mojang.brigadier.ParseResults;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
 import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.commands.CommandSourceStack;
@@ -20,6 +22,10 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import java.util.ArrayList;
 import java.time.Duration;
 import java.time.Instant;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -225,6 +231,7 @@ public final class GuiWorkflowGameTests {
         Map<String, Integer> unjoinedByDisposition = new LinkedHashMap<>();
         List<String> unjoinedDetails = new ArrayList<>();
         List<String> expectedNonApplicableDetails = new ArrayList<>();
+        JsonArray runtimeRows = new JsonArray();
         int unjoinedRows = 0;
         for (Map.Entry<String, List<CommandDefinition>> candidate : candidates.entrySet()) {
             String command = candidate.getKey();
@@ -290,6 +297,17 @@ public final class GuiWorkflowGameTests {
                             definition.id() + "|" + definition.canonicalRoute() + "|" + disposition);
                     continue;
                 }
+                JsonObject runtimeRow = new JsonObject();
+                runtimeRow.addProperty("actionId", definition.id());
+                runtimeRow.addProperty("canonicalRoute", definition.canonicalRoute());
+                runtimeRow.addProperty("commandDigest", digest(command));
+                runtimeRow.addProperty("result", result > 0 ? "success" : "non_positive");
+                runtimeRow.addProperty("auditEventCount", definitionEvents.size());
+                runtimeRow.addProperty("sourceType", event.sourceType());
+                runtimeRow.addProperty("auditResult", event.result());
+                runtimeRow.addProperty("auditClass", event.auditClass());
+                runtimeRow.addProperty("redactionClass", event.redactionClass());
+                runtimeRows.add(runtimeRow);
                 // Some adapters intentionally return the domain count, which may be
                 // zero even though the shared lease completed successfully.
                 boolean resultProjectionMatches = result <= 0 || "success".equals(event.result());
@@ -316,6 +334,13 @@ public final class GuiWorkflowGameTests {
                 "argument free console route execution failed, "
                         + String.join("; ", failures.stream().limit(8).toList()));
         helper.assertTrue(!candidates.isEmpty(), "no enabled argument free console routes were discovered");
+        try {
+            writeCatalogRuntimeEvidence(runtimeRows);
+        } catch (Exception exception) {
+            helper.fail("catalog runtime evidence could not be written, "
+                    + exception.getClass().getSimpleName());
+            return;
+        }
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Argument free console routes executed {}, result classes {}",
                 candidates.size(),
@@ -329,6 +354,45 @@ public final class GuiWorkflowGameTests {
                 unjoinedDetails.stream().limit(24).toList(),
                 expectedNonApplicableDetails.stream().limit(24).toList());
         helper.succeed();
+    }
+
+    private static void writeCatalogRuntimeEvidence(JsonArray runtimeRows) throws Exception {
+        String evidenceRoot = System.getProperty("sef.audit.evidenceRoot", "").trim();
+        if (evidenceRoot.isEmpty()) {
+            return;
+        }
+        String candidateCommit = System.getProperty("sef.audit.candidateCommit", "").trim();
+        String candidateSha256 = System.getProperty("sef.audit.candidateSha256", "").trim();
+        if (!candidateCommit.matches("[0-9a-f]{40}")
+                || !candidateSha256.matches("[0-9a-f]{64}")) {
+            throw new IllegalArgumentException("candidate identity properties are required");
+        }
+        Path root = Path.of(evidenceRoot).toAbsolutePath().normalize();
+        Files.createDirectories(root);
+        Path output = root.resolve("catalog-console-runtime.json");
+        if (Files.isSymbolicLink(output)) {
+            throw new IllegalArgumentException("catalog runtime evidence target is a symlink");
+        }
+        JsonObject record = new JsonObject();
+        record.addProperty("schemaVersion", 1);
+        record.addProperty("candidateCommit", candidateCommit);
+        record.addProperty("candidateSha256", candidateSha256);
+        record.addProperty("source", "everyEnabledArgumentFreeConsoleRouteReachesTheSharedDispatcher");
+        record.addProperty("rowCount", runtimeRows.size());
+        record.add("rows", runtimeRows);
+        Files.writeString(
+                output,
+                record.toString() + System.lineSeparator(),
+                StandardCharsets.UTF_8);
+    }
+
+    private static String digest(String value) {
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException("sha-256 is unavailable", exception);
+        }
     }
 
     @GameTest(template = "empty", timeoutTicks = 500)
