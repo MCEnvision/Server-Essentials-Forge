@@ -2,6 +2,10 @@
 
 ## Current Phase 001 review
 
+## Phase 003 command audit refresh
+
+At commit `88391ac3a7aa3751f5c1ba6046191917ee4c5864`, the command audit found and repaired a legacy moderation target authorization gap. When expanded moderation is disabled, `/warn`, `/mute`, `/freeze`, `/invlock`, and `/disablebuilding` now pass every online target through `LegacyTargetPolicy` before reading or mutating state. The guard applies vanish visibility, hierarchy, matching `sef.exempt.*` permissions, administrative self-target rejection, console policy, and explicit hierarchy or exemption bypass nodes. A denied target returns before manager mutation. Focused tests, full checks, a clean dedicated-server run with 43 required GameTests, the Java 21 native writer probe, the exact clean dependency manifest, and the sanitized inventory refresh pass. The universal command matrix remains open because action-level effect, failure, persistence, audit, and route-equivalence evidence is not complete. Evidence is retained in the restricted Phase 003 task 073 packet.
+
 This review covers the repaired security and supply chain worktree on branch `envy/phase-001-security`. The integrated Phase 000 base is merge commit `a71840c96ea507b438213be4967ae5af4398c0c1`, tagged `phase-000-audit`. The exact current Phase 001 candidate commit and tree are recorded in the matching external dependency manifest and Phase 000 inventory for each evidence capture. The complete sanitized evidence is held in the Phase 001 task records and the restricted external evidence root.
 
 The review covers command authority, permissions, delegation, aliases, bundles, profiles, sudo, scheduled work, server controls, GUI actions, payloads, sessions, configuration, migration, recovery, filesystem roots, Fancy Tags content, optional integrations, mixins, access transformers, audit, logs, privacy projections, dependencies, and the packaged JAR.

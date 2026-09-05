@@ -94,7 +94,7 @@ public class WarnCommand {
                     ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThis command can only be used by players."));
                     return 0;
                 }
-                return executeCheck(ctx.getSource(), self);
+                return executeCheck(ctx.getSource(), self, true);
             }));
     }
 
@@ -161,7 +161,11 @@ public class WarnCommand {
     }
 
     private static int executeCheck(CommandSourceStack source, ServerPlayer target) {
-        if (!mayTarget(source, target, false)) {
+        return executeCheck(source, target, false);
+    }
+
+    private static int executeCheck(CommandSourceStack source, ServerPlayer target, boolean selfRoute) {
+        if (!selfRoute && !mayTarget(source, target, false)) {
             source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
             return 0;
         }
