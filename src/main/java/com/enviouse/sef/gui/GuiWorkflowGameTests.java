@@ -222,6 +222,8 @@ public final class GuiWorkflowGameTests {
         }
 
         Map<String, Integer> results = new LinkedHashMap<>();
+        Map<String, Integer> unjoinedByDisposition = new LinkedHashMap<>();
+        List<String> unjoinedDetails = new ArrayList<>();
         int unjoinedRows = 0;
         for (Map.Entry<String, List<CommandDefinition>> candidate : candidates.entrySet()) {
             String command = candidate.getKey();
@@ -257,13 +259,24 @@ public final class GuiWorkflowGameTests {
                         || noAuditExpected.contains(definition.id())) {
                     continue;
                 }
-                var event = newEvents.stream()
+                List<SecurityAuditService.AuditEvent> definitionEvents = newEvents.stream()
+                        .filter(candidateEvent -> candidateEvent.actionId().equals(definition.id()))
+                        .toList();
+                var event = definitionEvents.stream()
                         .filter(candidateEvent -> candidateEvent.actionId().equals(definition.id())
                                 && routeMatchesCommand(definition.canonicalRoute(), command))
                         .findFirst()
                         .orElse(null);
                 if (event == null) {
                     unjoinedRows++;
+                    String disposition = definitionEvents.isEmpty()
+                            ? definition.targetBehavior() == CommandDefinition.TargetBehavior.REQUIRED_PLAYER
+                                    ? "requires_player_argument"
+                                    : result <= 0 ? "non_positive_without_event" : "missing_event"
+                            : "event_route_mismatch";
+                    unjoinedByDisposition.merge(disposition, 1, Integer::sum);
+                    unjoinedDetails.add(
+                            definition.id() + "|" + definition.canonicalRoute() + "|" + disposition);
                     continue;
                 }
                 // Some adapters intentionally return the domain count, which may be
@@ -298,8 +311,10 @@ public final class GuiWorkflowGameTests {
                 results);
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Argument free console audit rows without an observed event {}, "
-                        + "exact route ownership remains open for those rows",
-                unjoinedRows);
+                        + "exact route ownership remains open for those rows, dispositions {}, sample {}",
+                unjoinedRows,
+                unjoinedByDisposition,
+                unjoinedDetails.stream().limit(24).toList());
         helper.succeed();
     }
 
