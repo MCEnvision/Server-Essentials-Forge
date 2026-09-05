@@ -277,10 +277,7 @@ public final class GuiWorkflowGameTests {
                 if (command.isBlank() || !executed.add(command)) {
                     continue;
                 }
-                Set<String> before = SecurityAuditService.recent(event -> true, 256)
-                        .stream()
-                        .map(SecurityAuditService.AuditEvent::eventId)
-                        .collect(java.util.stream.Collectors.toSet());
+                java.time.Instant startedAt = java.time.Instant.now();
                 int result;
                 try {
                     result = dispatcher.execute(command, source);
@@ -294,7 +291,7 @@ public final class GuiWorkflowGameTests {
                 }
                 positiveRoutes++;
                 List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
-                                candidate -> !before.contains(candidate.eventId()),
+                                candidate -> !java.time.Instant.parse(candidate.timestamp()).isBefore(startedAt),
                                 32);
                 if (events.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
                     failures.add(definition.id() + ", " + command + ", missing audit event");
