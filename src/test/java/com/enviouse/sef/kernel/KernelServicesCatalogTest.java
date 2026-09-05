@@ -143,9 +143,11 @@ class KernelServicesCatalogTest {
         Path root = projectRoot.resolve("src/main/java/com/enviouse/sef");
         for (String relative : Set.of(
                 "automation/AutomationRuntime.java",
-                "alts/CheckAltsCommand.java")) {
+                "alts/CheckAltsCommand.java",
+                "workstations/SuperEnchantingMenu.java")) {
             String source = Files.readString(root.resolve(relative), StandardCharsets.UTF_8);
             assertFalse(source.contains("SecurityAuditService.AuditEvent.create("), relative);
+            assertFalse(source.contains("AuditService.Event.metadata("), relative);
             assertTrue(source.contains("AuditService.Event.interaction("), relative);
         }
     }

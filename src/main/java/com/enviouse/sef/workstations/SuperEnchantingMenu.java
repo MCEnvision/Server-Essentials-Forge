@@ -8,6 +8,8 @@ import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
@@ -31,6 +33,7 @@ import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.enchantment.Enchantment;
 
 import java.util.Map;
+import java.util.UUID;
 
 final class SuperEnchantingMenu extends ChestMenu {
     private static final int GUI_SIZE = 54;
@@ -279,20 +282,50 @@ final class SuperEnchantingMenu extends ChestMenu {
                         .append(newLevel == 0 ? Component.literal(" removed") : Component.literal(" applied"))
                         .withStyle(newLevel == 0 ? ChatFormatting.RED : ChatFormatting.GREEN),
                 true);
-        AuditService.record(AuditService.Event.metadata(
+        AuditService.record(mutationAuditEvent(
                 SecurityAuditService.currentSessionId(),
                 player.getUUID(),
                 player.getGameProfile().getName(),
-                "player",
-                "sef:workstation.super_enchant.mutation",
-                List.of(player.getUUID()),
-                AuditService.Result.SUCCESS,
-                com.enviouse.sef.kernel.ActionResult.ReasonCode.SUCCESS,
-                "menu",
-                AuditService.AuditClass.ADMIN_ACTION));
+                player.getUUID(),
+                enchantment.key().location().toString(),
+                expectedLevel,
+                newLevel,
+                targetSlot,
+                CommandAuditScope.currentCorrelationId().orElse(null)));
         requestedLevel = newLevel;
         refresh();
         return 1;
+    }
+
+    static AuditService.Event mutationAuditEvent(
+            UUID sessionId,
+            UUID actorId,
+            String actorName,
+            UUID targetId,
+            String enchantmentId,
+            int previousLevel,
+            int newLevel,
+            int targetSlot,
+            UUID parentCorrelation
+    ) {
+        return AuditService.Event.interaction(
+                sessionId,
+                actorId,
+                actorName,
+                "player",
+                "sef:workstation.super_enchant.mutation",
+                List.of(targetId),
+                Map.of(
+                        "enchantment", enchantmentId,
+                        "previous_level", Integer.toString(previousLevel),
+                        "new_level", Integer.toString(newLevel),
+                        "target_slot", Integer.toString(targetSlot)),
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                "menu",
+                parentCorrelation,
+                AuditService.RedactionClass.METADATA,
+                AuditService.AuditClass.ADMIN_ACTION);
     }
 
     private boolean canApply(ItemStack target, Holder<Enchantment> candidate) {
