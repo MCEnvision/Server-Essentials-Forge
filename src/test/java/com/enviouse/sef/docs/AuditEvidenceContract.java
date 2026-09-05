@@ -332,14 +332,26 @@ public final class AuditEvidenceContract {
         validateInventorySet(rows);
         JsonObject metadataOnly = metadata == null ? new JsonObject() : metadata.deepCopy();
         metadataOnly.remove("rows");
+        JsonArray dispatcherRoots = null;
+        if (metadataOnly.has("dispatcherRoots")) {
+            dispatcherRoots = metadataOnly.remove("dispatcherRoots").getAsJsonArray();
+        }
         metadataOnly.addProperty("schemaVersion", SCHEMA_VERSION);
         JsonObject sanitized = sanitize(metadataOnly);
+        if (dispatcherRoots != null) {
+            JsonArray sanitizedDispatcherRoots = new JsonArray();
+            for (JsonElement dispatcherRoot : dispatcherRoots) {
+                sanitizedDispatcherRoots.add(sanitize(dispatcherRoot.getAsJsonObject()));
+            }
+            sanitized.add("dispatcherRoots", sanitizedDispatcherRoots);
+        }
         JsonArray sanitizedRows = new JsonArray();
         for (JsonElement row : rows) {
             sanitizedRows.add(sanitize(row.getAsJsonObject()));
         }
         validateInventorySet(sanitizedRows);
         sanitized.add("rows", sanitizedRows);
+        validateCommandInventory(sanitized);
         Path root = approvedExternalRoot.toAbsolutePath().normalize();
         rejectSymlinkComponents(root);
         Files.createDirectories(root);

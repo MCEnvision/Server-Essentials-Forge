@@ -3,6 +3,7 @@ package com.enviouse.sef.docs;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -135,6 +136,33 @@ class AuditEvidenceContractTest {
         countDrift.addProperty("routeCount", inventory.get("routeCount").getAsInt() + 1);
         assertThrows(IllegalArgumentException.class,
                 () -> AuditEvidenceContract.validateCommandInventory(countDrift));
+    }
+
+    @Test
+    void inventoryWriterPreservesDispatcherRootsBeyondEvidenceArrayLimit() throws Exception {
+        JsonObject inventory = CommandInventoryGenerator.generate();
+        JsonArray dispatcherRoots = new JsonArray();
+        for (int index = 0; index < AuditEvidenceContract.MAX_ARRAY_ENTRIES + 1; index++) {
+            JsonObject root = row("dispatcher-root:root" + index);
+            root.addProperty("category", "dispatcher-root");
+            root.addProperty("semanticKey", "root" + index);
+            root.addProperty("registered", true);
+            dispatcherRoots.add(root);
+        }
+        inventory.addProperty("dispatcherRootCount", dispatcherRoots.size());
+        inventory.add("dispatcherRoots", dispatcherRoots);
+
+        Path output = AuditEvidenceContract.writeInventory(
+                temporaryDirectory.resolve("inventory"),
+                "dispatcher-roots.json",
+                inventory,
+                inventory.getAsJsonArray("rows"));
+        JsonObject persisted = JsonParser.parseString(
+                Files.readString(output, StandardCharsets.UTF_8)).getAsJsonObject();
+
+        assertEquals(dispatcherRoots.size(), persisted.get("dispatcherRootCount").getAsInt());
+        assertEquals(dispatcherRoots.size(), persisted.getAsJsonArray("dispatcherRoots").size());
+        AuditEvidenceContract.validateCommandInventory(persisted);
     }
 
     @Test
