@@ -14,6 +14,9 @@ import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -41,6 +44,71 @@ public final class ServerControlGameTests {
                         MinecraftServerControlRuntime.unavailableRuntimeFeatures()),
                 "server control unavailability diagnostics are inaccurate");
         helper.succeed();
+    }
+
+    @GameTest(template = "empty")
+    public static void unavailableServerControlFamiliesFailClosedWithoutMutation(GameTestHelper helper) {
+        Path path = null;
+        try {
+            path = Files.createTempDirectory("sef-unavailable-control-gametest");
+            ServerControlRepository repository = new ServerControlRepository();
+            repository.load(path);
+            ServerControlExecutionService executions = new ServerControlExecutionService(repository);
+            MinecraftServerControlRuntime.registerHandlers(executions);
+            UUID actor = UUID.randomUUID();
+
+            for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+                var schema = ServerControlSchemaRegistry.require(feature);
+                var created = repository.create(
+                        feature,
+                        actor,
+                        null,
+                        feature + " unavailable audit",
+                        "negative contract",
+                        null,
+                        requiredMetadata(schema));
+                helper.assertTrue(created.successful(), feature + " record could not be created: " + created.detail());
+
+                var record = created.value();
+                var preview = executions.preview(record.id(), record.revision());
+                helper.assertTrue(!preview.ready(), feature + " preview incorrectly reported ready");
+                helper.assertTrue(
+                        preview.detail().toLowerCase(java.util.Locale.ROOT).contains("unavailable"),
+                        feature + " preview did not report unavailability: " + preview.detail());
+
+                var result = executions.execute(
+                        record.id(),
+                        actor,
+                        record.revision(),
+                        true,
+                        new ServerControlExecutionService.ExecutionContext() {
+                            @Override
+                            public Object server() {
+                                return helper.getLevel().getServer();
+                            }
+
+                            @Override
+                            public Object source() {
+                                return helper.getLevel().getServer().createCommandSourceStack();
+                            }
+                        });
+                helper.assertTrue(!result.successful(), feature + " unavailable execution unexpectedly succeeded");
+                helper.assertTrue(
+                        result.reason() == ActionResult.ReasonCode.PROVIDER_ERROR,
+                        feature + " returned the wrong unavailable reason: " + result.reason());
+                helper.assertTrue(
+                        repository.find(record.id()).orElseThrow().equals(record),
+                        feature + " execution changed the unavailable record");
+                helper.assertTrue(
+                        repository.executions(null).isEmpty(),
+                        feature + " unavailable execution created a durable operation");
+            }
+            helper.succeed();
+        } catch (IOException exception) {
+            throw new IllegalStateException("unavailable control GameTest storage is unavailable", exception);
+        } finally {
+            deleteTree(path);
+        }
     }
 
     @GameTest(template = "empty")
@@ -184,6 +252,47 @@ public final class ServerControlGameTests {
             return repository;
         } catch (IOException exception) {
             throw new IllegalStateException("server control game test storage is unavailable", exception);
+        }
+    }
+
+    private static Map<String, String> requiredMetadata(ServerControlSchemaRegistry.FeatureSchema schema) {
+        Map<String, String> metadata = new HashMap<>();
+        for (var field : schema.fields()) {
+            if (!field.required()) {
+                continue;
+            }
+            String value = switch (field.type()) {
+                case TEXT -> "audit";
+                case INTEGER, DURATION_SECONDS -> Long.toString(field.minimum());
+                case DECIMAL -> Long.toString(field.minimum());
+                case BOOLEAN -> "false";
+                case ENUM -> field.enumValues().stream().sorted().findFirst().orElseThrow();
+                case INSTANT -> Instant.parse("2099-01-01T00:00:00Z").toString();
+                case UUID -> "00000000-0000-0000-0000-000000000001";
+                case RESOURCE_LOCATION -> "minecraft:overworld";
+                case HTTPS_URL -> "https://example.com/audit";
+                case HASH -> "0".repeat((int) field.minimum());
+                case LIST -> "audit";
+            };
+            metadata.put("field." + field.id(), value);
+        }
+        return Map.copyOf(metadata);
+    }
+
+    private static void deleteTree(Path root) {
+        if (root == null || !Files.exists(root)) {
+            return;
+        }
+        try (var paths = Files.walk(root)) {
+            paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+                try {
+                    Files.deleteIfExists(path);
+                } catch (IOException exception) {
+                    throw new IllegalStateException("server control GameTest cleanup failed", exception);
+                }
+            });
+        } catch (IOException exception) {
+            throw new IllegalStateException("server control GameTest cleanup failed", exception);
         }
     }
 }
