@@ -293,11 +293,18 @@ public final class GuiWorkflowGameTests {
                 List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
                                 candidate -> !java.time.Instant.parse(candidate.timestamp()).isBefore(startedAt),
                                 32);
-                if (events.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
+                List<SecurityAuditService.AuditEvent> routeEvents = events.stream()
+                        .filter(candidate -> {
+                            var auditedDefinition = KernelServices.catalog().find(candidate.actionId()).orElse(null);
+                            return auditedDefinition != null
+                                    && routeMatchesCommand(auditedDefinition.canonicalRoute(), command);
+                        })
+                        .toList();
+                if (routeEvents.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
                     failures.add(definition.id() + ", " + command + ", missing audit event");
                     continue;
                 }
-                for (var event : events) {
+                for (var event : routeEvents) {
                     var auditedDefinition = KernelServices.catalog().find(event.actionId()).orElse(null);
                     if (!"console".equals(event.sourceType())
                             || event.actorUuid().isBlank()
@@ -326,6 +333,12 @@ public final class GuiWorkflowGameTests {
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Positive argument free console audit covered {} routes", positiveRoutes);
         helper.succeed();
+    }
+
+    private static boolean routeMatchesCommand(String canonicalRoute, String command) {
+        String route = canonicalRoute.toLowerCase(java.util.Locale.ROOT).strip();
+        String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
+        return normalizedCommand.equals(route) || normalizedCommand.startsWith(route + " ");
     }
 
     private static boolean positiveRouteNeedsNoAudit(String command) {
