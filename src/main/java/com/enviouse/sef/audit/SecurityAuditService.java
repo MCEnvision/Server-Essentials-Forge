@@ -308,7 +308,8 @@ public final class SecurityAuditService {
     }
 
     public static boolean record(AuditEvent event) {
-        if (!running || event == null) {
+        Thread thread = writerThread;
+        if (!running || thread == null || !thread.isAlive() || event == null) {
             return false;
         }
         if (QUEUE.offer(event)) {
@@ -419,6 +420,17 @@ public final class SecurityAuditService {
                     if (!running) {
                         continue;
                     }
+                    running = false;
+                    int queued = QUEUE.size();
+                    long lost = batch.size() + queued;
+                    DROPPED.addAndGet(lost);
+                    FAILURES.incrementAndGet();
+                    failureDetail = "security audit writer was interrupted";
+                    batch.clear();
+                    QUEUE.clear();
+                    ServerEssentialsForge.LOGGER.error(
+                            "[SEF] Security audit writer was interrupted. {} event or events were lost",
+                            lost);
                     Thread.currentThread().interrupt();
                     return;
                 } catch (IOException | RuntimeException exception) {

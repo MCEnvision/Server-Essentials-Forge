@@ -203,6 +203,34 @@ class AuditServiceTest {
     }
 
     @Test
+    void unexpectedWriterInterruptFailsClosedAndStopsAcceptance() throws Exception {
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            Thread writer = Thread.getAllStackTraces().keySet().stream()
+                    .filter(candidate -> candidate.getName().equals("sef-security-audit"))
+                    .findFirst()
+                    .orElseThrow();
+            writer.interrupt();
+
+            await(() -> !SecurityAuditService.health().writerAlive());
+            SecurityAuditService.Health health = SecurityAuditService.health();
+            assertFalse(health.running());
+            assertTrue(health.failures() > 0L);
+            assertFalse(AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION));
+            assertFalse(SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
+                    "test",
+                    "after_interrupt",
+                    "tester",
+                    "",
+                    "test",
+                    "attempted",
+                    "test")));
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
     void activeAuditSymlinkIsRejectedWithoutWritingExternalTarget() throws Exception {
         Path external = temporaryDirectory.resolve("external.jsonl");
         Files.writeString(external, "sentinel");
