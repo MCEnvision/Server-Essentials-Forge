@@ -68,13 +68,23 @@ public final class CommandExecutionService {
                 request.sourceType(),
                 request.worldId(),
                 request.dimensionId()));
+        boolean mandatoryAuditExpected = AuditService.accepting(policy.auditClass());
         if (!policy.allowed()) {
-            audit(request, AuditService.Result.REJECTED, policy.reason(), policy.auditClass(), elapsedMillis(startedNanos));
+            if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, policy.reason(), policy.auditClass(),
+                    elapsedMillis(startedNanos))) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(policy.reason(), policy.explanation());
         }
         if (!request.permissionGranted()) {
-            audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.PERMISSION_DENIED,
-                    policy.auditClass(), elapsedMillis(startedNanos));
+            if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.PERMISSION_DENIED,
+                    policy.auditClass(), elapsedMillis(startedNanos))) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(ActionResult.ReasonCode.PERMISSION_DENIED, "permission denied");
         }
         final java.math.BigDecimal effectiveCost;
@@ -83,8 +93,12 @@ public final class CommandExecutionService {
                     ? java.math.BigDecimal.ZERO
                     : quotedCost(request, policy.cost());
         } catch (IllegalArgumentException exception) {
-            audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
-                    policy.auditClass(), elapsedMillis(startedNanos));
+            if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.INVALID_INPUT,
+                    policy.auditClass(), elapsedMillis(startedNanos))) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(ActionResult.ReasonCode.INVALID_INPUT, exception.getMessage());
         }
 
@@ -96,8 +110,12 @@ public final class CommandExecutionService {
         if (!request.cooldownBypass() && !cooldownDuration.isZero()) {
             CooldownService.Decision current = cooldowns.inspect(request.actorId(), request.actionId());
             if (!current.allowed()) {
-                audit(request, AuditService.Result.REJECTED, current.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos), cooldownContext);
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, current.reason(), policy.auditClass(),
+                        elapsedMillis(startedNanos), cooldownContext)) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(
                         current.reason(),
                         Long.toString(current.remainingSeconds()));
@@ -132,8 +150,12 @@ public final class CommandExecutionService {
                 warmup = ActionResult.failure(ActionResult.ReasonCode.WARMUP_ACTIVE, "warmup started");
             }
             if (!warmup.successful()) {
-                audit(request, AuditService.Result.REJECTED, warmup.reason(), policy.auditClass(),
-                        elapsedMillis(startedNanos), cooldownContext);
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, warmup.reason(), policy.auditClass(),
+                        elapsedMillis(startedNanos), cooldownContext)) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(warmup.reason(), warmup.detail());
             }
         }
@@ -144,8 +166,12 @@ public final class CommandExecutionService {
                 cooldownDuration,
                 request.cooldownBypass());
         if (!cooldown.allowed()) {
-            audit(request, AuditService.Result.REJECTED, cooldown.reason(), policy.auditClass(),
-                    elapsedMillis(startedNanos), cooldownContext);
+            if (!audit(request, AuditService.Result.REJECTED, cooldown.reason(), policy.auditClass(),
+                    elapsedMillis(startedNanos), cooldownContext)) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(
                     cooldown.reason(),
                     Long.toString(cooldown.remainingSeconds()));
@@ -158,8 +184,12 @@ public final class CommandExecutionService {
                 effectiveCost);
         if (!cost.successful()) {
             clearCooldown(request, cooldownAcquired);
-            audit(request, AuditService.Result.REJECTED, cost.reason(), policy.auditClass(),
-                    elapsedMillis(startedNanos), cooldownContext);
+            if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, cost.reason(), policy.auditClass(),
+                    elapsedMillis(startedNanos), cooldownContext)) {
+                return ActionResult.failure(
+                        ActionResult.ReasonCode.STORAGE_ERROR,
+                        "command audit could not be persisted safely");
+            }
             return ActionResult.failure(cost.reason(), cost.detail());
         }
 
@@ -167,9 +197,13 @@ public final class CommandExecutionService {
             if (request.confirmationToken().isBlank() || request.confirmationBinding() == null) {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
-                audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_REQUIRED,
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_REQUIRED,
                         policy.auditClass(), elapsedMillis(startedNanos),
-                        merge(cooldownContext, cost.value().auditContext()));
+                        merge(cooldownContext, cost.value().auditContext()))) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_REQUIRED, "confirmation required");
             }
             ConfirmationService.Request binding = request.confirmationBinding();
@@ -180,9 +214,13 @@ public final class CommandExecutionService {
                     || binding.policyRevision() != policy.revision()) {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
-                audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_INVALID,
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, ActionResult.ReasonCode.CONFIRMATION_INVALID,
                         policy.auditClass(), elapsedMillis(startedNanos),
-                        merge(cooldownContext, cost.value().auditContext()));
+                        merge(cooldownContext, cost.value().auditContext()))) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(ActionResult.ReasonCode.CONFIRMATION_INVALID, "confirmation binding mismatch");
             }
             ActionResult<ConfirmationService.Request> confirmation =
@@ -190,9 +228,13 @@ public final class CommandExecutionService {
             if (!confirmation.successful()) {
                 cost.value().refund();
                 clearCooldown(request, cooldownAcquired);
-                audit(request, AuditService.Result.REJECTED, confirmation.reason(), policy.auditClass(),
+                if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, confirmation.reason(), policy.auditClass(),
                         elapsedMillis(startedNanos),
-                        merge(cooldownContext, cost.value().auditContext()));
+                        merge(cooldownContext, cost.value().auditContext()))) {
+                    return ActionResult.failure(
+                            ActionResult.ReasonCode.STORAGE_ERROR,
+                            "command audit could not be persisted safely");
+                }
                 return ActionResult.failure(confirmation.reason(), confirmation.detail());
             }
         }

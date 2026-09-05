@@ -4,6 +4,7 @@ import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.command.CommandDefinition;
+import org.mockito.MockedStatic;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -23,6 +24,8 @@ import java.util.concurrent.Future;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mockStatic;
 
 class CommandExecutionLeaseTest {
     @TempDir
@@ -65,6 +68,25 @@ class CommandExecutionLeaseTest {
             assertEquals(1, fixture.reservation.commitCalls);
         } finally {
             SecurityAuditService.shutdown();
+        }
+    }
+
+    @Test
+    void rejectedExecutionFailsClosedWhenMandatoryAuditWriterHasFailed() {
+        try (MockedStatic<AuditService> audit = mockStatic(AuditService.class)) {
+            audit.when(() -> AuditService.accepting(AuditService.AuditClass.ADMIN_ACTION)).thenReturn(true);
+            audit.when(() -> AuditService.record(any(AuditService.Event.class))).thenReturn(false);
+            RecordingReservation reservation = new RecordingReservation(
+                    ActionResult.success(null), ActionResult.success(null));
+            Fixture fixture = fixture(AuditService.AuditClass.ADMIN_ACTION, reservation);
+
+            ActionResult<CommandExecutionService.Lease> result =
+                    fixture.executions.begin(request(fixture.actor, false));
+
+            assertFalse(result.successful());
+            assertEquals(ActionResult.ReasonCode.STORAGE_ERROR, result.reason());
+            assertEquals(0, reservation.commitCalls);
+            assertEquals(0, reservation.refundCalls);
         }
     }
 
@@ -195,6 +217,10 @@ class CommandExecutionLeaseTest {
     }
 
     private static CommandExecutionService.Request request(UUID actor) {
+        return request(actor, true);
+    }
+
+    private static CommandExecutionService.Request request(UUID actor, boolean permissionGranted) {
         return new CommandExecutionService.Request(
                 UUID.randomUUID(),
                 actor,
@@ -203,7 +229,7 @@ class CommandExecutionLeaseTest {
                 CommandDefinition.SourceType.PLAYER,
                 "world",
                 "dimension",
-                true,
+                permissionGranted,
                 false,
                 false,
                 "",
