@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.ActionResult;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.command.CommandDefinition;
@@ -266,7 +267,11 @@ public final class CommandSpyCommands {
     private static int toggle(CommandSourceStack source, ServerPlayer explicitObserver) {
         ServerPlayer observer = explicitObserver == null ? source.getPlayer() : explicitObserver;
         if (observer == null) {
-            return fail(source, "An explicit online observer is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:commandspy.toggle",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online observer is required.");
         }
         CommandSpyRepository.Profile profile = KernelServices.commandSpies().profile(observer.getUUID());
         return setEnabled(source, observer, !profile.enabled());
@@ -275,7 +280,11 @@ public final class CommandSpyCommands {
     private static int setEnabled(CommandSourceStack source, ServerPlayer explicitObserver, boolean enabled) {
         ServerPlayer observer = explicitObserver == null ? source.getPlayer() : explicitObserver;
         if (observer == null) {
-            return fail(source, "An explicit online observer is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:commandspy.toggle",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online observer is required.");
         }
         boolean managingOther = explicitObserver != null
                 && (source.getPlayer() == null
@@ -311,7 +320,11 @@ public final class CommandSpyCommands {
     private static int status(CommandSourceStack source, ServerPlayer explicitObserver) {
         ServerPlayer observer = explicitObserver == null ? source.getPlayer() : explicitObserver;
         if (observer == null) {
-            return fail(source, "An explicit online observer is required.");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:commandspy.status",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "An explicit online observer is required.");
         }
         boolean managingOther = explicitObserver != null
                 && (source.getPlayer() == null
@@ -356,7 +369,7 @@ public final class CommandSpyCommands {
 
     private static int recent(CommandSourceStack source, int count) {
         return execute(source, "sef:commandspy.recent", Map.of("count", Integer.toString(count)), () -> {
-            ServerPlayer observer = player(source);
+            ServerPlayer observer = player(source, "sef:commandspy.recent");
             if (observer == null) {
                 return 0;
             }
@@ -390,7 +403,7 @@ public final class CommandSpyCommands {
     }
 
     private static int everyone(CommandSourceStack source, boolean enabled) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.audience");
         if (observer == null) {
             return 0;
         }
@@ -410,7 +423,7 @@ public final class CommandSpyCommands {
     }
 
     private static int selectOnly(CommandSourceStack source, ServerPlayer target, boolean enabled) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.audience");
         if (observer == null) {
             return 0;
         }
@@ -433,7 +446,7 @@ public final class CommandSpyCommands {
     }
 
     private static int selected(CommandSourceStack source, ServerPlayer target, boolean add) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.selected");
         if (observer == null) {
             return 0;
         }
@@ -457,7 +470,7 @@ public final class CommandSpyCommands {
     }
 
     private static int listSelected(CommandSourceStack source) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.selected");
         if (observer == null) {
             return 0;
         }
@@ -470,7 +483,7 @@ public final class CommandSpyCommands {
     }
 
     private static int clearSelected(CommandSourceStack source) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.selected");
         if (observer == null) {
             return 0;
         }
@@ -485,7 +498,7 @@ public final class CommandSpyCommands {
     }
 
     private static int relation(CommandSourceStack source, String input) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.selected");
         if (observer == null) {
             return 0;
         }
@@ -507,7 +520,7 @@ public final class CommandSpyCommands {
     }
 
     private static int sources(CommandSourceStack source, boolean players, boolean nonPlayers) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.scope");
         if (observer == null) {
             return 0;
         }
@@ -522,7 +535,7 @@ public final class CommandSpyCommands {
     }
 
     private static int projection(CommandSourceStack source, Boolean location, Boolean results) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.scope");
         if (observer == null) {
             return 0;
         }
@@ -539,7 +552,7 @@ public final class CommandSpyCommands {
     }
 
     private static int filterList(CommandSourceStack source) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -558,7 +571,7 @@ public final class CommandSpyCommands {
     }
 
     private static int filterReset(CommandSourceStack source) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -578,7 +591,7 @@ public final class CommandSpyCommands {
             String input,
             String state
     ) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -608,7 +621,7 @@ public final class CommandSpyCommands {
             boolean include,
             String state
     ) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -629,7 +642,7 @@ public final class CommandSpyCommands {
     }
 
     private static int playerFilterClear(CommandSourceStack source, ServerPlayer target) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -660,7 +673,7 @@ public final class CommandSpyCommands {
     }
 
     private static int filter(CommandSourceStack source, String mode, String kind, String value) {
-        ServerPlayer observer = player(source);
+        ServerPlayer observer = player(source, "sef:commandspy.filter");
         if (observer == null) {
             return 0;
         }
@@ -719,10 +732,14 @@ public final class CommandSpyCommands {
         return nodes;
     }
 
-    private static ServerPlayer player(CommandSourceStack source) {
+    private static ServerPlayer player(CommandSourceStack source, String actionId) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            fail(source, "This command requires a player observer.");
+            KernelCommandExecutor.reject(
+                    source,
+                    actionId,
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "This command requires a player observer.");
         }
         return player;
     }

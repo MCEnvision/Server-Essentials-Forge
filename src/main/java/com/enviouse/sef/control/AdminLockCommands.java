@@ -228,7 +228,11 @@ public final class AdminLockCommands {
     private static int lock(CommandSourceStack source, String reason) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "only players can self lock");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:adminlock.lock",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "only players can self lock");
         }
         return execute(
                 source,
@@ -248,7 +252,11 @@ public final class AdminLockCommands {
     private static int challenge(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "only players can use a local challenge");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:adminlock.challenge",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "only players can use a local challenge");
         }
         return execute(
                 source,
@@ -270,7 +278,11 @@ public final class AdminLockCommands {
     private static int unlock(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "use release with an online player from console");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:adminlock.unlock",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "use release with an online player from console");
         }
         return execute(
                 source,
@@ -287,7 +299,11 @@ public final class AdminLockCommands {
     private static int openSession(CommandSourceStack source, String durationText, String reason) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "only players can open a privileged session");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:adminlock.session.open",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "only players can open a privileged session");
         }
         Duration duration;
         try {
@@ -314,7 +330,11 @@ public final class AdminLockCommands {
     private static int closeSession(CommandSourceStack source) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
-            return fail(source, "only players can close their privileged session");
+            return KernelCommandExecutor.reject(
+                    source,
+                    "sef:adminlock.session.close",
+                    ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                    "only players can close their privileged session");
         }
         return execute(
                 source,
