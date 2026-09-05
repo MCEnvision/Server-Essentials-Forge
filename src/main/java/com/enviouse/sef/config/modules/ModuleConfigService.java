@@ -2,6 +2,7 @@ package com.enviouse.sef.config.modules;
 
 import com.enviouse.sef.ServerEssentialsForge;
 import com.enviouse.sef.config.ConfigHandler;
+import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.storage.AtomicFileStore;
 
 import java.io.IOException;
@@ -2078,6 +2079,9 @@ public final class ModuleConfigService {
             String setting,
             Publication publication
     ) {
+        if (CommandAuditScope.active()) {
+            return;
+        }
         com.enviouse.sef.audit.AuditService.record(com.enviouse.sef.audit.AuditService.Event.metadata(
                 UUID.randomUUID(),
                 Objects.requireNonNullElse(actorId, new UUID(0L, 0L)),
