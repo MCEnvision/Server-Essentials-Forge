@@ -166,7 +166,7 @@ public final class CommandExecutionService {
                 cooldownDuration,
                 request.cooldownBypass());
         if (!cooldown.allowed()) {
-            if (!audit(request, AuditService.Result.REJECTED, cooldown.reason(), policy.auditClass(),
+            if (mandatoryAuditExpected && !audit(request, AuditService.Result.REJECTED, cooldown.reason(), policy.auditClass(),
                     elapsedMillis(startedNanos), cooldownContext)) {
                 return ActionResult.failure(
                         ActionResult.ReasonCode.STORAGE_ERROR,
