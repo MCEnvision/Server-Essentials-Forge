@@ -247,8 +247,21 @@ public final class KernelCommandExecutor {
                     ObservationContracts.LifecycleStage.REJECTED,
                     null,
                     ActionResult.ReasonCode.INVALID_INPUT.name().toLowerCase(Locale.ROOT));
+            boolean recorded = AuditService.record(AuditService.Event.metadata(
+                    SecurityAuditService.currentSessionId(),
+                    actorId,
+                    Objects.requireNonNullElse(source.getTextName(), ""),
+                    sourceType.name(),
+                    definition.id(),
+                    targetIds,
+                    AuditService.Result.REJECTED,
+                    ActionResult.ReasonCode.INVALID_INPUT,
+                    "command",
+                    definition.auditClass()));
             source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cThe configured command cost could not be calculated."));
+                    recorded
+                            ? "&cThe configured command cost could not be calculated."
+                            : "&cMandatory command audit is unavailable. This action is blocked."));
             return 0;
         }
         ActionResult<CommandExecutionService.Lease> started = KernelServices.commandExecutions().begin(

@@ -2,6 +2,7 @@ package com.enviouse.sef.kernel;
 
 import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
+import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.control.MinecraftServerControlRuntime;
 import com.enviouse.sef.kernel.command.CommandDefinition;
 import com.google.gson.JsonObject;
@@ -659,6 +660,76 @@ class KernelCommandExecutorCatalogTest {
         assertFalse(event.toString().contains("secret callback detail"));
         assertEquals(1, feedback.size());
         assertEquals("That action could not be completed safely.", feedback.getFirst());
+    }
+
+    @Test
+    void invalidConfiguredCostAuditsRejectedCommandWithoutLeakingCostDetail() throws Exception {
+        KernelServices.initialize();
+        String previousCosts = ConfigHandler.config.economyCommandCosts.get();
+        ConfigHandler.config.economyCommandCosts.set("sef:core.test@item=1.00");
+        KernelServices.reloadConfiguration();
+
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000017");
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(player.getUUID()).thenReturn(actorId);
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try (MockedStatic<PermissionAPI> permissions = grantingPermissionApi();
+                MockedStatic<MinecraftServerControlRuntime> control = mockStatic(MinecraftServerControlRuntime.class)) {
+            control.when(() -> MinecraftServerControlRuntime.authorizeAction(
+                            org.mockito.ArgumentMatchers.eq(source),
+                            org.mockito.ArgumentMatchers.any(CommandDefinition.class)))
+                    .thenReturn(ActionResult.success(null));
+            assertEquals(
+                    0,
+                    KernelCommandExecutor.execute(
+                            source,
+                            "sef:core.test",
+                            Map.of("count", "not-a-number"),
+                            () -> 1));
+        } finally {
+            SecurityAuditService.shutdown();
+            ConfigHandler.config.economyCommandCosts.set(previousCosts);
+            KernelServices.reloadConfiguration();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        assertEquals(1, events.size());
+        JsonObject event = events.getFirst();
+        assertEquals("sef:core.test", event.get("actionId").getAsString());
+        assertEquals("rejected", event.get("result").getAsString());
+        assertEquals("invalid_input", event.get("reasonCode").getAsString());
+        assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+        assertEquals("player", event.get("sourceType").getAsString());
+        assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+        assertFalse(event.toString().contains("not-a-number"));
+        assertEquals(1, feedback.size());
+        assertEquals("The configured command cost could not be calculated.", feedback.getFirst());
     }
 
     private static MockedStatic<PermissionAPI> denyingPermissionApi() {
