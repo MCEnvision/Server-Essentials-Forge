@@ -20,11 +20,11 @@ public final class CommandAuditScope implements AutoCloseable {
         CURRENT.set(new Context(actionId, correlationId));
     }
 
-    public static CommandAuditScope open(String actionId) {
+    static CommandAuditScope open(String actionId) {
         return open(actionId, null);
     }
 
-    public static CommandAuditScope open(String actionId, UUID correlationId) {
+    static CommandAuditScope open(String actionId, UUID correlationId) {
         return new CommandAuditScope(Objects.requireNonNull(actionId, "actionId"), correlationId);
     }
 

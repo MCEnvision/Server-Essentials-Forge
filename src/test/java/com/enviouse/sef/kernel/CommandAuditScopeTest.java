@@ -2,6 +2,7 @@ package com.enviouse.sef.kernel;
 
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Modifier;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,5 +31,13 @@ class CommandAuditScopeTest {
         }
         assertFalse(CommandAuditScope.active());
         assertTrue(CommandAuditScope.currentCorrelationId().isEmpty());
+    }
+
+    @Test
+    void scopeFactoryIsNotPublicToUntrustedIntegrations() throws Exception {
+        assertFalse(Modifier.isPublic(
+                CommandAuditScope.class.getDeclaredMethod("open", String.class).getModifiers()));
+        assertFalse(Modifier.isPublic(
+                CommandAuditScope.class.getDeclaredMethod("open", String.class, UUID.class).getModifiers()));
     }
 }
