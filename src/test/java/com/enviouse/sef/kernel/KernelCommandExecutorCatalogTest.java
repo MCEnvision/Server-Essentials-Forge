@@ -229,6 +229,85 @@ class KernelCommandExecutorCatalogTest {
     }
 
     @Test
+    void representativeDistinctRejectionReasonsRemainCorrelatedAndRedacted() throws Exception {
+        KernelServices.initialize();
+        ServerLevel level = mock(ServerLevel.class);
+        when(level.dimension()).thenReturn(net.minecraft.world.level.Level.OVERWORLD);
+        ServerPlayer player = mock(ServerPlayer.class);
+        UUID actorId = UUID.fromString("00000000-0000-0000-0000-000000000016");
+        when(player.getUUID()).thenReturn(actorId);
+        when(player.level()).thenReturn(level);
+        CommandSource output = mock(CommandSource.class);
+        when(output.acceptsFailure()).thenReturn(true);
+        List<String> feedback = new ArrayList<>();
+        doAnswer(invocation -> {
+            feedback.add(invocation.getArgument(0, Component.class).getString());
+            return null;
+        }).when(output).sendSystemMessage(org.mockito.ArgumentMatchers.any());
+        CommandSourceStack source = new CommandSourceStack(
+                output,
+                Vec3.ZERO,
+                Vec2.ZERO,
+                level,
+                4,
+                "tester",
+                Component.literal("tester"),
+                mock(MinecraftServer.class),
+                player);
+        List<ActionResult.ReasonCode> reasons = List.of(
+                ActionResult.ReasonCode.SOURCE_NOT_ALLOWED,
+                ActionResult.ReasonCode.PERMISSION_DENIED,
+                ActionResult.ReasonCode.INVALID_INPUT,
+                ActionResult.ReasonCode.CONFLICT,
+                ActionResult.ReasonCode.STORAGE_ERROR,
+                ActionResult.ReasonCode.PROVIDER_ERROR);
+        Set<String> auditClasses = new LinkedHashSet<>();
+
+        SecurityAuditService.start(temporaryDirectory, 7, 1);
+        try {
+            for (CommandDefinition definition : KernelServices.catalog().entries()) {
+                if (definition.auditClass() == AuditService.AuditClass.NONE
+                        || !auditClasses.add(definition.auditClass().name())) {
+                    continue;
+                }
+                for (ActionResult.ReasonCode reason : reasons) {
+                    assertEquals(
+                            0,
+                            KernelCommandExecutor.reject(
+                                    source,
+                                    definition.id(),
+                                    reason,
+                                    "synthetic bounded rejection"),
+                            definition.id() + " " + reason);
+                }
+            }
+        } finally {
+            SecurityAuditService.shutdown();
+        }
+
+        Path auditFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
+        List<JsonObject> events = Files.readAllLines(auditFile, StandardCharsets.UTF_8).stream()
+                .filter(line -> !line.isBlank())
+                .map(JsonParser::parseString)
+                .map(element -> element.getAsJsonObject())
+                .toList();
+        assertEquals(auditClasses.size() * reasons.size(), events.size());
+        assertEquals(events.size(), feedback.size());
+        assertTrue(feedback.stream().allMatch(message -> message.length() <= 256));
+        for (JsonObject event : events) {
+            assertEquals("rejected", event.get("result").getAsString());
+            assertEquals(actorId.toString(), event.get("actorUuid").getAsString());
+            assertEquals("tester", event.get("actorUsername").getAsString());
+            assertEquals("player", event.get("sourceType").getAsString());
+            assertEquals("command", event.get("origin").getAsString());
+            assertEquals("metadata", event.get("redactionClass").getAsString());
+            assertTrue(event.getAsJsonObject("normalizedParameters").entrySet().isEmpty());
+            assertTrue(event.getAsJsonArray("targetUuids").isEmpty());
+            assertFalse(event.toString().contains("synthetic bounded rejection"));
+        }
+    }
+
+    @Test
     void customLeaseAdaptersFailClosedWhenServerControlPolicyDenies() {
         KernelServices.initialize();
         SecurityAuditService.start(temporaryDirectory, 7, 1);
