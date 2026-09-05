@@ -61,7 +61,11 @@ public class CheckAltsCommand {
                 () -> {
                     if (!eligible(source, target)) {
                         source.sendFailure(TextFormatter.stringToFormattedText("&cThat player is unavailable."));
-                        audit(source, "inspect", "target denied");
+                        audit(
+                                source,
+                                "inspect",
+                                AuditService.Result.REJECTED,
+                                ActionResult.ReasonCode.TARGET_DENIED);
                         return 0;
                     }
                     AltTracker tracker = CommandRegistrationHandler.getAltTracker();
@@ -127,7 +131,11 @@ public class CheckAltsCommand {
                                 "&cExpired records could not be purged. &7" + exception.getMessage()));
                         return 0;
                     }
-                    audit(source, "purge expired", Integer.toString(removed));
+                    audit(
+                            source,
+                            "purge expired",
+                            AuditService.Result.SUCCESS,
+                            ActionResult.ReasonCode.SUCCESS);
                     source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                             "&aPurged &e" + removed + " &aexpired alternate account record(s)."), false);
                     return 1;
@@ -154,7 +162,11 @@ public class CheckAltsCommand {
                                 "&cAlternate account records could not be purged. &7" + exception.getMessage()));
                         return 0;
                     }
-                    audit(source, "purge all", Integer.toString(removed));
+                    audit(
+                            source,
+                            "purge all",
+                            AuditService.Result.SUCCESS,
+                            ActionResult.ReasonCode.SUCCESS);
                     source.sendSuccess(() -> TextFormatter.stringToFormattedText(
                             "&aPurged &e" + removed + " &aalternate account record(s)."), false);
                     return 1;
@@ -228,17 +240,28 @@ public class CheckAltsCommand {
                 PermissionsHandler.checkAltsExport);
     }
 
-    private static void audit(CommandSourceStack source, String action, String result) {
+    private static void audit(
+            CommandSourceStack source,
+            String route,
+            AuditService.Result result,
+            ActionResult.ReasonCode reason
+    ) {
         if (CommandAuditScope.active()) {
             return;
         }
-        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                "privacy",
-                action,
+        AuditService.record(AuditService.Event.interaction(
+                SecurityAuditService.currentSessionId(),
+                KernelCommandExecutor.actorId(source),
                 source.getTextName(),
-                "alternate account records",
-                "checkalts",
+                KernelCommandExecutor.sourceType(source).name(),
+                "sef:identity.alts",
+                List.of(),
+                Map.of("route", route, "result", result.name().toLowerCase(java.util.Locale.ROOT)),
                 result,
-                ""));
+                reason,
+                "command",
+                CommandAuditScope.currentCorrelationId().orElse(null),
+                AuditService.RedactionClass.SECRET_ARGUMENTS,
+                AuditService.AuditClass.SENSITIVE_ACCESS));
     }
 }

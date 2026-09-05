@@ -1,5 +1,6 @@
 package com.enviouse.sef.automation;
 
+import com.enviouse.sef.audit.AuditService;
 import com.enviouse.sef.audit.SecurityAuditService;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.kernel.ActionResult;
@@ -123,14 +124,17 @@ public final class AutomationRuntime {
                         Instant.now(),
                         MAXIMUM_FAKE_EVENTS_PER_TICK)) {
             ServerPlayer issuer = server.getPlayerList().getPlayer(due.actorId());
-            if (issuer == null
-                    || !KernelCommandExecutor.canUse(
+            if (issuer == null) {
+                auditScene(due, AuditService.Result.FAILED, ActionResult.ReasonCode.NOT_FOUND, -1);
+                continue;
+            }
+            if (!KernelCommandExecutor.canUse(
                     issuer.createCommandSourceStack(),
                     "sef:fake.schedule")
                     || !KernelCommandExecutor.canUse(
                     issuer.createCommandSourceStack(),
                     "sef:fake.scene")) {
-                auditScene(due, "failed", "issuer or permission unavailable");
+                auditScene(due, AuditService.Result.REJECTED, ActionResult.ReasonCode.PERMISSION_DENIED, -1);
                 continue;
             }
             ActionResult<FakeIdentityService.ResolvedIdentity> identity =
@@ -138,7 +142,7 @@ public final class AutomationRuntime {
                             due.event().identity(),
                             issuer);
             if (!identity.successful()) {
-                auditScene(due, "failed", "identity unavailable");
+                auditScene(due, AuditService.Result.FAILED, identity.reason(), -1);
                 continue;
             }
             ActionResult<Component> rendered = switch (due.event().type()) {
@@ -149,7 +153,7 @@ public final class AutomationRuntime {
                         due.event().message());
             };
             if (!rendered.successful()) {
-                auditScene(due, "failed", rendered.detail());
+                auditScene(due, AuditService.Result.FAILED, rendered.reason(), -1);
                 continue;
             }
             int delivered = KernelServices.fakeIdentities().broadcast(
@@ -158,23 +162,47 @@ public final class AutomationRuntime {
                     rendered.value(),
                     due.scene().audience(),
                     issuer);
-            auditScene(due, "success", "delivered " + delivered);
+            auditScene(due, AuditService.Result.SUCCESS, ActionResult.ReasonCode.SUCCESS, delivered);
         }
     }
 
     private static void auditScene(
             FakeIdentityService.DueSceneEvent due,
-            String result,
-            String detail
+            AuditService.Result result,
+            ActionResult.ReasonCode reason,
+            int delivered
     ) {
-        SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                "fake_scene",
-                due.event().type().name().toLowerCase(Locale.ROOT),
+        AuditService.record(sceneAuditEvent(due, result, reason, delivered));
+    }
+
+    static AuditService.Event sceneAuditEvent(
+            FakeIdentityService.DueSceneEvent due,
+            AuditService.Result result,
+            ActionResult.ReasonCode reason,
+            int delivered
+    ) {
+        Map<String, String> parameters = new LinkedHashMap<>();
+        parameters.put("schedule_id", due.scheduleId().toString());
+        parameters.put("scene_id", due.scene().id());
+        parameters.put("event_type", due.event().type().name().toLowerCase(Locale.ROOT));
+        parameters.put("result", result.name().toLowerCase(Locale.ROOT));
+        if (delivered >= 0) {
+            parameters.put("delivery_count", Integer.toString(delivered));
+        }
+        return AuditService.Event.interaction(
+                SecurityAuditService.currentSessionId(),
+                due.actorId(),
                 due.actorId().toString(),
-                due.scheduleId().toString(),
-                due.scene().id(),
+                "SCHEDULED_TASK",
+                "sef:fake.scene",
+                List.of(),
+                parameters,
                 result,
-                detail));
+                reason,
+                "fake_scene",
+                due.scheduleId(),
+                AuditService.RedactionClass.METADATA,
+                AuditService.AuditClass.DELEGATED_EXECUTION);
     }
 
     private static boolean eligible(ServerPlayer issuer, ServerPlayer target) {
@@ -236,6 +264,41 @@ public final class AutomationRuntime {
         Map<String, String> values = new LinkedHashMap<>(bindings);
         values.remove("profile_revision");
         return Map.copyOf(values);
+    }
+
+    static AuditService.Event bundleAuditEvent(
+            BundleService.RuntimeJob job,
+            BundleCompiler.BundleStep step,
+            UUID targetId,
+            ActionResult<?> result
+    ) {
+        Map<String, String> parameters = new LinkedHashMap<>();
+        parameters.put("bundle_id", job.bundleId());
+        parameters.put("bundle_revision", Long.toString(job.bundleRevision()));
+        parameters.put("job_id", job.jobId().toString());
+        parameters.put("step_id", step.id());
+        parameters.put("step_kind", step.kind().name().toLowerCase(Locale.ROOT));
+        if (targetId != null) {
+            parameters.put("target_id", targetId.toString());
+        }
+        String actionId = step.kind() == BundleCompiler.StepKind.SEF_ACTION
+                && !step.targetId().isBlank()
+                ? step.targetId()
+                : "sef:bundle." + step.kind().name().toLowerCase(Locale.ROOT);
+        return AuditService.Event.interaction(
+                SecurityAuditService.currentSessionId(),
+                job.issuerId(),
+                job.issuerId().toString(),
+                "SCHEDULED_TASK",
+                actionId,
+                targetId == null ? List.of() : List.of(targetId),
+                parameters,
+                result.successful() ? AuditService.Result.SUCCESS : AuditService.Result.FAILED,
+                result.reason(),
+                "bundle",
+                job.correlationId(),
+                AuditService.RedactionClass.METADATA,
+                AuditService.AuditClass.DELEGATED_EXECUTION);
     }
 
     private static final class RuntimeStepExecutor implements BundleService.StepExecutor {
@@ -368,14 +431,7 @@ public final class AutomationRuntime {
                 UUID targetId,
                 ActionResult<?> result
         ) {
-            SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
-                    "bundle",
-                    step.kind().name().toLowerCase(Locale.ROOT),
-                    job.issuerId().toString(),
-                    targetId.toString(),
-                    job.correlationId().toString(),
-                    result.successful() ? "success" : "failed",
-                    result.successful() ? step.id() : result.detail()));
+            AuditService.record(bundleAuditEvent(job, step, targetId, result));
         }
     }
 }

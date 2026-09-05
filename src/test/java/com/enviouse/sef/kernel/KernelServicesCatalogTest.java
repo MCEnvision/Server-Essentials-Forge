@@ -132,6 +132,25 @@ class KernelServicesCatalogTest {
     }
 
     @Test
+    void scheduledAndPrivacyAuditPathsUseTypedEvents() throws IOException {
+        Path projectRoot = Path.of("").toAbsolutePath();
+        while (projectRoot != null
+                && !Files.isRegularFile(projectRoot.resolve("settings.gradle"))
+                && !Files.isRegularFile(projectRoot.resolve("settings.gradle.kts"))) {
+            projectRoot = projectRoot.getParent();
+        }
+        assertTrue(projectRoot != null, "project source was not found");
+        Path root = projectRoot.resolve("src/main/java/com/enviouse/sef");
+        for (String relative : Set.of(
+                "automation/AutomationRuntime.java",
+                "alts/CheckAltsCommand.java")) {
+            String source = Files.readString(root.resolve(relative), StandardCharsets.UTF_8);
+            assertFalse(source.contains("SecurityAuditService.AuditEvent.create("), relative);
+            assertTrue(source.contains("AuditService.Event.interaction("), relative);
+        }
+    }
+
+    @Test
     void phaseSixAndSevenActionsAndShortcutsHaveCatalogOwnership() {
         KernelServices.initialize();
         Set<String> requiredActions = Set.of(

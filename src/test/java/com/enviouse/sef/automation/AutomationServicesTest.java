@@ -33,6 +33,89 @@ class AutomationServicesTest {
     Path temporaryDirectory;
 
     @Test
+    void scheduledSceneAuditCarriesStableOperationMetadata() {
+        UUID actorId = UUID.randomUUID();
+        UUID scheduleId = UUID.randomUUID();
+        FakeIdentityService.DueSceneEvent due = new FakeIdentityService.DueSceneEvent(
+                scheduleId,
+                new FakeIdentityService.Scene(
+                        "staff_scene",
+                        1L,
+                        List.of(new FakeIdentityService.SceneEvent(
+                                0L,
+                                FakeIdentityService.EventType.MESSAGE,
+                                "operator",
+                                "hello")),
+                        FakeIdentityService.Audience.STAFF,
+                        true),
+                new FakeIdentityService.SceneEvent(
+                        0L,
+                        FakeIdentityService.EventType.MESSAGE,
+                        "operator",
+                        "hello"),
+                actorId);
+
+        AuditService.Event event = AutomationRuntime.sceneAuditEvent(
+                due,
+                AuditService.Result.SUCCESS,
+                ActionResult.ReasonCode.SUCCESS,
+                3);
+
+        assertEquals(actorId, event.actorId());
+        assertEquals(scheduleId, event.parentJobId());
+        assertEquals("sef:fake.scene", event.actionId());
+        assertEquals("3", event.normalizedParameters().get("delivery_count"));
+        assertEquals("staff_scene", event.normalizedParameters().get("scene_id"));
+        assertEquals(AuditService.AuditClass.DELEGATED_EXECUTION, event.auditClass());
+    }
+
+    @Test
+    void bundleAuditCarriesTargetAndParentCorrelation() {
+        UUID actorId = UUID.randomUUID();
+        UUID targetId = UUID.randomUUID();
+        UUID correlationId = UUID.randomUUID();
+        BundleCompiler.BundleStep step = new BundleCompiler.BundleStep(
+                "ban_step",
+                BundleCompiler.StepKind.SEF_ACTION,
+                "sef:moderation.ban",
+                BundleCompiler.TargetBinding.ACTOR,
+                BundleCompiler.FailureBehavior.STOP,
+                Duration.ZERO,
+                Map.of());
+        BundleService.RuntimeJob job = new BundleService.RuntimeJob(
+                UUID.randomUUID(),
+                "test:bundle",
+                2L,
+                actorId,
+                correlationId,
+                BundleCompiler.JobState.RUNNING,
+                0,
+                0,
+                0,
+                Instant.now(),
+                Instant.now().plusSeconds(60),
+                Instant.now(),
+                List.of(targetId),
+                List.of(step),
+                List.of(),
+                "");
+
+        AuditService.Event event = AutomationRuntime.bundleAuditEvent(
+                job,
+                step,
+                targetId,
+                ActionResult.failure(ActionResult.ReasonCode.TARGET_DENIED, "target policy"));
+
+        assertEquals(actorId, event.actorId());
+        assertEquals(List.of(targetId), event.targetIds());
+        assertEquals(correlationId, event.parentJobId());
+        assertEquals("sef:moderation.ban", event.actionId());
+        assertEquals("ban_step", event.normalizedParameters().get("step_id"));
+        assertEquals(AuditService.Result.FAILED, event.result());
+        assertEquals(ActionResult.ReasonCode.TARGET_DENIED, event.reason());
+    }
+
+    @Test
     void sudoCompatibilityTreeIncludesBooleanPermissionMode() {
         KernelServices.initialize();
         CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
