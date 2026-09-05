@@ -158,7 +158,7 @@ class FileLogSinkTest {
                 ObservationContracts.LifecycleStage.COMPLETED,
                 actor,
                 actor,
-                "En\u202Evy",
+                "En\u202Evy\u2028\u2029",
                 CommandDefinition.SourceType.PLAYER,
                 "minecraft:over\u200Bworld",
                 0,
