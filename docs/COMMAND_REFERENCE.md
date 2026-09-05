@@ -10404,10 +10404,10 @@ Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 
 ### `sef:inventory.clear`
 
-* Description: Executes the `/clear` action through the shared policy pipeline.
-* Usage: `/clear`.
-* Canonical route: `clear`.
-* Example: `/clear`.
+* Description: Executes the `/clearinventory` action through the shared policy pipeline.
+* Usage: `/clearinventory`.
+* Canonical route: `clearinventory`.
+* Example: `/clearinventory`.
 * Convenience roots: `ci`, `clearinventory`.
 * Category: `inventory`.
 * Feature gate: `sef.inventory`.
@@ -10620,7 +10620,7 @@ Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 * Feature gate: `sef.inventory`.
 * Permissions: `sef.commands.recipe`.
 * Access class: `player`.
-* Sources: `console`, `player`, `rcon`.
+* Sources: `player`.
 * Target behavior: `optional_player`.
 * Cooldown policy: `sef:inventory.recipe`.
 * Confirmation: not required.
