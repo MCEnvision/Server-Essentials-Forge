@@ -6,6 +6,7 @@ import com.enviouse.sef.gui.GuiPreferenceRepository;
 import com.enviouse.sef.gui.protocol.SefGuiServer;
 import com.enviouse.sef.gui.protocol.SefSessionManager;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.ConfirmationService;
 import com.enviouse.sef.permissions.PermissionService;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.IntSupplier;
 
 public final class ModuleConfigCommands {
     private static final int PAGE_SIZE = 8;
@@ -53,111 +55,181 @@ public final class ModuleConfigCommands {
                         "commands.config.edit",
                         "commands.config.migrate",
                         "commands.config.documentation"))
-                .executes(context -> status(context.getSource()))
+                .executes(context -> audited(
+                        context.getSource(), "sef:config.status", Map.of(), List.of(),
+                        () -> status(context.getSource())))
                 .then(Commands.literal("modules")
                         .requires(source -> has(source, "commands.config.modules"))
-                        .executes(context -> modules(context.getSource(), 1))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:config.modules", Map.of("page", "1"), List.of(),
+                                () -> modules(context.getSource(), 1)))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
-                                .executes(context -> modules(
-                                        context.getSource(),
-                                        IntegerArgumentType.getInteger(context, "page")))))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.modules",
+                                        Map.of("page", Integer.toString(IntegerArgumentType.getInteger(context, "page"))),
+                                        List.of(),
+                                        () -> modules(
+                                                context.getSource(),
+                                                IntegerArgumentType.getInteger(context, "page"))))))
                 .then(Commands.literal("status")
                         .requires(source -> has(source, "commands.config.status"))
-                        .executes(context -> status(context.getSource())))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:config.status", Map.of(), List.of(),
+                                () -> status(context.getSource()))))
                 .then(Commands.literal("inspect")
                         .requires(source -> has(source, "commands.config.inspect"))
                         .then(moduleArgument("module")
-                                .executes(context -> inspect(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "module"),
-                                        1))
-                                .then(Commands.argument("page", IntegerArgumentType.integer(1))
-                                        .executes(context -> inspect(
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.inspect",
+                                        Map.of("module", StringArgumentType.getString(context, "module"), "page", "1"),
+                                        List.of(),
+                                        () -> inspect(
                                                 context.getSource(),
                                                 StringArgumentType.getString(context, "module"),
-                                                IntegerArgumentType.getInteger(context, "page"))))))
+                                                1)))
+                                .then(Commands.argument("page", IntegerArgumentType.integer(1))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:config.inspect",
+                                                Map.of(
+                                                        "module", StringArgumentType.getString(context, "module"),
+                                                        "page", Integer.toString(IntegerArgumentType.getInteger(context, "page"))),
+                                                List.of(),
+                                                () -> inspect(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "module"),
+                                                        IntegerArgumentType.getInteger(context, "page")))))))
                 .then(Commands.literal("diff")
                         .requires(source -> has(source, "commands.config.diff"))
                         .then(moduleArgument("module")
-                                .executes(context -> diff(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "module")))))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.diff",
+                                        Map.of("module", StringArgumentType.getString(context, "module")), List.of(),
+                                        () -> diff(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "module"))))))
                 .then(Commands.literal("validate")
                         .requires(source -> has(source, "commands.config.validate"))
-                        .executes(context -> validate(context.getSource(), null))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:config.validate", Map.of("module", "all"), List.of(),
+                                () -> validate(context.getSource(), null)))
                         .then(moduleArgument("module")
-                                .executes(context -> validate(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "module")))))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.validate",
+                                        Map.of("module", StringArgumentType.getString(context, "module")), List.of(),
+                                        () -> validate(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "module"))))))
                 .then(Commands.literal("reload")
                         .requires(source -> has(source, "commands.config.reload"))
-                        .executes(context -> reload(context.getSource(), null))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:config.reload", Map.of("module", "all"), List.of(),
+                                () -> reload(context.getSource(), null)))
                         .then(moduleArgument("module")
-                                .executes(context -> reload(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "module")))))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.reload",
+                                        Map.of("module", StringArgumentType.getString(context, "module")), List.of(),
+                                        () -> reload(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "module"))))))
                 .then(Commands.literal("history")
                         .requires(source -> has(source, "commands.config.history"))
                         .then(moduleArgument("module")
-                                .executes(context -> history(
-                                        context.getSource(),
-                                        StringArgumentType.getString(context, "module")))))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.history",
+                                        Map.of("module", StringArgumentType.getString(context, "module")), List.of(),
+                                        () -> history(
+                                                context.getSource(),
+                                                StringArgumentType.getString(context, "module"))))))
                 .then(Commands.literal("rollback")
                         .requires(source -> has(source, "commands.config.rollback"))
                         .then(moduleArgument("module")
                                 .then(Commands.argument("revision", LongArgumentType.longArg(1L))
-                                        .executes(context -> rollback(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "module"),
-                                                LongArgumentType.getLong(context, "revision"))))))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:config.rollback",
+                                                Map.of(
+                                                        "module", StringArgumentType.getString(context, "module"),
+                                                        "revision", Long.toString(LongArgumentType.getLong(context, "revision"))),
+                                                List.of(),
+                                                () -> rollback(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "module"),
+                                                        LongArgumentType.getLong(context, "revision")))))))
                 .then(Commands.literal("explain")
                         .requires(source -> has(source, "commands.config.explain"))
                         .then(moduleArgument("module")
                                 .then(settingArgument("setting", "module")
-                                        .executes(context -> explain(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "module"),
-                                                StringArgumentType.getString(context, "setting"))))))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:config.explain",
+                                                Map.of(
+                                                        "module", StringArgumentType.getString(context, "module"),
+                                                        "setting", StringArgumentType.getString(context, "setting")),
+                                                List.of(),
+                                                () -> explain(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "module"),
+                                                        StringArgumentType.getString(context, "setting")))))))
                 .then(Commands.literal("set")
                         .requires(source -> has(source, "commands.config.edit"))
                         .then(moduleArgument("module")
                                 .then(settingArgument("setting", "module")
                                         .then(Commands.argument("expected_revision", LongArgumentType.longArg(1L))
                                                 .then(Commands.argument("value", StringArgumentType.greedyString())
-                                                        .executes(context -> set(
-                                                                context.getSource(),
-                                                                StringArgumentType.getString(context, "module"),
-                                                                StringArgumentType.getString(context, "setting"),
-                                                                LongArgumentType.getLong(context, "expected_revision"),
-                                                                StringArgumentType.getString(context, "value"))))))))
+                                                        .executes(context -> audited(
+                                                                context.getSource(), "sef:config.edit",
+                                                                Map.of(
+                                                                        "module", StringArgumentType.getString(context, "module"),
+                                                                        "setting", StringArgumentType.getString(context, "setting"),
+                                                                        "expected_revision", Long.toString(LongArgumentType.getLong(context, "expected_revision")),
+                                                                        "value_length", Integer.toString(StringArgumentType.getString(context, "value").length())),
+                                                                List.of(),
+                                                                () -> set(
+                                                                        context.getSource(),
+                                                                        StringArgumentType.getString(context, "module"),
+                                                                        StringArgumentType.getString(context, "setting"),
+                                                                        LongArgumentType.getLong(context, "expected_revision"),
+                                                                        StringArgumentType.getString(context, "value")))))))))
                 .then(Commands.literal("migrate")
                         .requires(source -> has(source, "commands.config.migrate"))
                         .then(Commands.literal("dryrun")
-                                .executes(context -> migration(context.getSource(), 1))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.migrate", Map.of("page", "1"), List.of(),
+                                        () -> migration(context.getSource(), 1)))
                                 .then(Commands.argument("page", IntegerArgumentType.integer(1))
-                                        .executes(context -> migration(
-                                                context.getSource(),
-                                                IntegerArgumentType.getInteger(context, "page")))))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:config.migrate",
+                                                Map.of("page", Integer.toString(IntegerArgumentType.getInteger(context, "page"))), List.of(),
+                                                () -> migration(
+                                                        context.getSource(),
+                                                        IntegerArgumentType.getInteger(context, "page"))))))
                         .then(Commands.literal("apply")
                                 .then(Commands.argument("expected_revision", LongArgumentType.longArg(1L))
-                                        .executes(context -> migrationApply(
-                                                context.getSource(),
-                                                LongArgumentType.getLong(context, "expected_revision"),
-                                                null))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:config.migrate",
+                                                Map.of("expected_revision", Long.toString(LongArgumentType.getLong(context, "expected_revision")),
+                                                        "token_present", "false"), List.of(),
+                                                () -> migrationApply(
+                                                        context.getSource(),
+                                                        LongArgumentType.getLong(context, "expected_revision"),
+                                                        null)))
                                         .then(Commands.literal("confirm")
                                                 .then(Commands.argument("token", StringArgumentType.word())
-                                                        .executes(context -> migrationApply(
-                                                                context.getSource(),
-                                                                LongArgumentType.getLong(
-                                                                        context,
-                                                                        "expected_revision"),
-                                                                StringArgumentType.getString(
-                                                                        context,
-                                                                        "token"))))))))
+                                                        .executes(context -> audited(
+                                                                context.getSource(), "sef:config.migrate",
+                                                                Map.of(
+                                                                        "expected_revision", Long.toString(LongArgumentType.getLong(context, "expected_revision")),
+                                                                        "token_present", "true",
+                                                                        "token_length", Integer.toString(StringArgumentType.getString(context, "token").length())),
+                                                                List.of(),
+                                                                () -> migrationApply(
+                                                                        context.getSource(),
+                                                                        LongArgumentType.getLong(context, "expected_revision"),
+                                                                        StringArgumentType.getString(context, "token")))))))))
                 .then(Commands.literal("documentation")
                         .requires(source -> has(source, "commands.config.documentation"))
                         .then(Commands.literal("generate")
-                                .executes(context -> documentation(context.getSource()))));
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:config.documentation", Map.of(), List.of(),
+                                        () -> documentation(context.getSource())))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> guisRoot() {
@@ -176,19 +248,29 @@ public final class ModuleConfigCommands {
                         "commands.guis.doctor",
                         "commands.guis.explain",
                         "commands.guis.coverage"))
-                .executes(context -> guiStatus(context.getSource()))
+                .executes(context -> audited(
+                        context.getSource(), "sef:guis.status", Map.of(), List.of(),
+                        () -> guiStatus(context.getSource())))
                 .then(Commands.literal("status")
                         .requires(source -> has(source, "commands.guis.status"))
-                        .executes(context -> guiStatus(context.getSource())))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.status", Map.of(), List.of(),
+                                () -> guiStatus(context.getSource()))))
                 .then(Commands.literal("on")
                         .requires(source -> has(source, "commands.guis.enable"))
-                        .executes(context -> guiMode(context.getSource(), "on")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.enable", Map.of("mode", "on"), List.of(),
+                                () -> guiMode(context.getSource(), "on"))))
                 .then(Commands.literal("off")
                         .requires(source -> has(source, "commands.guis.disable"))
-                        .executes(context -> guiMode(context.getSource(), "off")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.disable", Map.of("mode", "off"), List.of(),
+                                () -> guiMode(context.getSource(), "off"))))
                 .then(Commands.literal("auto")
                         .requires(source -> has(source, "commands.guis.auto"))
-                        .executes(context -> guiMode(context.getSource(), "auto")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.auto", Map.of("mode", "auto"), List.of(),
+                                () -> guiMode(context.getSource(), "auto"))))
                 .then(Commands.literal("module")
                         .requires(source -> has(source, "commands.guis.module"))
                         .then(moduleArgument("module")
@@ -200,10 +282,15 @@ public final class ModuleConfigCommands {
                                             }
                                             return builder.buildFuture();
                                         })
-                                        .executes(context -> guiModule(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "module"),
-                                                StringArgumentType.getString(context, "mode"))))))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:guis.module",
+                                                Map.of(
+                                                        "module", StringArgumentType.getString(context, "module"),
+                                                        "mode", StringArgumentType.getString(context, "mode")), List.of(),
+                                                () -> guiModule(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "module"),
+                                                        StringArgumentType.getString(context, "mode")))))))
                 .then(Commands.literal("action")
                         .requires(source -> has(source, "commands.guis.action"))
                         .then(Commands.argument("action", StringArgumentType.word())
@@ -220,27 +307,44 @@ public final class ModuleConfigCommands {
                                             }
                                             return builder.buildFuture();
                                         })
-                                        .executes(context -> guiAction(
-                                                context.getSource(),
-                                                StringArgumentType.getString(context, "action"),
-                                                StringArgumentType.getString(context, "mode"))))))
+                                        .executes(context -> audited(
+                                                context.getSource(), "sef:guis.action",
+                                                Map.of(
+                                                        "action", StringArgumentType.getString(context, "action"),
+                                                        "mode", StringArgumentType.getString(context, "mode")), List.of(),
+                                                () -> guiAction(
+                                                        context.getSource(),
+                                                        StringArgumentType.getString(context, "action"),
+                                                        StringArgumentType.getString(context, "mode")))))))
                 .then(Commands.literal("sessions")
                         .requires(source -> has(source, "commands.guis.sessions"))
-                        .executes(context -> guiSessions(context.getSource())))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.sessions", Map.of(), List.of(),
+                                () -> guiSessions(context.getSource()))))
                 .then(Commands.literal("close")
                         .requires(source -> has(source, "commands.guis.close"))
                         .then(Commands.literal("all")
-                                .executes(context -> closeAll(context.getSource())))
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:guis.close", Map.of("target", "all"), List.of(),
+                                        () -> closeAll(context.getSource()))))
                         .then(Commands.argument("player", EntityArgument.player())
-                                .executes(context -> close(
-                                        context.getSource(),
-                                        EntityArgument.getPlayer(context, "player")))))
+                                .executes(context -> {
+                                    ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                                    return audited(
+                                            context.getSource(), "sef:guis.close",
+                                            Map.of("target", target.getUUID().toString()), List.of(target.getUUID()),
+                                            () -> close(context.getSource(), target));
+                                })))
                 .then(Commands.literal("reload")
                         .requires(source -> has(source, "commands.guis.reload"))
-                        .executes(context -> reload(context.getSource(), "gui")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.reload", Map.of("module", "gui"), List.of(),
+                                () -> reload(context.getSource(), "gui"))))
                 .then(Commands.literal("doctor")
                         .requires(source -> has(source, "commands.guis.doctor"))
-                        .executes(context -> guiDoctor(context.getSource())))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.doctor", Map.of(), List.of(),
+                                () -> guiDoctor(context.getSource()))))
                 .then(Commands.literal("explain")
                         .requires(source -> has(source, "commands.guis.explain"))
                         .then(Commands.argument("player", EntityArgument.player())
@@ -250,34 +354,63 @@ public final class ModuleConfigCommands {
                                                     builder.suggest(definition.id()));
                                             return builder.buildFuture();
                                         })
-                                        .executes(context -> guiExplain(
-                                                context.getSource(),
-                                                EntityArgument.getPlayer(context, "player"),
-                                                StringArgumentType.getString(context, "action"))))))
+                                        .executes(context -> {
+                                            ServerPlayer target = EntityArgument.getPlayer(context, "player");
+                                            String action = StringArgumentType.getString(context, "action");
+                                            return audited(
+                                                    context.getSource(), "sef:guis.explain",
+                                                    Map.of("target", target.getUUID().toString(), "action", action),
+                                                    List.of(target.getUUID()),
+                                                    () -> guiExplain(context.getSource(), target, action));
+                                        }))))
                 .then(Commands.literal("coverage")
                         .requires(source -> has(source, "commands.guis.coverage"))
-                        .executes(context -> guiCoverage(context.getSource(), 1))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:guis.coverage", Map.of("page", "1"), List.of(),
+                                () -> guiCoverage(context.getSource(), 1)))
                         .then(Commands.argument("page", IntegerArgumentType.integer(1))
-                                .executes(context -> guiCoverage(
-                                        context.getSource(),
-                                        IntegerArgumentType.getInteger(context, "page")))));
+                                .executes(context -> audited(
+                                        context.getSource(), "sef:guis.coverage",
+                                        Map.of("page", Integer.toString(IntegerArgumentType.getInteger(context, "page"))),
+                                        List.of(),
+                                        () -> guiCoverage(
+                                                context.getSource(),
+                                                IntegerArgumentType.getInteger(context, "page"))))));
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> guiPreferenceRoot() {
         return Commands.literal("gui")
                 .requires(source -> source.getPlayer() != null
                         && has(source, "commands.gui.preference"))
-                .executes(context -> openGui(context.getSource()))
+                .executes(context -> audited(
+                        context.getSource(), "sef:gui.preference", Map.of("operation", "open"),
+                        List.of(context.getSource().getPlayer().getUUID()),
+                        () -> openGui(context.getSource())))
                 .then(Commands.literal("on")
-                        .executes(context -> preference(context.getSource(), "gui")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:gui.preference", Map.of("mode", "gui"),
+                                List.of(context.getSource().getPlayer().getUUID()),
+                                () -> preference(context.getSource(), "gui"))))
                 .then(Commands.literal("off")
-                        .executes(context -> preference(context.getSource(), "command")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:gui.preference", Map.of("mode", "command"),
+                                List.of(context.getSource().getPlayer().getUUID()),
+                                () -> preference(context.getSource(), "command"))))
                 .then(Commands.literal("auto")
-                        .executes(context -> preference(context.getSource(), "auto")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:gui.preference", Map.of("mode", "auto"),
+                                List.of(context.getSource().getPlayer().getUUID()),
+                                () -> preference(context.getSource(), "auto"))))
                 .then(Commands.literal("reset")
-                        .executes(context -> preference(context.getSource(), "auto")))
+                        .executes(context -> audited(
+                                context.getSource(), "sef:gui.preference", Map.of("mode", "auto"),
+                                List.of(context.getSource().getPlayer().getUUID()),
+                                () -> preference(context.getSource(), "auto"))))
                 .then(Commands.literal("status")
-                        .executes(context -> preferenceStatus(context.getSource())));
+                        .executes(context -> audited(
+                                context.getSource(), "sef:gui.preference", Map.of("operation", "status"),
+                                List.of(context.getSource().getPlayer().getUUID()),
+                                () -> preferenceStatus(context.getSource()))));
     }
 
     private static com.mojang.brigadier.builder.RequiredArgumentBuilder<CommandSourceStack, String> moduleArgument(
@@ -354,13 +487,22 @@ public final class ModuleConfigCommands {
 
     private static int diff(CommandSourceStack source, String moduleId) {
         try {
+            var definition = KernelServices.moduleConfigs().registry().require(moduleId);
             var diff = KernelServices.moduleConfigs().diff(moduleId);
             info(source, diff.moduleId() + " pending changes, revision " + diff.revision());
             if (diff.changes().isEmpty()) {
                 info(source, "no pending changes");
             }
-            diff.changes().forEach((path, change) ->
-                    info(source, path + ", " + change.before() + " to " + change.after()));
+            diff.changes().forEach((path, change) -> {
+                var setting = definition.settingsByPath().get(path);
+                String before = setting == null
+                        ? "<redacted>"
+                        : visibleValue(source, setting, change.before());
+                String after = setting == null
+                        ? "<redacted>"
+                        : visibleValue(source, setting, change.after());
+                info(source, path + ", " + before + " to " + after);
+            });
             diff.diagnostics().forEach(message -> info(source, message));
             return diff.diagnostics().isEmpty() ? 1 : 0;
         } catch (IllegalArgumentException exception) {
@@ -783,6 +925,16 @@ public final class ModuleConfigCommands {
 
     private static UUID actorId(CommandSourceStack source) {
         return source.getPlayer() == null ? null : source.getPlayer().getUUID();
+    }
+
+    private static int audited(
+            CommandSourceStack source,
+            String actionId,
+            Map<String, String> parameters,
+            List<UUID> targetIds,
+            IntSupplier action
+    ) {
+        return KernelCommandExecutor.execute(source, actionId, parameters, targetIds, false, action);
     }
 
     private static int fail(CommandSourceStack source, String message) {

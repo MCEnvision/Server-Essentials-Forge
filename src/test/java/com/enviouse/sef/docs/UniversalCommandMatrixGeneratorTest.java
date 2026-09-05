@@ -22,8 +22,8 @@ class UniversalCommandMatrixGeneratorTest {
     void matrixContainsEveryCommandAndUnavailableFamilyWithAllDimensions() {
         JsonObject matrix = UniversalCommandMatrixGenerator.generate();
         UniversalCommandMatrixGenerator.validate(matrix);
-        assertEquals(710, matrix.get("rowCount").getAsInt());
-        assertEquals(694, matrix.get("commandRowCount").getAsInt());
+        assertEquals(724, matrix.get("rowCount").getAsInt());
+        assertEquals(708, matrix.get("commandRowCount").getAsInt());
         assertEquals(16, matrix.get("unavailableRowCount").getAsInt());
         assertFalse(matrix.get("complete").getAsBoolean());
         assertTrue(matrix.get("openRowCount").getAsInt() > 0);

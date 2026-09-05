@@ -3,6 +3,7 @@ package com.enviouse.sef.banned;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.VanishUtil;
@@ -12,6 +13,7 @@ import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 
 import net.minecraft.ChatFormatting;
@@ -25,10 +27,12 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerPlayer;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.IntSupplier;
 import java.util.regex.Pattern;
 
 /**
@@ -147,104 +151,39 @@ public class BannedItemsCommands {
 
         // /banned clear
         root.then(Commands.literal("clear").requires(BannedItemsCommands::isOp)
-            .executes(ctx -> {
-                int n = manager.clearAll();
-                ctx.getSource().sendSuccess(() -> fmt("&aCleared &e" + n + "&a banned entries."), true);
-                return n;
-            }));
+            .executes(ctx -> clear(ctx.getSource())));
 
         // /banned reload
         root.then(Commands.literal("reload").requires(BannedItemsCommands::isOp)
-            .executes(ctx -> {
-                manager.reload(ctx.getSource().getServer());
-                ctx.getSource().sendSuccess(() -> fmt("&aBanned items reloaded from disk."), true);
-                return 1;
-            }));
+            .executes(ctx -> reload(ctx.getSource())));
 
         // /banned setradius <n>
         root.then(Commands.literal("setradius").requires(BannedItemsCommands::isOp)
             .then(Commands.argument("n", IntegerArgumentType.integer(1, 64))
-                .executes(ctx -> {
-                    int n = IntegerArgumentType.getInteger(ctx, "n");
-                    manager.setRadiusOverride(n);
-                    ctx.getSource().sendSuccess(() -> fmt("&aBanned-block scan radius set to &e" + n + "&a."), true);
-                    return 1;
-                })));
+                .executes(ctx -> setRadius(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "n")))));
 
         // /banned setinterval <ticks>
         root.then(Commands.literal("setinterval").requires(BannedItemsCommands::isOp)
             .then(Commands.argument("ticks", IntegerArgumentType.integer(1, 24000))
-                .executes(ctx -> {
-                    int n = IntegerArgumentType.getInteger(ctx, "ticks");
-                    manager.setIntervalOverride(n);
-                    ctx.getSource().sendSuccess(() -> fmt("&aBanned-block scan interval set to &e" + n + "&a ticks."), true);
-                    return 1;
-                })));
+                .executes(ctx -> setInterval(ctx.getSource(), IntegerArgumentType.getInteger(ctx, "ticks")))));
 
         // /banned toggle <items|blocks|drops|all>
         root.then(Commands.literal("toggle").requires(BannedItemsCommands::isOp)
-            .then(Commands.literal("items").executes(ctx -> {
-                manager.setItemsEnabled(!manager.isItemsEnabled());
-                ctx.getSource().sendSuccess(() -> fmt("&aItem scanning: " + onOff(manager.isItemsEnabled())), true);
-                return 1;
-            }))
-            .then(Commands.literal("blocks").executes(ctx -> {
-                manager.setBlocksEnabled(!manager.isBlocksEnabled());
-                ctx.getSource().sendSuccess(() -> fmt("&aBlock scanning: " + onOff(manager.isBlocksEnabled())), true);
-                return 1;
-            }))
-            .then(Commands.literal("drops").executes(ctx -> {
-                manager.setDropOnDestroy(!manager.isDropOnDestroy());
-                ctx.getSource().sendSuccess(() -> fmt("&aDrop on destroy: " + onOff(manager.isDropOnDestroy())), true);
-                return 1;
-            }))
-            .then(Commands.literal("all").executes(ctx -> {
-                boolean both = !(manager.isItemsEnabled() && manager.isBlocksEnabled());
-                manager.setItemsEnabled(both);
-                manager.setBlocksEnabled(both);
-                ctx.getSource().sendSuccess(() -> fmt("&aAll banned scans: " + onOff(both)), true);
-                return 1;
-            })));
+            .then(Commands.literal("items").executes(ctx -> toggle(ctx.getSource(), "items")))
+            .then(Commands.literal("blocks").executes(ctx -> toggle(ctx.getSource(), "blocks")))
+            .then(Commands.literal("drops").executes(ctx -> toggle(ctx.getSource(), "drops")))
+            .then(Commands.literal("all").executes(ctx -> toggle(ctx.getSource(), "all"))));
 
         // /banned bypass <player> <on|off>
         root.then(Commands.literal("bypass").requires(BannedItemsCommands::isOp)
             .then(IdentityArguments.online("player")
-                .then(Commands.literal("on").executes(ctx -> {
-                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
-                    if (!eligible(ctx.getSource(), p)) {
-                        return unavailable(ctx.getSource());
-                    }
-                    boolean changed = manager.setBypass(p.getUUID(), true);
-                    ctx.getSource().sendSuccess(() -> fmt(changed
-                        ? "&aBypass &2enabled &afor &e" + p.getGameProfile().getName()
-                        : "&7" + p.getGameProfile().getName() + " already had bypass."), true);
-                    return 1;
-                }))
-                .then(Commands.literal("off").executes(ctx -> {
-                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
-                    if (!eligible(ctx.getSource(), p)) {
-                        return unavailable(ctx.getSource());
-                    }
-                    boolean changed = manager.setBypass(p.getUUID(), false);
-                    ctx.getSource().sendSuccess(() -> fmt(changed
-                        ? "&aBypass &cdisabled &afor &e" + p.getGameProfile().getName()
-                        : "&7" + p.getGameProfile().getName() + " did not have bypass."), true);
-                    return 1;
-                }))));
+                .then(Commands.literal("on").executes(ctx -> bypass(ctx, true)))
+                .then(Commands.literal("off").executes(ctx -> bypass(ctx, false)))));
 
         // /banned scan <player>
         root.then(Commands.literal("scan").requires(BannedItemsCommands::isOp)
             .then(IdentityArguments.online("player")
-                .executes(ctx -> {
-                    ServerPlayer p = IdentityArguments.getOnline(ctx, "player");
-                    if (!eligible(ctx.getSource(), p)) {
-                        return unavailable(ctx.getSource());
-                    }
-                    int n = manager.forceScan(p);
-                    ctx.getSource().sendSuccess(() -> fmt(
-                        "&aForced scan on &e" + p.getGameProfile().getName() + "&a — removed &e" + n + "&a item(s)."), true);
-                    return n;
-                })));
+                .executes(BannedItemsCommands::scan)));
 
         // /banned excepted [remove <index> | clear]
         LiteralArgumentBuilder<CommandSourceStack> excepted = Commands.literal("excepted")
@@ -252,20 +191,10 @@ public class BannedItemsCommands {
             .executes(ctx -> doListExcepted(ctx.getSource()));
         excepted.then(Commands.literal("remove")
             .then(Commands.argument("index", IntegerArgumentType.integer(0))
-                .executes(ctx -> {
-                    int idx = IntegerArgumentType.getInteger(ctx, "index");
-                    boolean ok = manager.removeExceptionAt(idx);
-                    ctx.getSource().sendSuccess(() -> fmt(ok
-                        ? "&aRemoved exception #" + idx
-                        : "&cNo exception at index " + idx), true);
-                    return ok ? 1 : 0;
-                })));
+                .executes(ctx -> removeException(
+                        ctx.getSource(), IntegerArgumentType.getInteger(ctx, "index")))));
         excepted.then(Commands.literal("clear")
-            .executes(ctx -> {
-                int n = manager.clearExceptions();
-                ctx.getSource().sendSuccess(() -> fmt("&aCleared &e" + n + "&a exception(s)."), true);
-                return n;
-            }));
+            .executes(ctx -> clearExceptions(ctx.getSource())));
         root.then(excepted);
 
         dispatcher.register(root);
@@ -274,20 +203,38 @@ public class BannedItemsCommands {
     // ── Subcommand impls ────────────────────────────────────────────────────
 
     private static int doList(CommandSourceStack source) {
-        var entries = manager.getEntries();
-        if (entries.isEmpty()) {
-            source.sendSuccess(() -> fmt("&7No banned items configured."), false);
-            return 0;
-        }
-        source.sendSuccess(() -> fmt("&6━━━━━━━━ Banned Items &7(" + entries.size() + ") &6━━━━━━━━"), false);
-        for (BannedEntry e : entries.values()) {
-            source.sendSuccess(() -> formatEntryLine(e), false);
-        }
-        return entries.size();
+        return execute(source, "sef:banned.list", Map.of("operation", "list"), List.of(), true, () -> {
+            var entries = manager.getEntries();
+            if (entries.isEmpty()) {
+                source.sendSuccess(() -> fmt("&7No banned items configured."), false);
+                return 0;
+            }
+            source.sendSuccess(() -> fmt("&6━━━━━━━━ Banned Items &7(" + entries.size() + ") &6━━━━━━━━"), false);
+            for (BannedEntry e : entries.values()) {
+                source.sendSuccess(() -> formatEntryLine(e), false);
+            }
+            return entries.size();
+        });
     }
 
     private static int doAdd(CommandContext<CommandSourceStack> ctx, String durationStr,
                              boolean announce, String reason) {
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
+        return execute(
+                ctx.getSource(),
+                "sef:banned.add",
+                Map.of(
+                        "item", item,
+                        "duration", durationStr,
+                        "announce", Boolean.toString(announce),
+                        "reason_length", Integer.toString(reason == null ? 0 : reason.length())),
+                List.of(),
+                false,
+                () -> doAddInternal(ctx, durationStr, announce, reason));
+    }
+
+    private static int doAddInternal(CommandContext<CommandSourceStack> ctx, String durationStr,
+                                    boolean announce, String reason) {
         String item = ResourceLocationArgument.getId(ctx, "item").toString();
         Long durMs = parseDuration(ctx.getSource(), durationStr);
         if (durMs == null) {
@@ -309,6 +256,27 @@ public class BannedItemsCommands {
 
     private static int doAddHand(CommandContext<CommandSourceStack> ctx, String durationStr,
                                  boolean announce, String reason) {
+        ServerPlayer player;
+        try {
+            player = ctx.getSource().getPlayerOrException();
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(fmt("&c/banned addhand can only be used by a player."));
+            return 0;
+        }
+        return execute(
+                ctx.getSource(),
+                "sef:banned.addhand",
+                Map.of(
+                        "duration", durationStr,
+                        "announce", Boolean.toString(announce),
+                        "reason_length", Integer.toString(reason == null ? 0 : reason.length())),
+                List.of(player.getUUID()),
+                false,
+                () -> doAddHandInternal(ctx, durationStr, announce, reason));
+    }
+
+    private static int doAddHandInternal(CommandContext<CommandSourceStack> ctx, String durationStr,
+                                         boolean announce, String reason) {
         ServerPlayer player;
         try {
             player = ctx.getSource().getPlayerOrException();
@@ -347,6 +315,16 @@ public class BannedItemsCommands {
     }
 
     private static int doRemove(CommandSourceStack source, String item) {
+        return execute(
+                source,
+                "sef:banned.remove",
+                Map.of("item", item),
+                List.of(),
+                false,
+                () -> doRemoveInternal(source, item));
+    }
+
+    private static int doRemoveInternal(CommandSourceStack source, String item) {
         if (manager.removeBan(item)) {
             source.sendSuccess(() -> fmt("&aRemoved banned entry: &e" + item), true);
             return 1;
@@ -357,6 +335,22 @@ public class BannedItemsCommands {
 
     private static int doUpdate(CommandContext<CommandSourceStack> ctx,
                                 String durationStr, Boolean announce, String reason) {
+        String item = ResourceLocationArgument.getId(ctx, "item").toString();
+        return execute(
+                ctx.getSource(),
+                "sef:banned.update",
+                Map.of(
+                        "item", item,
+                        "duration_present", Boolean.toString(durationStr != null),
+                        "announce_present", Boolean.toString(announce != null),
+                        "reason_length", Integer.toString(reason == null ? 0 : reason.length())),
+                List.of(),
+                false,
+                () -> doUpdateInternal(ctx, durationStr, announce, reason));
+    }
+
+    private static int doUpdateInternal(CommandContext<CommandSourceStack> ctx,
+                                       String durationStr, Boolean announce, String reason) {
         String item = ResourceLocationArgument.getId(ctx, "item").toString();
         Long durMs = durationStr == null ? null : parseDuration(ctx.getSource(), durationStr);
         if (durationStr != null && durMs == null) {
@@ -376,19 +370,173 @@ public class BannedItemsCommands {
     }
 
     private static int doListExcepted(CommandSourceStack source) {
-        List<BannedExceptedBlock> list = manager.getExceptions();
-        if (list.isEmpty()) {
-            source.sendSuccess(() -> fmt("&7No excepted blocks recorded."), false);
-            return 0;
+        return execute(source, "sef:banned.excepted", Map.of("operation", "list"), List.of(), true, () -> {
+            List<BannedExceptedBlock> list = manager.getExceptions();
+            if (list.isEmpty()) {
+                source.sendSuccess(() -> fmt("&7No excepted blocks recorded."), false);
+                return 0;
+            }
+            source.sendSuccess(() -> fmt("&6━━━━ Banned-block Exceptions &7(" + list.size() + ") &6━━━━"), false);
+            for (int i = 0; i < list.size(); i++) {
+                BannedExceptedBlock b = list.get(i);
+                int idx = i;
+                source.sendSuccess(() -> formatExceptedLine(idx, b), false);
+            }
+            source.sendSuccess(() -> fmt("&7Use &f/banned excepted remove <index>&7 to drop one."), false);
+            return list.size();
+        });
+    }
+
+    private static int clear(CommandSourceStack source) {
+        return execute(source, "sef:banned.clear", Map.of(), List.of(), true, () -> {
+            int count = manager.clearAll();
+            source.sendSuccess(() -> fmt("&aCleared &e" + count + "&a banned entries."), true);
+            return count;
+        });
+    }
+
+    private static int reload(CommandSourceStack source) {
+        return execute(source, "sef:banned.reload", Map.of(), List.of(), false, () -> {
+            manager.reload(source.getServer());
+            source.sendSuccess(() -> fmt("&aBanned items reloaded from disk."), true);
+            return 1;
+        });
+    }
+
+    private static int setRadius(CommandSourceStack source, int radius) {
+        return execute(source, "sef:banned.setradius", Map.of("radius", Integer.toString(radius)),
+                List.of(), false, () -> {
+                    manager.setRadiusOverride(radius);
+                    source.sendSuccess(() -> fmt("&aBanned-block scan radius set to &e" + radius + "&a."), true);
+                    return 1;
+                });
+    }
+
+    private static int setInterval(CommandSourceStack source, int ticks) {
+        return execute(source, "sef:banned.setinterval", Map.of("ticks", Integer.toString(ticks)),
+                List.of(), false, () -> {
+                    manager.setIntervalOverride(ticks);
+                    source.sendSuccess(() -> fmt("&aBanned-block scan interval set to &e" + ticks + "&a ticks."), true);
+                    return 1;
+                });
+    }
+
+    private static int toggle(CommandSourceStack source, String target) {
+        return execute(source, "sef:banned.toggle", Map.of("target", target), List.of(), false, () -> {
+            switch (target) {
+                case "items" -> {
+                    manager.setItemsEnabled(!manager.isItemsEnabled());
+                    source.sendSuccess(() -> fmt("&aItem scanning: " + onOff(manager.isItemsEnabled())), true);
+                }
+                case "blocks" -> {
+                    manager.setBlocksEnabled(!manager.isBlocksEnabled());
+                    source.sendSuccess(() -> fmt("&aBlock scanning: " + onOff(manager.isBlocksEnabled())), true);
+                }
+                case "drops" -> {
+                    manager.setDropOnDestroy(!manager.isDropOnDestroy());
+                    source.sendSuccess(() -> fmt("&aDrop on destroy: " + onOff(manager.isDropOnDestroy())), true);
+                }
+                case "all" -> {
+                    boolean both = !(manager.isItemsEnabled() && manager.isBlocksEnabled());
+                    manager.setItemsEnabled(both);
+                    manager.setBlocksEnabled(both);
+                    source.sendSuccess(() -> fmt("&aAll banned scans: " + onOff(both)), true);
+                }
+                default -> throw new IllegalArgumentException("unknown banned item toggle");
+            }
+            return 1;
+        });
+    }
+
+    private static int bypass(CommandContext<CommandSourceStack> context, boolean enabled)
+            throws CommandSyntaxException {
+        ServerPlayer target = IdentityArguments.getOnline(context, "player");
+        if (!eligible(context.getSource(), target)) {
+            return unavailable(context.getSource());
         }
-        source.sendSuccess(() -> fmt("&6━━━━ Banned-block Exceptions &7(" + list.size() + ") &6━━━━"), false);
-        for (int i = 0; i < list.size(); i++) {
-            BannedExceptedBlock b = list.get(i);
-            int idx = i;
-            source.sendSuccess(() -> formatExceptedLine(idx, b), false);
+        return execute(
+                context.getSource(),
+                "sef:banned.bypass",
+                Map.of("enabled", Boolean.toString(enabled)),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!eligible(context.getSource(), target)) {
+                        return unavailable(context.getSource());
+                    }
+                    boolean changed = manager.setBypass(target.getUUID(), enabled);
+                    context.getSource().sendSuccess(() -> fmt(changed
+                            ? "&aBypass " + (enabled ? "&2enabled" : "&cdisabled")
+                                    + " &afor &e" + target.getGameProfile().getName()
+                            : "&7" + target.getGameProfile().getName()
+                                    + (enabled ? " already had bypass." : " did not have bypass.")), true);
+                    return 1;
+                });
+    }
+
+    private static int scan(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        ServerPlayer target = IdentityArguments.getOnline(context, "player");
+        if (!eligible(context.getSource(), target)) {
+            return unavailable(context.getSource());
         }
-        source.sendSuccess(() -> fmt("&7Use &f/banned excepted remove <index>&7 to drop one."), false);
-        return list.size();
+        return execute(
+                context.getSource(),
+                "sef:banned.scan",
+                Map.of("target", target.getUUID().toString()),
+                List.of(target.getUUID()),
+                true,
+                () -> {
+                    if (!eligible(context.getSource(), target)) {
+                        return -1;
+                    }
+                    int count = manager.forceScan(target);
+                    context.getSource().sendSuccess(() -> fmt(
+                            "&aForced scan on &e" + target.getGameProfile().getName()
+                                    + "&a — removed &e" + count + "&a item(s)."), true);
+                    return count;
+                });
+    }
+
+    private static int removeException(CommandSourceStack source, int index) {
+        return execute(source, "sef:banned.excepted.remove", Map.of("index", Integer.toString(index)),
+                List.of(), false, () -> {
+                    boolean removed = manager.removeExceptionAt(index);
+                    source.sendSuccess(() -> fmt(removed
+                            ? "&aRemoved exception #" + index
+                            : "&cNo exception at index " + index), true);
+                    return removed ? 1 : 0;
+                });
+    }
+
+    private static int clearExceptions(CommandSourceStack source) {
+        return execute(source, "sef:banned.excepted.clear", Map.of(), List.of(), true, () -> {
+            int count = manager.clearExceptions();
+            source.sendSuccess(() -> fmt("&aCleared &e" + count + "&a exception(s)."), true);
+            return count;
+        });
+    }
+
+    private static int execute(
+            CommandSourceStack source,
+            String actionId,
+            Map<String, String> parameters,
+            List<UUID> targetIds,
+            boolean zeroIsSuccess,
+            IntSupplier action
+    ) {
+        AtomicInteger result = new AtomicInteger();
+        int completed = KernelCommandExecutor.execute(
+                source,
+                actionId,
+                parameters,
+                targetIds,
+                false,
+                () -> {
+                    int value = action.getAsInt();
+                    result.set(value);
+                    return value == 0 && zeroIsSuccess ? 1 : value;
+                });
+        return completed > 0 ? result.get() : 0;
     }
 
     // ── Formatting ──────────────────────────────────────────────────────────

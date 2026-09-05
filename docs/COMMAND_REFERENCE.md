@@ -2,7 +2,7 @@
 
 This file is generated from the sealed command, shortcut, and GUI descriptor registries. Change registry metadata and run `./gradlew generateProjectReferences` instead of editing this file.
 
-Catalog entries: 694. Shortcut entries: 315. GUI descriptors: 25.
+Catalog entries: 708. Shortcut entries: 315. GUI descriptors: 25.
 
 ## Commands
 
@@ -903,6 +903,167 @@ Catalog entries: 694. Shortcut entries: 315. GUI descriptors: 25.
 * Player facing: true.
 * Shared pipeline: required.
 
+### `sef:banned.add`
+
+* Description: Executes the `/banned add` action through the shared policy pipeline.
+* Usage: `/banned add`.
+* Canonical route: `banned add`.
+* Example: `/banned add`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.add`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.addhand`
+
+* Description: Executes the `/banned addhand` action through the shared policy pipeline.
+* Usage: `/banned addhand`.
+* Canonical route: `banned addhand`.
+* Example: `/banned addhand`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `player`.
+* Target behavior: `self`.
+* Cooldown policy: `sef:banned.addhand`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.bypass`
+
+* Description: Executes the `/banned bypass` action through the shared policy pipeline.
+* Usage: `/banned bypass`.
+* Canonical route: `banned bypass`.
+* Example: `/banned bypass`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:banned.bypass`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.clear`
+
+* Description: Executes the `/banned clear` action through the shared policy pipeline.
+* Usage: `/banned clear`.
+* Canonical route: `banned clear`.
+* Example: `/banned clear`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.clear`.
+* Confirmation: not required.
+* Audit class: `destructive`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.excepted`
+
+* Description: Executes the `/banned excepted` action through the shared policy pipeline.
+* Usage: `/banned excepted`.
+* Canonical route: `banned excepted`.
+* Example: `/banned excepted`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.excepted`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.excepted.clear`
+
+* Description: Executes the `/banned excepted clear` action through the shared policy pipeline.
+* Usage: `/banned excepted clear`.
+* Canonical route: `banned excepted clear`.
+* Example: `/banned excepted clear`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.excepted.clear`.
+* Confirmation: not required.
+* Audit class: `destructive`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.excepted.remove`
+
+* Description: Executes the `/banned excepted remove` action through the shared policy pipeline.
+* Usage: `/banned excepted remove`.
+* Canonical route: `banned excepted remove`.
+* Example: `/banned excepted remove`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.excepted.remove`.
+* Confirmation: not required.
+* Audit class: `destructive`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
 ### `sef:banned.list`
 
 * Description: Executes the `/banned` action through the shared policy pipeline.
@@ -923,6 +1084,167 @@ Catalog entries: 694. Shortcut entries: 315. GUI descriptors: 25.
 * HUD contract: state is shown through immediate command feedback.
 * Quota contract: domain collections and projections have finite hard bounds.
 * Conflict policy: `prefer_sef`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.reload`
+
+* Description: Executes the `/banned reload` action through the shared policy pipeline.
+* Usage: `/banned reload`.
+* Canonical route: `banned reload`.
+* Example: `/banned reload`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.reload`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.remove`
+
+* Description: Executes the `/banned remove` action through the shared policy pipeline.
+* Usage: `/banned remove`.
+* Canonical route: `banned remove`.
+* Example: `/banned remove`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.remove`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.scan`
+
+* Description: Executes the `/banned scan` action through the shared policy pipeline.
+* Usage: `/banned scan`.
+* Canonical route: `banned scan`.
+* Example: `/banned scan`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `required_player`.
+* Cooldown policy: `sef:banned.scan`.
+* Confirmation: not required.
+* Audit class: `sensitive_access`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.setinterval`
+
+* Description: Executes the `/banned setinterval` action through the shared policy pipeline.
+* Usage: `/banned setinterval`.
+* Canonical route: `banned setinterval`.
+* Example: `/banned setinterval`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.setinterval`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.setradius`
+
+* Description: Executes the `/banned setradius` action through the shared policy pipeline.
+* Usage: `/banned setradius`.
+* Canonical route: `banned setradius`.
+* Example: `/banned setradius`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.setradius`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.toggle`
+
+* Description: Executes the `/banned toggle` action through the shared policy pipeline.
+* Usage: `/banned toggle`.
+* Canonical route: `banned toggle`.
+* Example: `/banned toggle`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.toggle`.
+* Confirmation: not required.
+* Audit class: `config_definition`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
+* Player facing: true.
+* Shared pipeline: required.
+
+### `sef:banned.update`
+
+* Description: Executes the `/banned update` action through the shared policy pipeline.
+* Usage: `/banned update`.
+* Canonical route: `banned update`.
+* Example: `/banned update`.
+* Convenience roots: none.
+* Category: `core`.
+* Feature gate: `sef.core`.
+* Permissions: `sef.commands.banned`.
+* Access class: `administrator`.
+* Sources: `console`, `player`, `rcon`.
+* Target behavior: `none`.
+* Cooldown policy: `sef:banned.update`.
+* Confirmation: not required.
+* Audit class: `admin_action`.
+* GUI descriptor: `sef:moderation`.
+* HUD contract: state is shown through immediate command feedback.
+* Quota contract: domain collections and projections have finite hard bounds.
+* Conflict policy: `canonical_only`.
 * Player facing: true.
 * Shared pipeline: required.
 
