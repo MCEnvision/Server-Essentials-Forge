@@ -363,8 +363,15 @@ public final class UniversalCommandMatrixGenerator {
                             || !row.get("commandDigest").getAsString().matches("[0-9a-f]{64}")) {
                         continue;
                     }
-                    if (successful.put(actionId, row) != null) {
-                        throw new IllegalArgumentException("duplicate catalog runtime evidence action " + actionId);
+                    JsonObject previous = successful.putIfAbsent(actionId, row);
+                    if (previous != null
+                            && (!previous.get("result").equals(row.get("result"))
+                            || !previous.get("auditEventCount").equals(row.get("auditEventCount"))
+                            || !previous.get("sourceType").equals(row.get("sourceType"))
+                            || !previous.get("auditResult").equals(row.get("auditResult"))
+                            || !previous.get("auditClass").equals(row.get("auditClass"))
+                            || !previous.get("redactionClass").equals(row.get("redactionClass")))) {
+                        throw new IllegalArgumentException("inconsistent catalog runtime evidence action " + actionId);
                     }
                 }
                 return new RuntimeEvidence(Map.copyOf(successful));
