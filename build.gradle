@@ -236,6 +236,12 @@ test {
     if (System.getProperty('sef.audit.evidenceRoot') != null) {
         systemProperty 'sef.audit.evidenceRoot', System.getProperty('sef.audit.evidenceRoot')
     }
+    if (System.getProperty('sef.audit.candidateCommit') != null) {
+        systemProperty 'sef.audit.candidateCommit', System.getProperty('sef.audit.candidateCommit')
+    }
+    if (System.getProperty('sef.audit.candidateSha256') != null) {
+        systemProperty 'sef.audit.candidateSha256', System.getProperty('sef.audit.candidateSha256')
+    }
 }
 
 tasks.register('generateProjectReferences') {
