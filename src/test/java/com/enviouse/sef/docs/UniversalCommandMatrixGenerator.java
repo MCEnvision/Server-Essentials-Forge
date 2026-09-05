@@ -284,11 +284,11 @@ public final class UniversalCommandMatrixGenerator {
         JsonObject dimensions = new JsonObject();
         add(dimensions, "registration", "pass", "live catalog and dispatcher route ownership", "task-025-inventory/command-inventory-live.json");
         add(dimensions, "discovery", "pass", "catalog-wide live route resolution GameTest", "task-024-remediation-gametest.log");
-        add(dimensions, "authority", "partial", "catalog-wide denial execution and shared pipeline regressions prove callbacks are blocked, but action-level grant and revoke joins remain open", "task-010-current-adapter-rerun-report.md");
+        add(dimensions, "authority", "partial", "catalog-wide granted and denied permission resolution proves the shared manifest boundary, but action-level revoke and mutation joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
         add(dimensions, "sources", "partial", "source coverage is representative and still needs action-level applicability", "task-028-universal-matrix-ledger.md");
         add(dimensions, "targets", "partial", "target policy coverage is representative and still needs action-level effect oracles", "task-028-universal-matrix-ledger.md");
         add(dimensions, "arguments", "partial", "representative parser corpus does not prove each action effect", "task-024-remediation-gametest.log");
-        add(dimensions, "policy", "partial", "catalog-wide denial execution and shared pipeline regressions prove the shared policy boundary is reached, but per-action policy joins remain open", "task-010-current-adapter-rerun-report.md");
+        add(dimensions, "policy", "partial", "catalog-wide denial and grant resolution reach the shared policy boundary, but per-action policy and mutation joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
         add(dimensions, "preview", "partial", "confirmation and revision contracts are covered for selected routes", "task-028-universal-matrix-ledger.md");
         String auditClass = action.get("auditClass").getAsString();
         if (auditClass.equals("metadata_only")) {
@@ -299,13 +299,13 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "failure", "open", "action-specific zero-side-effect and failure cut-point oracle is required", "task-028-universal-matrix-ledger.md");
         add(dimensions, "persistence", "partial", "Phase 002 owner contracts exist but each command effect needs a direct join", "task-028-universal-matrix-ledger.md");
         add(dimensions, "route_equivalence", "partial", "indirect route contracts pass selected equality cases", "task-028-universal-matrix-ledger.md");
-        add(dimensions, "feedback", "partial", "catalog-wide denied execution and shared pipeline regressions emit bounded feedback, but success and failure variants are not joined to every action", "task-010-current-adapter-rerun-report.md");
-        add(dimensions, "audit", "partial", "catalog-wide denial plus shared success and failure regressions emit correlated records and native writer evidence passes, but per-action success and failure joins remain open", "task-010-current-adapter-rerun-report.md");
-        add(dimensions, "redaction", "partial", "catalog-wide denied execution and shared pipeline regressions keep bounded normalized parameters and callback details out of records, but per-action sensitive fields remain open", "task-010-current-adapter-rerun-report.md");
+        add(dimensions, "feedback", "partial", "catalog-wide rejection emits bounded feedback, but success and distinct failure variants are not joined to every action", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
+        add(dimensions, "audit", "partial", "catalog-wide rejection emits correlated action records and shared success and failure regressions pass, but per-action success and distinct failure joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
+        add(dimensions, "redaction", "partial", "catalog-wide rejection keeps synthetic details and normalized parameters out of records, but per-action sensitive fields and success projections remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
         add(dimensions, "client_fixture", "partial", "packaged client load and connection pass; full action interaction is open", "task-024-client-crash-remediation-report.md");
-        add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, and current adapter proofs pass; universal effects remain open", "task-010-current-adapter-rerun-report.md");
+        add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, and catalog feedback and audit boundary pass; universal effects remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
-        add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, and duplicate-runtime inspection pass; action-level joins remain open", "task-010-current-adapter-rerun-report.md");
+        add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, and duplicate-runtime inspection pass; per-action audit joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
         return dimensions;
     }
 
