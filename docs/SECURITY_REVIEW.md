@@ -1,5 +1,11 @@
 # Security Review
 
+## Current Phase 003 command audit update, 2026-09-05
+
+The exact current candidate is commit `c4f1fe258e4f4c9ad33f25e7fe3744c5ad14aebe` on `envy/phase-003-commands`. The full Java 21 unit suite passed 582 tests with zero failures and zero errors. The packaged candidate passed all 48 required GameTests. The live console audit executed 511 unique enabled argument free routes, observed 408 positive routes with correlated audit events, and covered 302 metadata only routes. It recorded 145 rows without an observed event as open exact route ownership diagnostics, not as passes. The sanitized runtime evidence is retained under `/mnt/hermes/audit-evidence/SEFPORTED/phase-003/task-010-console-audit-gametest-20260905-a2084f4/`, with artifact SHA-256 `ef10d9d6b5ccf9ebe45ed235d0cc49e46bc85a3fdee6b1e5929ecd63be6acb90` and packaged GameTest log SHA-256 `7454198078dfc9737171ed5ce62f61acd1d17fa4767dcb6fbf213958113b171d`.
+
+The universal matrix generator now records an explicit audit join for every executable row, including the shared event writer, native sink, optional observation sink, dependency manifest join, pipeline call site disposition, and repository relative source locations. The regenerated matrix contains 724 rows, 708 executable rows open, 16 unavailable rows passed, and `complete=false`. This is current progress evidence. Action specific effects, distinct failures, persistence, route equivalence, client fixture interaction, and `EXT-002` remain open.
+
 ## Current Phase 003 remediation record, 2026-09-05
 
 The latest exact Phase 003 candidate is commit `fbf86afa4a693a63036d17fa7f93a67cf8fe7278` on `envy/phase-003-commands`. Commit `3cae167` made configuration reload revisions advance past any feature snapshot revision, removing the packaged `/sef core reload` failure after the sudo GameTest changes the feature snapshot. Commit `fbf86af` made managed storage export skip genuinely missing status entries while retaining unsafe path rejection, and added a regression test.
