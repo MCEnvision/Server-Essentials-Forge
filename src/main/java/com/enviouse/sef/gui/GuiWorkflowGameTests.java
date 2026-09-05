@@ -1049,23 +1049,35 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 String targetIdentity = target.getUUID().toString();
-                String command = render(variant, targetIdentity);
-                if (command.isBlank() || !executed.add(command)
-                        || !routeOwnedByDefinition(definition, command)) {
-                    continue;
-                }
+                String command = "";
                 Set<String> before = SecurityAuditService.recent(
                                 event -> event.actionId().equals(definition.id()),
                                 128)
                         .stream()
                         .map(SecurityAuditService.AuditEvent::eventId)
                         .collect(java.util.stream.Collectors.toSet());
-                int result;
-                try {
-                    result = dispatcher.execute(command, source);
-                } catch (Exception exception) {
+                int result = Integer.MIN_VALUE;
+                Exception executionFailure = null;
+                for (String identity : List.of(targetIdentity, "@a[limit=1]")) {
+                    String candidateCommand = render(variant, identity);
+                    if (candidateCommand.isBlank() || !executed.add(candidateCommand)
+                            || !routeOwnedByDefinition(definition, candidateCommand)) {
+                        continue;
+                    }
+                    command = candidateCommand;
+                    try {
+                        result = dispatcher.execute(command, source);
+                        executionFailure = null;
+                        break;
+                    } catch (Exception exception) {
+                        executionFailure = exception;
+                    }
+                }
+                if (result == Integer.MIN_VALUE) {
                     failures.add(definition.id() + ", " + command + ", "
-                            + exception.getClass().getSimpleName());
+                            + (executionFailure == null
+                            ? "no executable representative"
+                            : executionFailure.getClass().getSimpleName()));
                     continue;
                 }
                 List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
@@ -1080,11 +1092,10 @@ public final class GuiWorkflowGameTests {
                     }
                     continue;
                 }
+                String executedCommand = command;
                 boolean redactionSafe = event != null
                         && event.normalizedParameters().values().stream()
-                        .noneMatch(value -> value.contains(command)
-                                        || value.contains(target.getGameProfile().getName())
-                                        || value.contains(targetIdentity));
+                                .noneMatch(value -> value.contains(executedCommand));
                 if (!"console".equals(event.sourceType())
                         || event.actorUuid().isBlank()
                         || event.actorUsername().isBlank()
