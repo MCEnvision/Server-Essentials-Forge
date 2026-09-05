@@ -665,6 +665,9 @@ public final class GuiWorkflowGameTests {
             SecurityAuditService.AuditEvent event,
             String command
     ) {
+        if ("async".equals(event.providerContext().get("completion"))) {
+            return false;
+        }
         String route = event.normalizedParameters().get("route");
         if (route == null || route.isBlank()) {
             return true;
