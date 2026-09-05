@@ -1,5 +1,6 @@
 package com.enviouse.sef.kernel;
 
+import com.enviouse.sef.kernel.command.CommandDefinition;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -140,5 +141,18 @@ class KernelServicesCatalogTest {
                 Map.entry("gma", "sef:gamemode.adventure"));
         shortcuts.forEach((root, action) ->
                 assertEquals(action, KernelServices.shortcuts().find(root).orElseThrow().actionId(), root));
+    }
+
+    @Test
+    void inventoryCatalogRoutesAndSourcePoliciesMatchImplementations() {
+        KernelServices.initialize();
+
+        var clear = KernelServices.catalog().find("sef:inventory.clear").orElseThrow();
+        assertEquals("clearinventory", clear.canonicalRoute());
+        assertTrue(clear.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE));
+
+        var recipe = KernelServices.catalog().find("sef:inventory.recipe").orElseThrow();
+        assertEquals("recipe", recipe.canonicalRoute());
+        assertEquals(Set.of(CommandDefinition.SourceType.PLAYER), recipe.sourceTypes());
     }
 }

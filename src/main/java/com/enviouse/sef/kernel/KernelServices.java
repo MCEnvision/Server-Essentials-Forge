@@ -1831,9 +1831,11 @@ public final class KernelServices {
                 Map.entry("recipe", Set.of("recipe")),
                 Map.entry("itemdb", Set.of("itemdb")));
         inventoryPermissions.forEach((action, permission) -> registerDomainCommand(
-                "sef:inventory." + action, action, inventoryRoots.get(action),
+                "sef:inventory." + action,
+                action.equals("clear") ? "clearinventory" : action,
+                inventoryRoots.get(action),
                 permission, CommandDefinition.AccessClass.PLAYER,
-                Set.of("book", "condense", "disposal", "hat", "itemdb", "itemlore", "itemname", "more")
+                Set.of("book", "condense", "disposal", "hat", "itemdb", "itemlore", "itemname", "more", "recipe")
                         .contains(action)
                         ? Set.of(CommandDefinition.SourceType.PLAYER)
                         : STANDARD_COMMAND_SOURCES,
