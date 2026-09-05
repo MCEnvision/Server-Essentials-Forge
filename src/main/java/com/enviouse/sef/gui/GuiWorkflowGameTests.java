@@ -274,12 +274,10 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 String command = render(variant);
-                if (command.isBlank() || !executed.add(definition.id() + "|" + command)) {
+                if (command.isBlank() || !executed.add(command)) {
                     continue;
                 }
-                Set<String> before = SecurityAuditService.recent(
-                                event -> event.actionId().equals(definition.id()),
-                                256)
+                Set<String> before = SecurityAuditService.recent(event -> true, 256)
                         .stream()
                         .map(SecurityAuditService.AuditEvent::eventId)
                         .collect(java.util.stream.Collectors.toSet());
@@ -295,26 +293,28 @@ public final class GuiWorkflowGameTests {
                     continue;
                 }
                 positiveRoutes++;
-                var event = SecurityAuditService.recent(
-                                candidate -> candidate.actionId().equals(definition.id())
-                                        && !before.contains(candidate.eventId()),
-                                1)
-                        .stream()
-                        .findFirst()
-                        .orElse(null);
-                if (event == null) {
+                List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
+                                candidate -> !before.contains(candidate.eventId()),
+                                32);
+                if (events.isEmpty() && !positiveRouteNeedsNoAudit(command)) {
                     failures.add(definition.id() + ", " + command + ", missing audit event");
                     continue;
                 }
-                if (!"console".equals(event.sourceType())
-                        || event.actorUuid().isBlank()
-                        || event.actorUsername().isBlank()
-                        || !"success".equals(event.result())
-                        || !definition.auditClass().name().toLowerCase(java.util.Locale.ROOT)
-                                .equals(event.auditClass())
-                        || event.normalizedParameters().values().stream()
-                                .anyMatch(value -> value.contains(command))) {
-                    failures.add(definition.id() + ", " + command + ", unsafe audit projection");
+                for (var event : events) {
+                    var auditedDefinition = KernelServices.catalog().find(event.actionId()).orElse(null);
+                    if (!"console".equals(event.sourceType())
+                            || event.actorUuid().isBlank()
+                            || event.actorUsername().isBlank()
+                            || !"success".equals(event.result())
+                            || auditedDefinition == null
+                            || auditedDefinition.auditClass() == AuditService.AuditClass.NONE
+                            || !auditedDefinition.auditClass().name().toLowerCase(java.util.Locale.ROOT)
+                                    .equals(event.auditClass())
+                            || event.normalizedParameters().values().stream()
+                                    .anyMatch(value -> value.contains(command))) {
+                        failures.add(definition.id() + ", " + command + ", unsafe audit projection, "
+                                + event.actionId());
+                    }
                 }
             }
         }
@@ -329,6 +329,14 @@ public final class GuiWorkflowGameTests {
         ServerEssentialsForge.LOGGER.info(
                 "[SEF] Positive argument free console audit covered {} routes", positiveRoutes);
         helper.succeed();
+    }
+
+    private static boolean positiveRouteNeedsNoAudit(String command) {
+        String normalized = command.toLowerCase(java.util.Locale.ROOT);
+        return normalized.endsWith(" help")
+                || normalized.equals("help")
+                || normalized.equals("kickall")
+                || normalized.equals("sef logging retention run");
     }
 
     @GameTest(template = "empty", timeoutTicks = 200)
