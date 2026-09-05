@@ -40,6 +40,9 @@ public final class UniversalCommandMatrixGenerator {
             "host_specific_runtime",
             "native_dependency");
     private static final Set<String> STATUSES = Set.of("pass", "partial", "open", "not_applicable");
+    private static final Set<String> REQUIRED_COMMAND_DIMENSIONS = Set.copyOf(DIMENSIONS.stream()
+            .filter(dimension -> !dimension.equals("host_specific_runtime"))
+            .toList());
 
     private UniversalCommandMatrixGenerator() {
     }
@@ -140,6 +143,8 @@ public final class UniversalCommandMatrixGenerator {
                 throw new IllegalArgumentException("universal matrix dimensions are required");
             }
             JsonObject dimensions = row.getAsJsonObject("dimensions");
+            int openDimensions = 0;
+            int partialDimensions = 0;
             for (String dimension : DIMENSIONS) {
                 if (!dimensions.has(dimension) || !dimensions.get(dimension).isJsonObject()) {
                     throw new IllegalArgumentException("missing universal matrix dimension " + dimension);
@@ -151,6 +156,12 @@ public final class UniversalCommandMatrixGenerator {
                     throw new IllegalArgumentException("invalid universal matrix dimension status " + dimension);
                 }
                 String status = evidence.get("status").getAsString();
+                if (category.equals("command-matrix")
+                        && REQUIRED_COMMAND_DIMENSIONS.contains(dimension)
+                        && status.equals("not_applicable")) {
+                    throw new IllegalArgumentException(
+                            "executable command dimension cannot be not applicable " + dimension);
+                }
                 if (status.equals("pass") && (!evidence.has("evidence")
                         || !evidence.get("evidence").isJsonArray()
                         || evidence.getAsJsonArray("evidence").isEmpty())) {
@@ -161,6 +172,19 @@ public final class UniversalCommandMatrixGenerator {
                         || evidence.get("reason").getAsString().isBlank())) {
                     throw new IllegalArgumentException("open universal matrix dimension has no reason " + dimension);
                 }
+                if (status.equals("open")) {
+                    openDimensions++;
+                } else if (status.equals("partial")) {
+                    partialDimensions++;
+                }
+            }
+            String expectedRowStatus = openDimensions > 0
+                    ? "open"
+                    : partialDimensions > 0 ? "partial" : "pass";
+            if (!row.get("status").getAsString().equals(expectedRowStatus)) {
+                throw new IllegalArgumentException(
+                        "universal matrix row status is stronger than its dimensions for "
+                                + row.get("semanticKey").getAsString());
             }
             if (category.equals("command-matrix")) {
                 commands++;

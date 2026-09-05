@@ -59,4 +59,35 @@ class UniversalCommandMatrixGeneratorTest {
         assertThrows(IllegalArgumentException.class,
                 () -> UniversalCommandMatrixGenerator.validate(matrix));
     }
+
+    @Test
+    void validatorRejectsNotApplicableRequiredCommandDimension() {
+        JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+        JsonObject firstCommand = matrix.getAsJsonArray("rows").asList().stream()
+                .map(element -> element.getAsJsonObject())
+                .filter(row -> row.get("category").getAsString().equals("command-matrix"))
+                .findFirst()
+                .orElseThrow();
+        firstCommand.getAsJsonObject("dimensions")
+                .getAsJsonObject("authority")
+                .addProperty("status", "not_applicable");
+        firstCommand.getAsJsonObject("dimensions")
+                .getAsJsonObject("authority")
+                .addProperty("reason", "invalid test mutation");
+        assertThrows(IllegalArgumentException.class,
+                () -> UniversalCommandMatrixGenerator.validate(matrix));
+    }
+
+    @Test
+    void validatorRejectsRowStatusThatHidesAnOpenDimension() {
+        JsonObject matrix = UniversalCommandMatrixGenerator.generate();
+        JsonObject firstCommand = matrix.getAsJsonArray("rows").asList().stream()
+                .map(element -> element.getAsJsonObject())
+                .filter(row -> row.get("category").getAsString().equals("command-matrix"))
+                .findFirst()
+                .orElseThrow();
+        firstCommand.addProperty("status", "partial");
+        assertThrows(IllegalArgumentException.class,
+                () -> UniversalCommandMatrixGenerator.validate(matrix));
+    }
 }
