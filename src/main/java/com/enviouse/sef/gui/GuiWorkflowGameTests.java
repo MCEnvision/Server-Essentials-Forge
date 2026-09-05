@@ -427,6 +427,50 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 200)
+    public static void playerOnlyConsoleRootIsRejectedAndAudited(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        String actionId = "sef:social.message";
+        Set<String> before = SecurityAuditService.recent(
+                        event -> event.actionId().equals(actionId),
+                        128)
+                .stream()
+                .map(SecurityAuditService.AuditEvent::eventId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        int result;
+        try {
+            result = dispatcher.execute("msg", source);
+        } catch (Exception exception) {
+            helper.fail("player only console route threw " + exception.getClass().getSimpleName());
+            return;
+        }
+
+        var event = SecurityAuditService.recent(
+                        candidate -> candidate.actionId().equals(actionId)
+                                && !before.contains(candidate.eventId()),
+                        1)
+                .stream()
+                .findFirst()
+                .orElse(null);
+        helper.assertTrue(result == 0, "player only console route returned a positive result");
+        helper.assertTrue(event != null, "player only console route did not emit an audit event");
+        if (event != null) {
+            helper.assertTrue("rejected".equals(event.result()), "player only route was not rejected");
+            helper.assertTrue("source_not_allowed".equals(event.reasonCode()),
+                    "player only route used the wrong rejection reason");
+            helper.assertTrue("console".equals(event.sourceType()),
+                    "player only route recorded the wrong source type");
+            helper.assertTrue(event.normalizedParameters().isEmpty(),
+                    "player only route leaked command parameters");
+            helper.assertTrue(event.targetUuids().isEmpty(),
+                    "player only route recorded unexpected targets");
+        }
+        helper.succeed();
+    }
+
     private static boolean routeMatchesCommand(String canonicalRoute, String command) {
         String route = canonicalRoute.toLowerCase(java.util.Locale.ROOT).strip();
         String normalizedCommand = command.toLowerCase(java.util.Locale.ROOT).strip();
