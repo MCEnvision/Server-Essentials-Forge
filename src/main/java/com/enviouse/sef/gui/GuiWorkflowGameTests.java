@@ -242,6 +242,95 @@ public final class GuiWorkflowGameTests {
         helper.succeed();
     }
 
+    @GameTest(template = "empty", timeoutTicks = 500)
+    public static void everyEnabledPositiveArgumentFreeConsoleRouteEmitsCorrelatedAudit(GameTestHelper helper) {
+        var server = helper.getLevel().getServer();
+        var dispatcher = server.getCommands().getDispatcher();
+        var source = server.createCommandSourceStack();
+        List<String> failures = new ArrayList<>();
+        Set<String> executed = new LinkedHashSet<>();
+        int positiveRoutes = 0;
+
+        for (var definition : KernelServices.catalog().entries()) {
+            if (definition.auditClass() == AuditService.AuditClass.NONE
+                    || !definition.sourceTypes().contains(CommandDefinition.SourceType.CONSOLE)) {
+                continue;
+            }
+            boolean enabled = KernelServices.featureGates().decide(
+                    definition.featureId(),
+                    FeatureGateService.Context.server(definition.id())).enabled();
+            if (!enabled) {
+                continue;
+            }
+            GuiWorkflowCompiler.WorkflowDefinition workflow;
+            try {
+                workflow = GuiWorkflowCompiler.compile(definition, dispatcher, source);
+            } catch (IllegalArgumentException exception) {
+                failures.add(definition.id() + ", workflow, " + exception.getMessage());
+                continue;
+            }
+            for (GuiWorkflowCompiler.Variant variant : workflow.variants()) {
+                if (!variant.fields().isEmpty()) {
+                    continue;
+                }
+                String command = render(variant);
+                if (command.isBlank() || !executed.add(definition.id() + "|" + command)) {
+                    continue;
+                }
+                Set<String> before = SecurityAuditService.recent(
+                                event -> event.actionId().equals(definition.id()),
+                                256)
+                        .stream()
+                        .map(SecurityAuditService.AuditEvent::eventId)
+                        .collect(java.util.stream.Collectors.toSet());
+                int result;
+                try {
+                    result = dispatcher.execute(command, source);
+                } catch (Exception exception) {
+                    failures.add(definition.id() + ", " + command + ", "
+                            + exception.getClass().getSimpleName());
+                    continue;
+                }
+                if (result <= 0) {
+                    continue;
+                }
+                positiveRoutes++;
+                var event = SecurityAuditService.recent(
+                                candidate -> candidate.actionId().equals(definition.id())
+                                        && !before.contains(candidate.eventId()),
+                                1)
+                        .stream()
+                        .findFirst()
+                        .orElse(null);
+                if (event == null) {
+                    failures.add(definition.id() + ", " + command + ", missing audit event");
+                    continue;
+                }
+                if (!"console".equals(event.sourceType())
+                        || event.actorUuid().isBlank()
+                        || event.actorUsername().isBlank()
+                        || !"success".equals(event.result())
+                        || !definition.auditClass().name().toLowerCase(java.util.Locale.ROOT)
+                                .equals(event.auditClass())
+                        || event.normalizedParameters().values().stream()
+                                .anyMatch(value -> value.contains(command))) {
+                    failures.add(definition.id() + ", " + command + ", unsafe audit projection");
+                }
+            }
+        }
+
+        failures.forEach(failure ->
+                ServerEssentialsForge.LOGGER.error("[SEF] Positive console audit, {}", failure));
+        helper.assertTrue(
+                failures.isEmpty(),
+                "positive console audit failed, "
+                        + String.join("; ", failures.stream().limit(8).toList()));
+        helper.assertTrue(positiveRoutes > 0, "no positive audited console routes were executed");
+        ServerEssentialsForge.LOGGER.info(
+                "[SEF] Positive argument free console audit covered {} routes", positiveRoutes);
+        helper.succeed();
+    }
+
     @GameTest(template = "empty", timeoutTicks = 200)
     public static void representativeMetadataOnlyConsoleRoutesEmitBoundedAudit(GameTestHelper helper) {
         var server = helper.getLevel().getServer();
