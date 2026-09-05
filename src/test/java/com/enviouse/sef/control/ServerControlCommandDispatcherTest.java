@@ -41,6 +41,47 @@ class ServerControlCommandDispatcherTest {
     }
 
     @Test
+    void unavailableFeatureRoutesRespectDeniedViewAndManagePermissions() {
+        CommandSourceStack source = mock(CommandSourceStack.class);
+        ServerPlayer player = mock(ServerPlayer.class);
+        when(source.getEntity()).thenReturn(player);
+
+        var root = Commands.<CommandSourceStack>literal("sef");
+        ServerControlCommands.attach(root);
+        CommandDispatcher<CommandSourceStack> dispatcher = new CommandDispatcher<>();
+        dispatcher.register(root);
+        var control = dispatcher.getRoot().getChild("sef").getChild("control");
+
+        for (String feature : MinecraftServerControlRuntime.unavailableRuntimeFeatures()) {
+            var featureRoot = control.getChild(feature);
+            assertNotNull(featureRoot, feature + " unavailable route is missing");
+            assertFalse(featureRoot.canUse(source), feature + " route bypassed denied permissions");
+
+            try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+                permissions.when(() -> PermissionAPI.getPermission(
+                        player,
+                        PermissionsHandler.phasePermission(
+                                "commands.control." + feature + ".view"))).thenReturn(true);
+                assertTrue(featureRoot.canUse(source), feature + " view permission did not project");
+                assertFalse(
+                        featureRoot.getChild("execute").canUse(source),
+                        feature + " view permission exposed the manage route");
+            }
+
+            try (MockedStatic<PermissionAPI> permissions = permissionApi()) {
+                permissions.when(() -> PermissionAPI.getPermission(
+                        player,
+                        PermissionsHandler.phasePermission(
+                                "commands.control." + feature + ".manage"))).thenReturn(true);
+                assertTrue(featureRoot.canUse(source), feature + " manage permission did not project");
+                assertTrue(
+                        featureRoot.getChild("execute").canUse(source),
+                        feature + " manage permission did not expose the manage route");
+            }
+        }
+    }
+
+    @Test
     void allowedFeatureParsesTypedCreateAndRevisionRoutes() {
         CommandSourceStack source = mock(CommandSourceStack.class);
         ServerPlayer player = mock(ServerPlayer.class);
