@@ -371,7 +371,7 @@ Phase 7 inventory mutations are server authoritative and transactional where a p
 
 ## 7. Sudo execution boundary
 
-The hardened Phase 11 implementation owns `/sudo`. The retained legacy `SudoCommand` class is not registered.
+The hardened Phase 11 implementation owns `/sudo`. The former legacy direct executor has been removed, so no alternate unregistered sudo implementation remains in the artifact.
 
 Ordinary `respect` mode and compatibility boolean `false` parse, suggest, and execute with the online target’s real current command source. They cannot borrow the issuer’s operator level or permissions. Target suggestions apply vanish visibility, hierarchy, and exemption policy.
 
