@@ -13,6 +13,7 @@ import com.enviouse.sef.config.PlayerData;
 import com.enviouse.sef.identity.IdentityArguments;
 import com.enviouse.sef.identity.IdentityService;
 import com.enviouse.sef.kernel.ActionResult;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.utils.IntegratedNicknameProvider;
@@ -160,55 +161,63 @@ public class NickCommands {
 			return 0;
 		}
 	}
-		private static int assignNickname(CommandContext<CommandSourceStack> ctx, UUID uuid, String nick) {
-			if(!ownsIntegratedNicknameData()) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-						"&cNicknames are owned by the configured external provider. Use that provider's nickname command.&r"));
-				return 0;
-			}
-			if(nick == null) {
-			if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, null)) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-						"&cNickname data is unavailable. No changes were applied.&r"));
-				return 0;
-			}
-					refreshProjectedIdentity(uuid);
-					ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
-			return 1;
-		} else {
-			if(NicknamePolicy.containsColorFormatting(nick)
-					&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickColorsAllowed)) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname colors.&r"));
-				return 0;
-			}
-			if(NicknamePolicy.containsStyleFormatting(nick)
-					&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickStylesAllowed)) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname styles.&r"));
-				return 0;
-			}
-
-			String visibleNickname = NicknamePolicy.stripFormatting(nick);
-			NicknamePolicy.Validation validation =
-					NicknamePolicy.validate(visibleNickname, minNicknameLength, maxNicknameLength);
-			if(!validation.valid()) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&c" + validation.error() + ".&r"));
-				return 0;
-			}
-				if(!ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()
-						&& hasIdentityCollision(uuid, validation.normalized())) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThat nickname conflicts with another online player's name or nickname.&r"));
-				return 0;
-			}
-
-			if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, nick)) {
-				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-						"&cNickname data is unavailable. No changes were applied.&r"));
-				return 0;
-			}
-					refreshProjectedIdentity(uuid);
-					ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
-			return 1;
-		}
+		private static int assignNickname(CommandContext<CommandSourceStack> ctx, UUID uuid, String nick, boolean other) {
+			String actionId = other ? "sef:identity.nick.others" : "sef:identity.nick";
+			return KernelCommandExecutor.execute(
+					ctx.getSource(),
+					actionId,
+					Map.of("reset", Boolean.toString(nick == null),
+							"nickname_length", Integer.toString(nick == null ? 0 : nick.length())),
+					List.of(uuid),
+					false,
+					() -> {
+						if(!ownsIntegratedNicknameData()) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+									"&cNicknames are owned by the configured external provider. Use that provider's nickname command.&r"));
+							return 0;
+						}
+						if(nick == null) {
+							if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, null)) {
+								ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+										"&cNickname data is unavailable. No changes were applied.&r"));
+								return 0;
+							}
+							refreshProjectedIdentity(uuid);
+							ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname reset!&r"), false);
+							return 1;
+						}
+						if(NicknamePolicy.containsColorFormatting(nick)
+								&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickColorsAllowed)) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname colors.&r"));
+							return 0;
+						}
+						if(NicknamePolicy.containsStyleFormatting(nick)
+								&& !PermissionService.has(ctx.getSource(), PermissionsHandler.nickStylesAllowed)) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cYou do not have permission to use nickname styles.&r"));
+							return 0;
+						}
+						String visibleNickname = NicknamePolicy.stripFormatting(nick);
+						NicknamePolicy.Validation validation =
+								NicknamePolicy.validate(visibleNickname, minNicknameLength, maxNicknameLength);
+						if(!validation.valid()) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&c" + validation.error() + ".&r"));
+							return 0;
+						}
+						if(!ConfigHandler.config.nicknameAllowDuplicateWithUsernameHover.get()
+								&& hasIdentityCollision(uuid, validation.normalized())) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cThat nickname conflicts with another online player's name or nickname.&r"));
+							return 0;
+						}
+						if(!com.enviouse.sef.kernel.KernelServices.profiles().setNickname(uuid, nick)) {
+							ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+									"&cNickname data is unavailable. No changes were applied.&r"));
+							return 0;
+						}
+						refreshProjectedIdentity(uuid);
+						ctx.getSource().sendSuccess(()->TextFormatter.stringToFormattedText("&eNickname set to \"" + nick + "&r&e\"!&r"), false);
+						return 1;
+					},
+					other ? PermissionsHandler.nickOthersCommand : PermissionsHandler.nickCommand);
 	}
 
 		private static boolean hasIdentityCollision(UUID targetId, String normalizedNickname) {
@@ -259,13 +268,13 @@ public class NickCommands {
 		String user = other ? StringArgumentType.getString(ctx, "username") : null;
 		/* /nick OR /nick <nickname> */
 		if(player != null && user == null) 
-			return assignNickname(ctx, player.getUUID(), nick);
+			return assignNickname(ctx, player.getUUID(), nick, false);
 			/* /nickfor <user> OR /nickfor <user> <nickname> */
 			if(user != null) {
 				ActionResult<IdentityService.Identity> identity =
 						KernelServices.identities().resolve(user, ctx.getSource().getPlayer());
 				if(identity.successful() && identity.value().playerId() != null) {
-					return assignNickname(ctx, identity.value().playerId(), nick);
+					return assignNickname(ctx, identity.value().playerId(), nick, true);
 			} else {
 				ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cUnknown player: \"" + user + "\"!&r"));
 				return 0;

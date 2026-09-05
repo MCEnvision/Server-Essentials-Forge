@@ -6,6 +6,7 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
@@ -21,6 +22,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Registers /warn and /warns commands.
@@ -99,65 +101,71 @@ public class WarnCommand {
     }
 
     private static int executeAdd(CommandSourceStack source, ServerPlayer target, String durationStr, String reason) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        WarnManager manager = CommandRegistrationHandler.getWarnManager();
-        if (manager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
-            return 0;
-        }
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.warn",
+                Map.of("duration", durationStr, "reason_length", Integer.toString(reason.length())),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    WarnManager manager = CommandRegistrationHandler.getWarnManager();
+                    if (manager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
+                        return 0;
+                    }
 
-        String adminName;
-        String adminUuid;
-        try {
-            ServerPlayer admin = source.getPlayerOrException();
-            adminName = admin.getGameProfile().getName();
-            adminUuid = admin.getUUID().toString();
-        } catch (Exception e) {
-            adminName = "Console";
-            adminUuid = "00000000-0000-0000-0000-000000000000";
-        }
+                    String adminName;
+                    String adminUuid;
+                    try {
+                        ServerPlayer admin = source.getPlayerOrException();
+                        adminName = admin.getGameProfile().getName();
+                        adminUuid = admin.getUUID().toString();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                        adminUuid = "00000000-0000-0000-0000-000000000000";
+                    }
 
-        long durationMs = WarnManager.parseDuration(durationStr);
-        if (durationMs == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
-            return 0;
-        }
-        WarnManager.WarnEntry entry;
-        try {
-            entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
-        } catch (IllegalArgumentException | IllegalStateException exception) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cWarning could not be added. &7" + exception.getMessage()));
-            return 0;
-        }
+                    long durationMs = WarnManager.parseDuration(durationStr);
+                    if (durationMs == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
+                        return 0;
+                    }
+                    WarnManager.WarnEntry entry;
+                    try {
+                        entry = manager.addWarn(target.getUUID(), reason, adminName, adminUuid, durationMs);
+                    } catch (IllegalArgumentException | IllegalStateException exception) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cWarning could not be added. &7" + exception.getMessage()));
+                        return 0;
+                    }
 
-        // Notify admin
-        String adminMsg = ConfigHandler.config.warnAddedMsg.get()
-                .replace("$player", target.getGameProfile().getName())
-                .replace("$reason", reason)
-                .replace("$admin", adminName)
-                .replace("$id", String.valueOf(entry.id))
-                .replace("$duration", entry.getDurationString());
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
+                    String adminMsg = ConfigHandler.config.warnAddedMsg.get()
+                            .replace("$player", target.getGameProfile().getName())
+                            .replace("$reason", reason)
+                            .replace("$admin", adminName)
+                            .replace("$id", String.valueOf(entry.id))
+                            .replace("$duration", entry.getDurationString());
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
 
-        // Notify the player
-        String playerMsg = ConfigHandler.config.warnNotifyPlayerMsg.get()
-                .replace("$admin", adminName)
-                .replace("$reason", reason);
-        target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
+                    String playerMsg = ConfigHandler.config.warnNotifyPlayerMsg.get()
+                            .replace("$admin", adminName)
+                            .replace("$reason", reason);
+                    target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
 
-        // Play sound if configured
-        if (ConfigHandler.config.warnPlaySound.get()) {
-            target.playNotifySound(SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.MASTER, 1.0f, 1.0f);
-        }
+                    if (ConfigHandler.config.warnPlaySound.get()) {
+                        target.playNotifySound(SoundEvents.NOTE_BLOCK_BELL.value(), SoundSource.MASTER, 1.0f, 1.0f);
+                    }
 
-        ServerEssentialsForge.LOGGER.info("[WARN] {} warned {} (#{}) - Reason: {} - Duration: {}",
-                adminName, target.getGameProfile().getName(), entry.id, reason, entry.getDurationString());
-        return 1;
+                    ServerEssentialsForge.LOGGER.info("[WARN] {} warned {} (#{}) with duration {} and reason length {}",
+                            adminName, target.getGameProfile().getName(), entry.id, entry.getDurationString(), reason.length());
+                    return 1;
+                },
+                PermissionsHandler.warnCommand);
     }
 
     private static int executeCheck(CommandSourceStack source, ServerPlayer target) {
@@ -165,82 +173,91 @@ public class WarnCommand {
     }
 
     private static int executeCheck(CommandSourceStack source, ServerPlayer target, boolean selfRoute) {
-        if (!selfRoute && !mayTarget(source, target, false)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        WarnManager manager = CommandRegistrationHandler.getWarnManager();
-        if (manager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
-            return 0;
-        }
-
-        List<WarnManager.WarnEntry> warns = manager.getWarns(target.getUUID());
-        if (warns.isEmpty()) {
-            String msg = ConfigHandler.config.warnNoWarnsMsg.get()
-                    .replace("$player", target.getGameProfile().getName());
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), false);
-            return 1;
-        }
-
-        // Show header
-        String header = ConfigHandler.config.warnListHeaderFormat.get()
-                .replace("$player", target.getGameProfile().getName());
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(header), false);
-
-        // Show each warning
-        for (WarnManager.WarnEntry entry : warns) {
-            String dateStr;
-            try {
-                dateStr = DATE_FMT.format(Instant.parse(entry.timestamp));
-            } catch (Exception e) {
-                dateStr = entry.timestamp;
-            }
-            String expiredTag = entry.isExpired() ? ConfigHandler.config.warnExpiredTag.get() : "";
-            String line = ConfigHandler.config.warnEntryFormat.get()
-                    .replace("$id", String.valueOf(entry.id))
-                    .replace("$reason", entry.reason)
-                    .replace("$admin", entry.adminName)
-                    .replace("$date", dateStr)
-                    .replace("$expired", expiredTag);
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
-        }
-
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                selfRoute ? "sef:moderation.warns" : "sef:moderation.warn",
+                Map.of("route", selfRoute ? "warns" : "warn check"),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!selfRoute && !mayTarget(source, target, false)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    WarnManager manager = CommandRegistrationHandler.getWarnManager();
+                    if (manager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
+                        return 0;
+                    }
+                    List<WarnManager.WarnEntry> warns = manager.getWarns(target.getUUID());
+                    if (warns.isEmpty()) {
+                        String msg = ConfigHandler.config.warnNoWarnsMsg.get()
+                                .replace("$player", target.getGameProfile().getName());
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), false);
+                        return 1;
+                    }
+                    String header = ConfigHandler.config.warnListHeaderFormat.get()
+                            .replace("$player", target.getGameProfile().getName());
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(header), false);
+                    for (WarnManager.WarnEntry entry : warns) {
+                        String dateStr;
+                        try {
+                            dateStr = DATE_FMT.format(Instant.parse(entry.timestamp));
+                        } catch (Exception e) {
+                            dateStr = entry.timestamp;
+                        }
+                        String expiredTag = entry.isExpired() ? ConfigHandler.config.warnExpiredTag.get() : "";
+                        String line = ConfigHandler.config.warnEntryFormat.get()
+                                .replace("$id", String.valueOf(entry.id))
+                                .replace("$reason", entry.reason)
+                                .replace("$admin", entry.adminName)
+                                .replace("$date", dateStr)
+                                .replace("$expired", expiredTag);
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
+                    }
+                    return 1;
+                },
+                selfRoute ? PermissionsHandler.warnsSelfCommand : PermissionsHandler.warnCommand);
     }
 
     private static int executeRemove(CommandSourceStack source, ServerPlayer target, int warnId) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        WarnManager manager = CommandRegistrationHandler.getWarnManager();
-        if (manager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
-            return 0;
-        }
-
-        boolean removed;
-        try {
-            removed = manager.removeWarn(target.getUUID(), warnId);
-        } catch (IllegalStateException exception) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cWarning could not be removed. &7" + exception.getMessage()));
-            return 0;
-        }
-        if (!removed) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                "&cWarning #" + warnId + " not found for " + target.getGameProfile().getName() + "."));
-            return 0;
-        }
-
-        String msg = ConfigHandler.config.warnRemovedMsg.get()
-                .replace("$player", target.getGameProfile().getName())
-                .replace("$id", String.valueOf(warnId));
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
-
-        ServerEssentialsForge.LOGGER.info("[WARN] Warning #{} removed for {}", warnId, target.getGameProfile().getName());
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.warn",
+                Map.of("operation", "remove", "warning_id", Integer.toString(warnId)),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    WarnManager manager = CommandRegistrationHandler.getWarnManager();
+                    if (manager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cWarn system is not initialized."));
+                        return 0;
+                    }
+                    boolean removed;
+                    try {
+                        removed = manager.removeWarn(target.getUUID(), warnId);
+                    } catch (IllegalStateException exception) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cWarning could not be removed. &7" + exception.getMessage()));
+                        return 0;
+                    }
+                    if (!removed) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cWarning #" + warnId + " not found for " + target.getGameProfile().getName() + "."));
+                        return 0;
+                    }
+                    String msg = ConfigHandler.config.warnRemovedMsg.get()
+                            .replace("$player", target.getGameProfile().getName())
+                            .replace("$id", String.valueOf(warnId));
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
+                    ServerEssentialsForge.LOGGER.info("[WARN] warning {} removed for {}", warnId, target.getGameProfile().getName());
+                    return 1;
+                },
+                PermissionsHandler.warnCommand);
     }
 
     private static boolean mayTarget(CommandSourceStack source, ServerPlayer target, boolean rejectSelf) {

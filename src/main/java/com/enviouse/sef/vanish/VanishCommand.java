@@ -14,6 +14,7 @@ import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.level.ServerPlayer;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.enviouse.sef.vanish.misc.TraceHandler;
 
@@ -152,6 +153,16 @@ public class VanishCommand {
 	}
 
 		private static int getVanishedStatus(CommandContext<CommandSourceStack> ctx, ServerPlayer player) {
+			return KernelCommandExecutor.execute(
+					ctx.getSource(),
+					"sef:vanish.manage",
+					java.util.Map.of("route", "get"),
+					java.util.List.of(player.getUUID()),
+					false,
+					() -> getVanishedStatusInternal(ctx, player));
+		}
+
+		private static int getVanishedStatusInternal(CommandContext<CommandSourceStack> ctx, ServerPlayer player) {
 			if (!canTarget(ctx.getSource(), player)) {
 				ctx.getSource().sendFailure(VanishUtil.VANISHMOD_PREFIX.copy().append(
 						"You cannot inspect a player above your vanish hierarchy."));
@@ -204,7 +215,17 @@ public class VanishCommand {
 	 * Vanish a player. If requestedLevel is 0, use the player's best (most powerful) vanish level.
 	 * Checks that the executing player has permission for the requested level.
 	 */
-	private static int vanish(CommandContext<CommandSourceStack> ctx, ServerPlayer player, int requestedLevel) throws CommandSyntaxException {
+		private static int vanish(CommandContext<CommandSourceStack> ctx, ServerPlayer player, int requestedLevel) throws CommandSyntaxException {
+			return KernelCommandExecutor.execute(
+					ctx.getSource(),
+					"sef:vanish.manage",
+					java.util.Map.of("route", "toggle", "requested_level", Integer.toString(requestedLevel)),
+					java.util.List.of(player.getUUID()),
+					false,
+					() -> vanishInternal(ctx, player, requestedLevel));
+		}
+
+		private static int vanishInternal(CommandContext<CommandSourceStack> ctx, ServerPlayer player, int requestedLevel) {
 		boolean isVanishing = !VanishUtil.isVanished(player);
 		ServerPlayer executor = ctx.getSource().getEntity() instanceof ServerPlayer sourcePlayer ? sourcePlayer : null;
 			boolean targetsOther = executor == null || !executor.getUUID().equals(player.getUUID());
@@ -251,8 +272,8 @@ public class VanishCommand {
 		if (!isVanishing) {
 			ctx.getSource().sendSuccess(() -> VanishUtil.VANISHMOD_PREFIX.copy().append(Component.translatable(VanishConfig.get(VanishConfig.CONFIG.onUnvanishMessage), player.getDisplayName())), true);
 
-			if (TraceHandler.isTracing(player))
-				setTrace(ctx, player, false);
+				if (TraceHandler.isTracing(player))
+					TraceHandler.setTracing(player, false);
 		}
 
 		VanishingHandler.toggleVanish(player, isVanishing ? level : VanishUtil.getVanishLevel(player));
@@ -275,6 +296,7 @@ public class VanishCommand {
 
 	private static int setTrace(CommandContext<CommandSourceStack> ctx, ServerPlayer playerOverride, boolean shouldTrace) throws CommandSyntaxException {
 		CommandSourceStack source = ctx.getSource();
+		if (!KernelCommandExecutor.authorizeControl(source, "sef:vanish.manage")) return 0;
 		ServerPlayer player = playerOverride != null ? playerOverride : source.getPlayerOrException();
 		boolean isTracing = TraceHandler.isTracing(player);
 

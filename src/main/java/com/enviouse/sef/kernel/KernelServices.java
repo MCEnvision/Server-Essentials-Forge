@@ -2826,7 +2826,7 @@ public final class KernelServices {
                 "sef:vanish.manage",
                 "vanish",
                 Set.of("vanish", "v"),
-                "sef.vanish.3",
+                "sef.vanish.1",
                 CommandDefinition.AccessClass.TRUSTED_PLAYER,
                 STANDARD_COMMAND_SOURCES,
                 CommandDefinition.TargetBehavior.OPTIONAL_PLAYER,

@@ -2,6 +2,7 @@ package com.enviouse.sef.countdown;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
@@ -11,6 +12,8 @@ import com.mojang.brigadier.context.CommandContext;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+
+import java.util.Map;
 
 /**
  * <pre>
@@ -69,22 +72,30 @@ public final class CountdownCommand {
     private static int exec(CommandContext<CommandSourceStack> ctx, String message,
                             String colorCode, boolean alsoChat) {
         String timeStr = StringArgumentType.getString(ctx, "time");
-        long seconds = CountdownManager.parseDurationSeconds(timeStr);
-        if (seconds < 1L) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
-                "&cInvalid duration: &e" + timeStr + " &7(use 90, 1m30s, 1h, 1d2h30m, etc.)"));
-            return 0;
-        }
-        if (ctx.getSource().getServer() == null) {
-            ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cNo server context."));
-            return 0;
-        }
-        CountdownManager.start(ctx.getSource().getServer(), seconds, message, colorCode, alsoChat);
-        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-            "&aCountdown started: &e" + CountdownManager.humanRemaining(seconds)
-                + " &7| message: &f" + message
-                + " &7| color: &f" + colorCode
-                + " &7| chat: &f" + alsoChat), true);
-        return 1;
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.countdown",
+                Map.of("duration", timeStr, "message_length", Integer.toString(message.length()),
+                        "chat", Boolean.toString(alsoChat)),
+                () -> {
+                    long seconds = CountdownManager.parseDurationSeconds(timeStr);
+                    if (seconds < 1L) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
+                            "&cInvalid duration: &e" + timeStr + " &7(use 90, 1m30s, 1h, 1d2h30m, etc.)"));
+                        return 0;
+                    }
+                    if (ctx.getSource().getServer() == null) {
+                        ctx.getSource().sendFailure(TextFormatter.stringToFormattedText("&cNo server context."));
+                        return 0;
+                    }
+                    CountdownManager.start(ctx.getSource().getServer(), seconds, message, colorCode, alsoChat);
+                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                        "&aCountdown started: &e" + CountdownManager.humanRemaining(seconds)
+                            + " &7| message: &f" + message
+                            + " &7| color: &f" + colorCode
+                            + " &7| chat: &f" + alsoChat), true);
+                    return 1;
+                },
+                PermissionsHandler.countdownCommand);
     }
 }

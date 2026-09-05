@@ -11943,9 +11943,9 @@ Permission entries: 11948. Defaults are fail closed unless a row explicitly stat
 | `sef.utilities.bypass.exempt` | `false` | Utility exemption bypass | Allows targeting utility exempt players | none |
 | `sef.utilities.cooldown.bypass` | `false` | Utility cooldown bypass | Allows bypassing player utility cooldowns | none |
 | `sef.utilities.hierarchy.bypass` | `false` | Utility hierarchy bypass | Allows player utility mutations across hierarchy | none |
-| `sef.vanish.1` | `false` | Use vanish level 1 | Allows vanishing at level 1 | none |
+| `sef.vanish.1` | `false` | Use vanish level 1 | Allows vanishing at level 1 | `sef:vanish.manage` |
 | `sef.vanish.2` | `false` | Use vanish level 2 | Allows vanishing at level 2 | none |
-| `sef.vanish.3` | `false` | Use vanish level 3 | Allows vanishing at level 3 | `sef:vanish.manage` |
+| `sef.vanish.3` | `false` | Use vanish level 3 | Allows vanishing at level 3 | none |
 | `sef.vanish.bypass.exempt` | `false` | Vanish exemption bypass | Allows changing vanish state for exempt players | none |
 | `sef.vanish.exempt` | `false` | Vanish exemption | Prevents other players from changing this player's vanish state | none |
 | `sef.vanish.hierarchy.bypass` | `false` | Vanish hierarchy bypass | Allows changing vanish state regardless of target hierarchy | none |

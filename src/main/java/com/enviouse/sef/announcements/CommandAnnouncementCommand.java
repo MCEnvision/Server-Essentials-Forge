@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.commands.CommandRootPolicy;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -50,6 +51,7 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doAdd(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String command = StringArgumentType.getString(ctx, "command");
@@ -101,6 +103,7 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doRemove(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         ScheduledAnnouncement existing = manager.getById(id);
         if (!(existing instanceof CommandAnnouncement)) {
@@ -122,6 +125,7 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doList(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager, int page) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
         List<CommandAnnouncement> all = manager.getCommandAnnouncements();
         int perPage = 8;
         int totalPages = Math.max(1, (int) Math.ceil(all.size() / (double) perPage));

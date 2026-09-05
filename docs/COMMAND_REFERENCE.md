@@ -15678,7 +15678,7 @@ Catalog entries: 694. Shortcut entries: 315. GUI descriptors: 25.
 * Convenience roots: `v`, `vanish`.
 * Category: `core`.
 * Feature gate: `sef.core`.
-* Permissions: `sef.vanish.3`.
+* Permissions: `sef.vanish.1`.
 * Access class: `trusted_player`.
 * Sources: `console`, `player`, `rcon`.
 * Target behavior: `optional_player`.

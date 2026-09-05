@@ -2,6 +2,7 @@ package com.enviouse.sef.announcements;
 
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -16,6 +17,8 @@ import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  * /titleannouncement &lt;targets&gt; &lt;title&gt; [&lt;subtitle&gt;]
@@ -46,23 +49,32 @@ public class TitleAnnouncementCommand {
             return 0;
         }
         String titleStr = StringArgumentType.getString(ctx, "title");
-        String subtitleText = "";
-        if (withSubtitle) {
-            subtitleText = StringArgumentType.getString(ctx, "subtitle");
-        }
-        TitleAnnouncement announcement = new TitleAnnouncement(titleStr, subtitleText);
-        Component title = TextFormatter.stringToFormattedText(announcement.title());
-        Component subtitle = announcement.subtitle().isEmpty()
-                ? null
-                : TextFormatter.stringToFormattedText(announcement.subtitle());
-        for (ServerPlayer p : targets) {
-            if (subtitle != null) {
-                p.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
-            }
-            p.connection.send(new ClientboundSetTitleTextPacket(title));
-        }
-        ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
-            "&aSent title to &e" + targets.size() + "&a player(s)."), false);
-        return 1;
+        String subtitleText = withSubtitle ? StringArgumentType.getString(ctx, "subtitle") : "";
+        List<java.util.UUID> targetIds = targets.stream().map(ServerPlayer::getUUID).toList();
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.title",
+                Map.of("target_count", Integer.toString(targets.size()),
+                        "title_length", Integer.toString(titleStr.length()),
+                        "subtitle_length", Integer.toString(subtitleText.length())),
+                targetIds,
+                false,
+                () -> {
+                    TitleAnnouncement announcement = new TitleAnnouncement(titleStr, subtitleText);
+                    Component title = TextFormatter.stringToFormattedText(announcement.title());
+                    Component subtitle = announcement.subtitle().isEmpty()
+                            ? null
+                            : TextFormatter.stringToFormattedText(announcement.subtitle());
+                    for (ServerPlayer p : targets) {
+                        if (subtitle != null) {
+                            p.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+                        }
+                        p.connection.send(new ClientboundSetTitleTextPacket(title));
+                    }
+                    ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText(
+                        "&aSent title to &e" + targets.size() + "&a player(s)."), false);
+                    return 1;
+                },
+                PermissionsHandler.titleAnnouncementUse);
     }
 }

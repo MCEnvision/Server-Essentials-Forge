@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
@@ -11,6 +12,9 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Registers /freeze and /unfreeze commands.
@@ -51,55 +55,67 @@ public class FreezeCommand {
     }
 
     private static int executeFreeze(CommandSourceStack source, ServerPlayer target, String durationStr, String reason) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        // Check if already frozen
-        if (FreezeManager.isFrozen(target.getUUID())) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                "&c" + target.getGameProfile().getName() + " is already frozen."));
-            return 0;
-        }
-
-        long durationTicks = FreezeManager.parseDuration(durationStr);
-        if (durationTicks == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
-            return 0;
-        }
-        FreezeManager.freezePlayer(target, adminName, reason, durationTicks, source.getServer());
-
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.freeze",
+                Map.of("duration", durationStr, "reason_length", Integer.toString(reason.length())),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    if (FreezeManager.isFrozen(target.getUUID())) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                            "&c" + target.getGameProfile().getName() + " is already frozen."));
+                        return 0;
+                    }
+                    long durationTicks = FreezeManager.parseDuration(durationStr);
+                    if (durationTicks == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
+                        return 0;
+                    }
+                    FreezeManager.freezePlayer(target, adminName, reason, durationTicks, source.getServer());
+                    return 1;
+                },
+                PermissionsHandler.freezeCommand);
     }
 
     private static int executeUnfreeze(CommandSourceStack source, ServerPlayer target) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        if (!FreezeManager.isFrozen(target.getUUID())) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                "&c" + target.getGameProfile().getName() + " is not frozen."));
-            return 0;
-        }
-
-        FreezeManager.unfreezePlayer(target.getUUID(), adminName, source.getServer());
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.unfreeze",
+                Map.of(),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    if (!FreezeManager.isFrozen(target.getUUID())) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                            "&c" + target.getGameProfile().getName() + " is not frozen."));
+                        return 0;
+                    }
+                    FreezeManager.unfreezePlayer(target.getUUID(), adminName, source.getServer());
+                    return 1;
+                },
+                PermissionsHandler.unfreezeCommand);
     }
 
     private static boolean mayTarget(CommandSourceStack source, ServerPlayer target, boolean rejectSelf) {

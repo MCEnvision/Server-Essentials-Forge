@@ -4,6 +4,7 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.KernelServices;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.gui.protocol.SefProtocol;
@@ -65,6 +66,9 @@ public class InvSeeCommand {
                     ServerPlayer target = ctx.getSource().getServer()
                             .getPlayerList()
                             .getPlayer(identity.value().playerId());
+                    if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:inventory.view")) {
+                        return 0;
+                    }
                     return target == null
                             ? OfflineInvSeeService.open(viewer, identity.value())
                             : openInvSee(viewer, target, 0);
@@ -78,6 +82,9 @@ public class InvSeeCommand {
      * @param page 0 = main inventory, 1+ = curios pages
      */
     public static int openInvSee(ServerPlayer viewer, ServerPlayer target, int page) {
+        if (!KernelCommandExecutor.authorizeControl(viewer.createCommandSourceStack(), "sef:inventory.view")) {
+            return 0;
+        }
         if (!canAccess(viewer, target)) {
             viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
                     "&cThat inventory is no longer available."));

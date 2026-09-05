@@ -4,12 +4,16 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Registers /invlock command.
@@ -32,40 +36,42 @@ public class InvLockCommand {
     }
 
     private static int executeInvLock(CommandSourceStack source, ServerPlayer target) {
-        if (!LegacyTargetPolicy.mayTarget(source, target, "exempt.invlock", true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        boolean nowLocked = InvLockManager.toggle(target.getUUID());
-
-        if (nowLocked) {
-            // Close any open container
-            target.closeContainer();
-
-            String playerMsg = ConfigHandler.config.invLockLockedMsg.get()
-                    .replace("$admin", adminName);
-            target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
-
-            String adminMsg = ConfigHandler.config.invLockAdminLockMsg.get()
-                    .replace("$player", target.getGameProfile().getName());
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
-        } else {
-            String playerMsg = ConfigHandler.config.invLockUnlockedMsg.get()
-                    .replace("$admin", adminName);
-            target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
-
-            String adminMsg = ConfigHandler.config.invLockAdminUnlockMsg.get()
-                    .replace("$player", target.getGameProfile().getName());
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
-        }
-
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.invlock",
+                Map.of("route", "invlock"),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!LegacyTargetPolicy.mayTarget(source, target, "exempt.invlock", true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    boolean nowLocked = InvLockManager.toggle(target.getUUID());
+                    if (nowLocked) {
+                        target.closeContainer();
+                        String playerMsg = ConfigHandler.config.invLockLockedMsg.get()
+                                .replace("$admin", adminName);
+                        target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
+                        String adminMsg = ConfigHandler.config.invLockAdminLockMsg.get()
+                                .replace("$player", target.getGameProfile().getName());
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
+                    } else {
+                        String playerMsg = ConfigHandler.config.invLockUnlockedMsg.get()
+                                .replace("$admin", adminName);
+                        target.sendSystemMessage(TextFormatter.stringToFormattedText(playerMsg));
+                        String adminMsg = ConfigHandler.config.invLockAdminUnlockMsg.get()
+                                .replace("$player", target.getGameProfile().getName());
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(adminMsg), true);
+                    }
+                    return 1;
+                },
+                PermissionsHandler.invLockCommand);
     }
 }

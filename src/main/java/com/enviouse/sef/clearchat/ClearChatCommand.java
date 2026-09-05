@@ -4,12 +4,16 @@ import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Registers /cc and /clearchat commands.
@@ -45,38 +49,50 @@ public class ClearChatCommand {
     }
 
     private static int executeClearAll(CommandSourceStack source) {
-        int lineCount = ConfigHandler.config.clearChatLineCount.get();
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
-            // Skip OPs
-            if (source.getServer().getPlayerList().isOp(player.getGameProfile())) continue;
-            sendBlankLines(player, lineCount);
-            player.sendSystemMessage(TextFormatter.stringToFormattedText(
-                ConfigHandler.config.clearChatSelfMsg.get()));
-        }
-
-        String msg = ConfigHandler.config.clearChatAllSuccessMsg.get()
-                .replace("$admin", adminName);
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:chat.clear",
+                Map.of("route", "all"),
+                () -> {
+                    int lineCount = ConfigHandler.config.clearChatLineCount.get();
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    for (ServerPlayer player : source.getServer().getPlayerList().getPlayers()) {
+                        if (source.getServer().getPlayerList().isOp(player.getGameProfile())) continue;
+                        sendBlankLines(player, lineCount);
+                        player.sendSystemMessage(TextFormatter.stringToFormattedText(
+                            ConfigHandler.config.clearChatSelfMsg.get()));
+                    }
+                    String msg = ConfigHandler.config.clearChatAllSuccessMsg.get()
+                            .replace("$admin", adminName);
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
+                    return 1;
+                },
+                PermissionsHandler.clearChatCommand);
     }
 
     private static int executeClearPlayer(CommandSourceStack source, ServerPlayer target) {
-        int lineCount = ConfigHandler.config.clearChatLineCount.get();
-        sendBlankLines(target, lineCount);
-        target.sendSystemMessage(TextFormatter.stringToFormattedText(
-            ConfigHandler.config.clearChatSelfMsg.get()));
-
-        String msg = ConfigHandler.config.clearChatSuccessMsg.get()
-                .replace("$player", target.getGameProfile().getName());
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:chat.clear",
+                Map.of("route", "player"),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    int lineCount = ConfigHandler.config.clearChatLineCount.get();
+                    sendBlankLines(target, lineCount);
+                    target.sendSystemMessage(TextFormatter.stringToFormattedText(
+                        ConfigHandler.config.clearChatSelfMsg.get()));
+                    String msg = ConfigHandler.config.clearChatSuccessMsg.get()
+                            .replace("$player", target.getGameProfile().getName());
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(msg), true);
+                    return 1;
+                },
+                PermissionsHandler.clearChatCommand);
     }
 
     private static void sendBlankLines(ServerPlayer player, int count) {

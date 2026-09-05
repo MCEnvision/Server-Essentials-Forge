@@ -3,6 +3,7 @@ package com.enviouse.sef.announcements;
 import com.enviouse.sef.TextFormatter;
 import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -70,6 +71,7 @@ public class TextAnnouncementCommand {
             CommandContext<CommandSourceStack> ctx,
             AnnouncementManager manager
     ) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String toggleStr = StringArgumentType.getString(ctx, "toggleable").toLowerCase();
@@ -110,6 +112,7 @@ public class TextAnnouncementCommand {
     }
 
     private static int doOntime(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String message = StringArgumentType.getString(ctx, "message");
         var server = ctx.getSource().getServer();
         manager.broadcastText(server, message, "@a", null, false);
@@ -118,6 +121,7 @@ public class TextAnnouncementCommand {
     }
 
     private static int doModify(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String toggleStr = StringArgumentType.getString(ctx, "toggleable").toLowerCase();
@@ -158,6 +162,7 @@ public class TextAnnouncementCommand {
     }
 
     private static int doRemove(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         ScheduledAnnouncement existing = manager.getById(id);
         if (!(existing instanceof TextAnnouncement)) {
@@ -179,6 +184,7 @@ public class TextAnnouncementCommand {
     }
 
     private static int doList(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager, int page) {
+        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         List<TextAnnouncement> all = manager.getTextAnnouncements();
         int perPage = 8;
         int totalPages = Math.max(1, (int) Math.ceil(all.size() / (double) perPage));

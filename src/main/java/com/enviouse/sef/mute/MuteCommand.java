@@ -5,6 +5,7 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.moderation.LegacyTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
 import com.mojang.brigadier.CommandDispatcher;
@@ -12,6 +13,9 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.server.level.ServerPlayer;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Registers {@code /mute}, {@code /unmute}, and {@code /mutelist} commands.
@@ -61,82 +65,90 @@ public class MuteCommand {
 
     private static int executeMute(CommandSourceStack source, ServerPlayer target,
                                    String durationStr, String reason) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
-        if (muteManager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
-            return 0;
-        }
-
-        // Check if already muted
-        if (muteManager.isMuted(target.getUUID())) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                ConfigHandler.config.muteAlreadyMutedMsg.get()
-                    .replace("$player", target.getGameProfile().getName())));
-            return 0;
-        }
-
-        long durationTicks = MuteManager.parseDuration(durationStr);
-        if (durationTicks == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                    "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
-            return 0;
-        }
-        muteManager.mutePlayer(target, adminName, reason, durationTicks, source.getServer());
-
-        // Confirmation to the source
-        MuteManager.MuteEntry entry = muteManager.getMuteEntry(target.getUUID());
-        String confirmMsg = ConfigHandler.config.muteConfirmFormat.get()
-                .replace("$player", target.getGameProfile().getName())
-                .replace("$admin", adminName)
-                .replace("$reason", reason)
-                .replace("$duration", entry != null ? entry.getOriginalDurationString() : durationStr);
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(confirmMsg), true);
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.mute",
+                Map.of("duration", durationStr, "reason_length", Integer.toString(reason.length())),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
+                    if (muteManager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
+                        return 0;
+                    }
+                    if (muteManager.isMuted(target.getUUID())) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                            ConfigHandler.config.muteAlreadyMutedMsg.get()
+                                .replace("$player", target.getGameProfile().getName())));
+                        return 0;
+                    }
+                    long durationTicks = MuteManager.parseDuration(durationStr);
+                    if (durationTicks == com.enviouse.sef.util.DurationParser.INVALID_VALUE) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                                "&cInvalid duration. Use values such as &e30s&c, &e1h30m&c, &e7d&c, or &epermanent&c."));
+                        return 0;
+                    }
+                    muteManager.mutePlayer(target, adminName, reason, durationTicks, source.getServer());
+                    MuteManager.MuteEntry entry = muteManager.getMuteEntry(target.getUUID());
+                    String confirmMsg = ConfigHandler.config.muteConfirmFormat.get()
+                            .replace("$player", target.getGameProfile().getName())
+                            .replace("$admin", adminName)
+                            .replace("$reason", reason)
+                            .replace("$duration", entry != null ? entry.getOriginalDurationString() : durationStr);
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(confirmMsg), true);
+                    return 1;
+                },
+                PermissionsHandler.muteCommand);
     }
 
     private static int executeUnmute(CommandSourceStack source, ServerPlayer target) {
-        if (!mayTarget(source, target, true)) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
-            return 0;
-        }
-        String adminName;
-        try {
-            adminName = source.getPlayerOrException().getGameProfile().getName();
-        } catch (Exception e) {
-            adminName = "Console";
-        }
-
-        MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
-        if (muteManager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
-            return 0;
-        }
-
-        if (!muteManager.isMuted(target.getUUID())) {
-            source.sendFailure(TextFormatter.stringToFormattedText(
-                ConfigHandler.config.muteNotMutedMsg.get()
-                    .replace("$player", target.getGameProfile().getName())));
-            return 0;
-        }
-
-        muteManager.unmutePlayer(target.getUUID(), adminName, source.getServer());
-
-        String confirmMsg = ConfigHandler.config.unmuteConfirmFormat.get()
-                .replace("$player", target.getGameProfile().getName())
-                .replace("$admin", adminName);
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(confirmMsg), true);
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.unmute",
+                Map.of(),
+                List.of(target.getUUID()),
+                false,
+                () -> {
+                    if (!mayTarget(source, target, true)) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cThat player cannot be targeted by this command."));
+                        return 0;
+                    }
+                    String adminName;
+                    try {
+                        adminName = source.getPlayerOrException().getGameProfile().getName();
+                    } catch (Exception e) {
+                        adminName = "Console";
+                    }
+                    MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
+                    if (muteManager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
+                        return 0;
+                    }
+                    if (!muteManager.isMuted(target.getUUID())) {
+                        source.sendFailure(TextFormatter.stringToFormattedText(
+                            ConfigHandler.config.muteNotMutedMsg.get()
+                                .replace("$player", target.getGameProfile().getName())));
+                        return 0;
+                    }
+                    muteManager.unmutePlayer(target.getUUID(), adminName, source.getServer());
+                    String confirmMsg = ConfigHandler.config.unmuteConfirmFormat.get()
+                            .replace("$player", target.getGameProfile().getName())
+                            .replace("$admin", adminName);
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(confirmMsg), true);
+                    return 1;
+                },
+                PermissionsHandler.unmuteCommand);
     }
 
     private static boolean mayTarget(CommandSourceStack source, ServerPlayer target, boolean rejectSelf) {
@@ -144,32 +156,35 @@ public class MuteCommand {
     }
 
     private static int executeMuteList(CommandSourceStack source) {
-        MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
-        if (muteManager == null) {
-            source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
-            return 0;
-        }
-
-        var allMutes = muteManager.getAllMutes();
-        if (allMutes.isEmpty()) {
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(
-                ConfigHandler.config.muteListEmptyMsg.get()), false);
-            return 1;
-        }
-
-        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
-            ConfigHandler.config.muteListHeaderFormat.get()), false);
-
-        for (MuteManager.MuteEntry entry : allMutes) {
-            String line = ConfigHandler.config.muteListEntryFormat.get()
-                    .replace("$player", entry.playerName)
-                    .replace("$admin", entry.adminName)
-                    .replace("$reason", entry.reason)
-                    .replace("$remaining", entry.getRemainingString())
-                    .replace("$duration", entry.getOriginalDurationString());
-            source.sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
-        }
-
-        return 1;
+        return KernelCommandExecutor.execute(
+                source,
+                "sef:moderation.mutelist",
+                Map.of("route", "mutelist"),
+                () -> {
+                    MuteManager muteManager = CommandRegistrationHandler.getMuteManager();
+                    if (muteManager == null) {
+                        source.sendFailure(TextFormatter.stringToFormattedText("&cMute system not initialized."));
+                        return 0;
+                    }
+                    var allMutes = muteManager.getAllMutes();
+                    if (allMutes.isEmpty()) {
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                            ConfigHandler.config.muteListEmptyMsg.get()), false);
+                        return 1;
+                    }
+                    source.sendSuccess(() -> TextFormatter.stringToFormattedText(
+                        ConfigHandler.config.muteListHeaderFormat.get()), false);
+                    for (MuteManager.MuteEntry entry : allMutes) {
+                        String line = ConfigHandler.config.muteListEntryFormat.get()
+                                .replace("$player", entry.playerName)
+                                .replace("$admin", entry.adminName)
+                                .replace("$reason", entry.reason)
+                                .replace("$remaining", entry.getRemainingString())
+                                .replace("$duration", entry.getOriginalDurationString());
+                        source.sendSuccess(() -> TextFormatter.stringToFormattedText(line), false);
+                    }
+                    return 1;
+                },
+                PermissionsHandler.muteCommand);
     }
 }
