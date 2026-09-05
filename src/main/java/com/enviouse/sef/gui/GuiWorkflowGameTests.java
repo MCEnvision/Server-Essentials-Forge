@@ -1048,7 +1048,8 @@ public final class GuiWorkflowGameTests {
                 if (variant.fields().isEmpty() || !isCanonicalVariant(definition, variant)) {
                     continue;
                 }
-                String command = render(variant, "@a[limit=1]");
+                String targetIdentity = target.getUUID().toString();
+                String command = render(variant, targetIdentity);
                 if (command.isBlank() || !executed.add(command)
                         || !routeOwnedByDefinition(definition, command)) {
                     continue;
@@ -1083,7 +1084,7 @@ public final class GuiWorkflowGameTests {
                         && event.normalizedParameters().values().stream()
                         .noneMatch(value -> value.contains(command)
                                         || value.contains(target.getGameProfile().getName())
-                                        || value.contains("@a[limit=1]"));
+                                        || value.contains(targetIdentity));
                 if (!"console".equals(event.sourceType())
                         || event.actorUuid().isBlank()
                         || event.actorUsername().isBlank()
