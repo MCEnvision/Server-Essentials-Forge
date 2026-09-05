@@ -16,6 +16,7 @@ import net.minecraft.commands.Commands;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * /commandannouncement add|remove|list — schedules server commands to run on an interval.
@@ -51,10 +52,28 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doAdd(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String command = StringArgumentType.getString(ctx, "command");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.command",
+                Map.of(
+                        "operation", "add",
+                        "id", id,
+                        "interval", intervalStr,
+                        "command_length", Integer.toString(command.length())),
+                () -> doAddAuthorized(ctx, manager, id, intervalStr, command),
+                PermissionsHandler.commandAnnouncementManage);
+    }
+
+    private static int doAddAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String id,
+            String intervalStr,
+            String command
+    ) {
 
         CommandRootPolicy.Decision decision = CommandRootPolicy.evaluate(
                 command,
@@ -103,8 +122,20 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doRemove(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.command",
+                Map.of("operation", "remove", "id", id),
+                () -> doRemoveAuthorized(ctx, manager, id),
+                PermissionsHandler.commandAnnouncementManage);
+    }
+
+    private static int doRemoveAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String id
+    ) {
         ScheduledAnnouncement existing = manager.getById(id);
         if (!(existing instanceof CommandAnnouncement)) {
             ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
@@ -125,7 +156,19 @@ public class CommandAnnouncementCommand {
     }
 
     private static int doList(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager, int page) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.command")) return 0;
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.command",
+                Map.of("operation", "list", "page", Integer.toString(page)),
+                () -> doListAuthorized(ctx, manager, page),
+                PermissionsHandler.commandAnnouncementManage);
+    }
+
+    private static int doListAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            int page
+    ) {
         List<CommandAnnouncement> all = manager.getCommandAnnouncements();
         int perPage = 8;
         int totalPages = Math.max(1, (int) Math.ceil(all.size() / (double) perPage));

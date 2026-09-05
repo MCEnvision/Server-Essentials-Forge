@@ -66,11 +66,14 @@ public class InvSeeCommand {
                     ServerPlayer target = ctx.getSource().getServer()
                             .getPlayerList()
                             .getPlayer(identity.value().playerId());
-                    if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:inventory.view")) {
-                        return 0;
-                    }
                     return target == null
-                            ? OfflineInvSeeService.open(viewer, identity.value())
+                            ? KernelCommandExecutor.execute(
+                                    ctx.getSource(),
+                                    "sef:inventory.view",
+                                    java.util.Map.of("mode", "offline", "target", identity.value().playerId().toString()),
+                                    java.util.List.of(identity.value().playerId()),
+                                    false,
+                                    () -> OfflineInvSeeService.open(viewer, identity.value()))
                             : openInvSee(viewer, target, 0);
                 })));
     }
@@ -82,9 +85,19 @@ public class InvSeeCommand {
      * @param page 0 = main inventory, 1+ = curios pages
      */
     public static int openInvSee(ServerPlayer viewer, ServerPlayer target, int page) {
-        if (!KernelCommandExecutor.authorizeControl(viewer.createCommandSourceStack(), "sef:inventory.view")) {
-            return 0;
-        }
+        return KernelCommandExecutor.execute(
+                viewer.createCommandSourceStack(),
+                "sef:inventory.view",
+                java.util.Map.of(
+                        "mode", "online",
+                        "page", Integer.toString(page),
+                        "target", target.getUUID().toString()),
+                java.util.List.of(target.getUUID()),
+                false,
+                () -> openInvSeeAuthorized(viewer, target, page));
+    }
+
+    private static int openInvSeeAuthorized(ServerPlayer viewer, ServerPlayer target, int page) {
         if (!canAccess(viewer, target)) {
             viewer.sendSystemMessage(TextFormatter.stringToFormattedText(
                     "&cThat inventory is no longer available."));

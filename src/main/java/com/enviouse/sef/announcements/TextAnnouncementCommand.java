@@ -15,6 +15,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * /textannouncement add|ontime|modify|remove|list with per-announcement
@@ -71,12 +72,34 @@ public class TextAnnouncementCommand {
             CommandContext<CommandSourceStack> ctx,
             AnnouncementManager manager
     ) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String toggleStr = StringArgumentType.getString(ctx, "toggleable").toLowerCase();
         String target = StringArgumentType.getString(ctx, "target");
         String message = StringArgumentType.getString(ctx, "message");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.text",
+                Map.of(
+                        "operation", "add",
+                        "id", id,
+                        "interval", intervalStr,
+                        "toggleable", toggleStr,
+                        "target", target,
+                        "message_length", Integer.toString(message.length())),
+                () -> doAddAuthorized(ctx, manager, id, intervalStr, toggleStr, target, message),
+                PermissionsHandler.announcementManage);
+    }
+
+    private static int doAddAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String id,
+            String intervalStr,
+            String toggleStr,
+            String target,
+            String message
+    ) {
 
         long seconds = DurationParser.parseSeconds(intervalStr);
         if (seconds < 1) {
@@ -112,8 +135,22 @@ public class TextAnnouncementCommand {
     }
 
     private static int doOntime(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String message = StringArgumentType.getString(ctx, "message");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.text",
+                Map.of(
+                        "operation", "ontime",
+                        "message_length", Integer.toString(message.length())),
+                () -> doOntimeAuthorized(ctx, manager, message),
+                PermissionsHandler.announcementManage);
+    }
+
+    private static int doOntimeAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String message
+    ) {
         var server = ctx.getSource().getServer();
         manager.broadcastText(server, message, "@a", null, false);
         ctx.getSource().sendSuccess(() -> TextFormatter.stringToFormattedText("&aOne-time announcement sent."), false);
@@ -121,12 +158,34 @@ public class TextAnnouncementCommand {
     }
 
     private static int doModify(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
         String intervalStr = StringArgumentType.getString(ctx, "interval");
         String toggleStr = StringArgumentType.getString(ctx, "toggleable").toLowerCase();
         String target = StringArgumentType.getString(ctx, "target");
         String message = StringArgumentType.getString(ctx, "message");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.text",
+                Map.of(
+                        "operation", "modify",
+                        "id", id,
+                        "interval", intervalStr,
+                        "toggleable", toggleStr,
+                        "target", target,
+                        "message_length", Integer.toString(message.length())),
+                () -> doModifyAuthorized(ctx, manager, id, intervalStr, toggleStr, target, message),
+                PermissionsHandler.announcementManage);
+    }
+
+    private static int doModifyAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String id,
+            String intervalStr,
+            String toggleStr,
+            String target,
+            String message
+    ) {
         ScheduledAnnouncement existing = manager.getById(id);
         if (!(existing instanceof TextAnnouncement)) {
             ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
@@ -162,8 +221,20 @@ public class TextAnnouncementCommand {
     }
 
     private static int doRemove(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
         String id = StringArgumentType.getString(ctx, "id");
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.text",
+                Map.of("operation", "remove", "id", id),
+                () -> doRemoveAuthorized(ctx, manager, id),
+                PermissionsHandler.announcementManage);
+    }
+
+    private static int doRemoveAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            String id
+    ) {
         ScheduledAnnouncement existing = manager.getById(id);
         if (!(existing instanceof TextAnnouncement)) {
             ctx.getSource().sendFailure(TextFormatter.stringToFormattedText(
@@ -184,7 +255,19 @@ public class TextAnnouncementCommand {
     }
 
     private static int doList(CommandContext<CommandSourceStack> ctx, AnnouncementManager manager, int page) {
-        if (!KernelCommandExecutor.authorizeControl(ctx.getSource(), "sef:announcement.text")) return 0;
+        return KernelCommandExecutor.execute(
+                ctx.getSource(),
+                "sef:announcement.text",
+                Map.of("operation", "list", "page", Integer.toString(page)),
+                () -> doListAuthorized(ctx, manager, page),
+                PermissionsHandler.announcementManage);
+    }
+
+    private static int doListAuthorized(
+            CommandContext<CommandSourceStack> ctx,
+            AnnouncementManager manager,
+            int page
+    ) {
         List<TextAnnouncement> all = manager.getTextAnnouncements();
         int perPage = 8;
         int totalPages = Math.max(1, (int) Math.ceil(all.size() / (double) perPage));

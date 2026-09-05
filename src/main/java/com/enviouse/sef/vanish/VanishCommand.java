@@ -296,8 +296,23 @@ public class VanishCommand {
 
 	private static int setTrace(CommandContext<CommandSourceStack> ctx, ServerPlayer playerOverride, boolean shouldTrace) throws CommandSyntaxException {
 		CommandSourceStack source = ctx.getSource();
-		if (!KernelCommandExecutor.authorizeControl(source, "sef:vanish.manage")) return 0;
 		ServerPlayer player = playerOverride != null ? playerOverride : source.getPlayerOrException();
+		return KernelCommandExecutor.execute(
+				source,
+				"sef:vanish.manage",
+				java.util.Map.of(
+						"route", "trace",
+						"enabled", Boolean.toString(shouldTrace)),
+				java.util.List.of(player.getUUID()),
+				false,
+				() -> setTraceInternal(source, player, shouldTrace));
+	}
+
+	private static int setTraceInternal(
+			CommandSourceStack source,
+			ServerPlayer player,
+			boolean shouldTrace
+	) {
 		boolean isTracing = TraceHandler.isTracing(player);
 
 		if (!VanishUtil.isVanished(player)) {
