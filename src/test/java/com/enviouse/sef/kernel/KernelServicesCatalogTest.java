@@ -107,7 +107,8 @@ class KernelServicesCatalogTest {
                 "fancytags/FancyTagService.java",
                 "disguise/DisguiseService.java",
                 "control/ServerControlRepository.java",
-                "config/modules/ModuleConfigService.java")) {
+                "config/modules/ModuleConfigService.java",
+                "alts/CheckAltsCommand.java")) {
             String source = Files.readString(root.resolve(relative), StandardCharsets.UTF_8);
             assertTrue(source.contains("CommandAuditScope.active()"), relative);
         }

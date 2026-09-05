@@ -6,6 +6,7 @@ import com.enviouse.sef.config.ConfigHandler;
 import com.enviouse.sef.config.PermissionsHandler;
 import com.enviouse.sef.events.CommandRegistrationHandler;
 import com.enviouse.sef.identity.IdentityArguments;
+import com.enviouse.sef.kernel.CommandAuditScope;
 import com.enviouse.sef.kernel.KernelCommandExecutor;
 import com.enviouse.sef.kernel.policy.PlayerTargetPolicy;
 import com.enviouse.sef.permissions.PermissionService;
@@ -204,6 +205,9 @@ public class CheckAltsCommand {
     }
 
     private static void audit(CommandSourceStack source, String action, String result) {
+        if (CommandAuditScope.active()) {
+            return;
+        }
         SecurityAuditService.record(SecurityAuditService.AuditEvent.create(
                 "privacy",
                 action,
