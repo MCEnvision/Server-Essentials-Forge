@@ -12,7 +12,7 @@ This ledger measures completion against `sef2.md`. A scope is complete only when
 
 ## Current audit phase status
 
-The exact current head `a4d1ef0` was rebuilt after the documentation evidence commit. It produced the same 3,419,409 byte `sef-2.0.0.jar` artifact with SHA-256 `1ae4c4c14aa4e60ff1fb97ad59ed22da548a6254f04db2fb51aecb38be507533` and SHA-512 `b5d530618a987cdd67b58a167b0189e889b70dd9d2adcf3b0e181bb13ac84d5e07516db8089e3f7715acd48ad0f00c90624e1ec07d0e2aea68b83320a09954d7`. The final disposable build passed and was cleaned up.
+The runtime source commit `a4d1ef0` was rebuilt after the route and generated reference changes. It produced the 3,419,409 byte `sef-2.0.0.jar` artifact with SHA-256 `1ae4c4c14aa4e60ff1fb97ad59ed22da548a6254f04db2fb51aecb38be507533` and SHA-512 `b5d530618a987cdd67b58a167b0189e889b70dd9d2adcf3b0e181bb13ac84d5e07516db8089e3f7715acd48ad0f00c90624e1ec07d0e2aea68b83320a09954d7`. The later branch head `9bad474` contains documentation-only evidence updates. The final disposable build passed and was cleaned up.
 
 The rebuilt Phase 003 candidate is source commit `6789484` and passes the complete Gradle build. The artifact is `sef-2.0.0.jar`, 3,419,409 bytes, with SHA-256 `1ae4c4c14aa4e60ff1fb97ad59ed22da548a6254f04db2fb51aecb38be507533` and SHA-512 `b5d530618a987cdd67b58a167b0189e889b70dd9d2adcf3b0e181bb13ac84d5e07516db8089e3f7715acd48ad0f00c90624e1ec07d0e2aea68b83320a09954d7`. The disposable build worktree and output were removed after hashing. The full build log is retained in the Phase 003 evidence packet.
 
