@@ -419,6 +419,33 @@ public final class GuiWorkflowGameTests {
             }
         }
 
+        String configurationAction = "sef:config.reload";
+        Set<String> configurationBefore = SecurityAuditService.recent(
+                        event -> event.actionId().equals(configurationAction),
+                        128)
+                .stream()
+                .map(SecurityAuditService.AuditEvent::eventId)
+                .collect(java.util.stream.Collectors.toSet());
+        try {
+            int result = dispatcher.execute("sef config reload gui", source);
+            List<SecurityAuditService.AuditEvent> events = SecurityAuditService.recent(
+                            event -> event.actionId().equals(configurationAction)
+                                    && !configurationBefore.contains(event.eventId()),
+                            8);
+            if (result <= 0) {
+                failures.add("sef config reload gui, zero result");
+            } else if (events.size() != 1) {
+                failures.add("sef config reload gui, expected one audit event but saw " + events.size());
+            } else {
+                var event = events.getFirst();
+                if (!"console".equals(event.sourceType()) || !"success".equals(event.result())) {
+                    failures.add("sef config reload gui, unsafe shared audit projection");
+                }
+            }
+        } catch (Exception exception) {
+            failures.add("sef config reload gui, " + exception.getClass().getSimpleName());
+        }
+
         failures.forEach(failure ->
                 ServerEssentialsForge.LOGGER.error("[SEF] Positive console audit, {}", failure));
         helper.assertTrue(
