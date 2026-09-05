@@ -301,13 +301,13 @@ public final class UniversalCommandMatrixGenerator {
         add(dimensions, "failure", "open", "action-specific zero-side-effect and failure cut-point oracle is required", "task-028-universal-matrix-ledger.md");
         add(dimensions, "persistence", "partial", "Phase 002 owner contracts exist but each command effect needs a direct join", "task-028-universal-matrix-ledger.md");
         add(dimensions, "route_equivalence", "partial", "indirect route contracts pass selected equality cases", "task-028-universal-matrix-ledger.md");
-        add(dimensions, "feedback", "partial", "catalog-wide rejection emits bounded feedback, but success and distinct failure variants are not joined to every action", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
-        add(dimensions, "audit", "partial", "catalog-wide rejection emits correlated action records and shared success and failure regressions pass, but per-action success and distinct failure joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
-        add(dimensions, "redaction", "partial", "catalog-wide rejection keeps synthetic details and normalized parameters out of records, but per-action sensitive fields and success projections remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
+        add(dimensions, "feedback", "partial", "catalog-wide rejection and shared executor outcome handling are covered, but route-specific success presentation and distinct domain failure feedback remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
+        add(dimensions, "audit", "partial", "catalog-wide rejection and shared executor success or failure outcomes have per-action correlation, but domain effect and sink-specific joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
+        add(dimensions, "redaction", "partial", "catalog-wide rejection and shared executor outcomes keep normalized metadata bounded, but per-action sensitive fields and success projections remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "client_fixture", "partial", "packaged client load and connection pass; full action interaction is open", "task-024-client-crash-remediation-report.md");
-        add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, and catalog feedback and audit boundary pass; universal effects remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
+        add(dimensions, "linux_shared_runtime", "partial", "dedicated server, representative runtime, catalog feedback and audit boundary, and shared executor outcome checks pass; universal effects remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         add(dimensions, "host_specific_runtime", "not_applicable", "no macOS or Windows non-client host-specific path changed or exercised", "task-025-audit-inventory-report.md");
-        add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, and duplicate-runtime inspection pass; per-action audit joins remain open", "task-010-catalog-feedback-20260905/task-010-catalog-feedback-report.md");
+        add(dimensions, "native_dependency", "partial", "candidate dependency, native writer identity, duplicate-runtime inspection, and shared executor audit joins pass; domain action sink joins remain open", "task-126-current-matrix-20260905/task-126-current-matrix-report.md");
         return dimensions;
     }
 
