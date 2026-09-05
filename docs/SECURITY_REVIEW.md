@@ -1,5 +1,15 @@
 # Security Review
 
+## Current Phase 003 remediation record, 2026-09-05
+
+The current candidate is commit `9d5406d683a4e2fabd03e4bb298558f6bd59a4d1` on `envy/phase-003-commands`. The command control routes `recovery`, `reconcile`, `view`, `history`, and `preview` now pass through the shared `KernelCommandExecutor` boundary. This restores the common permission recheck, control policy gate, command journal, feedback mapping, and audit correlation for those administrative reads and recovery operations. The change was reviewed with focused Java 21 tests before commit and pushed with a signed commit.
+
+Task 113 is the authoritative post-remediation runtime record. The full Java 21 unit suite and `runGameTestServer` both passed with exit code zero. All 48 required GameTests passed, including coverage for 406 positive argument free console routes and 11 representative metadata-only routes. The retained log is `/mnt/hermes/audit-evidence/SEFPORTED/phase-003/task-113-post-pipeline-fix-java21-20260905.Ysvqv5/` with log SHA-256 `185e9274554eaeeea734e59b1d6f7861f52f990ad11f9bbfb253b953fd5268a1` and SHA-512 `6966ef67e8dd2a5a71849df49862ff7ff38b09fdbac5b7e3f840cdb71af0179cab96c2c63de71270dd4cc4037f82ee8bcaf1e45580ed3ab75f4ac7f5a61287ec`.
+
+Task 114 is the authoritative post-remediation inventory record. Java 21 `generateAuditInventory` passed with exit code zero. The inventory contains 724 rows, 708 executable rows, 16 unavailable rows, 708 open executable rows, zero partial rows, and `complete=false`. It records 708 catalog actions, 708 canonical routes, 315 shortcuts, 12,158 permissions, 154 shared pipeline call sites, and 40 dynamic call sites. The matrix SHA-256 is `cf9fdfbeb3ebee18a487aca9349e0a42478a2b2065443403a8913ae7eaa13bdb`; the command inventory SHA-256 is `af95f27232894fe7e76f527b60f72b5be29ca8619d59a30dc9be4e9b8699f0ea`.
+
+The matrix is intentionally still open. Action specific effects, distinct failures, persistence, route equivalence, client fixture interaction, and later phase acceptance remain outstanding. `EXT-002` remains open for platform supplied dependency ownership and compatible advisory remediation. This record is progress evidence for the current phase and is not final audit acceptance.
+
 ## Current Phase 001 review
 
 ## Phase 003 command audit refresh

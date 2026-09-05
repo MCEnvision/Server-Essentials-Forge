@@ -1,5 +1,11 @@
 # SEF 2 Acceptance Ledger
 
+## Current audit phase status, 2026-09-05
+
+The current Phase 003 candidate is commit `9d5406d683a4e2fabd03e4bb298558f6bd59a4d1`. The administrative `recovery`, `reconcile`, `view`, `history`, and `preview` routes are now routed through the shared command execution and audit boundary. Task 113 records a passing Java 21 full unit suite and live GameTest run. All 48 required GameTests passed, including 406 positive argument free console routes and 11 representative metadata-only routes. Task 114 records the post-remediation inventory at 724 rows, 708 executable rows, 16 unavailable rows, 708 open executable rows, zero partial rows, and `complete=false`. The current matrix SHA-256 is `cf9fdfbeb3ebee18a487aca9349e0a42478a2b2065443403a8913ae7eaa13bdb`.
+
+This is current progress evidence, not final acceptance. Per-action effects, distinct failure behavior, persistence and restart joins, route equivalence, client fixture interaction, later phases, and `EXT-002` dependency ownership and remediation remain open. The saved goal and authoritative plan are unchanged.
+
 This ledger measures completion against `sef2.md`. A scope is complete only when its required behavior, exit criteria, and current verification evidence pass. Source presence, command registration, schemas, generic editors, and compilation do not count as complete behavior by themselves.
 
 ## Status meanings
