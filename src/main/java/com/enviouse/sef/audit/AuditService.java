@@ -276,7 +276,12 @@ public final class AuditService {
             throw new IllegalArgumentException("Audit parameter count exceeds limit");
         }
         Map<String, String> result = new java.util.LinkedHashMap<>();
-        source.forEach((key, value) -> result.put(normalized(key, 64), bounded(value, 256)));
+        source.forEach((key, value) -> {
+            String normalizedKey = normalized(key, 64);
+            if (result.putIfAbsent(normalizedKey, bounded(value, 256)) != null) {
+                throw new IllegalArgumentException("Audit map keys collide after normalization");
+            }
+        });
         return Map.copyOf(result);
     }
 

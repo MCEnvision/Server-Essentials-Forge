@@ -189,6 +189,56 @@ class AuditServiceTest {
     }
 
     @Test
+    void eventRejectsNormalizedParameterKeyCollisions() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> AuditService.Event.interaction(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        "operator",
+                        "CONSOLE",
+                        "sef:test.action",
+                        List.of(),
+                        Map.of("Mode", "first", "mode", "second"),
+                        AuditService.Result.SUCCESS,
+                        ActionResult.ReasonCode.SUCCESS,
+                        "command",
+                        AuditService.RedactionClass.METADATA,
+                        AuditService.AuditClass.ADMIN_ACTION));
+    }
+
+    @Test
+    void securityEventRejectsNormalizedParameterKeyCollisions() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SecurityAuditService.AuditEvent(
+                        1,
+                        UUID.randomUUID().toString(),
+                        Instant.now().toString(),
+                        UUID.randomUUID().toString(),
+                        "",
+                        "operator",
+                        "console",
+                        "sef:test.action",
+                        List.of(),
+                        Map.of("Mode", "first", "mode", "second"),
+                        "success",
+                        "success",
+                        0L,
+                        "command",
+                        "",
+                        "",
+                        0L,
+                        0L,
+                        Map.of(),
+                        "metadata",
+                        List.of(),
+                        "",
+                        "",
+                        "metadata"));
+    }
+
+    @Test
     void writerFailureStopsAcceptanceAndReportsLostEvents() throws Exception {
         Path activeFile = temporaryDirectory.resolve("audit").resolve("security-audit.jsonl");
         SecurityAuditService.start(temporaryDirectory, 7, 1);

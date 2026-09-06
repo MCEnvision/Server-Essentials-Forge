@@ -230,7 +230,12 @@ public final class SecurityAuditService {
                 throw new IllegalArgumentException("Audit map exceeds limit");
             }
             Map<String, String> bounded = new LinkedHashMap<>();
-            values.forEach((key, value) -> bounded.put(normalized(key, 64), bounded(value, 256)));
+            values.forEach((key, value) -> {
+                String normalizedKey = normalized(key, 64);
+                if (bounded.putIfAbsent(normalizedKey, bounded(value, 256)) != null) {
+                    throw new IllegalArgumentException("Audit map keys collide after normalization");
+                }
+            });
             return Map.copyOf(bounded);
         }
 
