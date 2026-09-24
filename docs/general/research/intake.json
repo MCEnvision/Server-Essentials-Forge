@@ -1,0 +1,408 @@
+{
+  "contract_schema_version": 2,
+  "mode": "EXISTING_PLAN_UPDATE",
+  "planning_subject": {
+    "name": "Server Essentials Forge 2 final security, administrator-command, UI, persistence, backend-handling, and integration audit with mandatory remediation closure",
+    "requested_artifact": "authoritative_plan",
+    "plan_profile": "software_product",
+    "source_artifacts": [
+      {
+        "id": "SRC-001",
+        "role": "owner_request",
+        "subject": "Full SEF 2 audit and deliberate plan rebuild",
+        "source": "EnVy direct current plan rebuild request on 2026-09-24",
+        "use": "Authoritative scope, portability correction, and rebuild authorization."
+      },
+      {
+        "id": "SRC-002",
+        "role": "requirements",
+        "subject": "SEF 2 intended behavior and compatibility",
+        "source": "/mnt/hermes/projects/SEFPORTED/sef2.md",
+        "use": "Product behavior and compatibility contract."
+      },
+      {
+        "id": "SRC-003",
+        "role": "audit_evidence",
+        "subject": "Historical full codebase audit findings",
+        "source": "/mnt/hermes/projects/SEFPORTED/audit.md",
+        "use": "Prior findings and evidence gaps requiring renewed proof."
+      },
+      {
+        "id": "SRC-004",
+        "role": "requirements",
+        "subject": "Manual, multiplayer, integration, UI, persistence, and release verification matrix",
+        "source": "/mnt/hermes/projects/SEFPORTED/test.md",
+        "use": "Highest-fidelity workflow and acceptance coverage."
+      },
+      {
+        "id": "SRC-005",
+        "role": "repository_evidence",
+        "subject": "Current implementation and technical documentation",
+        "source": "/mnt/hermes/projects/SEFPORTED at the inspected candidate revision",
+        "use": "Observed architecture, state, commands, UI, integrations, and build constraints."
+      },
+      {
+        "id": "SRC-006",
+        "role": "repository_evidence",
+        "subject": "Build, manifests, tests, resources, and CodeGraph inventory",
+        "source": "/mnt/hermes/projects/SEFPORTED build metadata and .codegraph",
+        "use": "Package identity, dependency direction, test inventory, and reproducibility constraints."
+      },
+      {
+        "id": "SRC-007",
+        "role": "audit_evidence",
+        "subject": "Remote repository and dependency security state",
+        "source": "Read-only GitHub preflight and retained evidence packets",
+        "use": "Remote identity and dependency risk context only."
+      },
+      {
+        "id": "SRC-008",
+        "role": "reference",
+        "subject": "Historical porting and inventory audit",
+        "source": "/mnt/hermes/projects/SEFPORTED/SEFAudit.md",
+        "use": "Legacy risk cross-check only."
+      },
+      {
+        "id": "SRC-009",
+        "role": "owner_request",
+        "subject": "Minecraft Java portability and native dependency boundary",
+        "source": "EnVy direct current request and prior locked platform correction",
+        "use": "One portable client contract, current source and artifact native analysis plus available runtime proof, and available in-plan closure without foreign-host prerequisites."
+      },
+      {
+        "id": "SRC-010",
+        "role": "repository_evidence",
+        "subject": "Audit writer and compile-only native API implementation",
+        "source": "NativeAuditFileProvider, build.gradle, and retained Phase 001 evidence",
+        "use": "Opened-object identity, JNA packaging, and provider evidence requirements."
+      },
+      {
+        "id": "SRC-011",
+        "role": "status",
+        "subject": "Current phase and goal continuity",
+        "source": "/mnt/hermes/projects/SEFPORTED/docs/plan/goal.md and supplied checkpoint brief",
+        "use": "Active phase and next task context; never authority over the rebuilt product contract."
+      },
+      {
+        "id": "SRC-012",
+        "role": "audit_evidence",
+        "subject": "Retained phase integration and runtime packets",
+        "source": "Retained phase002 completion packet and phase003 tasks310 through318",
+        "use": "Historical executed results, failures and candidate identity, not current execution."
+      }
+    ]
+  },
+  "profile_contract": [
+    {
+      "area": "Component architecture",
+      "status": "covered",
+      "source": "SRC-005",
+      "plan_section": "Architecture and Ownership Boundaries",
+      "rationale": "Lifecycle, command, policy, UI, persistence, native writer, integrations, and build ownership are defined."
+    },
+    {
+      "area": "Determinism",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Determinism and Evidence Reproducibility",
+      "rationale": "Inventories, generated references, normalized state, evidence manifests, and artifact hashes must reproduce."
+    },
+    {
+      "area": "Failure taxonomy",
+      "status": "covered",
+      "source": "SRC-003",
+      "plan_section": "Failure Taxonomy and Recovery",
+      "rationale": "Invalid input, authorization, dependency, persistence, lifecycle, partial success, and evidence failures are classified."
+    },
+    {
+      "area": "Generalization",
+      "status": "covered",
+      "source": "SRC-009",
+      "plan_section": "Supported Environments and Generalization",
+      "rationale": "One portable client contract across Linux, macOS and Windows; native branch analysis and available runtime proof without foreign-host requirements."
+    },
+    {
+      "area": "Inputs and outputs",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Inputs, Outputs, and Observable Endpoint",
+      "rationale": "Commands, payloads, configuration, durable data, evidence, and artifact outputs are defined."
+    },
+    {
+      "area": "Release lifecycle",
+      "status": "covered",
+      "source": "SRC-009",
+      "plan_section": "Documentation, Operations, and Release Gates",
+      "rationale": "Clean checkout, packaging, compatibility, provenance, evidence, rollback, and release readiness are defined without publication."
+    },
+    {
+      "area": "Security",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Security, Privacy, and Supply Chain Contract",
+      "rationale": "Leak, backdoor, trust-boundary, native writer, redaction, dependency, and artifact closure are mandatory."
+    },
+    {
+      "area": "State and persistence",
+      "status": "covered",
+      "source": "SRC-002",
+      "plan_section": "State and Persistence Contract",
+      "rationale": "All durable and transient state, schema, recovery, concurrency, and migration obligations are in scope."
+    },
+    {
+      "area": "Test system",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Verification Strategy",
+      "rationale": "Unit, GameTest, dedicated server, Minecraft Java client fixture, integration, recovery, performance, security, and artifact evidence are required."
+    },
+    {
+      "area": "Versioning",
+      "status": "covered",
+      "source": "SRC-006",
+      "plan_section": "Compatibility and Versioning",
+      "rationale": "Minecraft, NeoForge, Java, protocol, configuration, persistence, and artifact boundaries are pinned."
+    }
+  ],
+  "completion_endpoint": "At one frozen candidate revision and artifact, close every mandatory audit and remediation matrix, repair confirmed in-scope defects, pass required final verification and integration, reconcile documentation, and record release readiness without publication or production mutation.",
+  "optional_future_disposition": "excluded",
+  "project_identity": {
+    "status": "matched",
+    "request_or_plan": "Server Essentials Forge 2, mod sef",
+    "repository": "/mnt/hermes/projects/SEFPORTED",
+    "package_metadata": "gradle.properties mod_id sef, mod_version 2.0.0, Minecraft 1.21.1, NeoForge 21.1.235",
+    "remote": "origin https://github.com/MCEnvision/Server-Essentials-Forge.git"
+  },
+  "mandatory_scope": [
+    {
+      "id": "SEFAUD-REQ-001",
+      "summary": "Freeze and reconcile complete audit inventories, evidence, diagnostics, and traceability at one candidate revision.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "readiness",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-002",
+      "summary": "Find and remediate security, privacy, leak, backdoor-like, authority, trust-boundary, and unsafe native-writer defects.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-003",
+      "summary": "Close dependency, supply-chain, platform-runtime ownership, advisory, provenance, packaging, and native API compatibility risk.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-004",
+      "summary": "Verify every executable administrator command and shortcut through its complete authority, effect, failure, persistence, feedback, and audit contract.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-005",
+      "summary": "Polish and verify every graphical and textual operator UI with accessibility, responsive, fallback, privacy, and server-authority proof.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-006",
+      "summary": "Audit every durable store, database-like owner, schema, migration, atomic write, queue, journal, backup, and recovery path across the codebase.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-007",
+      "summary": "Verify backend lifecycle, logical-side handling, networking, optional integrations, reload, revocation, reconnect, partial failure, shutdown, and cross-channel convergence.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-008",
+      "summary": "Run final clean-checkout, automated, GameTest, Minecraft Java client fixture, compatibility, recovery, performance, dependency, artifact, and regression verification.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEFAUD-REQ-009",
+      "summary": "Reconcile documentation and evidence and close release readiness at the frozen candidate without publishing.",
+      "source": "Owner request and existing plan",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    }
+  ],
+  "optional_future_scope": [
+    {
+      "id": "FUT-001",
+      "summary": "excluded. Implement and activate the sixteen intentionally unavailable Phase 13 runtime families.",
+      "source": "Existing plan and owner request",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "excluded. Add unrelated commands, UI features, integrations, control families, or gameplay capabilities.",
+      "source": "Existing plan and owner request",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "excluded. Perform broad architecture modernization or class decomposition beyond confirmed defect remediation or mandatory evidence enablement.",
+      "source": "Existing plan and owner request",
+      "disposition": "excluded"
+    }
+  ],
+  "non_goals": [
+    {
+      "id": "NG-001",
+      "summary": "Do not implement new features, including intentionally unavailable control family runtimes.",
+      "source": "Existing plan and owner request"
+    },
+    {
+      "id": "NG-002",
+      "summary": "Do not upgrade or expand Minecraft, NeoForge, mappings, Java, Gradle, loader, or protocol boundaries.",
+      "source": "Existing plan and owner request"
+    },
+    {
+      "id": "NG-003",
+      "summary": "Do not publish a release, deploy to production, or run destructive production tests.",
+      "source": "Existing plan and owner request"
+    },
+    {
+      "id": "NG-004",
+      "summary": "Do not weaken tests, permissions, redaction, recovery, compatibility, or acceptance gates, and do not mark blocked or unexecuted evidence as passed.",
+      "source": "Existing plan and owner request"
+    },
+    {
+      "id": "NG-005",
+      "summary": "Do not use real credentials, private messages, personal addresses, production worlds, or unrelated user data in fixtures or evidence.",
+      "source": "Existing plan and owner request"
+    },
+    {
+      "id": "NG-006",
+      "summary": "Do not claim mathematical absence of defects. Completion means the exhaustive declared matrices and adversarial evidence reveal no known disallowed finding at the frozen revision.",
+      "source": "Existing plan and owner request"
+    }
+  ],
+  "unresolved_owner_questions": [],
+  "owner_decisions": [
+    {
+      "id": "DEC-001",
+      "question": "Does the audit include remediation and regression proof?",
+      "status": "resolved",
+      "selected_choice": "Audit plus mandatory in-scope remediation and regression proof."
+    },
+    {
+      "id": "DEC-002",
+      "question": "How are intentionally unavailable controls handled?",
+      "status": "resolved",
+      "selected_choice": "Keep the sixteen named families unavailable, unreachable, side-effect-free, and negatively tested."
+    },
+    {
+      "id": "DEC-003",
+      "question": "What is the completion defect boundary?",
+      "status": "resolved",
+      "selected_choice": "No known applicable critical or high exploitable vulnerability, authorization bypass, sensitive leak, executable admin-command defect, UI-blocking defect, persistence-integrity defect, or mandatory backend defect at the frozen revision."
+    },
+    {
+      "id": "DEC-004",
+      "question": "What compatibility versions are fixed?",
+      "status": "resolved",
+      "selected_choice": "Preserve Minecraft 1.21.1, NeoForge 21.1.235, Java 21, checked-in Gradle, Parchment 2024.11.17, and current protocol and integration contracts."
+    },
+    {
+      "id": "DEC-005",
+      "question": "What verification environments and data are safe?",
+      "status": "resolved",
+      "selected_choice": "Use disposable synthetic staging fixtures only and exclude production mutation, credentials, personal data, and production worlds."
+    },
+    {
+      "id": "DEC-006",
+      "question": "What candidate lineage is authoritative?",
+      "status": "resolved",
+      "selected_choice": "Use the SEF 2 candidate lineage beginning at the selected envy/sef2_complete base and preserve branch evidence without silent legacy integration."
+    },
+    {
+      "id": "DEC-007",
+      "question": "What optional work is included?",
+      "status": "resolved",
+      "selected_choice": "Exclude all optional and future scope unless explicitly promoted later."
+    },
+    {
+      "id": "DEC-008",
+      "question": "What UI scope is mandatory?",
+      "status": "resolved",
+      "selected_choice": "Include all in-scope graphical screens, HUDs, and administrator command feedback."
+    },
+    {
+      "id": "DEC-009",
+      "question": "What is the platform and native dependency evidence contract?",
+      "status": "resolved",
+      "selected_choice": "Minecraft Java behavior is one portable contract across Linux, macOS and Windows. Use the silent Linux laptop client and node-1 headless server. Analyze actual native source and artifacts, reuse valid historical evidence and execute available runtime checks, without foreign-host client or native runtime prerequisites. EXT-001 and EXT-002 remain available mandatory in-plan closure. JNA is compile-only and supplied by pinned NeoForge, with no embedded duplicate runtime."
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "EXT-001",
+      "name": "Available canonical runtime, portable client and native analysis closure",
+      "affected_requirements": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "environment",
+      "availability": "available",
+      "authorization": "not_required",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Pinned candidate commit and artifact identity",
+        "One silent Linux Minecraft Java client fixture for portable client graphics and input",
+        "Dedicated server and headless evidence on node-1 where appropriate",
+        "Opened-object identity and provider behavior for any native path under audit",
+        "Exact runtime, cleanup, and sanitized evidence manifest"
+      ]
+    },
+    {
+      "id": "EXT-002",
+      "name": "NeoForge-owned dependency provenance, runtime supply, reachability, advisory applicability, and mod-owned remediation closure",
+      "affected_requirements": [
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "not_required",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Declared, resolved, runtime, test, tooling, and packaged graphs",
+        "Coordinates, hashes, licenses, authoritative origin, and dependency paths",
+        "NeoForge supplied JNA API identity and binary compatibility",
+        "Mod artifact absence of duplicate JNA classes or native runtime",
+        "Separate mod-owned remediation and platform-owned not-mod-resolvable advisory dispositions"
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    }
+  ]
+}

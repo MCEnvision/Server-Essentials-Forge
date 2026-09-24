@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "project": {
-    "name": "Server Essentials Forge 2",
+    "name": "SEFPORTED",
     "repository": "https://github.com/MCEnvision/Server-Essentials-Forge.git"
   },
   "master": "plan.md",
@@ -12,7 +12,7 @@
       "kind": "master",
       "classification": "mandatory",
       "requirementPrefix": "SEFAUD",
-      "owner": "Server Essentials Forge 2 repository",
+      "owner": "SEF audit contract",
       "dependsOn": []
     },
     {
@@ -20,7 +20,7 @@
       "path": "phases/plan-phase-000.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P000",
+      "requirementPrefix": "PHASE000",
       "phaseId": "SEFAUD-PHASE-000",
       "owner": "Repository audit contract",
       "dependsOn": []
@@ -30,7 +30,7 @@
       "path": "phases/plan-phase-001.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P001",
+      "requirementPrefix": "PHASE001",
       "phaseId": "SEFAUD-PHASE-001",
       "owner": "Security audit boundary",
       "dependsOn": [
@@ -42,7 +42,7 @@
       "path": "phases/plan-phase-002.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P002",
+      "requirementPrefix": "PHASE002",
       "phaseId": "SEFAUD-PHASE-002",
       "owner": "Persistence layer",
       "dependsOn": [
@@ -54,7 +54,7 @@
       "path": "phases/plan-phase-003.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P003",
+      "requirementPrefix": "PHASE003",
       "phaseId": "SEFAUD-PHASE-003",
       "owner": "Command policy kernel",
       "dependsOn": [
@@ -66,7 +66,7 @@
       "path": "phases/plan-phase-004.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P004",
+      "requirementPrefix": "PHASE004",
       "phaseId": "SEFAUD-PHASE-004",
       "owner": "GUI presentation",
       "dependsOn": [
@@ -78,7 +78,7 @@
       "path": "phases/plan-phase-005.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P005",
+      "requirementPrefix": "PHASE005",
       "phaseId": "SEFAUD-PHASE-005",
       "owner": "Lifecycle integration boundary",
       "dependsOn": [
@@ -90,7 +90,7 @@
       "path": "phases/plan-phase-006.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P006",
+      "requirementPrefix": "PHASE006",
       "phaseId": "SEFAUD-PHASE-006",
       "owner": "Release verification system",
       "dependsOn": [
@@ -102,7 +102,7 @@
       "path": "phases/plan-phase-007.md",
       "kind": "phase",
       "classification": "mandatory",
-      "requirementPrefix": "P007",
+      "requirementPrefix": "PHASE007",
       "phaseId": "SEFAUD-PHASE-007",
       "owner": "Documentation evidence",
       "dependsOn": [

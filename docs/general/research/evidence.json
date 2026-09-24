@@ -1,0 +1,578 @@
+{
+  "schema_version": 1,
+  "project_id": "SEFPORTED",
+  "documents": {
+    "brief": {
+      "path": "brief.md",
+      "sha256": "33fbcf21792bdd15ccdcaa8eaa0c80321c740327e096a5da6e5f6af74079b257"
+    },
+    "repository_map": {
+      "path": "repository-map.md",
+      "sha256": "62ecd8d914a9c70769bac979dc926d2824c5a1979ca8b1dd65224d9abc4ebea0"
+    },
+    "intake": {
+      "path": "intake.json",
+      "sha256": "82a1ed127db01cc5fa03dd0f597f7359ddb7b659525ffe6c4f96e60bbe7e7271"
+    }
+  },
+  "sources": [
+    {
+      "id": "SRC-001",
+      "role": "owner_request",
+      "locator": "EnVy direct current plan rebuild request on 2026-09-24",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-002",
+      "role": "requirements",
+      "locator": "/mnt/hermes/projects/SEFPORTED/sef2.md",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-003",
+      "role": "audit_evidence",
+      "locator": "/mnt/hermes/projects/SEFPORTED/audit.md",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-004",
+      "role": "requirements",
+      "locator": "/mnt/hermes/projects/SEFPORTED/test.md",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-005",
+      "role": "repository_evidence",
+      "locator": "/mnt/hermes/projects/SEFPORTED at the inspected candidate revision",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": [
+        {
+          "path": "gradle.properties",
+          "sha256": "08f497d6359ca6f3916a3044db719a6579e64331d6a655fad0717b6bc3746c9e"
+        },
+        {
+          "path": "build.gradle",
+          "sha256": "c92ada378d0a72db76f68072094564cfaf3d7e0efebd2dfb61e451fc9222befb"
+        },
+        {
+          "path": "settings.gradle",
+          "sha256": "b94fb4013af72a91c29e63a80c816b56a26abe360c24bcc50e4cc3c602b3ef92"
+        },
+        {
+          "path": "gradle/wrapper/gradle-wrapper.properties",
+          "sha256": "05e7bec397ce5a52628d31dcc4c8b636cbdc55e28f8cef19d097c71b5c5fbb42"
+        },
+        {
+          "path": "docs/SEF2_ACCEPTANCE.md",
+          "sha256": "8c19b01d2cd63f170edb1ddc269dfa7ff957791d8bc05ed31ddf68b1f9ec533b"
+        },
+        {
+          "path": "docs/COMPATIBILITY_MATRIX.md",
+          "sha256": "93f7fee71de391b757b1db850705af767e484f06c8987e2853201ddb79378ebf"
+        },
+        {
+          "path": "docs/SECURITY_REVIEW.md",
+          "sha256": "6b40896f694749761c2a55b330f99ff259e922721041c6cb5e0bfe5fcab63010"
+        },
+        {
+          "path": "test.md",
+          "sha256": "4692b186f706d393b4b965eab75524808da2d53eb248f5dc7a500145e358e4dd"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/audit/NativeAuditFileProvider.java",
+          "sha256": "11203bcb6cce83c655d194d7edd709eefd0fc18302a715cfec090913d4626584"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommands.java",
+          "sha256": "36aab35d57e80096ee904d95a63c298cf5130aa5d1f6464da51eebce6cb22e5e"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommandExecutor.java",
+          "sha256": "9990db45da1657993e460671678e06be615d5caf7eb13b7ca8a9ea2a17a01d70"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/storage/repository/StorageCoordinator.java",
+          "sha256": "3b3424c677c2afc1080e44df95262f0c3cfcef46abd81271bbef7c2d08f883fc"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/gui/protocol/PanelActionValidator.java",
+          "sha256": "d9619ae03204d79db5240ee17c83a74896238197cff415f7f370a94eec0101ec"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGenerator.java",
+          "sha256": "d867e5c115cd948485590d57c4827a79b44bc0f986d8255c684d6b6ad48dd822"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGeneratorTest.java",
+          "sha256": "73fd878a8981eddacfbe0752224b7cca974e3f31d2c8a1d0d056bb3bab617e56"
+        }
+      ]
+    },
+    {
+      "id": "SRC-006",
+      "role": "repository_evidence",
+      "locator": "/mnt/hermes/projects/SEFPORTED build metadata and .codegraph",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": [
+        {
+          "path": "gradle.properties",
+          "sha256": "08f497d6359ca6f3916a3044db719a6579e64331d6a655fad0717b6bc3746c9e"
+        },
+        {
+          "path": "build.gradle",
+          "sha256": "c92ada378d0a72db76f68072094564cfaf3d7e0efebd2dfb61e451fc9222befb"
+        },
+        {
+          "path": "settings.gradle",
+          "sha256": "b94fb4013af72a91c29e63a80c816b56a26abe360c24bcc50e4cc3c602b3ef92"
+        },
+        {
+          "path": "gradle/wrapper/gradle-wrapper.properties",
+          "sha256": "05e7bec397ce5a52628d31dcc4c8b636cbdc55e28f8cef19d097c71b5c5fbb42"
+        },
+        {
+          "path": "docs/SEF2_ACCEPTANCE.md",
+          "sha256": "8c19b01d2cd63f170edb1ddc269dfa7ff957791d8bc05ed31ddf68b1f9ec533b"
+        },
+        {
+          "path": "docs/COMPATIBILITY_MATRIX.md",
+          "sha256": "93f7fee71de391b757b1db850705af767e484f06c8987e2853201ddb79378ebf"
+        },
+        {
+          "path": "docs/SECURITY_REVIEW.md",
+          "sha256": "6b40896f694749761c2a55b330f99ff259e922721041c6cb5e0bfe5fcab63010"
+        },
+        {
+          "path": "test.md",
+          "sha256": "4692b186f706d393b4b965eab75524808da2d53eb248f5dc7a500145e358e4dd"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/audit/NativeAuditFileProvider.java",
+          "sha256": "11203bcb6cce83c655d194d7edd709eefd0fc18302a715cfec090913d4626584"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommands.java",
+          "sha256": "36aab35d57e80096ee904d95a63c298cf5130aa5d1f6464da51eebce6cb22e5e"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommandExecutor.java",
+          "sha256": "9990db45da1657993e460671678e06be615d5caf7eb13b7ca8a9ea2a17a01d70"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/storage/repository/StorageCoordinator.java",
+          "sha256": "3b3424c677c2afc1080e44df95262f0c3cfcef46abd81271bbef7c2d08f883fc"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/gui/protocol/PanelActionValidator.java",
+          "sha256": "d9619ae03204d79db5240ee17c83a74896238197cff415f7f370a94eec0101ec"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGenerator.java",
+          "sha256": "d867e5c115cd948485590d57c4827a79b44bc0f986d8255c684d6b6ad48dd822"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGeneratorTest.java",
+          "sha256": "73fd878a8981eddacfbe0752224b7cca974e3f31d2c8a1d0d056bb3bab617e56"
+        }
+      ]
+    },
+    {
+      "id": "SRC-007",
+      "role": "audit_evidence",
+      "locator": "Read-only GitHub preflight and retained evidence packets",
+      "revision": "GitHub observation2026-09-24",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T20:06:46.273Z",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-008",
+      "role": "reference",
+      "locator": "/mnt/hermes/projects/SEFPORTED/SEFAudit.md",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-009",
+      "role": "owner_request",
+      "locator": "EnVy direct current request and prior locked platform correction",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-010",
+      "role": "repository_evidence",
+      "locator": "NativeAuditFileProvider, build.gradle, and retained Phase 001 evidence",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": [
+        {
+          "path": "gradle.properties",
+          "sha256": "08f497d6359ca6f3916a3044db719a6579e64331d6a655fad0717b6bc3746c9e"
+        },
+        {
+          "path": "build.gradle",
+          "sha256": "c92ada378d0a72db76f68072094564cfaf3d7e0efebd2dfb61e451fc9222befb"
+        },
+        {
+          "path": "settings.gradle",
+          "sha256": "b94fb4013af72a91c29e63a80c816b56a26abe360c24bcc50e4cc3c602b3ef92"
+        },
+        {
+          "path": "gradle/wrapper/gradle-wrapper.properties",
+          "sha256": "05e7bec397ce5a52628d31dcc4c8b636cbdc55e28f8cef19d097c71b5c5fbb42"
+        },
+        {
+          "path": "docs/SEF2_ACCEPTANCE.md",
+          "sha256": "8c19b01d2cd63f170edb1ddc269dfa7ff957791d8bc05ed31ddf68b1f9ec533b"
+        },
+        {
+          "path": "docs/COMPATIBILITY_MATRIX.md",
+          "sha256": "93f7fee71de391b757b1db850705af767e484f06c8987e2853201ddb79378ebf"
+        },
+        {
+          "path": "docs/SECURITY_REVIEW.md",
+          "sha256": "6b40896f694749761c2a55b330f99ff259e922721041c6cb5e0bfe5fcab63010"
+        },
+        {
+          "path": "test.md",
+          "sha256": "4692b186f706d393b4b965eab75524808da2d53eb248f5dc7a500145e358e4dd"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/audit/NativeAuditFileProvider.java",
+          "sha256": "11203bcb6cce83c655d194d7edd709eefd0fc18302a715cfec090913d4626584"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommands.java",
+          "sha256": "36aab35d57e80096ee904d95a63c298cf5130aa5d1f6464da51eebce6cb22e5e"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/kernel/KernelCommandExecutor.java",
+          "sha256": "9990db45da1657993e460671678e06be615d5caf7eb13b7ca8a9ea2a17a01d70"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/storage/repository/StorageCoordinator.java",
+          "sha256": "3b3424c677c2afc1080e44df95262f0c3cfcef46abd81271bbef7c2d08f883fc"
+        },
+        {
+          "path": "src/main/java/com/enviouse/sef/gui/protocol/PanelActionValidator.java",
+          "sha256": "d9619ae03204d79db5240ee17c83a74896238197cff415f7f370a94eec0101ec"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGenerator.java",
+          "sha256": "d867e5c115cd948485590d57c4827a79b44bc0f986d8255c684d6b6ad48dd822"
+        },
+        {
+          "path": "src/test/java/com/enviouse/sef/docs/UniversalCommandMatrixGeneratorTest.java",
+          "sha256": "73fd878a8981eddacfbe0752224b7cca974e3f31d2c8a1d0d056bb3bab617e56"
+        }
+      ]
+    },
+    {
+      "id": "SRC-011",
+      "role": "status",
+      "locator": "/mnt/hermes/projects/SEFPORTED/docs/plan/goal.md and supplied checkpoint brief",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    },
+    {
+      "id": "SRC-012",
+      "role": "audit_evidence",
+      "locator": "Retained phase002 completion packet and phase003 tasks310 through318",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948; historical revisions separated in snapshot",
+      "observed_at": "2026-09-24T20:06:46.273Z",
+      "freshness": "pinned",
+      "snapshot": {
+        "path": "sources/current-evidence.md",
+        "sha256": "9e2f1b748fe3c29d0975cee97771f6712a2bed33a7a15bbf3c783495982e19ba"
+      },
+      "repository_files": []
+    }
+  ],
+  "findings": [
+    {
+      "id": "FIND-001",
+      "summary": "Owner requires all nine remaining audit outcomes, one portable client contract, available EXT closure and preserved completed history.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-009"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-002",
+      "summary": "Phases000..002 have merged PRs and verified signed tags. Main product and build unchanged since1b2e619; generator/tests changed. Reuse only dependency-matching proof.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-007",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-003",
+      "summary": "Task310 shows729 rows with324 partial389 open commands and16 unavailable passed; task317 machine JSON shows713 open16 partial0 passed. Join regeneration is required before action selection.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-002"
+      ],
+      "conflicts_with": [
+        "FIND-010"
+      ]
+    },
+    {
+      "id": "FIND-004",
+      "summary": "Exact candidate client joined and rendered but protected doctor was rejected before transmission; exact21.1.235 LuckPerms5.4.140 login failed capability initialization. Diagnose fixture and projection without authority weakening.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-002"
+      ],
+      "conflicts_with": [
+        "FIND-010"
+      ]
+    },
+    {
+      "id": "FIND-005",
+      "summary": "Phase002 persistence packet covers owner reconciliation and fault/recovery primitives; action-specific store joins and changed invariants require renewed proof, not blanket restart.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-002"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-006",
+      "summary": "Native writer retains opened descriptor/handle identity; compile-only JNA5.14.0 supplied by platform and no duplicate runtime are historical candidate-bound Linux results. Other provider branches need source/artifact analysis without new foreign-host requirements.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-009",
+        "SRC-010",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008"
+      ],
+      "depends_on": [
+        "FIND-001",
+        "FIND-002"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-007",
+      "summary": "Live28-alert set includes new critical SNI advisory28 and medium27. Old26-alert upstream-blocker packet cannot close applicability; version/API/configuration/runtime/provenance dispositions are mandatory in-plan.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-007",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-006"
+      ],
+      "conflicts_with": [
+        "FIND-010"
+      ]
+    },
+    {
+      "id": "FIND-008",
+      "summary": "UI polish, actual input/accessibility, mixed/fallback, InvSee, admission/disguise, provider failure and lifecycle matrices need current highest-fidelity evidence; final clean checkout and documentation closure remain.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-004",
+        "SRC-005",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-004",
+        "FIND-005"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-009",
+      "summary": "Existing doctors and health are delivered; debug capture commands and maintained format/warning/static/coverage gates are absent. Specify bounded diagnostic and quality enablement before remaining consumers.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-006"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-002",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-005",
+        "SEFAUD-REQ-006",
+        "SEFAUD-REQ-007",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-010",
+      "summary": "Tracked status mixes obsolete counts and external prerequisite language. Missing cursor is legacy state; saved goal unchanged. Evidence cleanup and final acceptance cannot be inferred from prior plan status.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-011",
+        "SRC-012"
+      ],
+      "requirement_ids": [
+        "SEFAUD-REQ-001",
+        "SEFAUD-REQ-003",
+        "SEFAUD-REQ-004",
+        "SEFAUD-REQ-008",
+        "SEFAUD-REQ-009"
+      ],
+      "depends_on": [
+        "FIND-001"
+      ],
+      "conflicts_with": [
+        "FIND-003",
+        "FIND-004",
+        "FIND-007"
+      ]
+    }
+  ]
+}
