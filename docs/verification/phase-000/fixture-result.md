@@ -6,6 +6,8 @@ Retry `fixture-20260925-e` reached readiness on both Forge backends and the pinn
 
 The later `fixture-20260925-g` retry was a bounded reconnect follow up. It reached readiness and admitted the client to backend A, but the client sound engine failed before an owned playback stream existed. The client was stopped at that safety boundary, so this retry did not attempt a switch and does not change the open gate.
 
+The later `fixture-20260925-h` control reached backend A after the direct forwarding rejection and dispatched a normal SEF `/msg` command with a real client argument. It does not repair the missing correlation across the earlier positive and negative runs, and it does not prove a completed server switch. The fixture remains open at `SEF-AC-010`.
+
 ## candidate revalidation
 
 | Candidate | SHA256 | Result |
@@ -13,6 +15,7 @@ The later `fixture-20260925-g` retry was a bounded reconnect follow up. It reach
 | Forge 1.20.1 installer 47.3.12 | `6117bf266bf8395cc216a9f9438c26f15cbede3b9b416857bbf70e07c15840f7` | Match |
 | SEF target `sef-1.20.1-1.1.jar` | `e60e21350a8a9b0db9486c00aa9c76263c30e3dfec387dd777770dd36b070eb3` | Match |
 | SEF target `sef-1.20.1-1.1.jar`, follow up build | `df5b59cfbb2435b60aaaaf55fbb9882ae4dfc03205ae3fc3cdf357e14b7827ad` | Built and launched in `fixture-20260925-g` |
+| SEF target `sef-1.20.1-1.1.jar`, h build from `05fdad4` | `643cdd0933f7590c69344f2752c0fba6cebb16a93285edef4c83d45ad6bc7f0f` | Built and launched in `fixture-20260925-h` |
 | Velocity 4.2.0 build 30 | `35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8` | Match |
 | Ambassador 1.4.5 | `7c57a649c3948672cbef35a3baa8f73b046ac509ea8ffa6ee3008890d36f2c17` | Match |
 | ProxyCompatibleForge 1.3.1 | `ea541aff6276970d98506965c8e71bd4ad7329452f631b2f45eb08edea425271` | Match |
@@ -68,7 +71,7 @@ A fresh bounded protocol probe connected directly to backend A without the Veloc
 
 ## post-negative legitimate control
 
-After the direct negative, a fresh legitimate client relaunch was attempted from the same isolated instance. The Minecraft services endpoint returned transient `503 ServiceUnavailableError` and then an SSL trust failure, so no second legitimate login could be asserted. The earlier legitimate login occurred before the negative probe and is not reused as a post-negative control.
+After the direct negative, a fresh legitimate client relaunch in fixture e was attempted from the same isolated instance. The Minecraft services endpoint returned transient `503 ServiceUnavailableError` and then an SSL trust failure, so that run could not assert a second login. A later, separately registered fixture h then started clean backends and proxy with the same pinned candidate artifacts and PCF forwarding profile. Its fresh client login reached backend A with the expected UUID. This supplies a post-negative legitimate control across fixture runs, not a single correlated positive-negative sequence.
 
 ## userdev failed attempt
 
@@ -76,10 +79,24 @@ The earlier userdev launch stopped during Mixin application on a Java 25 class f
 
 ## consequence
 
-Phase 000 cannot close `SEF-AC-010`. Production backend and proxy startup, private routing, legitimate login, gameplay admission, signed chat delivery, client input, and direct forwarding rejection are proven. Backend switching fails at the Forge connection reset boundary, B to A and the fresh post-negative legitimate control remain unverified, and no SEF bridge compatibility, shared storage behavior, or production readiness is inferred.
+Phase 000 cannot close `SEF-AC-010`. Across the bounded runs, production backend and proxy startup, private routing, legitimate login, gameplay admission, signed chat delivery, client input, and direct forwarding rejection are proven. A later fresh legitimate control after the negative reached backend A and exercised the SEF `/msg` handler. Backend switching still resets the connection before destination gameplay admission; later manual reconnects admitted the same client to each backend but do not prove a completed A to B or B to A switch. The positive chat and switch attempts do not share one correlation UUID, and no SEF bridge compatibility, shared storage behavior, or production readiness is inferred.
 
 ## follow up reconnect retry
 
 The `fixture-20260925-g` backends reached `Done` on Java 17 with Forge 47.3.12 and SEF initialized. The private Velocity proxy loaded Ambassador 1.4.5 and connected the disposable client to backend A. Backend A recorded two ordinary gameplay admissions during the launcher connection and retry at `backend-a/logs/latest.log:191-193` and `197-198`. Backend B recorded no player admission.
 
 The disposable client log recorded `Error starting SoundSystem. Turning off sounds & music` at `minecraft/logs/latest.log:40`, and the exact PipeWire sink input query returned no client stream. The client was stopped before any further command input. Because the exact owned window to playback stream relationship could not be proven, the retry leaves the reconnect behavior unverified rather than treating a disconnected client as evidence of success.
+
+## x11 fixture h command and fresh control
+
+The later h retry used Forge installer 47.3.12, Velocity 4.2.0 build 30, Ambassador 1.4.5, ProxyCompatibleForge 1.3.1, MixinExtras Forge 0.5.3, and the target artifact built from commit `05fdad4`. Their SHA-256 values were rechecked from the registered disposable downloads: Forge `6117bf266bf8395cc216a9f9438c26f15cbede3b9b416857bbf70e07c15840f7`, Velocity `35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8`, Ambassador `7c57a649c3948672cbef35a3baa8f73b046ac509ea8ffa6ee3008890d36f2c17`, ProxyCompatibleForge `ea541aff6276970d98506965c8e71bd4ad7329452f631b2f45eb08edea425271`, MixinExtras `89d60f6bf1f29664319acfa80e777abc03fde674370af52e94a9a2e452b98833`, and SEF `643cdd0933f7590c69344f2752c0fba6cebb16a93285edef4c83d45ad6bc7f0f`. The SEF build jar and installed backend copies had the same digest.
+
+Both no-GUI backends ran Minecraft 1.20.1, Forge 47.3.12, and Eclipse Adoptium Java 17.0.20.1. Backend A reached `Done` at `backend-a/logs/latest.log:108`; backend B reached `Done` at `backend-b/logs/latest.log:110`. Both logged SEF initialization immediately afterward. EULA acceptance was read back as `eula=true`. Both PCF configurations set `modernForwardingVersion = "MODERN_DEFAULT"`; each configuration digest was `7ad8bae9f491085770e4dae588c3873ebc90a9122913a0e8223dfd20bab311af`. Velocity started on Java 25.0.4.1 with the matching pinned proxy and Ambassador artifacts and reached `Done` at `proxy/logs/latest.log:10`. The non-secret `velocity.toml` digest was `67b35eb6ac3be7156a2d7636a68e18e03b2cf3efddaf12a4508eccd16cf2c2b1`.
+
+The authorized `envision` laptop used the isolated h instance. Client PID `383976`, Prism PID `383206`, Hyprland address `0x55d1ef473c80`, X11 window `14680071`, class `Minecraft* 1.20.1`, and title `Minecraft* Forge 1.20.1 - Multiplayer (3rd-party Server)` were correlated. The client log reported `NVIDIA GeForce RTX 5090 Laptop GPU` at `minecraft/logs/latest.log:7`. PipeWire sink input `726` was bound to PID `383976`, read back muted, and at zero volume before client input. The exact private listener address is intentionally omitted.
+
+After the earlier direct-forwarding negative, the fresh h client connected through the proxy at `proxy/logs/latest.log:11-12`. Backend A recorded the forwarded UUID `ee31040d-a3c6-4612-b0c2-8e1c60aa7eec` at `backend-a/logs/latest.log:139`, gameplay admission at lines 140 and 142, and the real command handler at line 143: `[MSG] EnVyOnMyMind -> EnVyOnMyMind: phase000_argument_probe`. The input was `/msg EnVyOnMyMind phase000_argument_probe`. This proves the selected existing command and its arguments reached the Forge handler from an actual player session. It does not prove the complete catalog, rich presentation, mute enforcement, or a signed chat receipt within this h control. The fixture register `h` is not a generated correlation UUID, so the required correlated evidence remains incomplete.
+
+Earlier h switch attempts are preserved in `proxy/logs/2026-09-25-1.log.gz`. The A to B request disconnected the client with `Please reconnect` at line 40; a manual client reconnect later reached backend B at `backend-b/logs/2026-09-25-1.log.gz:142`. The B to A request disconnected with the same reset result at proxy line 46; a later manual reconnect reached backend A at `backend-a/logs/2026-09-25-1.log.gz:146`. These are separate login admissions, not successful in-session switches. No seamless transfer or matching signed-chat/switch correlation was asserted.
+
+The client was closed after evidence collection. Its window-close and SIGINT attempts did not stop the owned process, so SIGTERM was sent to the exact client and launcher PIDs. The process and its playback stream were then verified absent. Both backend worlds were saved, both backends stopped cleanly, and the proxy was interrupted after client exit. Exact test-root cleanup is recorded separately.

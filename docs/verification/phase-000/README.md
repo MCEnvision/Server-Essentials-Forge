@@ -10,4 +10,4 @@ This directory contains the static source boundary and action inventory for `P00
 - [fixture result](fixture-result.md)
 - [cleanup receipt](cleanup-receipt.md)
 
-The external fixture reached the pinned target Forge boot stage and is blocked by the existing `sef.mixins.json:gui.MinecraftServerMixin` shadow failure. Static inventory rows do not prove runtime compatibility or implementation of the future Forge backport.
+The pinned target booted both disposable Forge backends and the Velocity reference proxy. A fresh legitimate client control after the direct forwarding rejection reached backend A, and a real `/msg` argument sequence reached the SEF handler. The adapter still resets the client on backend switch without its optional client reset feature, so a completed A to B and B to A switch remains unproven. Static inventory rows do not prove runtime compatibility or implementation of the future Forge backport.
