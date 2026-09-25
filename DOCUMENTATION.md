@@ -7,7 +7,7 @@
 
 The [documentation index](docs/README.md) links the existing documentation and the [planned network backport](docs/general/plan.md). The plan describes future work and does not certify those features as implemented.
 
-The completed static readiness artifact for phase 000 is the [action inventory and source boundary](docs/verification/phase-000/README.md). It is source evidence bound to the pinned reference revision and does not replace runtime compatibility, signed chat, forwarding, or switching verification.
+The phase 000 verification packet contains the completed source inventory, candidate revalidation, fixture blocker, and cleanup receipt. The target Forge fixture fails before readiness at `sef.mixins.json:gui.MinecraftServerMixin`, so runtime compatibility, signed chat, forwarding, and switching remain unverified.
 
 ---
 

@@ -6,5 +6,8 @@ This directory contains the static source boundary and action inventory for `P00
 - [action inventory index](action-inventory.md)
 - [configuration module inventory](configuration-modules.md)
 - [evidence manifest](evidence-manifest.md)
+- [fixture register](fixture-register.md)
+- [fixture result](fixture-result.md)
+- [cleanup receipt](cleanup-receipt.md)
 
-The external Forge and Velocity fixture remains a separate task. Static inventory rows do not prove runtime compatibility or implementation of the future Forge backport.
+The external fixture reached the pinned target Forge boot stage and is blocked by the existing `sef.mixins.json:gui.MinecraftServerMixin` shadow failure. Static inventory rows do not prove runtime compatibility or implementation of the future Forge backport.

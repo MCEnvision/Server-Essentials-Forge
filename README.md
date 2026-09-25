@@ -11,7 +11,7 @@ The [network backport plan](docs/general/plan.md) defines the upcoming server-on
 
 See the [documentation index](docs/README.md) for the complete plan, phase blueprints, research, and existing technical documentation.
 
-Phase 000 source inventory evidence is available in the [phase 000 verification packet](docs/verification/phase-000/README.md). It records the pinned reference boundary and action dispositions only. The external Forge and Velocity feasibility fixture remains unverified.
+Phase 000 evidence is available in the [phase 000 verification packet](docs/verification/phase-000/README.md). The pinned external artifacts revalidated, but the target Forge fixture is blocked before readiness by an existing `sef.mixins.json:gui.MinecraftServerMixin` shadow failure. Runtime proxy, signed chat, and switching claims remain open.
 
 ---
 

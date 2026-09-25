@@ -1,7 +1,7 @@
 # phase 000 evidence manifest
 
-This manifest records the bounded static evidence produced by `P000-TASK-001`.
-It is read only source evidence. It does not claim Forge runtime, proxy, signed chat, database, client, or production compatibility.
+This manifest records the bounded source evidence from `P000-TASK-001` and the candidate and fixture receipts from `P000-TASK-002` and `P000-TASK-003`.
+The fixture result is a pre readiness blocker. It does not claim proxy login, signed chat, database, client switching, or production compatibility.
 
 ## identity and immutability
 
@@ -21,7 +21,7 @@ The validator confirmed all registered plan paths exist, every action and module
 
 | file | sha256 |
 | --- | --- |
-| `README.md` | `0f7f43dec868a32e02a17036b639b34046d809a84f57a5436ba0eaafe89f4a6a` |
+| `README.md` | `c3c8fdd36618368b1313b1f80c88f21f8aab6da35aacef50aeb65cf1b02132fb` |
 | `source-boundary.md` | `4f2bb12397919fe2b9cee33678dcd4247e8433625fdae7da58c255e469534f99` |
 | `action-inventory.md` | `17824445d8834c4c81b3970c1fe8f27329b0b048106874b3bd2207d06c809c84` |
 | `action-inventory-001.md` | `cc1f381d74c3029b8261fce351fc812ea1466764080dd8646b0903da07d8b203` |
@@ -33,3 +33,6 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-007.md` | `812892a7febcb89f3321cc14021ffc63da7011b9e1ebd69968e4d5e7a850bb15` |
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
+| `fixture-register.md` | `a687a553b17d99f104e6a34b09e6435e1a1adcba114a4b43d37ccbcf1c708810` |
+| `fixture-result.md` | `97b665fd81b230c9e22fe85e106ff74e740eb36391aa0350cd8f1cf13c0ec67e` |
+| `cleanup-receipt.md` | `3f7f5b0aed548d0e0ada0df1558a77be2d35ccdb22d3fcc4a55e1f202916c2a8` |
