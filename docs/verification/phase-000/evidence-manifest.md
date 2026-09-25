@@ -1,7 +1,7 @@
 # phase 000 evidence manifest
 
 This manifest records the bounded source evidence from `P000-TASK-001` and the candidate and fixture receipts from `P000-TASK-002` and `P000-TASK-003`.
-The fixture result records production backend and proxy readiness, private routing, and a direct forwarding negative. It does not claim proxy login, signed chat, database behavior, client switching, forged message rejection, or production compatibility.
+The fixture result records production backend and proxy readiness, private routing, a legitimate client login, signed chat, a command argument, a failed backend switch, and the earlier direct forwarding negative. It does not claim successful two way switching, database behavior, forged message rejection, or production compatibility.
 
 ## identity and immutability
 
@@ -33,6 +33,6 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-007.md` | `812892a7febcb89f3321cc14021ffc63da7011b9e1ebd69968e4d5e7a850bb15` |
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
-| `fixture-register.md` | `fb6fae0c625b404b6ad0685696b2b2d3a3cdb3ebdd66a9f046518c69ad991093` |
-| `fixture-result.md` | `3502ce900dcb509ec5ead5a44d669f921c2c962db337805e15d30aafbcf6e2ae` |
-| `cleanup-receipt.md` | `c6bc92208da616196b6616b8aa5c3759797240f8bea0a556814b2b99d3a855a3` |
+| `fixture-register.md` | `e76e67de79d22e3c57f1dd36c5184009fadc7f3c704790afe97a4aa8a4d63cee` |
+| `fixture-result.md` | `31531b6050c5403d1b95cfba97f7b1a7b40e6d1d729d5dd8f816c018f5a8c5b1` |
+| `cleanup-receipt.md` | `5515a19b9e4077da62832cabf81bc7bedaa759f99726fad94a6aa00374a7037c` |

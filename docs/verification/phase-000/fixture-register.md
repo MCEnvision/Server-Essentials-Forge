@@ -8,8 +8,8 @@ This register is created before any fixture process or candidate file. It binds 
 | --- | --- |
 | host | `node-1` |
 | task | `P000-TASK-002` |
-| node disposable root | `/mnt/hermes/projects/Sef/.test-runs/phase-000/fixture-20260925-c` |
-| laptop disposable root | `/home/envy/.local/share/PrismLauncher/instances/sef-phase-000-client-20260925-c` |
+| node disposable root | `/mnt/hermes/projects/Sef/.test-runs/phase-000/fixture-20260925-d` |
+| laptop disposable root | `/home/envy/.local/share/PrismLauncher/instances/sef-phase-000-client-20260925-d` |
 | retained evidence | `/mnt/hermes/projects/Sef/docs/verification/phase-000/` |
 | proxy process | only a Velocity process started from this register's candidate file |
 | backend processes | only Forge server processes started from this register's disposable runtimes |
@@ -26,4 +26,4 @@ Before startup, every created path is checked against this register. Before clea
 
 The fixture uses pinned external Velocity, Ambassador, and ProxyCompatibleForge artifacts only. It does not create the SEF bridge, shared authority, administrative plugin channel, custom handshake, production topology, or product implementation. The Forge target is tested as a no GUI server fixture. A laptop client is required for signed chat, real player command arguments, and both directions of backend switching. If the exact laptop window, discrete renderer, private route, and muted owned playback stream cannot be proven, those assertions remain unverified.
 
-The `fixture-20260925-c` retry uses the pinned Forge 47.3.12 server installer, the reobfuscated target jar, a private Tailscale proxy listener, and a separate Forge client instance. It does not alter the target source, disable a mixin, substitute a Forge version, or touch the existing FutureShops instance.
+The `fixture-20260925-d` retry uses the pinned Forge 47.3.12 server installer, the reobfuscated target jar, MixinExtras Forge 0.5.3 on both sides, a private Tailscale proxy listener, and a separate Forge client instance. It does not alter the target source, disable a mixin, substitute a Forge version, or touch the existing FutureShops instance.
