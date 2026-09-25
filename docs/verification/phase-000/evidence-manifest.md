@@ -1,7 +1,7 @@
 # phase 000 evidence manifest
 
 This manifest records the bounded source evidence from `P000-TASK-001` and the candidate and fixture receipts from `P000-TASK-002` and `P000-TASK-003`.
-The fixture result is a pre readiness blocker. It does not claim proxy login, signed chat, database, client switching, or production compatibility.
+The fixture result records production backend and proxy readiness. It does not claim proxy login, signed chat, database behavior, client switching, forged message rejection, or production compatibility.
 
 ## identity and immutability
 
@@ -33,6 +33,6 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-007.md` | `812892a7febcb89f3321cc14021ffc63da7011b9e1ebd69968e4d5e7a850bb15` |
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
-| `fixture-register.md` | `a687a553b17d99f104e6a34b09e6435e1a1adcba114a4b43d37ccbcf1c708810` |
-| `fixture-result.md` | `97b665fd81b230c9e22fe85e106ff74e740eb36391aa0350cd8f1cf13c0ec67e` |
-| `cleanup-receipt.md` | `3f7f5b0aed548d0e0ada0df1558a77be2d35ccdb22d3fcc4a55e1f202916c2a8` |
+| `fixture-register.md` | `8f9415fc42d5d329f15d41ebb0ea882bfab6bc30562ad181d99ca3bd9a33de14` |
+| `fixture-result.md` | `c8a3cfccc4271b00b07dc3645e55a16ac984ebb0d555f2c15ebe245964580eba` |
+| `cleanup-receipt.md` | `ace8f5a42d75a68c33a7df61f8b74ec811584440d4edb5c76a13a2d9abe1e47c` |

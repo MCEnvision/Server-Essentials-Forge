@@ -8,7 +8,7 @@ This register is created before any fixture process or candidate file. It binds 
 | --- | --- |
 | host | `node-1` |
 | task | `P000-TASK-002` |
-| disposable root | `/mnt/hermes/projects/Sef/.test-runs/phase-000/fixture-20260924-a` |
+| disposable root | `/mnt/hermes/projects/Sef/.test-runs/phase-000/fixture-20260924-b` |
 | retained evidence | `/mnt/hermes/projects/Sef/docs/verification/phase-000/` |
 | proxy process | only a Velocity process started from this register's candidate file |
 | backend processes | only Forge server processes started from this register's disposable runtimes |
@@ -24,3 +24,5 @@ Before startup, every created path is checked against this register. Before clea
 ## launch boundary
 
 The fixture uses pinned external Velocity, Ambassador, and ProxyCompatibleForge artifacts only. It does not create the SEF bridge, shared authority, administrative plugin channel, custom handshake, production topology, or product implementation. The Forge target is tested as a no GUI server fixture. A laptop client is required for signed chat, real player command arguments, and both directions of backend switching. If the exact laptop window, discrete renderer, private route, and muted owned playback stream cannot be proven, those assertions remain unverified.
+
+The `fixture-20260924-b` retry uses the pinned Forge 47.3.12 server installer and the reobfuscated target jar to distinguish a userdev launch mapping failure from a production server boot failure. It does not alter the target source, disable a mixin, or substitute a Forge version.
