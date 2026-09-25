@@ -4,7 +4,7 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "e65c28c9b39befa03986094908e06227896f1a00e3d810af2f6e3f1d3692b1ad"
+      "sha256": "05bd7cd08ef12f9face0c1d21f9f172d0653b07837a5589178a7ae11e64cc510"
     },
     "repository_map": {
       "path": "repository-map.md",
@@ -433,7 +433,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       },
       "recheck_after": "2026-09-25T23:49:55Z"
     },
@@ -447,7 +447,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -460,7 +460,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       },
       "recheck_after": "2026-09-25T23:49:55Z"
     },
@@ -474,7 +474,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       },
       "recheck_after": "2026-09-25T23:49:55Z"
     },
@@ -488,7 +488,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -501,7 +501,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -514,7 +514,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       },
       "recheck_after": "2026-09-25T23:49:55Z"
     },
@@ -528,7 +528,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -541,7 +541,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -554,7 +554,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -567,7 +567,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -580,7 +580,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -593,7 +593,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -606,7 +606,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -619,7 +619,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/audit-observations.md",
-        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+        "sha256": "f4c3252b11799dce157922dddb24efcc0c8d48ec017712591503757907ff0e57"
       }
     },
     {
@@ -684,7 +684,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -697,7 +697,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -710,7 +710,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -723,7 +723,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -736,7 +736,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -749,7 +749,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -762,7 +762,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       },
       "recheck_after": "2026-09-25T22:22:00Z"
     },
@@ -776,7 +776,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       },
       "recheck_after": "2026-09-25T22:22:00Z"
     },
@@ -790,7 +790,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       },
       "recheck_after": "2026-09-25T22:22:00Z"
     },
@@ -804,7 +804,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -817,7 +817,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -830,7 +830,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -843,7 +843,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -856,7 +856,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/expanded-observations.md",
-        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+        "sha256": "40b2ab2dd89219d540d7c4ae790d921d20167e2af6ab58162ba0856c53bd3145"
       }
     },
     {
@@ -1486,7 +1486,7 @@
     },
     {
       "id": "FIND-026",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Capture full public/private message text and command arguments with credential redaction before every sink, separately permissioned sensitive reads, configurable normal retention defaulting to manual purge, and availability-first oldest-local-segment rotation under capacity exhaustion. Explicitly report lost intervals and affected completeness watermarks. Provide storage health, backups, controlled purge, capacity planning and documented recovery. Audit administration is itself recorded.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Capture full public/private message text and command arguments with credential redaction before every sink, separately permissioned sensitive reads, configurable normal retention defaulting to manual purge, and availability-first oldest-local-segment rotation under capacity exhaustion. Optional scheduled retention requires explicit scoped policy activation, bounded fenced execution, restoration dependency protection and truthful intentional-purge boundaries. Invalid reload retains the last valid snapshot; scheduling works without Velocity. Explicitly report lost intervals and affected completeness watermarks. Provide storage health, backups, controlled purge, capacity planning and documented recovery. Audit administration is itself recorded.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-005",
@@ -1594,7 +1594,7 @@
     },
     {
       "id": "FIND-029",
-      "summary": "PROPOSED requirement derived from exact expanded owner scope. Produce and satisfy a versioned CoreProtect feature/action/API parity inventory covering capture, inspection, queries, filters, pagination, summaries, rollback, restore, undo, preview, purge, supported extension hooks and operational behavior. Map applicable functions to Forge-native equivalents; document platform-only incompatibilities and technical unknowns without silently dropping feasible mandatory behavior. Additional network and movement investigation capability is included by the owner's existing request.",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Produce and satisfy a versioned CoreProtect feature/action/API parity inventory with an individual owned acceptance row per applicable function, covering capture, inspection, queries, filters, pagination, summaries, rollback, restore, undo, preview, manual and optional scheduled purge, supported extension hooks and operational behavior. Consumer pause retains local capture with visible pending backlog; capture pause is separately authorized and records its unobserved interval. Map applicable functions to Forge-native equivalents; document platform-only incompatibilities and technical unknowns without silently dropping feasible mandatory behavior. Additional network and movement investigation capability is included by the owner's existing request.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-006",
