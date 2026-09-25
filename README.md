@@ -5,6 +5,12 @@
 **Minecraft Version:** 1.20.1  
 **Mod Loader:** Forge
 
+## Planned Network Backport
+
+The [network backport plan](docs/general/plan.md) defines the upcoming server-only Forge 1.20.1 backend and Velocity companion, audit history, hierarchical RTP, rich command output, and configurable lifecycle messages. These changes are planned, not implemented or released by this documentation update.
+
+See the [documentation index](docs/README.md) for the complete plan, phase blueprints, research, and existing technical documentation.
+
 ---
 
 ## Table of Contents

@@ -1,0 +1,1271 @@
+{
+  "contract_schema_version": 2,
+  "mode": "EXISTING_PROJECT_BOOTSTRAP",
+  "planning_subject": {
+    "name": "SEF Forge 1.20.1 server-only backport, Velocity companion, comprehensive audit and hierarchical RTP",
+    "requested_artifact": "authoritative_plan",
+    "plan_profile": "software_product",
+    "source_artifacts": [
+      {
+        "id": "SRC-001",
+        "role": "owner_request",
+        "subject": "Backport, removals, network commands, shared state, cross-server homes, and plugin branch",
+        "source": "Approved product decisions recorded in research/sources/owner-request.md",
+        "use": "Mandatory scope, exclusions, topology, and delegated storage selection"
+      },
+      {
+        "id": "SRC-002",
+        "role": "repository_evidence",
+        "subject": "Existing Forge 1.20.1 destination",
+        "source": "/mnt/hermes/projects/Sef at 1e8bab26d9d6ff6b1bf1d5ef41eb8d6c1a51ad98",
+        "use": "Baseline platform, retained behavior, build and branch identity"
+      },
+      {
+        "id": "SRC-003",
+        "role": "repository_evidence",
+        "subject": "SEFPORTED source implementation",
+        "source": "/mnt/hermes/projects/SEFPORTED at e160a235b19c992b3a23c3a43754e92ad0147948",
+        "use": "Read-only backport source, implemented feature inventory and removal dependencies, never a competing active plan"
+      },
+      {
+        "id": "SRC-004",
+        "role": "repository_evidence",
+        "subject": "Authorized development hosts and repository capabilities",
+        "source": "research/sources/environment-observations.md",
+        "use": "Planning prerequisite observations and exact later verification boundaries"
+      },
+      {
+        "id": "SRC-101",
+        "role": "reference",
+        "subject": "Native Forge handshake compatibility excludes target 1.20.1. Ambassador is documented alternative.",
+        "source": "https://docs.papermc.io/velocity/server-compatibility/ section Minecraft Forge, lines 128 to 133 in fetched document.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-102",
+        "role": "reference",
+        "subject": "Modern forwarding authenticates forwarded identity; backend needs compatible implementation. Paper configuration does not apply to Forge.",
+        "source": "https://docs.papermc.io/velocity/player-information-forwarding/ lines 74 to 90 and 109 to 113.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-103",
+        "role": "reference",
+        "subject": "Ambassador and PCF have distinct roles. PCF includes command argument wrapping. Mod argument ID conflicts remain a compatibility risk.",
+        "source": "https://raw.githubusercontent.com/adde0109/Proxy-Compatible-Forge/main/README.md lines 29 to 57, 64 to 94.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-104",
+        "role": "reference",
+        "subject": "Current runtime requires Java 25.",
+        "source": "https://docs.papermc.io/velocity/getting-started/ line 77.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-105",
+        "role": "reference",
+        "subject": "Advertised latest is 4.2.1-SNAPSHOT build 32, not evidence of stable selection.",
+        "source": "https://papermc.io/downloads/velocity",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-106",
+        "role": "reference",
+        "subject": "API returned build 30, channel STABLE, published 2026-09-14T16:50:54.749Z. Artifact velocity-4.2.0-30.jar, SHA-256 35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8.",
+        "source": "https://fill.papermc.io/v3/projects/velocity and https://fill.papermc.io/v3/projects/velocity/versions/4.2.0/builds",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-107",
+        "role": "reference",
+        "subject": "Latest release observed 1.4.5, version ID YeQbhgna, artifact Ambassador-Velocity-1.4.5-all.jar. SHA-512 214081b498644c5c640e1aea23deff0469d1c842e1142aae742143c8738a971a4898ead72da1605f1c2c202c4f1be8bcf28acc2787cbcede2a86d642ae48f81d. Free direct download available.",
+        "source": "https://api.modrinth.com/v2/project/ambassador/version and https://github.com/adde0109/Ambassador/releases/tag/v1.4.5",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-108",
+        "role": "reference",
+        "subject": "Project declares LGPL-2.1-or-later. Matching modpack switching without additional client mods is documented. Optional client reset mod is outside owner scope. Do not use stale main README, which describes an obsolete alpha architecture.",
+        "source": "https://modrinth.com/plugin/ambassador and https://github.com/adde0109/Ambassador/blob/non-api/README.md",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-109",
+        "role": "reference",
+        "subject": "Latest matching release observed 1.3.1, ID qiZ49HIW, published 2026-08-31. Artifact proxy-compatible-forge-1.3.1.jar, SHA-512 dba5b70fedcb0f5fdc014801ab43e6d048f24b531de8aea5b70ea223760b66ae9fba3033c2ccd9d78793b9ea2f9d3b47ae1f4caa95aa129d989f97e63636b4ab. Listed dependencies are optional.",
+        "source": "https://api.modrinth.com/v2/project/proxy-compatible-forge/version?loaders=%5B%22forge%22%5D&game_versions=%5B%221.20.1%22%5D",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-110",
+        "role": "reference",
+        "subject": "PCF license preamble defaults to LGPL 2.1 or later with original licenses retained for imported code. Ambassador development depends on velocity-proxy internals. Keep dependencies separately installed; do not copy or shade their implementation without a separate license inventory.",
+        "source": "https://api.github.com/repos/adde0109/Proxy-Compatible-Forge/license and https://github.com/adde0109/Ambassador/blob/non-api/build.gradle.kts",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-111",
+        "role": "reference",
+        "subject": "Consume administrative channel before source checks, reject player-origin messages, validate server connection. Backend sends use connected player carriers.",
+        "source": "https://docs.papermc.io/velocity/dev/plugin-messaging/ lines 77 to 84, 163 to 218, 249 to 297.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-112",
+        "role": "reference",
+        "subject": "Server logical side, main Forge bus, cancellable. This branch source still needs exact Forge 47.3.12 source confirmation during implementation.",
+        "source": "https://raw.githubusercontent.com/MinecraftForge/MinecraftForge/1.20.x/src/main/java/net/minecraftforge/event/ServerChatEvent.java lines 15 to 25.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-113",
+        "role": "reference",
+        "subject": "Signed-chat denial warning. Current deployment API must still be pinned and compiled against, not inferred from historical javadocs.",
+        "source": "https://jd.papermc.io/velocity/3.4.0/com/velocitypowered/api/event/player/PlayerChatEvent.html lines 121 to 127.",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-114",
+        "role": "reference",
+        "subject": "LoginEvent follows authentication and precedes backend connect. PostConnect is not awaited. connect() returns a result after login and requires explicit error handling. Disconnect generally runs asynchronously and player mutations are undefined.",
+        "source": "https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/event/connection/LoginEvent.java, https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/event/player/ServerPostConnectEvent.java, https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/proxy/ConnectionRequestBuilder.java, https://jd.papermc.io/velocity/3.4.0/com/velocitypowered/api/event/connection/DisconnectEvent.html",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-115",
+        "role": "reference",
+        "subject": "Local embedded data versus client/server database tradeoff.",
+        "source": "https://www.sqlite.org/whentouse.html",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-116",
+        "role": "reference",
+        "subject": "WAL operational and host-local requirements. Use supported backup procedures and do not copy only a live main database file.",
+        "source": "https://www.sqlite.org/wal.html",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-201",
+        "role": "repository_evidence",
+        "subject": "Economy construction, cost adapters, storage registration, command cost schedule and GUI descriptors are kernel dependencies. Removing only economy commands leaves live services and configuration behind. Preserve ordinary permission, cooldown and confirmation policies while removing monetary policy entirely.",
+        "source": "src/main/java/com/enviouse/sef/kernel/KernelServices.java:117, :179, :205, :338, :347, :470, :1100",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-202",
+        "role": "repository_evidence",
+        "subject": "GUI/economy/HUD/Fancy Tags module declarations exist; many retained modules declare GUI dependencies and generic GUI keys. Removal must rebuild dependencies and generated config, not merely disable modules. Preserve legacy files without reading their monetary values into active state or deleting owner data.",
+        "source": "src/main/java/com/enviouse/sef/config/modules/ModuleConfigRegistry.java:21, :213, :603 and ModuleConfigService.java:65",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-203",
+        "role": "repository_evidence",
+        "subject": "Home ownership, revision and tombstone exist, but location has dimension plus coordinates and rotation only. There is no server identity. Safe teleport validates local dimensions, loaded chunks, claims, hazards and bounds. A remote home cannot be resolved by sending the existing local record to another server.",
+        "source": "src/main/java/com/enviouse/sef/teleport/HomeRecord.java:9, SavedLocation.java:10, SafeTeleportService.java:49",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-204",
+        "role": "repository_evidence",
+        "subject": "Existing backend chat flow already checks mute and cancels events. Network moderation should feed one authoritative enforcement decision rather than stack contradictory local and network mute managers. Command aliases and third-party chat paths still require coverage.",
+        "source": "src/main/java/com/enviouse/sef/events/ChatEventHandler.java:70, :111, :136",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-205",
+        "role": "repository_evidence",
+        "subject": "Visibility depends on observer permissions; current persistence is player NBT and runtime maps. Network revisioned vanish state must become the authority in network mode, with reconnect application before public visibility.",
+        "source": "src/main/java/com/enviouse/sef/vanish/VanishUtil.java:138, :194, :209, :229",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-206",
+        "role": "repository_evidence",
+        "subject": "Existing hooks filter vanilla online name suggestions and selector targeting. Every copied mixin needs Forge 1.20.1 descriptor validation. Proxy suggestions and SEF own target lists need the same visibility predicate.",
+        "source": "src/main/java/com/enviouse/sef/vanish/mixin/chat/CommandSourceStackMixin.java:33, EntitySelectorMixin.java:20",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-207",
+        "role": "repository_evidence",
+        "subject": "NeoForge payload registration, custom configuration tasks, 1.21 data components and registry-aware snapshot serialization cannot be copied unchanged. Remove client protocol entirely; independently adapt retained item and recovery paths to 1.20.1 NBT and Forge events.",
+        "source": "src/main/java/com/enviouse/sef/ServerEssentialsForge.java:73, gui/protocol/SefNetwork.java:7, inventory/InventoryUtilityCommands.java:19, recovery/ItemStackSnapshotCodec.java:26",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-208",
+        "role": "repository_evidence",
+        "subject": "Existing target gives Forge architecture and existing vanish command examples, not parity with the richer source port. Source inventory must classify every feature as retained, removed by owner, unavailable, or requiring port work.",
+        "source": "Target src/main/java/com/enviouse/sef/vanish/VanishCommand.java:38, events/ChatEventHandler.java:34, gradle.properties",
+        "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
+      },
+      {
+        "id": "SRC-005",
+        "role": "owner_request",
+        "subject": "Comprehensive CoreProtect-style audit module and approved modpack compatibility boundary",
+        "source": "Approved audit scope, 2026-09-24, recorded in research/sources/audit-owner-request.md",
+        "use": "Initial audit scope and compatible-modpack boundary. Expanded owner decisions resolve its initial open questions."
+      },
+      {
+        "id": "SRC-301",
+        "role": "reference",
+        "subject": "Investigation supports inspection, lookup, actor/time/radius/action/material filters, pagination, counts and summaries. Rollback, restore, undo and purge are distinct mutating operations, not implied by lookup.",
+        "source": "https://docs.coreprotect.net/commands/",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-302",
+        "role": "reference",
+        "subject": "Logging families include blocks, natural changes, pistons, dispensers, fire, explosions, entity changes/kills/spawns, signs, buckets, growth, portals, fluid flow, item/hopper transactions, drops/pickups, interactions, chat, commands, sessions and username changes. The existence of a switch does not prove every mod integration.",
+        "source": "https://github.com/PlayPro/CoreProtect/blob/68739a2596929f6b995986b0dc5b09d343956103/src/main/java/net/coreprotect/config/Config.java lines 75 to 110",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-303",
+        "role": "reference",
+        "subject": "Current docs describe SQLite/MySQL and version 25 DuckDB/ClickHouse options, with version-specific migration and purge restrictions. They must not be treated as the behavior of a 1.20.1-compatible release. These are operational references, not dependencies mandated for SEF.",
+        "source": "https://docs.coreprotect.net/config/ and https://docs.coreprotect.net/auto-purge/",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-304",
+        "role": "reference",
+        "subject": "Versioned API exposes Bukkit plugin access and world/block types plus logging/lookups/rollback/restore. It is not a Forge API. Queue lookup distinguishes unsaved from database history. An extension API is necessary for custom changes.",
+        "source": "https://docs.coreprotect.net/api/version/v10/",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-305",
+        "role": "reference",
+        "subject": "OBSERVED correction to assignment premise: current upstream license is Artistic License 2.0, not GPL. No license compatibility conclusion is asserted. Use original Forge-native implementation; do not copy source or present the module as the official CoreProtect product.",
+        "source": "https://github.com/PlayPro/CoreProtect/blob/68739a2596929f6b995986b0dc5b09d343956103/LICENSE",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-306",
+        "role": "reference",
+        "subject": "Release notes report corrected hopper counts, missing hopper records during breaks/shutdown, same-coordinate different-world errors, and bucket false positives. These are concrete regression scenarios, not proof SEF has these bugs.",
+        "source": "https://github.com/PlayPro/CoreProtect/releases/tag/v24.1",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-307",
+        "role": "reference",
+        "subject": "Inspection, lookup categories, rollback, restore and purge have distinct permission surfaces. SEF should separately gate metadata, sensitive content, vanished activity, export and retention administration.",
+        "source": "https://docs.coreprotect.net/permissions/",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-308",
+        "role": "reference",
+        "subject": "Break is before mutation and cancellable; placement can be cancelled; multi-placement exposes multiple snapshots; crop growth has a post event; tool modification can be simulated. Intent events alone cannot certify committed changes.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/level/BlockEvent.java",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-309",
+        "role": "reference",
+        "subject": "Item insert/extract support simulation and partial results. Stock handler has a contents-change callback, but the interface does not emit one universal event for arbitrary implementation internals. Simulated moves are not actual transfers; returned live stacks must not be mutated for inspection.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/items/IItemHandler.java and sibling `ItemStackHandler.java`",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-310",
+        "role": "reference",
+        "subject": "Events expose actual pickup quantity, crafting/smelting player hooks, sessions, respawn and dimension changes. Container open/close is not a per-slot transaction journal. Player smelt events do not prove coverage of automated output extraction.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/player/PlayerEvent.java lines 361 to 470 and sibling `PlayerContainerEvent.java`",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-311",
+        "role": "reference",
+        "subject": "Event fires after parsing and before execution, can be cancelled. Capture terminal outcome independently; do not equate parsing or dispatch with success.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/CommandEvent.java",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-312",
+        "role": "reference",
+        "subject": "Damage event precedes final health mutation and can be cancelled after armor/absorption costs. Leave-level is tracking removal, including other removal causes, not intrinsically death. Filter logical side and classify outcome.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/living/LivingDamageEvent.java and https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/EntityLeaveLevelEvent.java",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-313",
+        "role": "reference",
+        "subject": "Explosion start is cancellable; detonation exposes mutable affected lists. Reconcile resulting changes instead of assuming every candidate block was destroyed.",
+        "source": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/level/ExplosionEvent.java",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-314",
+        "role": "repository_evidence",
+        "subject": "Existing 4096-entry in-memory queue drops events on overflow. It is a reusable event-envelope/redaction reference, not a lossless persistent journal or comprehensive world logger.",
+        "source": "Reference `src/main/java/com/enviouse/sef/audit/SecurityAuditService.java:248`, `:315`, `:329`",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-315",
+        "role": "repository_evidence",
+        "subject": "Existing command observation preserves unknown external outcomes and redacts secrets/private content. File sink can also drop. New owner privacy selection may alter content policy, but credential protection and outcome honesty remain necessary.",
+        "source": "Reference `src/main/java/com/enviouse/sef/commandlog/CommandEventJournal.java:61`, `:102`, `:199`; `CommandRedactionPolicy.java:8`; `FileLogSink.java:212`",
+        "use": "Support the comprehensive Forge-native audit capture, investigation, durability, security and regression contract. Reference behavior does not authorize destructive features or copying implementation."
+      },
+      {
+        "id": "SRC-006",
+        "role": "owner_request",
+        "subject": "Audit parity, full content, MySQL and MariaDB, retention and emergency rotation, rich chat and hierarchical RTP",
+        "source": "Current owner answers and detailed RTP request, 2026-09-24, preserved in sources/expanded-owner-request.md",
+        "use": "Mandatory expanded scope and resolved choices. Prior unanswered audit choices are superseded."
+      },
+      {
+        "id": "SRC-007",
+        "role": "example_output",
+        "subject": "HuskHomes-style home details, grouped action links and pagination",
+        "source": "Owner-supplied composite screenshot, owner screenshot 1",
+        "use": "Visual acceptance reference for presentation only. No instructions or implicit restoration of removed custom client interfaces."
+      },
+      {
+        "id": "SRC-008",
+        "role": "example_output",
+        "subject": "Teleport request with teal checkmark acceptance and cross decline",
+        "source": "Owner-supplied request screenshot, owner screenshot 2",
+        "use": "Visual acceptance reference for text hierarchy, labels, brackets, spacing and action styling."
+      },
+      {
+        "id": "SRC-117",
+        "role": "audit_evidence",
+        "subject": "Direct hash verification of publicly available network reference artifacts",
+        "source": "sources/network-artifact-integrity.md, observed 2026-09-24T22:22:14Z",
+        "use": "Bind candidate artifact prerequisites to exact downloadable bytes. This proves availability and integrity, not runtime compatibility."
+      },
+      {
+        "id": "SRC-316",
+        "role": "reference",
+        "subject": "Public attachment is available without a purchase or account. Release notes specifically fix hopper count/race/world-coordinate problems. Those are important adversarial fixtures, not theoretical edge cases.",
+        "source": "[CoreProtect CE24.1 release](https://github.com/PlayPro/CoreProtect/releases/tag/v24.1), tag commit `0af209a0a05135216599113c0b5e2638ad3c704b`; [public release download post](https://www.patreon.com/coreprotect/posts/coreprotect-v24-170398122)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-317",
+        "role": "reference",
+        "subject": "Downloaded without executing. SHA256 `a2acef7c06ef201355cef07d591a6055dfed358ad768faaaaaf4e276865ecc97`. Archive `plugin.yml` says 24.1, Bukkit main class, API1.16, Folia support, WorldEdit soft dependency. Archive contains Apply, Cancel, Undo, Give and other command classes. It is not a Forge mod.",
+        "source": "Public attachment `https://www.patreon.com/file?h=170398122&m=750939085`; downloaded reference `CoreProtect-CE-24.1.jar`",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-318",
+        "role": "reference",
+        "subject": "Verified command families and independent permissions. Apply removes preview mode and reruns the selected operation. Give retrieves a recorded item for an authorized player; permission is false by default, including under the wildcard.",
+        "source": "[Pinned command dispatcher](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/command/CommandHandler.java), sibling `ApplyCommand.java`, `GiveCommand.java`, resource `plugin.yml`",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-319",
+        "role": "reference",
+        "subject": "Runtime configuration is generated from Java, not an assumed resource `config.yml` (that URL returned404). Verified logging controls, per-world configurations, rollback items/entities, radius limits, API, auto-purge and operational options.",
+        "source": "[Pinned configuration](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/config/Config.java)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-320",
+        "role": "reference",
+        "subject": "Typed lookup families, logging methods, queue/block lookup, placement/removal checks, partial queries, purge/rollback/restore. Types are Bukkit-specific; binary compatibility is not a Forge deliverable.",
+        "source": "[Pinned public API](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/CoreProtectAPI.java)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-321",
+        "role": "reference",
+        "subject": "Artistic License2.0, not GPL. Follow original implementation policy; no implementation copied. Public CE availability does not make paid extensions public or authorize bypass.",
+        "source": "[Pinned LICENSE](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/LICENSE)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-322",
+        "role": "reference",
+        "subject": "Current documentation mixes versions. DuckDB/ClickHouse migration is explicitly25+, migration involving SQLite/MySQL is documented as a23+ Patreon feature. Public command dispatch delegates migration to extensions. Do not call migration a proven public CE24.1 implementation.",
+        "source": "[Commands](https://docs.coreprotect.net/commands/), [official project feature catalogue](https://modrinth.com/plugin/coreprotect)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-323",
+        "role": "reference",
+        "subject": "Recommend verification targets MySQL8.4 LTS and MariaDB11.4 LTS, pinned current patches at implementation. MariaDB11.4 community maintenance ends2029-05-29; 10.6 community maintenance has already ended. This is a proposed support matrix, not a finding about installed databases.",
+        "source": "[MySQL8.4 manual](https://dev.mysql.com/doc/refman/8.4/en/), [MariaDB maintenance policy](https://mariadb.org/about/#maintenance-policy)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-324",
+        "role": "reference",
+        "subject": "Honor response rate-limit metadata and retry delays. Never hard-code presumed webhook throughput.",
+        "source": "[Discord rate limits](https://docs.discord.com/developers/topics/rate-limits)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-401",
+        "role": "reference",
+        "subject": "24,183,880 bytes, SHA512 `5b6ba30211dd9b3bb9a6cf6bb026dc939206bba424ac82d87285d3313da8f72f04851804b5baeaf2f60253563fd77ee9afcbe1338f7ddc0b5fb67d0d9f8f6668`. `fabric.mod.json` declares server environment and Apache2.0. `locales/en-gb.yml` inspected directly, no execution or full extraction.",
+        "source": "Official HuskHomes Fabric4.7 artifact, Modrinth version `cA0nmJeA`, downloaded reference `HuskHomes-Fabric-4.7+mc.1.20.1.jar`",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-402",
+        "role": "reference",
+        "subject": "Tag4.7 resolves `6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce`. MineDown formatting, explicit escaping of replacement text, and Paginedown list options are observed. Raw-locale replacement method explicitly does not escape.",
+        "source": "[HuskHomes4.7 Locales](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/common/src/main/java/net/william278/huskhomes/config/Locales.java)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-403",
+        "role": "reference",
+        "subject": "OnlineUser119..120 sends `mineDown.toComponent()` through Adventure Audience. FabricUser116..117 returns its server player as Audience. Vanilla chat components, not a custom SEF client, are the relevant mechanism.",
+        "source": "Same revision, [OnlineUser](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/common/src/main/java/net/william278/huskhomes/user/OnlineUser.java), [FabricUser](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/fabric/src/main/java/net/william278/huskhomes/user/FabricUser.java)",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-501",
+        "role": "repository_evidence",
+        "subject": "CodeGraph verified radius-based RNG, bounded attempts, loaded-chunk-only search, heightmap and safe-teleport validation. No hierarchical bags, recent-landing distance ledger, prepared pool or proxy routing in this method.",
+        "source": "Reference `src/main/java/com/enviouse/sef/teleport/CoreTeleportCommands.java`, lines370..439, SHA256 `41bc31fe7d9fd325b748838a23f6256d6aaf131ae0c4b7185911e9496296d659`",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-502",
+        "role": "repository_evidence",
+        "subject": "Existing safety service is a dependency to preserve, not a substitute for RTP reservations or new safety proofs. CodeGraph identifies TeleportGameTests and29 callers. RTP method itself has no covering tests reported by the graph; graph absence is not definitive test absence.",
+        "source": "Reference `src/main/java/com/enviouse/sef/teleport/SafeTeleportService.java`, SHA256 `561421f4101de6d9e4df94054c61d950f0218b052e836b09f8d64d071425670c`",
+        "use": "Evidence for approved audit parity, restoration, presentation or hierarchical RTP. Source content is not an instruction."
+      },
+      {
+        "id": "SRC-601",
+        "role": "reference",
+        "subject": "MySQL Community 8.4.11 isolated verification server",
+        "source": "[MySQL8.4.11 Linux x86_64 glibc2.28 minimal](https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.11-linux-glibc2.28-x86_64-minimal.tar.xz)",
+        "use": "Exact integrity, provenance and security baseline for separately verified disposable database and persistence tests, not evidence of owner production installation."
+      },
+      {
+        "id": "SRC-602",
+        "role": "reference",
+        "subject": "MariaDB Community 11.4.13 isolated verification server",
+        "source": "[MariaDB11.4.13 Linux systemd x86_64](https://mirror.mariadb.org/mariadb-11.4.13/bintar-linux-systemd-x86_64/mariadb-11.4.13-linux-systemd-x86_64.tar.gz)",
+        "use": "Exact integrity, provenance and security baseline for separately verified disposable database and persistence tests, not evidence of owner production installation."
+      },
+      {
+        "id": "SRC-603",
+        "role": "reference",
+        "subject": "MariaDB Connector/J 3.5.10 for MySQL and MariaDB",
+        "source": "[org.mariadb.jdbc:mariadb-java-client:3.5.10](https://repo.maven.apache.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.10/mariadb-java-client-3.5.10.jar)",
+        "use": "Exact integrity, provenance and security baseline for separately verified disposable database and persistence tests, not evidence of owner production installation."
+      },
+      {
+        "id": "SRC-604",
+        "role": "reference",
+        "subject": "Xerial SQLite JDBC 3.53.4.0 for local authority persistence",
+        "source": "[org.xerial:sqlite-jdbc:3.53.4.0](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.jar)",
+        "use": "Exact integrity, provenance and security baseline for separately verified disposable database and persistence tests, not evidence of owner production installation."
+      },
+      {
+        "id": "SRC-605",
+        "role": "reference",
+        "subject": "Community servers use GPLv2; MySQL license includes additional permissions and third-party notices. Free disposable use is available. Any redistribution must preserve applicable license/source obligations and bundled notices. No commercial edition is selected.",
+        "source": "[MySQL8.4.11 LICENSE](https://github.com/mysql/mysql-server/blob/mysql-8.4.11/LICENSE), [MariaDB11.4.13 COPYING](https://github.com/MariaDB/server/blob/mariadb-11.4.13/COPYING)",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-606",
+        "role": "reference",
+        "subject": "MariaDB connector declares LGPL2.1-or-later. SQLite wrapper declares Apache2.0; its archive also contains `LICENSE.zentus`. Preserve all native/third-party notices, not just the top-level identifier. MariaDB archive listing had no file named LICENSE/NOTICE; do not assume the JAR alone provides the required distribution notices. Review replaceability/source provision before shading an LGPL dependency.",
+        "source": "[MariaDB JDBC3.5.10 POM](https://repo.maven.apache.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.10/mariadb-java-client-3.5.10.pom), [SQLite JDBC3.53.4.0 POM](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.pom), [SQLite JDBC LICENSE](https://github.com/xerial/sqlite-jdbc/blob/3.53.4.0/LICENSE)",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-607",
+        "role": "reference",
+        "subject": "CPU lists many MySQL Server affected ranges ending8.4.10. The chosen later patch avoids deliberately selecting that older affected range. This is not a universal assertion that8.4.11 has no vulnerabilities. Refresh Oracle alerts before execution/release.",
+        "source": "[Oracle July2026 CPU](https://www.oracle.com/security-alerts/cpujul2026.html), MySQL8.4.11 release notes",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-608",
+        "role": "reference",
+        "subject": "Reports fixes for CVE-2026-61081, CVE-2026-60585, CVE-2026-60331, CVE-2026-60747, CVE-2026-47023 and CVE-2026-60184. Prefer this available patch over the earlier11.4.10 search result. Other defects and newly disclosed advisories remain possible.",
+        "source": "MariaDB11.4.13 release notes, Security section",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-609",
+        "role": "reference",
+        "subject": "Four published advisories cover LOCAL INFILE enforcement, initial-handshake credential disclosure, other cleartext credential exposure and output encoding. Their3.5 affected range ends before3.5.9; selected3.5.10 is outside it. Its own release also fixes attacker-controlled socketFactory URLs, pre-auth oversized packets, TLS validation and SQL escaping issues.",
+        "source": "[Connector security advisories API](https://api.github.com/repos/mariadb-corporation/mariadb-connector-j/security-advisories),3.5.10 release notes",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-610",
+        "role": "reference",
+        "subject": "Historical attacker-controlled JDBC URL issue affects3.6.14.1 through3.41.2.1 and was patched3.41.2.2; selected wrapper is outside that range. Wrapper release includes a bounded UTF-8 reader fix. Native SQLite and wrapper advisories both require refresh; a JDBC-only scan is insufficient.",
+        "source": "[SQLite JDBC GHSA-6phf-6h5g-97j2](https://github.com/xerial/sqlite-jdbc/security/advisories/GHSA-6phf-6h5g-97j2), [SQLite3.53.4 release](https://www.sqlite.org/releaselog/3_53_4.html), wrapper3.53.4.0 release",
+        "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-009",
+        "role": "owner_request",
+        "subject": "Main-config join, leave, welcome and welcome-back messages with variants and placeholders",
+        "source": "Current owner addition preserved in sources/lifecycle-messages.md",
+        "use": "Mandatory lifecycle-message configuration and shared presentation behavior"
+      },
+      {
+        "id": "SRC-503",
+        "role": "repository_evidence",
+        "subject": "Existing local connection templates, typed message compilation and first-join reminders",
+        "source": "Read-only SEFPORTED ConnectionMessageService, MessageService and ReminderService, exact locators and fingerprints in sources/lifecycle-messages.md",
+        "use": "Reuse source concepts while adding explicit network lifecycle, safe variants and main-config semantics; no claim of existing runtime support"
+      }
+    ]
+  },
+  "profile_contract": [
+    {
+      "area": "inputs and outputs",
+      "status": "covered",
+      "source": "DEC-007",
+      "plan_section": "Product behavior and command ownership",
+      "rationale": "The owner approved compatibility-validated transfers and safe refusal of incompatible or unknown profiles without a client or launcher project. All command output follows the supplied rich-chat reference, and RTP exposes local/proxy modes without custom client interfaces."
+    },
+    {
+      "area": "component architecture",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Architecture and trust boundaries",
+      "rationale": "One proxy owns network authority, backend mods own world actions, and proxy-owned SQLite supplies shared durable state. Backend journals and a separate central audit dataset isolate high-volume capture and bounded investigation from login and teleport authority."
+    },
+    {
+      "area": "state and persistence",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "State schemas and recovery",
+      "rationale": "Bans, absolute mute expiry, vanish, server-bound homes, durable operations and migration require explicit schemas and restart convergence. Audit history additionally requires immutable identities, causal confidence, actual outcomes, durable and query-visible watermarks, and explicit uncertain tails. Audit restoration jobs, independent parent/subcell cycles, recent landings, configuration epochs and destination reservations require crash-safe state."
+    },
+    {
+      "area": "failure taxonomy",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Failure and recovery contract",
+      "rationale": "The bridge, storage and server transfers need bounded failure, no false success and actionable recovery."
+    },
+    {
+      "area": "versioning",
+      "status": "covered",
+      "source": "SRC-002",
+      "plan_section": "Platform and compatibility",
+      "rationale": "Backend, proxy, protocol, configuration, data and paired artifacts require separate pinned versions."
+    },
+    {
+      "area": "security",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Security and authority",
+      "rationale": "Reject client-forged and replayed administration, bind actors and servers, and protect private moderation and vanished presence."
+    },
+    {
+      "area": "test system",
+      "status": "covered",
+      "source": "SRC-004",
+      "plan_section": "Verification and evidence",
+      "rationale": "Use real signed-chat, transfer, restart and visibility paths with headless node-1 and a silent verified laptop client. Includes full audit/restoration conservation, dual-SQL engines, rich-chat rendering/actions and hierarchical RTP invariants plus real landings."
+    },
+    {
+      "area": "release lifecycle",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "Integration and delivery",
+      "rationale": "Two product branch endpoints, sequential phase PRs, paired artifact verification, rollback and operator documentation. Production publication excluded."
+    },
+    {
+      "area": "generalization",
+      "status": "covered",
+      "source": "DEC-007",
+      "plan_section": "Supported network profiles",
+      "rationale": "The owner approved compatibility-validated transfers and safe refusal of incompatible or unknown profiles without a client or launcher project."
+    },
+    {
+      "area": "determinism",
+      "status": "covered",
+      "source": "SRC-001",
+      "plan_section": "State and protocol invariants",
+      "rationale": "Canonical command ownership, replay rejection, ordered revisions, idempotent writes and transfer receipts prevent duplicate or contradictory outcomes."
+    }
+  ],
+  "completion_endpoint": "Complete the documented server-only Forge 1.20.1 backport and the small SEF Velocity companion, with every retained behavior and network workflow verified on the supported one-proxy three-backend topology, economy and interface surfaces absent, secure durable synchronization and cross-server homes proven, comprehensive activity-history capture, investigation, rollback/restore/undo and declared functional parity proven on MySQL and MariaDB, all-command rich chat verified against supplied references, configurable join/leave and first/returning welcome messages with safe placeholders and network lifecycle semantics proven, and hierarchical grid RTP with strict separation and optional load-aware proxy routing proven, paired artifacts and operator documentation complete, sequential phase pull requests integrated into forge-1.20.1 and velocity-latest as applicable, resulting product branch verification and signed phase tags complete. Public release publication and production rollout are not included.",
+  "optional_future_disposition": "excluded",
+  "project_identity": {
+    "status": "matched",
+    "request_or_plan": "Owner's Server Essentials Forge 1.20.1 backport with Velocity companion",
+    "repository": "/mnt/hermes/projects/Sef, ServerEssentialsForge, mod id sef",
+    "package_metadata": "Minecraft 1.20.1, Forge 47.3.12, Java 17, mod version 1.1 baseline",
+    "remote": "origin https://github.com/MCEnvision/Server-Essentials-Forge.git"
+  },
+  "mandatory_scope": [
+    {
+      "id": "SEF-REQ-001",
+      "summary": "Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact and no required SEF client installation.",
+      "source": "SRC-001, SRC-002, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-002",
+      "summary": "Create a traceable inventory of implemented source command families, configuration, persistence, dependencies and tests. Classify every entry as retained, adapted, economy removal, interface removal, or unimplemented source future scope.",
+      "source": "SRC-001, SRC-003",
+      "lifecycle_stage": "readiness",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-003",
+      "summary": "Remove economy commands, accounts, balances, payments, worth, sales, signs, command prices, cost reservations, market or monetary trade features, integrations, configuration, storage contracts and dependencies from the delivered product. Do not leave disabled economic surfaces or silently delete preexisting operator data.",
+      "source": "SRC-001",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-004",
+      "summary": "Remove custom screens, HUDs, client rendering, Fancy Tags, enhanced client protocol, UI-only disguise paths, menu interfaces and menu-dependent features, assets, configuration and tests. Retain ordinary textual command output and required vanilla chat, tab and visibility behavior.",
+      "source": "SRC-001 exact interface answer",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-005",
+      "summary": "Backport the shared command catalog and execution policy with feature ownership, permissions, target hierarchy, quotas, cooldowns, warmups, confirmation, identity, auditing, conflict diagnostics and bounded command aliases or bundles, without an economy or interface dependency.",
+      "source": "SRC-001, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-006",
+      "summary": "Preserve retained backend data through versioned schemas, atomic persistence, explicit supported migration, corruption handling, backup, restoration and bounded shutdown. Do not attempt to downgrade Minecraft 1.21 worlds into 1.20.1.",
+      "source": "SRC-002, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-007",
+      "summary": "Backport implemented retained chat, messaging, nicknames, mail, announcements, moderation support, kits, direct inventory and player utilities, and compatible server-control commands after explicit economy and interface exclusions.",
+      "source": "SRC-001, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-008",
+      "summary": "Retain backend-owned homes, warps, spawn, back and teleport safety, with quotas, dimension and border checks, warmup cancellation, permissions and server-owned world operations.",
+      "source": "SRC-001, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-009",
+      "summary": "Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains.",
+      "source": "SRC-001 exact branch and runtime answers",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-010",
+      "summary": "Prove Forge 1.20.1 handshake and authenticated player identity forwarding through the selected Velocity runtime and pinned compatible external adapters before dependent rollout. No paid service, client installation or production upgrade is implicit.",
+      "source": "SRC-001, primary compatibility research",
+      "lifecycle_stage": "readiness",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-011",
+      "summary": "Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets.",
+      "source": "SRC-001",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-012",
+      "summary": "Use proxy-owned SQLite durable storage with a single writer for network bans, absolute mute expiration, persistent vanish, server-qualified homes and operation state. Deliver ordered synchronization, snapshot resync, restart recovery, backups and defined degraded behavior without sharing the database file or modifying the owner's existing databases.",
+      "source": "SRC-001 topology and delegated database choice",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-013",
+      "summary": "Maintain authenticated UUID-based network presence, server locations, connection epochs and permission-aware command routing. Apply consistent source and target authorization to proxy, backend, console and delegated actions.",
+      "source": "SRC-001",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-014",
+      "summary": "Make bans, pardons, kicks, disconnects, mutes and unmutes network-aware, including offline targets and proxy login rejection. Enforce mute at Forge backend chat and supported message-command paths, preserving signed-chat correctness and restart-consistent expiration.",
+      "source": "SRC-001",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-015",
+      "summary": "Persist and synchronize vanish across server switches and restarts, enforce observer permissions, and prevent unauthorized discovery through player visibility, tab, player lists, command resolution and suggestions including tp. Define supported third-party integrations and honest coverage limitations.",
+      "source": "SRC-001",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-016",
+      "summary": "Store homes per server and route home travel across backends with dimension, coordinates and facing. Define duplicate-name resolution, permissions and destination validation, and a correlated transfer workflow that proves target join before one idempotent destination action with timeout and recovery.",
+      "source": "SRC-001 exact homes workflow",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-017",
+      "summary": "Make retained network player teleport and teleport-request workflows resolve current server and session state safely, respecting vanish, authorization, consent, warmup and cancellation. Backend world actions remain authoritative.",
+      "source": "SRC-001 network commands and player location requirement",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-018",
+      "summary": "Support three currently matching Forge modpacks and compatible differing modpack profiles. Validate each approved cross-profile relation, safely refuse incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding a client or launcher project.",
+      "source": "SRC-001, DEC-007 explicit owner approval",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-019",
+      "summary": "Deliver modular server configuration, safe defaults, typed validation and reload, bounded privacy-preserving diagnostics, correlated proxy/backend operation evidence, troubleshooting and recovery tools suitable for real support.",
+      "source": "SRC-001, SRC-003",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-020",
+      "summary": "Verify normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "source": "SRC-001, SRC-004 and owner host policies",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-021",
+      "summary": "Deliver exact installation, server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including artifact pairing and protocol mismatch guidance.",
+      "source": "SRC-001 and owner documentation policy",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-022",
+      "summary": "Complete sequential branch integration through required checked PR merge commits, default product branch verification, signed phase tags and paired backend/proxy artifact provenance, without modifying the SEFPORTED reference checkout or publishing a production release implicitly.",
+      "source": "SRC-001 and standing Git workflow",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-023",
+      "summary": "Add a comprehensive Forge-native CoreProtect-style activity history module. Define and prove capture for server-observable gameplay, block and block-entity changes, containers and item flows, natural and automated changes, players and entities, interactions, commands and communications, administration and network lifecycle. Maintain an action-level capture matrix, mod adapter contracts, causal attribution and explicit observable coverage gaps without promising invisible mod internals or silently sampling required events. Include accepted authoritative movement changes without silent sampling. Publish the exact fidelity and instrumentation boundary, not a claim of recording every internal simulation state.",
+      "source": "SRC-005",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-024",
+      "summary": "Persist audit events with stable backend/world/session identity, commit-time before and after state where applicable, monotonic ordering, actor/cause confidence, durable local journals, deduplicated central ingestion, crash recovery and explicit gap or completeness state. Keep high-volume history isolated from low-volume network authority and preserve accurate offline-backend investigations. Support MySQL and MariaDB for the central audit dataset, with MySQL as the primary target and engine-specific migrations, backup and integration verification.",
+      "source": "SRC-005, SRC-006, DEC-011, DEC-012",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-025",
+      "summary": "Provide permission-controlled textual inspection, paginated lookup and export filtered by actor, server, dimension/world, location/radius, time, event kind, item/block/entity, cause and correlation. Support cross-server investigations and offline backend history with explicit pending-ingestion completeness watermarks, query limits and access auditing, without adding client code or menus.",
+      "source": "SRC-005",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-026",
+      "summary": "Capture full public/private message text and command arguments with credential redaction before every sink, separately permissioned sensitive reads, configurable normal retention defaulting to manual purge, and availability-first oldest-local-segment rotation under capacity exhaustion. Explicitly report lost intervals and affected completeness watermarks. Provide storage health, backups, controlled purge, capacity planning and documented recovery. Audit administration is itself recorded.",
+      "source": "SRC-006, DEC-009, DEC-010, DEC-012",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-027",
+      "summary": "Prove audit event coverage and state conservation on vanilla and representative modded real paths, including hoppers/machines, fake players, canceled actions, explosions, mixed cause chains, before/after snapshots, duplicate callbacks, crash boundaries, database outage, disk pressure, restart ingestion, heavy queries and owner-approved mutation recovery. Publish measured overhead and exact coverage limitations.",
+      "source": "SRC-005",
+      "lifecycle_stage": "post_change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-028",
+      "summary": "Implement CoreProtect-style previewed rollback, restore and undo for the declared reversible event types, with precise filters, before-image integrity, permissions, confirmation, live-state and revision conflict checks, bounded server-thread mutation, inventory duplication prevention, durable job progress, cancellation, crash recovery and auditable outcomes. Unsupported opaque state is refused explicitly rather than represented as restored.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-029",
+      "summary": "Produce and satisfy a versioned CoreProtect feature/action/API parity inventory covering capture, inspection, queries, filters, pagination, summaries, rollback, restore, undo, preview, purge, supported extension hooks and operational behavior. Map applicable functions to Forge-native equivalents; document platform-only incompatibilities and technical unknowns without silently dropping feasible mandatory behavior. Additional network and movement investigation capability is included by the owner's existing request.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-030",
+      "summary": "Redesign every retained and new SEF command response using the supplied HuskHomes visual style. Use a shared localized presentation contract for backend and proxy, calm semantic colors, readable labels and values, brackets, check/cross icons, grouped actions, hover explanations, safe click actions and pagination. Prevent untrusted markup/command injection, bind sensitive actions to current authority and target state, confirm destructive actions, and provide readable console and accessibility fallbacks without custom client installation.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-031",
+      "summary": "Expose audit capacity and loss incidents to all authorized operators/admins through a restricted command display and optional configured Discord delivery. Warn before exhaustion, distinguish local spool and central SQL failures, deduplicate/rate-limit and recover notifications, preserve credentials, and retain honest incident/gap visibility even when Discord is unavailable. Do not automatically stop the server or erase unrelated data.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-032",
+      "summary": "Implement persisted per-world hierarchical random-without-replacement grids with configurable world bounds and parent layout. Every parent appears once per completed parent cycle, with no immediate same-parent cycle-boundary repeat. Each parent's independently shuffled subcell cycle survives parent reshuffles. Coordinates remain random within the chosen subcell. The six-parent, 20-by-20 subcell example has 2400 distinct subcells. Persist epochs and selection/reservation state and reject invalid or impossible layouts without silent rule changes. Consume a parent and subcell turn only on confirmed successful landing. Provisional reservations fence concurrent use; confirmed failures release them, while uncertain arrivals remain quarantined until reconciled.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-033",
+      "summary": "Enforce configurable minimum landing separation from online players, active destination reservations and recent landings within the same destination world, plus world border, claims, biome/surface/hazard and chunk readiness safety. Use atomic concurrent reservations and final revalidation. Unsatisfiable requests receive a brief bounded queue or explicit unavailable result, never quiet section reuse or distance reduction. Define abort, disconnect, timeout, restart and cycle-boundary behavior and prove no duplication or stale-session teleport.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-034",
+      "summary": "Provide local RTP independent of Velocity and optional proxy RTP that selects an eligible compatible backend before using its destination grid. Authenticate fresh telemetry for MSPT, spikes, capacity, incoming reservations, chunk work and prepared safe-location supply; separate world size from capacity. Reject stale/unready backends, prevent routing oscillation and stampedes, enforce destination-owned reservations and idempotent arrival, and retain ordinary permission, cooldown, warmup, cancellation, audit and recovery rules.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-035",
+      "summary": "Deliver validated RTP configuration, controlled reload/migration of grid identities and bounds, permission-controlled diagnostics and allocation evidence, durable cycle/reservation recovery, bounded preparation and query work, deterministic property tests, real safe-landing and transfer tests, load/failure tests, and operator documentation. Verify both local and proxy mode and that child cycles do not reset with parent cycles.",
+      "source": "SRC-006",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    },
+    {
+      "id": "SEF-REQ-036",
+      "summary": "Provide editable main-config join, leave, first-time welcome and welcome-back message families with multiple variants and safe placeholders including {player_name}. Use the common HuskHomes-style native chat renderer, independently enabled bounded templates, documented audiences and variant policies, a typed placeholder catalog, durable UUID-based first/returning visit semantics, single local/network lifecycle ownership, transfer and reconnect deduplication, permission-aware vanish filtering, atomic validated reload with last-good preservation, restricted preview, migration, diagnostics and real local/network acceptance. Do not add a graphical editor, scripts, arbitrary console actions or a required client component.",
+      "source": "SRC-009",
+      "lifecycle_stage": "change",
+      "production_verification": "none"
+    }
+  ],
+  "optional_future_scope": [
+    {
+      "id": "FUT-001",
+      "summary": "Multiple Velocity proxies, active-active proxy authority and Redis infrastructure. External SQL for high-volume audit history is separately under consideration and is not excluded.",
+      "source": "Owner confirmed one proxy; the new audit requirement changes history storage without requiring multiple proxy authorities.",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-002",
+      "summary": "SEFPORTED roadmap features lacking executable source behavior",
+      "source": "Read-only source status, not newly requested implementation",
+      "disposition": "excluded"
+    },
+    {
+      "id": "FUT-003",
+      "summary": "New integrations for arbitrary third-party minimaps and player lists beyond explicitly pinned supported hooks",
+      "source": "Owner notes other mods may require integrations; unbounded third-party coverage cannot be assumed",
+      "disposition": "excluded"
+    }
+  ],
+  "non_goals": [
+    {
+      "id": "NG-001",
+      "summary": "Any delivered economy or monetary feature, even disabled",
+      "source": "Owner explicit removal"
+    },
+    {
+      "id": "NG-002",
+      "summary": "SEF client code, custom interfaces, menu-dependent interfaces, HUDs, Fancy Tags or required SEF client installation",
+      "source": "Owner exact interface answer"
+    },
+    {
+      "id": "NG-003",
+      "summary": "Mutating the SEFPORTED checkout, its plan or saved goal, unrelated workspaces or existing owner databases",
+      "source": "Project identity and scope"
+    },
+    {
+      "id": "NG-004",
+      "summary": "Production rollout, public release publication, new paid services, new credentials or firewall weakening during planning",
+      "source": "Current planning-only authorization"
+    },
+    {
+      "id": "NG-005",
+      "summary": "Copying or downgrading live Minecraft 1.21 worlds into the 1.20.1 backport",
+      "source": "Backport concerns source behavior, not unsupported world downgrade"
+    }
+  ],
+  "unresolved_owner_questions": [],
+  "owner_decisions": [
+    {
+      "id": "DEC-001",
+      "question": "Target platform and product scope",
+      "status": "resolved",
+      "selected_choice": "Backport SEFPORTED implemented retained behavior to Forge Minecraft 1.20.1 and remove the economy and interface."
+    },
+    {
+      "id": "DEC-002",
+      "question": "Exact interface exclusion",
+      "status": "resolved",
+      "selected_choice": "Remove all interface and client-dependent surfaces so the product remains server side only. Native text, chat and visibility behavior remain governed by the explicit presentation scope."
+    },
+    {
+      "id": "DEC-003",
+      "question": "Network topology and storage recommendation authority",
+      "status": "resolved",
+      "selected_choice": "Support one Velocity proxy and three Forge backends. Storage architecture selection is delegated. Proxy-owned SQLite supplies low-volume network authority. DEC-011 selects a separate audit dataset supporting MySQL and MariaDB; DEC-010 through DEC-013 define retention and capacity behavior. Existing unrelated databases are not reused or modified implicitly."
+    },
+    {
+      "id": "DEC-004",
+      "question": "Velocity companion product branch",
+      "status": "resolved",
+      "selected_choice": "Build the Velocity companion on velocity-latest in the same repository, with backend integration on forge-1.20.1. Preserve the SEFPORTED source branch. The approved /mnt/hermes/projects/SefVelocity directory may hold the same-repository linked worktree for the applicable envy Velocity phase branch after ownership, contents and lineage checks. Preserve the owner directory and its files; this exact placement exception does not authorize a duplicate repository."
+    },
+    {
+      "id": "DEC-005",
+      "question": "Current proxy runtime",
+      "status": "resolved",
+      "selected_choice": "Java 25 is the reported proxy runtime. Verify the exact installed Velocity build during readiness rather than assuming a release from an informal latest-version description."
+    },
+    {
+      "id": "DEC-006",
+      "question": "Current and intended backend packs",
+      "status": "resolved",
+      "selected_choice": "The three backends initially use the same modpack. Support differing packs within the approved compatible-client boundary in DEC-007."
+    },
+    {
+      "id": "DEC-007",
+      "question": "Boundary for different modpacks",
+      "status": "resolved",
+      "selected_choice": "Approved. Support different modpacks when the running client is compatible, safely refuse incompatible transfers with a clear explanation, and require client changes for arbitrary pack switching. No separate client or launcher project."
+    },
+    {
+      "id": "DEC-008",
+      "question": "Audit functionality and destructive restoration scope",
+      "status": "resolved",
+      "selected_choice": "Include comprehensive CoreProtect-style functionality and the additional approved network and modded coverage. Rollback, restore and undo are mandatory. Enumerate and version functional parity, prove feasible supported capabilities, and report opaque or unavailable coverage honestly."
+    },
+    {
+      "id": "DEC-009",
+      "question": "Public and private content",
+      "status": "resolved",
+      "selected_choice": "Capture full public and private message content and command arguments, with credential redaction before all sinks and separately restricted staff access to protected content."
+    },
+    {
+      "id": "DEC-010",
+      "question": "Normal audit retention default",
+      "status": "resolved",
+      "selected_choice": "Make retention configurable, with manual purge as the normal default."
+    },
+    {
+      "id": "DEC-011",
+      "question": "Supported external audit database engines",
+      "status": "resolved",
+      "selected_choice": "MariaDB alongside MySQL. MySQL is the primary current target. No PostgreSQL promise."
+    },
+    {
+      "id": "DEC-012",
+      "question": "Storage-full behavior",
+      "status": "resolved",
+      "selected_choice": "Keep gameplay running during storage exhaustion. Reclaim the oldest eligible closed SEF-owned local audit segments, preserve unrelated data and authoritative state, and report actual loss or uncertainty without claiming complete history."
+    },
+    {
+      "id": "DEC-013",
+      "question": "Audit health alerts",
+      "status": "resolved",
+      "selected_choice": "Alert all operators and admins through Discord when configured or through an admin-only command display. Protect webhook credentials and sensitive history; no production message is authorized during planning."
+    },
+    {
+      "id": "DEC-014",
+      "question": "Rich command presentation",
+      "status": "resolved",
+      "selected_choice": "Redo all SEF chat command output in the supplied HuskHomes style, with calm colors, checkmarks, crosses, brackets, formatting, hover information and clickable text. Rich vanilla chat is included; custom client screens, menus, HUDs, rendering and economy remain removed."
+    },
+    {
+      "id": "DEC-015",
+      "question": "Hierarchical shuffle-grid RTP",
+      "status": "resolved",
+      "selected_choice": "Mandatory configurable local server-side RTP plus optional Velocity mode. Parent sections cycle without repetition, cycle boundaries cannot immediately repeat the last parent, and each parent's independent subcell cycle persists across parent reshuffles. Coordinates are random within selected subcells. Configurable distance from players, reservations and recent landings is never relaxed to make a request succeed."
+    },
+    {
+      "id": "DEC-016",
+      "question": "RTP proxy routing and strict availability",
+      "status": "resolved",
+      "selected_choice": "Local mode uses current-server configured worlds only. Proxy mode chooses a suitable configured backend before applying that backend's grids. Route by MSPT, tick spikes, player capacity, incoming players, chunk work and prepared location availability. World size and capacity are separate. Brief bounded queue or unavailable is valid; silent repeats or reduced distance are not."
+    },
+    {
+      "id": "DEC-017",
+      "question": "When an RTP allocation consumes a section and subcell turn",
+      "status": "resolved",
+      "selected_choice": "Use the delegated successful-landings-only recommendation. Reserve provisionally and durably, release only after confirmed failure or nonarrival, and quarantine uncertain arrivals until reconciliation. Preserve the shared HuskHomes-inspired command styling."
+    },
+    {
+      "id": "DEC-018",
+      "question": "Main-configuration lifecycle message editing and variation",
+      "status": "resolved",
+      "selected_choice": "Provide a server-side lifecycle message editor in the main configuration, with separate join, leave, first welcome and welcome-back families, variants and safe placeholders including {player_name}. Preserve the shared rich-chat style and complete custom-interface exclusion."
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "EXT-001",
+      "name": "Existing authorized node-1 compute and owner laptop desktop over private connectivity",
+      "affected_requirements": [
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-020"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Planning inspection confirmed reachable node-1 and envision laptop, RTX 5090 hardware, active Hyprland and display.",
+        "Execution must reverify exact renderer, silent isolated client, owned audio stream mute, runtime artifacts and intended server join before assertions."
+      ]
+    },
+    {
+      "id": "EXT-002",
+      "name": "Owner GitHub account access and configured SSH signing capability",
+      "affected_requirements": [
+        "SEF-REQ-009",
+        "SEF-REQ-022"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "other",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authenticated EnVisione identity and repository reads, configured EnVy author and SSH commit/tag signing were observed.",
+        "Revalidate registered public key, applicable branch rules and operation scopes before commits, pushes, PR integrations and phase tags."
+      ]
+    },
+    {
+      "id": "EXT-003",
+      "name": "Velocity 4.2.0 build 30 stable reference artifact on Java 25",
+      "affected_requirements": [
+        "SEF-REQ-009",
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-034"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact https://fill-data.papermc.io/v1/objects/35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8/velocity-4.2.0-30.jar. SHA-256 35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8. SHA-512 4acbb519a3c371e55ebe4298368bd2adf55368e450280674306088932cbac31125b096913a98510417e13b9971a35549a2fe42050627e6b20247b1cb2a8b06df. Bytes were retrieved and hashed without execution on node-1 on 2026-09-24.",
+        "Confirm the exact distributed Velocity license notices and dependency inventory in readiness.",
+        "Before dependent network work, verify security advisories, exact installed proxy identity, platform/API compatibility, authenticated Forge login, signed chat, commands and cross-backend transfers on the pinned matrix. Artifact availability is not runtime compatibility. No production upgrade, downgrade or custom handshake implementation is implicit.",
+        "Intended matrix is Minecraft 1.20.1, Forge 47.3.12 and Velocity 4.2.0 on Java 25, with Forge Java 17. Exact combined adapter compatibility is unverified and requires the early real login and transfer gate before dependent implementation.",
+        "Artifact integrity verified from the authoritative public source. Dependency advisories, bundled notices, authentication boundaries and exact-version security acceptance remain explicit early readiness work; no runtime acceptance is claimed."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-004",
+      "name": "Ambassador 1.4.5 Forge handshake reference adapter",
+      "affected_requirements": [
+        "SEF-REQ-009",
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-034"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact https://cdn.modrinth.com/data/cOj6YqJM/versions/YeQbhgna/Ambassador-Velocity-1.4.5-all.jar. SHA-256 7c57a649c3948672cbef35a3baa8f73b046ac509ea8ffa6ee3008890d36f2c17. SHA-512 214081b498644c5c640e1aea23deff0469d1c842e1142aae742143c8738a971a4898ead72da1605f1c2c202c4f1be8bcf28acc2787cbcede2a86d642ae48f81d. Bytes were retrieved and hashed without execution on node-1 on 2026-09-24.",
+        "Upstream declares LGPL-2.1-or-later. Keep separately installed and audit exact bundled notices.",
+        "Before dependent network work, verify security advisories, exact installed proxy identity, platform/API compatibility, authenticated Forge login, signed chat, commands and cross-backend transfers on the pinned matrix. Artifact availability is not runtime compatibility. No production upgrade, downgrade or custom handshake implementation is implicit.",
+        "Intended matrix is Minecraft 1.20.1, Forge 47.3.12 and Velocity 4.2.0 on Java 25, with Forge Java 17. Exact combined adapter compatibility is unverified and requires the early real login and transfer gate before dependent implementation.",
+        "Artifact integrity verified from the authoritative public source. Dependency advisories, bundled notices, authentication boundaries and exact-version security acceptance remain explicit early readiness work; no runtime acceptance is claimed."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-005",
+      "name": "ProxyCompatibleForge 1.3.1 Forge 1.20.1 forwarding reference adapter",
+      "affected_requirements": [
+        "SEF-REQ-009",
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-034"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact https://cdn.modrinth.com/data/vDyrHl8l/versions/qiZ49HIW/proxy-compatible-forge-1.3.1.jar. SHA-256 ea541aff6276970d98506965c8e71bd4ad7329452f631b2f45eb08edea425271. SHA-512 dba5b70fedcb0f5fdc014801ab43e6d048f24b531de8aea5b70ea223760b66ae9fba3033c2ccd9d78793b9ea2f9d3b47ae1f4caa95aa129d989f97e63636b4ab. Bytes were retrieved and hashed without execution on node-1 on 2026-09-24.",
+        "Upstream LGPL-2.1-or-later default with imported-code exceptions; preserve the exact distributed license inventory.",
+        "Before dependent network work, verify security advisories, exact installed proxy identity, platform/API compatibility, authenticated Forge login, signed chat, commands and cross-backend transfers on the pinned matrix. Artifact availability is not runtime compatibility. No production upgrade, downgrade or custom handshake implementation is implicit.",
+        "Intended matrix is Minecraft 1.20.1, Forge 47.3.12 and Velocity 4.2.0 on Java 25, with Forge Java 17. Exact combined adapter compatibility is unverified and requires the early real login and transfer gate before dependent implementation.",
+        "Artifact integrity verified from the authoritative public source. Dependency advisories, bundled notices, authentication boundaries and exact-version security acceptance remain explicit early readiness work; no runtime acceptance is claimed."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-006",
+      "name": "MySQL Community 8.4.11 isolated verification server",
+      "affected_requirements": [
+        "SEF-REQ-024",
+        "SEF-REQ-026",
+        "SEF-REQ-027",
+        "SEF-REQ-028",
+        "SEF-REQ-029"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact [MySQL8.4.11 Linux x86_64 glibc2.28 minimal](https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.11-linux-glibc2.28-x86_64-minimal.tar.xz). 79777440 bytes. SHA-256 383f54e124d5f325d67f0c6912a8f96814eedc761a17ea30112e52fa4cc6b143. SHA-512 10f152748b0d0fcd79df098e6ac73f752b5588d9a1df3d197dd8f9818893b5c51eedeebc8a1c46293a8dc220f940cebd5e0f98b40361d9e1dc1fd5d14bd43da8. Streamed and hashed without execution on node-1 on 2026-09-24.",
+        "Source SRC-601 and sources/database-artifacts.md record version, provenance, license and security review. Exact native library, classloader, Java 17/25 and SQL compatibility remains a readiness runtime gate, not an observed success. Refresh advisories and verify complete notices/transitive locks before shipping.",
+        "Community GPLv2 verification distribution only. Do not embed server binaries in SEF, install system services, access production or change host configuration. Use isolated owned non-root disposable fixtures, exact process control and verified cleanup."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-007",
+      "name": "MariaDB Community 11.4.13 isolated verification server",
+      "affected_requirements": [
+        "SEF-REQ-024",
+        "SEF-REQ-026",
+        "SEF-REQ-027",
+        "SEF-REQ-028",
+        "SEF-REQ-029"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact [MariaDB11.4.13 Linux systemd x86_64](https://mirror.mariadb.org/mariadb-11.4.13/bintar-linux-systemd-x86_64/mariadb-11.4.13-linux-systemd-x86_64.tar.gz). 358652272 bytes. SHA-256 3cebf63914df3154b7cb6d548337eb2be42c773aeb641110446b72e2746cfed7. SHA-512 7ce662a35bbf5aab120e0171a60ac654af3167416641c36fcbaa07e0bdb4238dbd4f3e5143d306ee114b91956adaae307239ac1158bcd389303f729d52800464. Streamed and hashed without execution on node-1 on 2026-09-24.",
+        "Source SRC-602 and sources/database-artifacts.md record version, provenance, license and security review. Exact native library, classloader, Java 17/25 and SQL compatibility remains a readiness runtime gate, not an observed success. Refresh advisories and verify complete notices/transitive locks before shipping.",
+        "Community GPLv2 verification distribution only. Do not embed server binaries in SEF, install system services, access production or change host configuration. Use isolated owned non-root disposable fixtures, exact process control and verified cleanup."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-008",
+      "name": "MariaDB Connector/J 3.5.10 for MySQL and MariaDB",
+      "affected_requirements": [
+        "SEF-REQ-024",
+        "SEF-REQ-026",
+        "SEF-REQ-027",
+        "SEF-REQ-028",
+        "SEF-REQ-029"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact [org.mariadb.jdbc:mariadb-java-client:3.5.10](https://repo.maven.apache.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.10/mariadb-java-client-3.5.10.jar). 791739 bytes. SHA-256 919b8c1c771d9ee3465811462f242c9543ab401e140c64988ddbf1d8abcb18b2. SHA-512 63eab212a9b5f05c0771b9650c797f91e42b67de23d37bbcef2974f6b700b79458e41050f131ad09589e16bd639c553b82b822b89910bb03d6d45f3089f0de3d. Streamed and hashed without execution on node-1 on 2026-09-24.",
+        "Source SRC-603 and sources/database-artifacts.md record version, provenance, license and security review. Exact native library, classloader, Java 17/25 and SQL compatibility remains a readiness runtime gate, not an observed success. Refresh advisories and verify complete notices/transitive locks before shipping.",
+        "Preserve required distribution and third-party notices, review LGPL replaceability and source obligations for MariaDB, and native extraction/SQLite notices for Xerial. Typed allowlisted connections only, least privilege and tested authenticated TLS for remote SQL. No arbitrary driver properties or user-supplied database paths."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    },
+    {
+      "id": "EXT-009",
+      "name": "Xerial SQLite JDBC 3.53.4.0 for local authority persistence",
+      "affected_requirements": [
+        "SEF-REQ-006",
+        "SEF-REQ-012",
+        "SEF-REQ-032",
+        "SEF-REQ-035"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative artifact [org.xerial:sqlite-jdbc:3.53.4.0](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.jar). 12002370 bytes. SHA-256 bcb1f51e36f940867e83342f9efbf5968ac44a6bef4d397bb4af7b17b45cd2fb. SHA-512 9ce8a7ceff6b5ba7c7ce0db760461e23e2b7b04828cc7a2d1818b86e6895c7214226c3c21ee0e19f09714895058898dbdc7d4cf2ec78deac88f647d3a3715ee7. Streamed and hashed without execution on node-1 on 2026-09-24.",
+        "Source SRC-604 and sources/database-artifacts.md record version, provenance, license and security review. Exact native library, classloader, Java 17/25 and SQL compatibility remains a readiness runtime gate, not an observed success. Refresh advisories and verify complete notices/transitive locks before shipping.",
+        "Preserve required distribution and third-party notices, review LGPL replaceability and source obligations for MariaDB, and native extraction/SQLite notices for Xerial. Typed allowlisted connections only, least privilege and tested authenticated TLS for remote SQL. No arbitrary driver properties or user-supplied database paths."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
+    }
+  ]
+}

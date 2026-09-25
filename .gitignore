@@ -15,3 +15,14 @@
 !src/main/**
 !lib
 !screenshots
+!docs/
+/docs/*
+!/docs/README.md
+!/docs/general/
+/docs/general/*
+!/docs/general/plan.md
+!/docs/general/plan.index.json
+!/docs/general/plan.handoff.json
+!/docs/general/shared-contracts.json
+!/docs/general/phases/
+!/docs/general/research/

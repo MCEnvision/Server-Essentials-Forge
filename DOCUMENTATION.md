@@ -5,6 +5,8 @@
 **Minecraft Version:** 1.20.1  
 **Mod Loader:** Forge
 
+The [documentation index](docs/README.md) links the existing documentation and the [planned network backport](docs/general/plan.md). The plan describes future work and does not certify those features as implemented.
+
 ---
 
 ## Table of Contents

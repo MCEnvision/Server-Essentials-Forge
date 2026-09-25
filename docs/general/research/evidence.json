@@ -1,0 +1,1862 @@
+{
+  "schema_version": 1,
+  "project_id": "sef-forge-velocity",
+  "documents": {
+    "brief": {
+      "path": "brief.md",
+      "sha256": "e65c28c9b39befa03986094908e06227896f1a00e3d810af2f6e3f1d3692b1ad"
+    },
+    "repository_map": {
+      "path": "repository-map.md",
+      "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+    },
+    "intake": {
+      "path": "intake.json",
+      "sha256": "e114f723f36fb24de0e4a8b7306f808f02442a33b1608d204e0f6e867a3b0f9b"
+    }
+  },
+  "sources": [
+    {
+      "id": "SRC-001",
+      "role": "owner_request",
+      "locator": "Approved product decisions recorded in research/sources/owner-request.md",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/owner-request.md",
+        "sha256": "ea2345d6c0955e1642ce00785965214bc068a0b8f9ffce1787e13bd6fcee6f55"
+      }
+    },
+    {
+      "id": "SRC-002",
+      "role": "repository_evidence",
+      "locator": "/mnt/hermes/projects/Sef at 1e8bab26d9d6ff6b1bf1d5ef41eb8d6c1a51ad98",
+      "revision": "1e8bab26d9d6ff6b1bf1d5ef41eb8d6c1a51ad98",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [
+        {
+          "path": "gradle.properties",
+          "sha256": "8b08b24b5923ec4c95b1ee021741f51180591ee548cb89eabe1e16844483e49a"
+        },
+        {
+          "path": "build.gradle",
+          "sha256": "79d317fbdfe9400666d98f2ec6a874ab30fdce178d0bee27de262dcd15a2c068"
+        },
+        {
+          "path": "README.md",
+          "sha256": "de06c5b858cc3d4cf492a5acd7af791eef8117d41c1efcf5affefae994189500"
+        }
+      ],
+      "snapshot": {
+        "path": "sources/environment-observations.md",
+        "sha256": "4a23c1c87301cda672259a2f8845826b254c162217d0493d8cc55168f8f1cf2c"
+      }
+    },
+    {
+      "id": "SRC-003",
+      "role": "repository_evidence",
+      "locator": "/mnt/hermes/projects/SEFPORTED at e160a235b19c992b3a23c3a43754e92ad0147948",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-004",
+      "role": "repository_evidence",
+      "locator": "research/sources/environment-observations.md",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:57:30Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/environment-observations.md",
+        "sha256": "4a23c1c87301cda672259a2f8845826b254c162217d0493d8cc55168f8f1cf2c"
+      },
+      "recheck_after": "2026-09-25T23:57:30Z"
+    },
+    {
+      "id": "SRC-101",
+      "role": "reference",
+      "locator": "https://docs.papermc.io/velocity/server-compatibility/ section Minecraft Forge, lines 128 to 133 in fetched document.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-102",
+      "role": "reference",
+      "locator": "https://docs.papermc.io/velocity/player-information-forwarding/ lines 74 to 90 and 109 to 113.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-103",
+      "role": "reference",
+      "locator": "https://raw.githubusercontent.com/adde0109/Proxy-Compatible-Forge/main/README.md lines 29 to 57, 64 to 94.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-104",
+      "role": "reference",
+      "locator": "https://docs.papermc.io/velocity/getting-started/ line 77.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-105",
+      "role": "reference",
+      "locator": "https://papermc.io/downloads/velocity",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-106",
+      "role": "reference",
+      "locator": "https://fill.papermc.io/v3/projects/velocity and https://fill.papermc.io/v3/projects/velocity/versions/4.2.0/builds",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-107",
+      "role": "reference",
+      "locator": "https://api.modrinth.com/v2/project/ambassador/version and https://github.com/adde0109/Ambassador/releases/tag/v1.4.5",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-108",
+      "role": "reference",
+      "locator": "https://modrinth.com/plugin/ambassador and https://github.com/adde0109/Ambassador/blob/non-api/README.md",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-109",
+      "role": "reference",
+      "locator": "https://api.modrinth.com/v2/project/proxy-compatible-forge/version?loaders=%5B%22forge%22%5D&game_versions=%5B%221.20.1%22%5D",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-110",
+      "role": "reference",
+      "locator": "https://api.github.com/repos/adde0109/Proxy-Compatible-Forge/license and https://github.com/adde0109/Ambassador/blob/non-api/build.gradle.kts",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-111",
+      "role": "reference",
+      "locator": "https://docs.papermc.io/velocity/dev/plugin-messaging/ lines 77 to 84, 163 to 218, 249 to 297.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-112",
+      "role": "reference",
+      "locator": "https://raw.githubusercontent.com/MinecraftForge/MinecraftForge/1.20.x/src/main/java/net/minecraftforge/event/ServerChatEvent.java lines 15 to 25.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-113",
+      "role": "reference",
+      "locator": "https://jd.papermc.io/velocity/3.4.0/com/velocitypowered/api/event/player/PlayerChatEvent.html lines 121 to 127.",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-114",
+      "role": "reference",
+      "locator": "https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/event/connection/LoginEvent.java, https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/event/player/ServerPostConnectEvent.java, https://raw.githubusercontent.com/PaperMC/Velocity/dev/4.0.0/api/src/main/java/com/velocitypowered/api/proxy/ConnectionRequestBuilder.java, https://jd.papermc.io/velocity/3.4.0/com/velocitypowered/api/event/connection/DisconnectEvent.html",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-115",
+      "role": "reference",
+      "locator": "https://www.sqlite.org/whentouse.html",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-116",
+      "role": "reference",
+      "locator": "https://www.sqlite.org/wal.html",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:45Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/external-observations.md",
+        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+      },
+      "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-201",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/kernel/KernelServices.java:117, :179, :205, :338, :347, :470, :1100",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-202",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/config/modules/ModuleConfigRegistry.java:21, :213, :603 and ModuleConfigService.java:65",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-203",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/teleport/HomeRecord.java:9, SavedLocation.java:10, SafeTeleportService.java:49",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-204",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/events/ChatEventHandler.java:70, :111, :136",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-205",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/vanish/VanishUtil.java:138, :194, :209, :229",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-206",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/vanish/mixin/chat/CommandSourceStackMixin.java:33, EntitySelectorMixin.java:20",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-207",
+      "role": "repository_evidence",
+      "locator": "src/main/java/com/enviouse/sef/ServerEssentialsForge.java:73, gui/protocol/SefNetwork.java:7, inventory/InventoryUtilityCommands.java:19, recovery/ItemStackSnapshotCodec.java:26",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-208",
+      "role": "repository_evidence",
+      "locator": "Target src/main/java/com/enviouse/sef/vanish/VanishCommand.java:38, events/ChatEventHandler.java:34, gradle.properties",
+      "revision": "1e8bab26d9d6ff6b1bf1d5ef41eb8d6c1a51ad98",
+      "observed_at": "2026-09-24T21:39:55Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "repository-map.md",
+        "sha256": "333d555a934c0905f14e53343b0438c813270e0d5f8a3f8e633ea76b39c9f2e6"
+      }
+    },
+    {
+      "id": "SRC-005",
+      "role": "owner_request",
+      "locator": "Approved audit scope, 2026-09-24, recorded in research/sources/audit-owner-request.md",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-owner-request.md",
+        "sha256": "2300476047095d941e7833d5fffbdc8fba4dbcbc44f481e6e88b368af93019ca"
+      }
+    },
+    {
+      "id": "SRC-301",
+      "role": "reference",
+      "locator": "https://docs.coreprotect.net/commands/",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:55Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      },
+      "recheck_after": "2026-09-25T23:49:55Z"
+    },
+    {
+      "id": "SRC-302",
+      "role": "reference",
+      "locator": "https://github.com/PlayPro/CoreProtect/blob/68739a2596929f6b995986b0dc5b09d343956103/src/main/java/net/coreprotect/config/Config.java lines 75 to 110",
+      "revision": "68739a2596929f6b995986b0dc5b09d343956103",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-303",
+      "role": "reference",
+      "locator": "https://docs.coreprotect.net/config/ and https://docs.coreprotect.net/auto-purge/",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:55Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      },
+      "recheck_after": "2026-09-25T23:49:55Z"
+    },
+    {
+      "id": "SRC-304",
+      "role": "reference",
+      "locator": "https://docs.coreprotect.net/api/version/v10/",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:55Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      },
+      "recheck_after": "2026-09-25T23:49:55Z"
+    },
+    {
+      "id": "SRC-305",
+      "role": "reference",
+      "locator": "https://github.com/PlayPro/CoreProtect/blob/68739a2596929f6b995986b0dc5b09d343956103/LICENSE",
+      "revision": "68739a2596929f6b995986b0dc5b09d343956103",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-306",
+      "role": "reference",
+      "locator": "https://github.com/PlayPro/CoreProtect/releases/tag/v24.1",
+      "revision": "v24.1",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-307",
+      "role": "reference",
+      "locator": "https://docs.coreprotect.net/permissions/",
+      "revision": "decision-relevant facts rechecked 2026-09-24",
+      "observed_at": "2026-09-24T23:49:55Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      },
+      "recheck_after": "2026-09-25T23:49:55Z"
+    },
+    {
+      "id": "SRC-308",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/level/BlockEvent.java",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-309",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/items/IItemHandler.java and sibling `ItemStackHandler.java`",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-310",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/player/PlayerEvent.java lines 361 to 470 and sibling `PlayerContainerEvent.java`",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-311",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/CommandEvent.java",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-312",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/living/LivingDamageEvent.java and https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/entity/EntityLeaveLevelEvent.java",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-313",
+      "role": "reference",
+      "locator": "https://github.com/MinecraftForge/MinecraftForge/blob/71d814ffa64fce31b5bf4bebf04915f299a69ae8/src/main/java/net/minecraftforge/event/level/ExplosionEvent.java",
+      "revision": "71d814ffa64fce31b5bf4bebf04915f299a69ae8",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-314",
+      "role": "repository_evidence",
+      "locator": "Reference `src/main/java/com/enviouse/sef/audit/SecurityAuditService.java:248`, `:315`, `:329`",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-315",
+      "role": "repository_evidence",
+      "locator": "Reference `src/main/java/com/enviouse/sef/commandlog/CommandEventJournal.java:61`, `:102`, `:199`; `CommandRedactionPolicy.java:8`; `FileLogSink.java:212`",
+      "revision": "e160a235b19c992b3a23c3a43754e92ad0147948",
+      "observed_at": "2026-09-24T21:54:38Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/audit-observations.md",
+        "sha256": "58b68b423f6afb5da36fee968d096b673e1c9bd9e940c783bdbe49c8c343aa26"
+      }
+    },
+    {
+      "id": "SRC-006",
+      "role": "owner_request",
+      "locator": "Current owner answers and detailed RTP request, 2026-09-24, preserved in sources/expanded-owner-request.md",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:25:02Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-owner-request.md",
+        "sha256": "218abfdba2ed49429e7b2374d7bbfb2501f5e3a0101164c63df1cc95b2d5f544"
+      }
+    },
+    {
+      "id": "SRC-007",
+      "role": "example_output",
+      "locator": "Owner-supplied composite screenshot, owner screenshot 1",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:25:02Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/chat-reference-observations.md",
+        "sha256": "1208e9841c0435bf1abe01f774240e18fcad3a4eb8b37d4a3ae97ab6086b3a21"
+      }
+    },
+    {
+      "id": "SRC-008",
+      "role": "example_output",
+      "locator": "Owner-supplied request screenshot, owner screenshot 2",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:25:02Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/chat-reference-observations.md",
+        "sha256": "1208e9841c0435bf1abe01f774240e18fcad3a4eb8b37d4a3ae97ab6086b3a21"
+      }
+    },
+    {
+      "id": "SRC-117",
+      "role": "audit_evidence",
+      "locator": "sources/network-artifact-integrity.md, observed 2026-09-24T22:22:14Z",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:25:02Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/network-artifact-integrity.md",
+        "sha256": "de91ebe0fbbe0f910a682cedaf31e2d40791de8dedac53f01fbbab3c65515e9e"
+      }
+    },
+    {
+      "id": "SRC-316",
+      "role": "reference",
+      "locator": "[CoreProtect CE24.1 release](https://github.com/PlayPro/CoreProtect/releases/tag/v24.1), tag commit `0af209a0a05135216599113c0b5e2638ad3c704b`; [public release download post](https://www.patreon.com/coreprotect/posts/coreprotect-v24-170398122)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-317",
+      "role": "reference",
+      "locator": "Public attachment `https://www.patreon.com/file?h=170398122&m=750939085`; downloaded reference `CoreProtect-CE-24.1.jar`",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-318",
+      "role": "reference",
+      "locator": "[Pinned command dispatcher](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/command/CommandHandler.java), sibling `ApplyCommand.java`, `GiveCommand.java`, resource `plugin.yml`",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-319",
+      "role": "reference",
+      "locator": "[Pinned configuration](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/config/Config.java)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-320",
+      "role": "reference",
+      "locator": "[Pinned public API](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/src/main/java/net/coreprotect/CoreProtectAPI.java)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-321",
+      "role": "reference",
+      "locator": "[Pinned LICENSE](https://github.com/PlayPro/CoreProtect/blob/0af209a0a05135216599113c0b5e2638ad3c704b/LICENSE)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-322",
+      "role": "reference",
+      "locator": "[Commands](https://docs.coreprotect.net/commands/), [official project feature catalogue](https://modrinth.com/plugin/coreprotect)",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      },
+      "recheck_after": "2026-09-25T22:22:00Z"
+    },
+    {
+      "id": "SRC-323",
+      "role": "reference",
+      "locator": "[MySQL8.4 manual](https://dev.mysql.com/doc/refman/8.4/en/), [MariaDB maintenance policy](https://mariadb.org/about/#maintenance-policy)",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      },
+      "recheck_after": "2026-09-25T22:22:00Z"
+    },
+    {
+      "id": "SRC-324",
+      "role": "reference",
+      "locator": "[Discord rate limits](https://docs.discord.com/developers/topics/rate-limits)",
+      "revision": "observed 2026-09-24",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      },
+      "recheck_after": "2026-09-25T22:22:00Z"
+    },
+    {
+      "id": "SRC-401",
+      "role": "reference",
+      "locator": "Official HuskHomes Fabric4.7 artifact, Modrinth version `cA0nmJeA`, downloaded reference `HuskHomes-Fabric-4.7+mc.1.20.1.jar`",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-402",
+      "role": "reference",
+      "locator": "[HuskHomes4.7 Locales](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/common/src/main/java/net/william278/huskhomes/config/Locales.java)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-403",
+      "role": "reference",
+      "locator": "Same revision, [OnlineUser](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/common/src/main/java/net/william278/huskhomes/user/OnlineUser.java), [FabricUser](https://github.com/WiIIiam278/HuskHomes/blob/6e0e51f4f7c9fd99fcc4f2fd0f6e46615308d2ce/fabric/src/main/java/net/william278/huskhomes/user/FabricUser.java)",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-501",
+      "role": "repository_evidence",
+      "locator": "Reference `src/main/java/com/enviouse/sef/teleport/CoreTeleportCommands.java`, lines370..439, SHA256 `41bc31fe7d9fd325b748838a23f6256d6aaf131ae0c4b7185911e9496296d659`",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-502",
+      "role": "repository_evidence",
+      "locator": "Reference `src/main/java/com/enviouse/sef/teleport/SafeTeleportService.java`, SHA256 `561421f4101de6d9e4df94054c61d950f0218b052e836b09f8d64d071425670c`",
+      "revision": "Pinned source or artifact identity recorded in expanded observations",
+      "observed_at": "2026-09-24T22:22:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/expanded-observations.md",
+        "sha256": "be372043c6d5a1e57897d34029862c83007b2ac09f0051ae344f4de94acd5aae"
+      }
+    },
+    {
+      "id": "SRC-601",
+      "role": "reference",
+      "locator": "[MySQL8.4.11 Linux x86_64 glibc2.28 minimal](https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.11-linux-glibc2.28-x86_64-minimal.tar.xz)",
+      "revision": "MySQL Community 8.4.11 isolated verification server",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-602",
+      "role": "reference",
+      "locator": "[MariaDB11.4.13 Linux systemd x86_64](https://mirror.mariadb.org/mariadb-11.4.13/bintar-linux-systemd-x86_64/mariadb-11.4.13-linux-systemd-x86_64.tar.gz)",
+      "revision": "MariaDB Community 11.4.13 isolated verification server",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-603",
+      "role": "reference",
+      "locator": "[org.mariadb.jdbc:mariadb-java-client:3.5.10](https://repo.maven.apache.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.10/mariadb-java-client-3.5.10.jar)",
+      "revision": "MariaDB Connector/J 3.5.10 for MySQL and MariaDB",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-604",
+      "role": "reference",
+      "locator": "[org.xerial:sqlite-jdbc:3.53.4.0](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.jar)",
+      "revision": "Xerial SQLite JDBC 3.53.4.0 for local authority persistence",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-605",
+      "role": "reference",
+      "locator": "[MySQL8.4.11 LICENSE](https://github.com/mysql/mysql-server/blob/mysql-8.4.11/LICENSE), [MariaDB11.4.13 COPYING](https://github.com/MariaDB/server/blob/mariadb-11.4.13/COPYING)",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-606",
+      "role": "reference",
+      "locator": "[MariaDB JDBC3.5.10 POM](https://repo.maven.apache.org/maven2/org/mariadb/jdbc/mariadb-java-client/3.5.10/mariadb-java-client-3.5.10.pom), [SQLite JDBC3.53.4.0 POM](https://repo.maven.apache.org/maven2/org/xerial/sqlite-jdbc/3.53.4.0/sqlite-jdbc-3.53.4.0.pom), [SQLite JDBC LICENSE](https://github.com/xerial/sqlite-jdbc/blob/3.53.4.0/LICENSE)",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-607",
+      "role": "reference",
+      "locator": "[Oracle July2026 CPU](https://www.oracle.com/security-alerts/cpujul2026.html), MySQL8.4.11 release notes",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-608",
+      "role": "reference",
+      "locator": "MariaDB11.4.13 release notes, Security section",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-609",
+      "role": "reference",
+      "locator": "[Connector security advisories API](https://api.github.com/repos/mariadb-corporation/mariadb-connector-j/security-advisories),3.5.10 release notes",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-610",
+      "role": "reference",
+      "locator": "[SQLite JDBC GHSA-6phf-6h5g-97j2](https://github.com/xerial/sqlite-jdbc/security/advisories/GHSA-6phf-6h5g-97j2), [SQLite3.53.4 release](https://www.sqlite.org/releaselog/3_53_4.html), wrapper3.53.4.0 release",
+      "revision": "Observed 2026-09-24 with exact pinned source versions in snapshot",
+      "observed_at": "2026-09-24T22:37:40Z",
+      "freshness": "mutable",
+      "recheck_after": "2026-09-25T22:37:40Z",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/database-artifacts.md",
+        "sha256": "6f7ab7e9ff28ad27714ab3450b35fdc9019167c71b49d9347f1dd7039c39114f"
+      }
+    },
+    {
+      "id": "SRC-009",
+      "role": "owner_request",
+      "locator": "Current owner addition preserved in sources/lifecycle-messages.md",
+      "revision": "Observed 2026-09-24T23:08:00Z",
+      "observed_at": "2026-09-24T23:08:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/lifecycle-messages.md",
+        "sha256": "f82ebb631f0d1d99156f63bbcc91c16df9c10b3a9d6da41ab61cfc78c8a69ef8"
+      }
+    },
+    {
+      "id": "SRC-503",
+      "role": "repository_evidence",
+      "locator": "Read-only SEFPORTED ConnectionMessageService, MessageService and ReminderService, exact locators and fingerprints in sources/lifecycle-messages.md",
+      "revision": "Observed 2026-09-24T23:08:00Z",
+      "observed_at": "2026-09-24T23:08:00Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/lifecycle-messages.md",
+        "sha256": "f82ebb631f0d1d99156f63bbcc91c16df9c10b3a9d6da41ab61cfc78c8a69ef8"
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "FIND-001",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact and no required SEF client installation.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-002",
+        "SRC-003",
+        "SRC-207"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-001"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-002",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Create a traceable inventory of implemented source command families, configuration, persistence, dependencies and tests. Classify every entry as retained, adapted, economy removal, interface removal, or unimplemented source future scope.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-003",
+        "SRC-201",
+        "SRC-202"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-002"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-003",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Remove economy commands, accounts, balances, payments, worth, sales, signs, command prices, cost reservations, market or monetary trade features, integrations, configuration, storage contracts and dependencies from the delivered product. Do not leave disabled economic surfaces or silently delete preexisting operator data.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-201",
+        "SRC-202"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-003"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-004",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Remove custom screens, HUDs, client rendering, Fancy Tags, enhanced client protocol, UI-only disguise paths, menu interfaces and menu-dependent features, assets, configuration and tests. Retain ordinary textual command output and required vanilla chat, tab and visibility behavior.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-202",
+        "SRC-207"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-004"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-005",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Backport the shared command catalog and execution policy with feature ownership, permissions, target hierarchy, quotas, cooldowns, warmups, confirmation, identity, auditing, conflict diagnostics and bounded command aliases or bundles, without an economy or interface dependency.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-201"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-005"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-006",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Preserve retained backend data through versioned schemas, atomic persistence, explicit supported migration, corruption handling, backup, restoration and bounded shutdown. Do not attempt to downgrade Minecraft 1.21 worlds into 1.20.1.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-203",
+        "SRC-207"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-006"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-007",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Backport implemented retained chat, messaging, nicknames, mail, announcements, moderation support, kits, direct inventory and player utilities, and compatible server-control commands after explicit economy and interface exclusions.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-003"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-007"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-008",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Retain backend-owned homes, warps, spawn, back and teleport safety, with quotas, dimension and border checks, warmup cancellation, permissions and server-owned world operations.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-203"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-008"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-009",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-104",
+        "SRC-106"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-009"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-010",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Prove Forge 1.20.1 handshake and authenticated player identity forwarding through the selected Velocity runtime and pinned compatible external adapters before dependent rollout. No paid service, client installation or production upgrade is implicit.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-101",
+        "SRC-102",
+        "SRC-103",
+        "SRC-107",
+        "SRC-108",
+        "SRC-109",
+        "SRC-110"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-010"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-011",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-111"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-011"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-012",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Use proxy-owned SQLite durable storage with a single writer for network bans, absolute mute expiration, persistent vanish, server-qualified homes and operation state. Deliver ordered synchronization, snapshot resync, restart recovery, backups and defined degraded behavior without sharing the database file or modifying the owner's existing databases.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-115",
+        "SRC-116"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-012"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-013",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Maintain authenticated UUID-based network presence, server locations, connection epochs and permission-aware command routing. Apply consistent source and target authorization to proxy, backend, console and delegated actions.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-102",
+        "SRC-114"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-013"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-014",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Make bans, pardons, kicks, disconnects, mutes and unmutes network-aware, including offline targets and proxy login rejection. Enforce mute at Forge backend chat and supported message-command paths, preserving signed-chat correctness and restart-consistent expiration.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-112",
+        "SRC-113",
+        "SRC-114",
+        "SRC-204"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-014"
+      ],
+      "depends_on": [
+        "FIND-010",
+        "FIND-011",
+        "FIND-012",
+        "FIND-013"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-015",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Persist and synchronize vanish across server switches and restarts, enforce observer permissions, and prevent unauthorized discovery through player visibility, tab, player lists, command resolution and suggestions including tp. Define supported third-party integrations and honest coverage limitations.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-205",
+        "SRC-206"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-015"
+      ],
+      "depends_on": [
+        "FIND-010",
+        "FIND-011",
+        "FIND-012",
+        "FIND-013"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-016",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Store homes per server and route home travel across backends with dimension, coordinates and facing. Define duplicate-name resolution, permissions and destination validation, and a correlated transfer workflow that proves target join before one idempotent destination action with timeout and recovery.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-203",
+        "SRC-114"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-016"
+      ],
+      "depends_on": [
+        "FIND-010",
+        "FIND-011",
+        "FIND-012",
+        "FIND-013",
+        "FIND-018"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-017",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Make retained network player teleport and teleport-request workflows resolve current server and session state safely, respecting vanish, authorization, consent, warmup and cancellation. Backend world actions remain authoritative.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-203",
+        "SRC-205"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-017"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-018",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Support three currently matching Forge modpacks and compatible differing modpack profiles. Validate each approved cross-profile relation, safely refuse incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding a client or launcher project.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-108",
+        "SRC-005"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-018"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-019",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Deliver modular server configuration, safe defaults, typed validation and reload, bounded privacy-preserving diagnostics, correlated proxy/backend operation evidence, troubleshooting and recovery tools suitable for real support.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-201",
+        "SRC-202"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-019"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-020",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Verify normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-004",
+        "SRC-111",
+        "SRC-112",
+        "SRC-114"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-020"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-021",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Deliver exact installation, server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including artifact pairing and protocol mismatch guidance.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-101",
+        "SRC-102"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-021"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-022",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Complete sequential branch integration through required checked PR merge commits, default product branch verification, signed phase tags and paired backend/proxy artifact provenance, without modifying the SEFPORTED reference checkout or publishing a production release implicitly.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-001",
+        "SRC-002",
+        "SRC-004"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-022"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-101",
+      "summary": "Official Velocity documentation identifies Ambassador handshake support and ProxyCompatibleForge modern identity forwarding as distinct prerequisites for Forge 1.20.1. Compatibility of the selected published adapters with Velocity 4.2.0 has not been runtime verified.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-101",
+        "SRC-102",
+        "SRC-107",
+        "SRC-109"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-009",
+        "SEF-REQ-010",
+        "SEF-REQ-018"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-102",
+      "summary": "The reference source HomeRecord and SavedLocation contain local dimension/coordinate identity but no backend server identity. The owner-requested cross-server behavior requires a new qualified location contract.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-203"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-008",
+        "SEF-REQ-016"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-103",
+      "summary": "Economy and interface construction are coupled into the command kernel and module registry. Removing registrations alone would leave excluded policy and configuration surfaces.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-201",
+        "SRC-202",
+        "SRC-207"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-003",
+        "SEF-REQ-004",
+        "SEF-REQ-005"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-023",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Add a comprehensive Forge-native CoreProtect-style activity history module. Define and prove capture for server-observable gameplay, block and block-entity changes, containers and item flows, natural and automated changes, players and entities, interactions, commands and communications, administration and network lifecycle. Maintain an action-level capture matrix, mod adapter contracts, causal attribution and explicit observable coverage gaps without promising invisible mod internals or silently sampling required events. Include accepted authoritative movement changes without silent sampling. Publish the exact fidelity and instrumentation boundary, not a claim of recording every internal simulation state.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-302",
+        "SRC-308",
+        "SRC-309",
+        "SRC-310",
+        "SRC-311",
+        "SRC-312",
+        "SRC-313"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-023"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-024",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Persist audit events with stable backend/world/session identity, commit-time before and after state where applicable, monotonic ordering, actor/cause confidence, durable local journals, deduplicated central ingestion, crash recovery and explicit gap or completeness state. Keep high-volume history isolated from low-volume network authority and preserve accurate offline-backend investigations. Support MySQL and MariaDB for the central audit dataset, with MySQL as the primary target and engine-specific migrations, backup and integration verification.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-303",
+        "SRC-314",
+        "SRC-315",
+        "SRC-115",
+        "SRC-116",
+        "SRC-006"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-024"
+      ],
+      "depends_on": [
+        "FIND-023"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-025",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Provide permission-controlled textual inspection, paginated lookup and export filtered by actor, server, dimension/world, location/radius, time, event kind, item/block/entity, cause and correlation. Support cross-server investigations and offline backend history with explicit pending-ingestion completeness watermarks, query limits and access auditing, without adding client code or menus.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-301",
+        "SRC-304",
+        "SRC-307"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-025"
+      ],
+      "depends_on": [
+        "FIND-023"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-026",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Capture full public/private message text and command arguments with credential redaction before every sink, separately permissioned sensitive reads, configurable normal retention defaulting to manual purge, and availability-first oldest-local-segment rotation under capacity exhaustion. Explicitly report lost intervals and affected completeness watermarks. Provide storage health, backups, controlled purge, capacity planning and documented recovery. Audit administration is itself recorded.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-303",
+        "SRC-307",
+        "SRC-315",
+        "SRC-006"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-026"
+      ],
+      "depends_on": [
+        "FIND-023"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-027",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Prove audit event coverage and state conservation on vanilla and representative modded real paths, including hoppers/machines, fake players, canceled actions, explosions, mixed cause chains, before/after snapshots, duplicate callbacks, crash boundaries, database outage, disk pressure, restart ingestion, heavy queries and owner-approved mutation recovery. Publish measured overhead and exact coverage limitations.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-005",
+        "SRC-306",
+        "SRC-308",
+        "SRC-309",
+        "SRC-310",
+        "SRC-312"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-027"
+      ],
+      "depends_on": [
+        "FIND-023"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-104",
+      "summary": "Reference SecurityAuditService and FileLogSink can drop events on bounded-queue overflow. They are not a lossless persistent activity-history sink.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-314",
+        "SRC-315"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-023",
+        "SEF-REQ-024",
+        "SEF-REQ-026"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-105",
+      "summary": "Forge actor events may occur before a cancellable mutation, item-handler calls can simulate transfers, and container open/close events do not provide complete slot transaction history. Comprehensive applied-state logging needs verified mutation-boundary instrumentation and supported mod adapters.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-308",
+        "SRC-309",
+        "SRC-310",
+        "SRC-311",
+        "SRC-312",
+        "SRC-313"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-023",
+        "SEF-REQ-027"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-106",
+      "summary": "CoreProtect's verified reference API uses Bukkit types and its current pinned license is Artistic License 2.0. The planned Forge-native module uses behavioral references without copying source or claiming to be the official CoreProtect product.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-304",
+        "SRC-305"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-023"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-028",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Implement CoreProtect-style previewed rollback, restore and undo for the declared reversible event types, with precise filters, before-image integrity, permissions, confirmation, live-state and revision conflict checks, bounded server-thread mutation, inventory duplication prevention, durable job progress, cancellation, crash recovery and auditable outcomes. Unsupported opaque state is refused explicitly rather than represented as restored.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-318",
+        "SRC-320",
+        "SRC-322"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-028"
+      ],
+      "depends_on": [
+        "FIND-104",
+        "FIND-105",
+        "FIND-106"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-029",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Produce and satisfy a versioned CoreProtect feature/action/API parity inventory covering capture, inspection, queries, filters, pagination, summaries, rollback, restore, undo, preview, purge, supported extension hooks and operational behavior. Map applicable functions to Forge-native equivalents; document platform-only incompatibilities and technical unknowns without silently dropping feasible mandatory behavior. Additional network and movement investigation capability is included by the owner's existing request.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-316",
+        "SRC-318",
+        "SRC-319",
+        "SRC-320",
+        "SRC-321",
+        "SRC-322"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-029"
+      ],
+      "depends_on": [
+        "FIND-104",
+        "FIND-105",
+        "FIND-106"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-030",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Redesign every retained and new SEF command response using the supplied HuskHomes visual style. Use a shared localized presentation contract for backend and proxy, calm semantic colors, readable labels and values, brackets, check/cross icons, grouped actions, hover explanations, safe click actions and pagination. Prevent untrusted markup/command injection, bind sensitive actions to current authority and target state, confirm destructive actions, and provide readable console and accessibility fallbacks without custom client installation.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-007",
+        "SRC-008",
+        "SRC-401",
+        "SRC-402",
+        "SRC-403"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-030"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-031",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Expose audit capacity and loss incidents to all authorized operators/admins through a restricted command display and optional configured Discord delivery. Warn before exhaustion, distinguish local spool and central SQL failures, deduplicate/rate-limit and recover notifications, preserve credentials, and retain honest incident/gap visibility even when Discord is unavailable. Do not automatically stop the server or erase unrelated data.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-324"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-031"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-032",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Implement persisted per-world hierarchical random-without-replacement grids with configurable world bounds and parent layout. Every parent appears once per completed parent cycle, with no immediate same-parent cycle-boundary repeat. Each parent's independently shuffled subcell cycle survives parent reshuffles. Coordinates remain random within the chosen subcell. The six-parent, 20-by-20 subcell example has 2400 distinct subcells. Persist epochs and selection/reservation state and reject invalid or impossible layouts without silent rule changes. Consume a parent and subcell turn only on confirmed successful landing. Provisional reservations fence concurrent use; confirmed failures release them, while uncertain arrivals remain quarantined until reconciled.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-501",
+        "SRC-502"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-032"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-033",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Enforce configurable minimum landing separation from online players, active destination reservations and recent landings within the same destination world, plus world border, claims, biome/surface/hazard and chunk readiness safety. Use atomic concurrent reservations and final revalidation. Unsatisfiable requests receive a brief bounded queue or explicit unavailable result, never quiet section reuse or distance reduction. Define abort, disconnect, timeout, restart and cycle-boundary behavior and prove no duplication or stale-session teleport.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-501",
+        "SRC-502"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-033"
+      ],
+      "depends_on": [],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-034",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Provide local RTP independent of Velocity and optional proxy RTP that selects an eligible compatible backend before using its destination grid. Authenticate fresh telemetry for MSPT, spikes, capacity, incoming reservations, chunk work and prepared safe-location supply; separate world size from capacity. Reject stale/unready backends, prevent routing oscillation and stampedes, enforce destination-owned reservations and idempotent arrival, and retain ordinary permission, cooldown, warmup, cancellation, audit and recovery rules.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-501",
+        "SRC-502",
+        "SRC-111",
+        "SRC-114"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-034"
+      ],
+      "depends_on": [
+        "FIND-101",
+        "FIND-032",
+        "FIND-033"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-035",
+      "summary": "PROPOSED requirement derived from exact expanded owner scope. Deliver validated RTP configuration, controlled reload/migration of grid identities and bounds, permission-controlled diagnostics and allocation evidence, durable cycle/reservation recovery, bounded preparation and query work, deterministic property tests, real safe-landing and transfer tests, load/failure tests, and operator documentation. Verify both local and proxy mode and that child cycles do not reset with parent cycles.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-006",
+        "SRC-501",
+        "SRC-502"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-035"
+      ],
+      "depends_on": [
+        "FIND-032",
+        "FIND-033",
+        "FIND-034"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-107",
+      "summary": "OBSERVED public CoreProtect CE24.1 exposes inspection, lookup, restore and rollback jobs, preview apply/cancel, recorded-item give, granular permissions and typed Bukkit API. Current documentation includes version25-only engines and paid migration extensions, so parity needs version/platform mapping and original SEF MySQL/MariaDB migration instead of invented public implementation. Audit events are not universally reversible; the proposed fixed-job, fingerprint-checked restoration design explicitly handles item conservation, concurrent edits, crash uncertainty and partial outcomes.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-316",
+        "SRC-317",
+        "SRC-318",
+        "SRC-319",
+        "SRC-320",
+        "SRC-321",
+        "SRC-322"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-023",
+        "SEF-REQ-025",
+        "SEF-REQ-027",
+        "SEF-REQ-028",
+        "SEF-REQ-029"
+      ],
+      "depends_on": [
+        "FIND-104",
+        "FIND-105",
+        "FIND-106"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-108",
+      "summary": "OBSERVED HuskHomes Fabric4.7 is a server-environment reference using vanilla rich components. Its locale demonstrates teal success and checkmarks, red cross actions, gray labels, grouped home operations, hover explanations, pagination, run and suggest click modes. The proposed SEF shared semantic renderer preserves these visual qualities across every command while literalizing untrusted input, binding action tokens to recipient/session/revision and keeping client interfaces excluded.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-401",
+        "SRC-402",
+        "SRC-403",
+        "SRC-007",
+        "SRC-008"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-030"
+      ],
+      "depends_on": [
+        "FIND-030"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-109",
+      "summary": "OBSERVED source RTP is radius-based random sampling with loaded-chunk and safe-teleport checks. It does not implement hierarchical no-repeat bags, persistent recent-landings, prepared supply or proxy routing. The approved extension requires destination-owned serialized durable reservations, successful-arrival consumption, completion-order cycle barriers, independent child persistence, checked integer partitioning, strict distance and safety, bounded queue/work, fresh load telemetry and fail-closed ambiguous recovery.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-501",
+        "SRC-502",
+        "SRC-006"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-032",
+        "SEF-REQ-033",
+        "SEF-REQ-034",
+        "SEF-REQ-035"
+      ],
+      "depends_on": [
+        "FIND-032",
+        "FIND-033",
+        "FIND-034"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-110",
+      "summary": "PROPOSED initial SQL verification families are MySQL8.4 LTS and MariaDB11.4 LTS, with exact pins MySQL8.4.11, MariaDB11.4.13 and MariaDB Connector/J3.5.10 recorded in SRC-601 through SRC-610 before runtime tests. This is not a claim about the owner's installed databases. Test actual dialects, migration, backup, duplicate/deadlock handling, purge and capacity separately. Emergency rotation touches only verified closed SEF local spool segments and leaves authoritative network/RTP state and central SQL history intact. Discord alerts contain operational summaries only and obey response rate limits with bounded local fallback.",
+      "classification": "PROPOSED",
+      "source_ids": [
+        "SRC-323",
+        "SRC-324",
+        "SRC-006"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-024",
+        "SEF-REQ-026",
+        "SEF-REQ-027",
+        "SEF-REQ-031"
+      ],
+      "depends_on": [
+        "FIND-024",
+        "FIND-026",
+        "FIND-031"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-111",
+      "summary": "OBSERVED all four selected database/JDBC artifacts are publicly retrievable and content-hashed. MySQL8.4.11 and MariaDB11.4.13 are isolated test server pins, MariaDB Connector/J3.5.10 supports both engines and Java17/25, and Xerial SQLite JDBC3.53.4.0 embedsSQLite3.53.4. Runtime/classloader/native/TLS/migration/recovery compatibility is not yet verified. Licenses and advisories impose notice, dependency, driver-property, local-file, trust and refreshed-security gates; no production database or credentials were accessed.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-601",
+        "SRC-602",
+        "SRC-603",
+        "SRC-604",
+        "SRC-605",
+        "SRC-606",
+        "SRC-607",
+        "SRC-608",
+        "SRC-609",
+        "SRC-610"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-006",
+        "SEF-REQ-012",
+        "SEF-REQ-024",
+        "SEF-REQ-026",
+        "SEF-REQ-027",
+        "SEF-REQ-028",
+        "SEF-REQ-029",
+        "SEF-REQ-032",
+        "SEF-REQ-035"
+      ],
+      "depends_on": [
+        "FIND-110"
+      ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-112",
+      "summary": "OBSERVED owner requires main-config join, leave, first-time welcome and welcome-back families, variants and {player_name}. Source has local per-player/default join and leave templates plus first-join reminders, but network-scoped durable visit classification, ownership, duplicate suppression and safe configurable variants remain new required behavior. PROPOSED design uses the shared typed rich-chat model, literal placeholders, atomic reload, restricted preview and visibility-aware audience filtering without custom client interfaces.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-009",
+        "SRC-503"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-036",
+        "SEF-REQ-019",
+        "SEF-REQ-030",
+        "SEF-REQ-015"
+      ],
+      "depends_on": [
+        "FIND-108"
+      ],
+      "conflicts_with": []
+    }
+  ]
+}

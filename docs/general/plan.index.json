@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "Server Essentials Forge",
+    "repository": "https://github.com/MCEnvision/Server-Essentials-Forge.git"
+  },
+  "master": "plan.md",
+  "plans": [
+    {
+      "id": "PLAN-MASTER",
+      "path": "plan.md",
+      "kind": "master",
+      "classification": "mandatory",
+      "requirementPrefix": "SEF",
+      "owner": "Server Essentials Forge",
+      "dependsOn": []
+    },
+    {
+      "id": "PLAN-PHASE-000",
+      "path": "phases/plan-phase-000.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE000",
+      "phaseId": "SEF-PHASE-000",
+      "owner": "Compatibility readiness",
+      "dependsOn": [
+        "PLAN-MASTER"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-001",
+      "path": "phases/plan-phase-001.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE001",
+      "phaseId": "SEF-PHASE-001",
+      "owner": "Forge backend",
+      "dependsOn": [
+        "PLAN-PHASE-000"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-002",
+      "path": "phases/plan-phase-002.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE002",
+      "phaseId": "SEF-PHASE-002",
+      "owner": "Command platform",
+      "dependsOn": [
+        "PLAN-PHASE-001"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-003",
+      "path": "phases/plan-phase-003.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE003",
+      "phaseId": "SEF-PHASE-003",
+      "owner": "Forge gameplay",
+      "dependsOn": [
+        "PLAN-PHASE-002"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-004",
+      "path": "phases/plan-phase-004.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE004",
+      "phaseId": "SEF-PHASE-004",
+      "owner": "Network transport",
+      "dependsOn": [
+        "PLAN-PHASE-003"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-005",
+      "path": "phases/plan-phase-005.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE005",
+      "phaseId": "SEF-PHASE-005",
+      "owner": "Proxy authority",
+      "dependsOn": [
+        "PLAN-PHASE-004"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-006",
+      "path": "phases/plan-phase-006.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE006",
+      "phaseId": "SEF-PHASE-006",
+      "owner": "Network enforcement",
+      "dependsOn": [
+        "PLAN-PHASE-005"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-007",
+      "path": "phases/plan-phase-007.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE007",
+      "phaseId": "SEF-PHASE-007",
+      "owner": "Network teleport",
+      "dependsOn": [
+        "PLAN-PHASE-006"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-008",
+      "path": "phases/plan-phase-008.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE008",
+      "phaseId": "SEF-PHASE-008",
+      "owner": "Audit storage",
+      "dependsOn": [
+        "PLAN-PHASE-007"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-009",
+      "path": "phases/plan-phase-009.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE009",
+      "phaseId": "SEF-PHASE-009",
+      "owner": "Forge audit adapters",
+      "dependsOn": [
+        "PLAN-PHASE-008"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-010",
+      "path": "phases/plan-phase-010.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE010",
+      "phaseId": "SEF-PHASE-010",
+      "owner": "Audit investigation",
+      "dependsOn": [
+        "PLAN-PHASE-009"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-011",
+      "path": "phases/plan-phase-011.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE011",
+      "phaseId": "SEF-PHASE-011",
+      "owner": "Backend restoration",
+      "dependsOn": [
+        "PLAN-PHASE-010"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-012",
+      "path": "phases/plan-phase-012.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE012",
+      "phaseId": "SEF-PHASE-012",
+      "owner": "Backend RTP authority",
+      "dependsOn": [
+        "PLAN-PHASE-011"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-013",
+      "path": "phases/plan-phase-013.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE013",
+      "phaseId": "SEF-PHASE-013",
+      "owner": "Forge RTP service",
+      "dependsOn": [
+        "PLAN-PHASE-012"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-014",
+      "path": "phases/plan-phase-014.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE014",
+      "phaseId": "SEF-PHASE-014",
+      "owner": "Network RTP",
+      "dependsOn": [
+        "PLAN-PHASE-013"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-015",
+      "path": "phases/plan-phase-015.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE015",
+      "phaseId": "SEF-PHASE-015",
+      "owner": "Integrated verification",
+      "dependsOn": [
+        "PLAN-PHASE-014"
+      ]
+    },
+    {
+      "id": "PLAN-PHASE-016",
+      "path": "phases/plan-phase-016.md",
+      "kind": "phase",
+      "classification": "mandatory",
+      "requirementPrefix": "PHASE016",
+      "phaseId": "SEF-PHASE-016",
+      "owner": "Delivery integration",
+      "dependsOn": [
+        "PLAN-PHASE-015"
+      ]
+    }
+  ]
+}
