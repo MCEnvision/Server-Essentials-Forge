@@ -47,3 +47,17 @@ The h client command and fresh-control evidence was collected before teardown. B
 | unrelated `/home/container` Velocity PID `3453964` | preserved |
 
 The remaining h evidence is limited to the sanitized tracked packet. The h roots, client instance, exact scratch files, test build directory, server processes, proxy process, test listener, X11 window, and owned playback stream were rechecked absent after cleanup.
+
+## screenshot cleanup after migration
+
+A later cleanup audit found seven disposable h screenshots under the mapped checkout at `/mnt/hermes/projects/Sef/forge-1.20.1/1.1/.test-runs/phase-000`, outside the registered h runtime root. Their fixture names and the h register identified them as outputs from this task. They were not referenced by the retained evidence packet, which preserves the sanitized observations. The seven exact files and now empty `phase-000` scratch directory were removed. The `.test-runs` directory has no remaining children. These image files are not recoverable from Git; reproducing them would require rerunning the disposable client fixture.
+
+| removed file | result |
+| --- | --- |
+| `fixture-20260925-h-client-direct.png` | removed |
+| `fixture-20260925-h-client-disconnect.png` | removed |
+| `fixture-20260925-h-client-serverlist.png` | removed |
+| `fixture-20260925-h-client-serverlist2.png` | removed |
+| `fixture-20260925-h-client-serverlist3.png` | removed |
+| `fixture-20260925-h-client.png` | removed |
+| `fixture-20260925-h-command.png` | removed |

@@ -59,11 +59,15 @@ Backend A recorded the focused client chat at `backend-a/logs/latest.log:135` as
 
 The client submitted `/server backend-b` through the focused game window. Velocity recorded backend B connected, and backend B received the forwarded profile at `backend-b/logs/latest.log:130`, but the Forge connection reset before gameplay admission. Velocity returned `Please reconnect` and disconnected both backend B and backend A. Backend B logged only the disconnect and no gameplay join. The client displayed `Connection Lost` with `Please reconnect`.
 
-The `MODERN_DEFAULT` retry did not change the switch result. A successful A to B gameplay transfer, a B to A transfer, and compatible reconnect behavior remain unverified. No root cause is inferred from this fixture.
+The `MODERN_DEFAULT` retry did not change the switch result. A successful A to B gameplay transfer, a B to A transfer, and compatible reconnect behavior remain unverified. No root cause is inferred from the runtime fixture alone.
 
 ## adapter source correlation
 
-The pinned Ambassador 1.4.5 source explains the observed boundary. Its completed Forge connection phase sends a server redirect only when the client advertises `serverredirect` or `srvredirect:red`; otherwise it disconnects the player with the configured reset message. Its resettable path is enabled only when the client advertises `clientresetpacket`. See the pinned source commit `349ce41f5fba50653d0aec8ebb7d77f68a5d00e1` in `VelocityForgeClientConnectionPhase.java`, lines 126 through 141 and 203 through 208. The isolated client did not advertise either reset mod, so the observed `Please reconnect` result is consistent with the adapter's documented client reset boundary. This is a compatibility diagnosis, not a claim that the required no-client switching gate passes.
+The pinned Ambassador 1.4.5 source explains the observed boundary. Its completed Forge connection phase sends a server redirect only when the client advertises `serverredirect` or `srvredirect:red` and has a virtual host; otherwise it disconnects the player with the configured reset message. Its resettable path is enabled only when the client advertises `clientresetpacket`. See the [pinned source](https://github.com/adde0109/Ambassador/blob/v1.4.5/src/main/java/org/adde0109/ambassador/forge/VelocityForgeClientConnectionPhase.java#L113-L128) and [reset capability check](https://github.com/adde0109/Ambassador/blob/v1.4.5/src/main/java/org/adde0109/ambassador/forge/VelocityForgeClientConnectionPhase.java#L183-L187). The isolated client advertised neither reset capability, so the observed `Please reconnect` result is consistent with the implementation.
+
+The current [`non-api` README](https://github.com/adde0109/Ambassador/blob/non-api/README.md#L207-L218) says similar servers can switch without an extra client mod, while separately describing ServerRedirect and Client Reset Packet for switching. That wording does not establish an A to B and B to A transfer during one session for the exact pinned release and tested client. A manual reconnect remains a new login, not a completed switch under this phase's receipt contract.
+
+This leaves a plan evidence discrepancy involving `SRC-108`, `DEC-007`, and `SEF-AC-010`. The phase prohibits adding a client dependency to make the pinned matrix pass. No reset mod was added to SEF or the fixture, and no acceptance criterion was changed. The discrepancy requires an explicit owner decision and authorized plan maintenance before selecting another client profile or adapter.
 
 ## direct forwarding negative
 
