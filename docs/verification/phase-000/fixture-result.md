@@ -4,12 +4,15 @@
 
 Retry `fixture-20260925-e` reached readiness on both Forge backends and the pinned Velocity proxy with the PCF `MODERN_DEFAULT` forwarding override enabled on both backends. A real Forge client connected through the private proxy, completed the Forge handshake, joined backend A, delivered signed chat, and submitted client input. An explicit `/server backend-b` request reached backend B, but the Forge connection reset during the switch and Velocity returned `Please reconnect`. Backend B did not admit the player to gameplay. Phase 000 remains open at `SEF-AC-010`.
 
+The later `fixture-20260925-g` retry was a bounded reconnect follow up. It reached readiness and admitted the client to backend A, but the client sound engine failed before an owned playback stream existed. The client was stopped at that safety boundary, so this retry did not attempt a switch and does not change the open gate.
+
 ## candidate revalidation
 
 | Candidate | SHA256 | Result |
 | --- | --- | --- |
 | Forge 1.20.1 installer 47.3.12 | `6117bf266bf8395cc216a9f9438c26f15cbede3b9b416857bbf70e07c15840f7` | Match |
 | SEF target `sef-1.20.1-1.1.jar` | `e60e21350a8a9b0db9486c00aa9c76263c30e3dfec387dd777770dd36b070eb3` | Match |
+| SEF target `sef-1.20.1-1.1.jar`, follow up build | `df5b59cfbb2435b60aaaaf55fbb9882ae4dfc03205ae3fc3cdf357e14b7827ad` | Built and launched in `fixture-20260925-g` |
 | Velocity 4.2.0 build 30 | `35a5596a5468a035d8a32c8de5ebb0dc6b8d8f0cc3ff5169d514aca762af8aa8` | Match |
 | Ambassador 1.4.5 | `7c57a649c3948672cbef35a3baa8f73b046ac509ea8ffa6ee3008890d36f2c17` | Match |
 | ProxyCompatibleForge 1.3.1 | `ea541aff6276970d98506965c8e71bd4ad7329452f631b2f45eb08edea425271` | Match |
@@ -74,3 +77,9 @@ The earlier userdev launch stopped during Mixin application on a Java 25 class f
 ## consequence
 
 Phase 000 cannot close `SEF-AC-010`. Production backend and proxy startup, private routing, legitimate login, gameplay admission, signed chat delivery, client input, and direct forwarding rejection are proven. Backend switching fails at the Forge connection reset boundary, B to A and the fresh post-negative legitimate control remain unverified, and no SEF bridge compatibility, shared storage behavior, or production readiness is inferred.
+
+## follow up reconnect retry
+
+The `fixture-20260925-g` backends reached `Done` on Java 17 with Forge 47.3.12 and SEF initialized. The private Velocity proxy loaded Ambassador 1.4.5 and connected the disposable client to backend A. Backend A recorded two ordinary gameplay admissions during the launcher connection and retry at `backend-a/logs/latest.log:191-193` and `197-198`. Backend B recorded no player admission.
+
+The disposable client log recorded `Error starting SoundSystem. Turning off sounds & music` at `minecraft/logs/latest.log:40`, and the exact PipeWire sink input query returned no client stream. The client was stopped before any further command input. Because the exact owned window to playback stream relationship could not be proven, the retry leaves the reconnect behavior unverified rather than treating a disconnected client as evidence of success.

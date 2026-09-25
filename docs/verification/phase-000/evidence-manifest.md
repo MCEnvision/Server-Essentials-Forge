@@ -33,6 +33,6 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-007.md` | `812892a7febcb89f3321cc14021ffc63da7011b9e1ebd69968e4d5e7a850bb15` |
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
-| `fixture-register.md` | `b955d7466e85ae7ad0935b09637ca9a7e9ff7cca622bc3c4caa8229e7976582e` |
-| `fixture-result.md` | `6dd09006908709e49d30e44ad3257759fe29b9e9d8e0de4d2516c000619252fb` |
-| `cleanup-receipt.md` | `74c01ce5938542a99bb3d1350ec75471efc36f1d05e940069655d9d7510260a8` |
+| `fixture-register.md` | `984dde96d9b8fb3ffdef5fd240b9f10f3b15e9070601ad5c14a2d6bac8ab22cb` |
+| `fixture-result.md` | `69f6a30adb0891bc57da451477163d5c2c378aeb501adae8a968101e4a0f15aa` |
+| `cleanup-receipt.md` | `ba26b67eb575f46e15727b97b3c1db46db7d76d083cd0c952426e905f7c3f7ab` |
