@@ -61,3 +61,21 @@ A later cleanup audit found seven disposable h screenshots under the mapped chec
 | `fixture-20260925-h-client-serverlist3.png` | removed |
 | `fixture-20260925-h-client.png` | removed |
 | `fixture-20260925-h-command.png` | removed |
+
+## fixture k headless cleanup status
+
+The headless portion of `fixture-20260925-k` is stopped and its temporary build and installer outputs are removed. Its isolated runtimes and pinned candidate files remain registered for the pending laptop-client gate, so the fixture root is not yet a completed final cleanup.
+
+| resource | result |
+| --- | --- |
+| Forge backend A PID `4069048` | exited after world save; process absent |
+| Forge backend B PID `4070004` | exited after world save; process absent |
+| Velocity fixture session | stopped cleanly; its test listener closed |
+| ports `26555` through `26557` | closed after fixture shutdown |
+| checkout `build` output | removed after the final JAR consumer; absent |
+| completed Forge installer logs | removed after their final consumer; absent |
+| `fixture-20260925-k` runtime and candidate tree | retained for the registered client gate; not a cleanup target yet |
+| isolated `fixture-20260925-k` laptop instance | not created or launched |
+| task-owned client, playback stream, and audio watcher | none running or created for this retry |
+
+The isolated client gate remains pending. No client should be launched until the separate silent-client preflight can be verified.

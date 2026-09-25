@@ -1,7 +1,7 @@
 # phase 000 evidence manifest
 
 This manifest records the bounded source evidence from `P000-TASK-001` and the candidate and fixture receipts from `P000-TASK-002` and `P000-TASK-003`.
-The fixture result records backend and proxy readiness, private routing, a legitimate login, signed chat and command input in bounded runs, the direct forwarding negative, and a later fresh legitimate control with a real SEF `/msg` dispatch. The adapter disconnected the client during both switch directions without its optional reset feature; later manual reconnects reached both backends but do not prove completed switches. The runs lack a single correlation UUID across the required positive and negative sequence, so `SEF-AC-010` remains open. No database behavior, administrative message-forgery rejection, or production compatibility is claimed.
+The fixture result records backend and proxy readiness, private routing, a legitimate login, signed chat and command input in bounded runs, the direct forwarding negative, and a later fresh legitimate control with a real SEF `/msg` dispatch. The adapter disconnected the client during both switch directions without its optional reset feature; later manual reconnects reached both backends but do not prove completed switches. The `fixture-20260925-k` retry adds headless startup proof only. No client connected in that retry, so forwarded identity, signed chat, client command arguments, and actual transfer remain unproven. The runs lack a single correlation UUID across the required positive and negative sequence, so `SEF-AC-010` remains open. No database behavior, administrative message-forgery rejection, or production compatibility is claimed.
 
 ## identity and immutability
 
@@ -13,6 +13,10 @@ The fixture result records backend and proxy readiness, private routing, a legit
 | h target jar sha256 | `643cdd0933f7590c69344f2752c0fba6cebb16a93285edef4c83d45ad6bc7f0f` |
 | h PCF configuration sha256, both backends | `7ad8bae9f491085770e4dae588c3873ebc90a9122913a0e8223dfd20bab311af` |
 | h non-secret Velocity configuration sha256 | `67b35eb6ac3be7156a2d7636a68e18e03b2cf3efddaf12a4508eccd16cf2c2b1` |
+| k target source commit | `e59d90c95375936349222ef7667510d029c628e4` |
+| k target jar sha256 | `90ff6e7f3c7ad243b119f320ac280eee64888bff5c076c50f28832e955be07ec` |
+| k PCF configuration sha256, both backends | `34db947fd58ff341a84f7208fe722f08cddbf912c1934106905db63b96975aba` |
+| k non-secret Velocity configuration sha256 | `883975f4671fe62231056052a79f33efa20062fec05eadfdc9d0417edc0593c0` |
 | action rows | 738 |
 | configuration modules | 62 |
 | registered plan files | 18 |
@@ -21,11 +25,13 @@ The fixture result records backend and proxy readiness, private routing, a legit
 
 The validator confirmed all registered plan paths exist, every action and module row has an allowed disposition, GUI descriptor rows are excluded, and the immutable goal and cursor hashes are unchanged.
 
+`P000-TASK-001` remains complete. The `k` Forge and Velocity processes have stopped and their assigned ports are closed. The registered runtime and candidate tree remain only for the pending laptop-client gate. No task client was launched in the `k` retry. `SEF-AC-010` and the phase exit remain open.
+
 ## packet file hashes
 
 | file | sha256 |
 | --- | --- |
-| `README.md` | `944bb76b7fc4312f5a92878e6e2d843315a075444e45e7b540c404b0528ec761` |
+| `README.md` | `2b5023d948bccd1bd05493f1ad7bfce24e4d283f8c2915b96477566164432ea6` |
 | `source-boundary.md` | `4f2bb12397919fe2b9cee33678dcd4247e8433625fdae7da58c255e469534f99` |
 | `action-inventory.md` | `17824445d8834c4c81b3970c1fe8f27329b0b048106874b3bd2207d06c809c84` |
 | `action-inventory-001.md` | `cc1f381d74c3029b8261fce351fc812ea1466764080dd8646b0903da07d8b203` |
@@ -37,6 +43,6 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-007.md` | `812892a7febcb89f3321cc14021ffc63da7011b9e1ebd69968e4d5e7a850bb15` |
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
-| `fixture-register.md` | `885f116943c9194bad14ac8a59b30cd6b9c10dbc7b41f3f03f7eeac6eea4ac2f` |
-| `fixture-result.md` | `97a6ef3ade39899045c136295ea926ac62a1b1e59a5bfd0d93c8d15c6ff73216` |
-| `cleanup-receipt.md` | `5fdd96b593bb449df959bbd15804ff4af0fde4ff3b26c7a5a54b113e39fdef32` |
+| `fixture-register.md` | `78bef0201f74f60d2bae558d05a8bbc785ac8633db7a010d8be9274dc3b0fbd7` |
+| `fixture-result.md` | `62ad4a2502abea70c31cb83ed50f4bf16b002a7cc547d2091819cec14aa531db` |
+| `cleanup-receipt.md` | `42c65caecf409aa17d2b6bc86372076b4030f89002c7349cb0e9795a6d6a1abf` |
