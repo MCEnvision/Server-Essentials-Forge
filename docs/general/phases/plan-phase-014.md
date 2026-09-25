@@ -26,7 +26,7 @@ This phase delivers optional proxy-first RTP routing, configuration generation m
 
 ### Included Scope
 
-- SEF-REQ-034 and SEF-AC-034. Optional proxy mode filters compatible ready destinations before grid use, authenticates and evaluates fresh load, serializes admission, reserves destination and backend capacity before transfer, and accepts only destination arrival receipts as success.
+- SEF-REQ-034 and SEF-AC-034. Optional proxy mode filters compatible ready destinations and the observed client reset capability before grid use, authenticates and evaluates fresh load, serializes admission, reserves destination and backend capacity before transfer, and accepts only destination arrival receipts as success. Local mode requires no external client adapter.
 - SEF-REQ-035 and SEF-AC-035. Validated RTP configuration in existing Forge main configuration, immutable generations and explicit migration, real SQLite recovery, bounded queue and work controls, diagnostics and operational presentation, both-mode documentation, and specified local and proxy acceptance fixtures.
 - The proxy companion receives only its typed routing adapter and companion configuration. Local mode remains backend operation and never falls back to proxy mode.
 
@@ -43,7 +43,7 @@ This phase delivers optional proxy-first RTP routing, configuration generation m
 
 **Objective:** Deliver a backend-first optional proxy RTP admission service that uses fresh authenticated telemetry, holds both required reservations before switching, preserves generation and recovery truth, and proves three-backend arrivals without compromising local mode.
 **Owner:** Network RTP
-**Dependencies:** SEF-PHASE-013, EXT-003, EXT-004, EXT-005, EXT-009  
+**Dependencies:** SEF-PHASE-013, EXT-003, EXT-004, EXT-005, EXT-009, EXT-010
 **Supporting contract and risk dependencies:** SEF-IF-001, SEF-IF-002, SEF-IF-003, SEF-IF-004, SEF-IF-005, SEF-IF-008, SEF-IF-009, SEF-IF-012, SEF-IF-013  
 **Canonical requirements:** SEF-REQ-034, SEF-REQ-035  
 **Documentation and release impact:** Update the root README, docs/README.md, DOCUMENTATION.md, and implemented RTP, configuration, operations, migration, diagnostics, and verification topics during implementation. Describe actual behavior only. No release, production rollout, or publication is in scope.
@@ -53,7 +53,7 @@ This phase delivers optional proxy-first RTP routing, configuration generation m
 
 - Phase 013 is merged through checked merge commits into every applicable selected product branch, its resulting branch verification and signed tag are present, and current phase branches start from those verified bases.
 - Phase 012 allocation and Phase 013 safety contracts are at registry/schema version 1, including durable receipts, confirmed non-arrival proof, quarantine, immutable generations, strict recent-ledger behavior, and final destination revalidation.
-- Pinned Velocity 4.2.0 build 30, Ambassador 1.4.5, ProxyCompatibleForge 1.3.1, Forge 47.3.12, Java 25 proxy, Java 17 backend, common/protocol digest, license notices, current advisories, and profile relations are refreshed before runtime work.
+- Pinned Velocity 4.2.0 build 30, Ambassador 1.4.5, ProxyCompatibleForge 1.3.1, client reset file 4657349, Forge 47.3.12, Java 25 proxy, Java 17 backend, common/protocol digest, license notices, current advisories, and profile relations are refreshed before runtime work.
 - An isolated private one-proxy three-Forge-backend fixture and exact nested host anchors exist. A gate remains open when private endpoint, laptop control, discrete renderer, or per-application silence cannot be verified.
 
 **Implementation scope**
@@ -101,7 +101,7 @@ This phase delivers optional proxy-first RTP routing, configuration generation m
 | Identity/session/world/location | SEF-IF-001 | Session epoch, backend boot, world generation, registry digest, and finite location immutable per operation. | Compare lease/reservation/authorization/receipt fields exactly. | Refuse or quarantine stale/world mismatch. |
 | Config/diagnostic control | SEF-IF-002 | Atomic expected-generation swap and default-off capture. | Validate schema and diagnostic self-test before fixtures. | Retain last-good config. |
 | Policy/presentation | SEF-IF-003 and SEF-IF-004 | Policy rechecks and native Forge/Velocity rendering. | Exercise player/console/revocation/literal paths. | Deny safely without location disclosure. |
-| Bridge/compatibility | SEF-IF-005 and SEF-IF-006 | Registered mTLS peer, epoch/sequence, bounded type, fresh profile relation. | Reject bad peer, boot, sequence, auth, size, profile. | Typed refusal before routing. |
+| Bridge/compatibility | SEF-IF-005 and SEF-IF-006 | Registered mTLS peer, epoch/sequence, bounded type, observed client reset capability and fresh profile relation. | Reject bad peer, boot, sequence, auth, size, missing capability or incompatible profile. | Typed refusal before grid or capacity reservation. |
 | Transfer/arrival | SEF-IF-008 | Destination owns final authorization and receipt. | Match operation/session/world/location receipt. | Confirmed failure releases, ambiguity quarantines. |
 | Allocation/safety | SEF-IF-012 and SEF-IF-013 | Generation-fenced reservation and final strict safety backend-owned. | Reserve before switch and final validate after join. | No transfer/consume/release without proof. |
 | Audit linkage | SEF-IF-009 | Terminal routing event independent of debug capture. | Correlate outcome/reason/generation. | Report central degradation without route invention. |
@@ -143,6 +143,7 @@ Admission transitions are HELD, ARRIVAL_AUTHORIZED, COMMITTED, RELEASED, and UNC
 | p95 over 50 or capacity full | p95, players, incoming, capacity | Refuse regardless of the canonical meanMspt score/hysteresis. | Fresh eligible sample only. | P014-TASK-001 saturation cases. |
 | Concurrent selection | Serialized sequence/incoming transition | Update incoming before next rank. | Confirmed release only, uncertainty retained. | P014-TASK-001 burst plus P014-TASK-003 real fixture. |
 | Grid reservation failure | Lease/grid correlation | Player stays source and confirmed unused lease releases. | Unavailable or fresh full rank. | P014-TASK-003 exhausted grid fixture. |
+| Missing reset capability or changed client profile | `admit` capability/profile decision before route and independent source session/world receipt | Refuse without grid turn, lease or backend switch; keep local RTP available. | Use a qualified client profile or local mode, then retry normally. | Headless admission fixture plus real silent client refusal and unchanged-source evidence. |
 | Crash after first reservation, switch, authorization, landing, receipt, or lease finalization | Missing receipt/restart/session/persisted paired state | Both resources UNCERTAIN, never timeout release/failover. | Reconcile durable proxy lease, backend reservation, receipt, session, and destination. | P014-TASK-003 crash-cut fixture. |
 | Invalid reload/ordinary reload | Validation or expected-generation conflict | Keep last-good. No reset, eviction, or relaxation. | Correct config or explicit migration. | P014-TASK-002 SQLite suite. |
 | Bounds/topology migration | Preview shows actor/config digest/old generation/reservations/reset | Confirm after proven drain, retain active-quarantine exclusions and full same-world recent history. | Reconcile old state. | P014-TASK-002 migration/restart. |

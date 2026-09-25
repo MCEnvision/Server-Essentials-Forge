@@ -98,7 +98,7 @@ This phase delivers the server owned, previewed rollback, restore, and undo oper
 |---|---|---|---|---|
 | SEF-IF-011 RestoreJob and RestoreStep ledger | Phase 015 assurance | Version 1 signatures, durable local job authority, fixed selection, causal steps, exact counts, uncertainty state | Reject unknown schema or mandatory field rather than coercion | Contract, local backup and persistence, and dual engine recovery tests. |
 | Restoration audit outcome | SEF-IF-009 and operators | New auditable operation references actor, parent job, selected events, outcome, no secret payload disclosure | Audit capture remains unsampled and separate from debug capture | Query and permission fixture. |
-| Native preview and confirmation result | SEF-IF-004 and operators | Recipient and session bound private preview, literal values, bounded action expiry | Existing presentation contract only, no client installation | Server receipt plus limited laptop native presentation gate. |
+| Native preview and confirmation result | SEF-IF-004 and operators | Recipient and session bound private preview, literal values, bounded action expiry | Existing presentation contract only, no SEF client installation for preview | Server receipt plus limited laptop native presentation gate. |
 | Quarantine and support record | Phase 015 and operations | Uncertain steps cannot be force applied; recovery reason and safe next action are durable | Reconciliation only under the same pinned candidate and world identity | Restart cut tests and sanitized support packet. |
 
 ## Work Packages

@@ -4,7 +4,7 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "05bd7cd08ef12f9face0c1d21f9f172d0653b07837a5589178a7ae11e64cc510"
+      "sha256": "0fd710b49d75ef470b26198d31b067a0a5d3fc1383a83dff9f7ad432e2ae1ac0"
     },
     "repository_map": {
       "path": "repository-map.md",
@@ -12,7 +12,7 @@
     },
     "intake": {
       "path": "intake.json",
-      "sha256": "e114f723f36fb24de0e4a8b7306f808f02442a33b1608d204e0f6e867a3b0f9b"
+      "sha256": "af0ed9943729443a5f3670f740b82c6de04c8a753b434d9b26327b3edf8b539d"
     }
   },
   "sources": [
@@ -92,7 +92,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -106,7 +106,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -120,7 +120,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -134,7 +134,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -148,7 +148,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -162,7 +162,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -176,7 +176,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -190,9 +190,49 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
+    },
+    {
+      "id": "SRC-010",
+      "role": "owner_request",
+      "locator": "Approved compatibility clarification in research/sources/client-reset-amendment.md, observed 2026-09-25",
+      "revision": "observed 2026-09-25",
+      "observed_at": "2026-09-25T18:57:20Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/client-reset-amendment.md",
+        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+      }
+    },
+    {
+      "id": "SRC-118",
+      "role": "reference",
+      "locator": "https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349",
+      "revision": "file 4657349 and inspected ForgeClientResetPacket-0.3.0.jar",
+      "observed_at": "2026-09-25T18:57:20Z",
+      "freshness": "mutable",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/client-reset-amendment.md",
+        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+      },
+      "recheck_after": "2026-09-26T18:57:20Z"
+    },
+    {
+      "id": "SRC-119",
+      "role": "reference",
+      "locator": "https://github.com/adde0109/Ambassador/blob/v1.4.5/src/main/java/org/adde0109/ambassador/forge/VelocityForgeClientConnectionPhase.java",
+      "revision": "v1.4.5 at 349ce41f5fba50653d0aec8ebb7d77f68a5d00e1",
+      "observed_at": "2026-09-25T18:57:20Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/client-reset-amendment.md",
+        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+      }
     },
     {
       "id": "SRC-109",
@@ -204,7 +244,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -218,7 +258,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -232,7 +272,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -246,7 +286,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -260,7 +300,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -274,7 +314,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -288,7 +328,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -302,7 +342,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/external-observations.md",
-        "sha256": "69bdf9a7ff3d3990ee0989c2e13f6b2955f1b7169ac660a7179d8f6083c143e9"
+        "sha256": "79ca6a2e93dd3c08711eeb55ce51749d8ac9d34b8741e1341b12a263656253e9"
       },
       "recheck_after": "2026-09-25T23:49:45Z"
     },
@@ -664,14 +704,14 @@
     {
       "id": "SRC-117",
       "role": "audit_evidence",
-      "locator": "sources/network-artifact-integrity.md, observed 2026-09-24T22:22:14Z",
-      "revision": "observed 2026-09-24",
-      "observed_at": "2026-09-24T22:25:02Z",
+      "locator": "sources/network-artifact-integrity.md, observed 2026-09-24 and 2026-09-25",
+      "revision": "observed 2026-09-24 and 2026-09-25",
+      "observed_at": "2026-09-25T18:57:20Z",
       "freshness": "pinned",
       "repository_files": [],
       "snapshot": {
         "path": "sources/network-artifact-integrity.md",
-        "sha256": "de91ebe0fbbe0f910a682cedaf31e2d40791de8dedac53f01fbbab3c65515e9e"
+        "sha256": "20b24e4af68e1b0d9898e0a4833eec13d09f3c701c24b46b195f895ac883ffe3"
       }
     },
     {
@@ -1159,7 +1199,7 @@
     },
     {
       "id": "FIND-010",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Prove Forge 1.20.1 handshake and authenticated player identity forwarding through the selected Velocity runtime and pinned compatible external adapters before dependent rollout. No paid service, client installation or production upgrade is implicit.",
+      "summary": "PROPOSED requirement derived from approved owner scope. Prove Forge 1.20.1 handshake, authenticated forwarding, signed chat, command arguments and two-way in-session switching through pinned Ambassador, PCF and the owner-linked external client reset JAR. No SEF client module or production upgrade is implicit.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
@@ -1169,7 +1209,10 @@
         "SRC-107",
         "SRC-108",
         "SRC-109",
-        "SRC-110"
+        "SRC-110",
+        "SRC-010",
+        "SRC-118",
+        "SRC-119"
       ],
       "requirement_ids": [
         "SEF-REQ-010"
@@ -1301,12 +1344,15 @@
     },
     {
       "id": "FIND-018",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Support three currently matching Forge modpacks and compatible differing modpack profiles. Validate each approved cross-profile relation, safely refuse incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding a client or launcher project.",
+      "summary": "PROPOSED requirement derived from owner scope. Support matching and directed compatible differing Forge profiles with an externally reset-capable running client. Refuse missing observed reset capability and incompatible or unknown relations before movement, preserve source state and explain the client action without adding SEF client code.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
         "SRC-108",
-        "SRC-005"
+        "SRC-005",
+        "SRC-010",
+        "SRC-118",
+        "SRC-119"
       ],
       "requirement_ids": [
         "SEF-REQ-018"
@@ -1378,13 +1424,16 @@
     },
     {
       "id": "FIND-101",
-      "summary": "Official Velocity documentation identifies Ambassador handshake support and ProxyCompatibleForge modern identity forwarding as distinct prerequisites for Forge 1.20.1. Compatibility of the selected published adapters with Velocity 4.2.0 has not been runtime verified.",
+      "summary": "Official sources distinguish Ambassador's Forge handshake, PCF's modern forwarding and the reset-capable client path. The pinned Ambassador source selects clientresetpacket capability for resettable switching and can request reconnect without it. The owner-linked client artifact is pinned, but combined in-session compatibility with Velocity 4.2.0 and the selected pack remains unverified.",
       "classification": "OBSERVED",
       "source_ids": [
         "SRC-101",
         "SRC-102",
         "SRC-107",
-        "SRC-109"
+        "SRC-108",
+        "SRC-109",
+        "SRC-118",
+        "SRC-119"
       ],
       "requirement_ids": [
         "SEF-REQ-009",

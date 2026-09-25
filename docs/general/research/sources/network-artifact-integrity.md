@@ -31,3 +31,17 @@ SHA-256: `ea541aff6276970d98506965c8e71bd4ad7329452f631b2f45eb08edea425271`.
 SHA-512: `dba5b70fedcb0f5fdc014801ab43e6d048f24b531de8aea5b70ea223760b66ae9fba3033c2ccd9d78793b9ea2f9d3b47ae1f4caa95aa129d989f97e63636b4ab`.
 
 Upstream LGPL-2.1-or-later default with imported-code exceptions; preserve the exact distributed license inventory.
+
+## EXT-010. Forge Client Reset Packet Forward file 4657349
+
+Source: https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349
+
+Retrieved artifact: https://edge.forgecdn.net/files/4657/349/ForgeClientResetPacket-0.3.0.jar
+
+Observed 2026-09-25T18:57:20Z on node-1. The 12,847-byte JAR was downloaded for hash and archive inspection without execution. It declares `clientresetpacket` with embedded version `0.0.6`, while the CurseForge release file is labeled `0.3.0`. Its project page lists Forge 1.20 and 1.20.1 and marks the project client-only. It was not installed on a backend or bundled into SEF. The temporary downloaded JAR must be removed after the maintenance audit.
+
+SHA-256: `12afe21a807f540566f77c53bd721217be383b60fbede3cc1928ba2e091cbf33`.
+
+SHA-512: `608b04c45a2b98217f8a8800f69e1768d396b5957c46beff1ecbedae0ec7669771c637ad79fa637ed0090a355f96ecc213d3a57ee90b8e69dbe4c74b5260bbc9`.
+
+The CurseForge project page declares MIT, while the JAR metadata links to the original project's license. Verify exact notices and current advisories before operator distribution. Hashes and metadata do not prove successful in-session switching or compatibility with a particular modpack.

@@ -12,13 +12,13 @@ The proxy owns network identity, command routing, login bans, disconnections and
 
 Homes identify owner, backend, world generation, dimension, coordinates, rotation and revision. Transfer success requires the intended destination session to arrive and acknowledge its safe world action. Retries, timeouts and reconnects must not move the wrong session or report false success.
 
-The owner approved compatible differing modpacks with validated transfer relations. Unknown or incompatible destinations must be refused before moving the player, with an explanation. Arbitrary client pack changes remain outside this server-only project.
+The owner approved compatible differing modpacks with validated transfer relations. The approved Forge 1.20.1 proxy profile may use the separately installed external Forge Client Reset Packet Forward file 4657349 in the client, Ambassador on the proxy and ProxyCompatibleForge on backends. SEF remains server-only. Missing reset capability, unknown or incompatible destinations must be refused before moving the player, with an explanation. The reset packet does not install arbitrary missing pack content.
 
 The owner additionally requires comprehensive CoreProtect-style history and investigation. This is an original Forge-native module, not a Bukkit plugin dependency. Capture server-observable actions and actual changes, including natural and machine changes, item flows, entities, accepted movement, commands, communications, moderation and network events. Distinguish attempts from outcomes and direct attribution from inferred or unknown causes. Required coverage must not be silently sampled or disabled.
 
 ## Architecture recommendations and limits
 
-Official Velocity documentation identifies Ambassador handshake support and ProxyCompatibleForge identity forwarding as separate Forge 1.20.1 dependencies. Compatibility of selected versions with the actual proxy is an early real-runtime gate, not a proven fact.
+Official Velocity documentation identifies Ambassador handshake support and ProxyCompatibleForge identity forwarding as separate Forge 1.20.1 roles. The pinned Ambassador source's in-session reset path requires the advertised `clientresetpacket` capability. Compatibility of the exact proxy, backend and client artifacts with the selected modpack is an early real-runtime gate, not a proven fact.
 
 Use a typed authenticated direct bridge that works with empty backends. Bind every node, actor and session; reject forged, replayed, stale or oversized messages. Keep forwarding and administrative credentials separate. No arbitrary console relay.
 
@@ -40,7 +40,7 @@ The main configuration must also edit separate join, leave, first-time welcome a
 
 ## Research Question Map
 
-- Network feasibility and isolation. SEF-REQ-009 through SEF-REQ-018, FIND-101. Exact downloaded artifact identities are bound; the combined Forge/proxy handshake and switching behavior still needs the early real-runtime gate.
+- Network feasibility and isolation. SEF-REQ-009 through SEF-REQ-018, FIND-101. Exact downloaded proxy, backend and client artifact identities are bound; the combined Forge/proxy handshake and continuous-session switching behavior still needs the early real-runtime gate. Missing client reset capability has a separate pre-move refusal gate in Phase 005.
 - Audit capture versus intent. SEF-REQ-023 through SEF-REQ-029, FIND-104 through FIND-106. Existing dropping queues are insufficient, and cancellable callbacks alone do not prove applied state. Original Forge capture and conservative restoration need real conservation and recovery proof.
 - Rich text across two platforms. SEF-REQ-030, SRC-007 and SRC-008. Downloaded HuskHomes Fabric resources and screenshots establish the visual reference. Focused research reconciles safe native component rendering without adding client code.
 - RTP fairness, concurrency and capacity. SEF-REQ-032 through SEF-REQ-035, DEC-015 through DEC-017. Successful landing is the consumption boundary. Focused research defines persistence, reservations, strict failure and destination-owned safety before the master freezes shared contracts.

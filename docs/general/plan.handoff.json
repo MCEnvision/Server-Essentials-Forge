@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "99a38c9d026831c5692adb2d01aeea1b8e9cd0d3945a5a72cd79a339d221cd92",
+  "planSetSha256": "0e4414a251be70a8f70b51301e1afc25a1165517e87493622b71010ba9814d41",
   "planningSubject": {
     "name": "SEF Forge 1.20.1 server-only backport, Velocity companion, comprehensive audit and hierarchical RTP",
     "requestedArtifact": "authoritative_plan",
@@ -71,6 +71,13 @@
         "use": "Mandatory lifecycle-message configuration and shared presentation behavior"
       },
       {
+        "id": "SRC-010",
+        "role": "owner_request",
+        "subject": "Approves Ambassador, ProxyCompatibleForge and the linked Forge 1.20.1 client reset file for the network compatibility matrix. This permits an external client compatibility mod, not SEF client code or arbitrary pack replacement.",
+        "source": "Approved compatibility clarification in research/sources/client-reset-amendment.md, observed 2026-09-25",
+        "use": "Resolve DEC-007 and the early transfer fixture without changing the server-only SEF artifact boundary."
+      },
+      {
         "id": "SRC-101",
         "role": "reference",
         "subject": "Native Forge handshake compatibility excludes target 1.20.1. Ambassador is documented alternative.",
@@ -122,7 +129,7 @@
       {
         "id": "SRC-108",
         "role": "reference",
-        "subject": "Project declares LGPL-2.1-or-later. Matching modpack switching without additional client mods is documented. Optional client reset mod is outside owner scope. Do not use stale main README, which describes an obsolete alpha architecture.",
+        "subject": "Project declares LGPL-2.1-or-later and documents matching-pack switching without an added client mod in some configurations. This is not proof that the pinned runtime can complete an in-session switch; the approved client reset adapter is now in scope. Do not use stale main README, which describes an obsolete alpha architecture.",
         "source": "https://modrinth.com/plugin/ambassador and https://github.com/adde0109/Ambassador/blob/non-api/README.md",
         "use": "Support the referenced backport, compatibility, removal or network design finding. Source text is evidence, not authority."
       },
@@ -185,9 +192,23 @@
       {
         "id": "SRC-117",
         "role": "audit_evidence",
-        "subject": "Direct hash verification of publicly available network reference artifacts",
-        "source": "sources/network-artifact-integrity.md, observed 2026-09-24T22:22:14Z",
+        "subject": "Direct hash verification of publicly available network reference artifacts, including the owner-linked 1.20.1 client reset JAR",
+        "source": "sources/network-artifact-integrity.md, observed 2026-09-24 and 2026-09-25",
         "use": "Bind candidate artifact prerequisites to exact downloadable bytes. This proves availability and integrity, not runtime compatibility."
+      },
+      {
+        "id": "SRC-118",
+        "role": "reference",
+        "subject": "CurseForge file 4657349 is ForgeClientResetPacket-0.3.0.jar for Forge 1.20 and 1.20.1, client-only, with project MIT metadata. Its archive declares mod ID clientresetpacket and internal version 0.0.6. A later 0.3.1 file exists but is not this owner-linked candidate.",
+        "source": "https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349 and research/sources/client-reset-amendment.md",
+        "use": "Pin exact candidate identity; metadata and a valid archive do not prove compatibility with the selected pack."
+      },
+      {
+        "id": "SRC-119",
+        "role": "reference",
+        "subject": "Ambassador 1.4.5 selects reset-capable switching only for the advertised clientresetpacket mod ID; without reset or redirect capability its pinned source may disconnect with a reconnect instruction.",
+        "source": "https://github.com/adde0109/Ambassador/blob/v1.4.5/src/main/java/org/adde0109/ambassador/forge/VelocityForgeClientConnectionPhase.java and research/sources/client-reset-amendment.md",
+        "use": "Require real round-trip proof and early SEF admission refusal when reset capability is absent."
       },
       {
         "id": "SRC-201",
@@ -554,14 +575,14 @@
       "status": "covered",
       "source": "DEC-007",
       "plan_section": "Supported network profiles",
-      "rationale": "The owner approved compatibility-validated transfers and safe refusal of incompatible or unknown profiles without a client or launcher project."
+      "rationale": "The owner approved compatibility-validated transfers using the pinned external reset-capable client profile, with early safe refusal of missing capability and incompatible or unknown relations. No SEF client or launcher project is added."
     },
     {
       "area": "inputs and outputs",
       "status": "covered",
       "source": "DEC-007",
       "plan_section": "Product behavior and command ownership",
-      "rationale": "The owner approved compatibility-validated transfers and safe refusal of incompatible or unknown profiles without a client or launcher project. All command output follows the supplied rich-chat reference, and RTP exposes local/proxy modes without custom client interfaces."
+      "rationale": "The owner approved a pinned external client reset adapter for in-session Forge proxy switching, while SEF remains server-only. Missing capability and incompatible or unknown profiles refuse before movement. All command output follows the supplied rich-chat reference, and RTP exposes local/proxy modes without custom client interfaces."
     },
     {
       "area": "release lifecycle",
@@ -738,7 +759,7 @@
     },
     {
       "id": "SEF-REQ-010",
-      "summary": "Prove Forge 1.20.1 handshake and authenticated player identity forwarding through the selected Velocity runtime and pinned compatible external adapters before dependent rollout. No paid service, client installation or production upgrade is implicit.",
+      "summary": "Prove Forge 1.20.1 handshake, authenticated player identity forwarding, signed chat, command arguments and two-way in-session backend switching through the selected Velocity runtime with pinned Ambassador, ProxyCompatibleForge and owner-approved external client reset adapter before dependent rollout. No SEF client module, paid service or production upgrade is implicit.",
       "source": "SRC-001, primary compatibility research",
       "owner": "Compatibility fixtures",
       "contributors": "Compatibility and repository evidence owners",
@@ -746,7 +767,8 @@
         "EXT-001",
         "EXT-003",
         "EXT-004",
-        "EXT-005"
+        "EXT-005",
+        "EXT-010"
       ],
       "lifecycleStage": "readiness",
       "productionVerification": "none",
@@ -861,7 +883,7 @@
     },
     {
       "id": "SEF-REQ-018",
-      "summary": "Support three currently matching Forge modpacks and compatible differing modpack profiles. Validate each approved cross-profile relation, safely refuse incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding a client or launcher project.",
+      "summary": "Support three currently matching Forge modpacks and compatible differing modpack profiles using the approved external reset-capable client profile. Validate each directed real relation and observed reset capability, safely refuse missing capability, incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding an SEF client or launcher project.",
       "source": "SRC-001, DEC-007 explicit owner approval",
       "owner": "Proxy compatibility registry",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -1273,9 +1295,10 @@
     {
       "id": "DEC-007",
       "question": "Boundary for different modpacks",
-      "selectedChoice": "Approved. Support different modpacks when the running client is compatible, safely refuse incompatible transfers with a clear explanation, and require client changes for arbitrary pack switching. No separate client or launcher project.",
+      "selectedChoice": "Approved. Use Ambassador on the proxy and ProxyCompatibleForge on Forge backends, with owner-linked Forge Client Reset Packet Forward file 4657349 as a pinned external Forge 1.20.1 client compatibility adapter for in-session proxy switching. Keep SEF itself server-only: no SEF client module or launcher project. Support different modpacks only when the running client's actually negotiated profile and a direction-specific real transfer prove compatibility; safely refuse missing reset capability, incompatible or unknown profiles before moving the player, with a clear explanation. Installing a reset adapter does not dynamically install arbitrary pack content or guarantee every mod can reset.",
       "rationale": "This resolved owner choice defines the implementation and acceptance boundary; the architecture applies it without adding optional scope.",
       "affectedRequirements": [
+        "SEF-REQ-010",
         "SEF-REQ-018",
         "SEF-REQ-034"
       ],
@@ -1652,6 +1675,34 @@
         "sha256",
         "sha512"
       ]
+    },
+    {
+      "id": "EXT-010",
+      "name": "Forge Client Reset Packet Forward file 4657349 client compatibility adapter",
+      "affected_requirements": [
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-034"
+      ],
+      "mandatory_for_endpoint": true,
+      "kind": "artifact",
+      "availability": "available",
+      "authorization": "authorized",
+      "blocked_plan_approved": false,
+      "required_evidence": [
+        "Authoritative owner-linked release https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349. Retrieved artifact https://edge.forgecdn.net/files/4657/349/ForgeClientResetPacket-0.3.0.jar. 12847 bytes. SHA-256 12afe21a807f540566f77c53bd721217be383b60fbede3cc1928ba2e091cbf33. SHA-512 608b04c45a2b98217f8a8800f69e1768d396b5957c46beff1ecbedae0ec7669771c637ad79fa637ed0090a355f96ecc213d3a57ee90b8e69dbe4c74b5260bbc9. Downloaded and hashed without execution on node-1 on 2026-09-25.",
+        "CurseForge lists Forge 1.20 and 1.20.1 and client-only environment. Archive metadata declares mod ID clientresetpacket and internal version 0.0.6; this differs from the 0.3.0 file label. The project page declares MIT while the JAR refers to the original license URL. Verify exact notices, dependency and advisory status before operator distribution.",
+        "Install separately only in the isolated Forge client profile. Do not bundle in SEF server artifacts or install on a backend. Phase 000 must prove actual in-session A to B and B to A switching with the pinned proxy and backend adapter matrix, not infer it from hashes or count a manual reconnect. Phase 005 must refuse absent observed reset capability before movement. Client reset does not supply arbitrary destination modpack content."
+      ],
+      "artifact_evidence": [
+        "authoritative_source",
+        "compatibility",
+        "exact_version",
+        "license_provenance",
+        "security_review",
+        "sha256",
+        "sha512"
+      ]
     }
   ],
   "phases": [
@@ -1663,7 +1714,8 @@
         "EXT-002",
         "EXT-003",
         "EXT-004",
-        "EXT-005"
+        "EXT-005",
+        "EXT-010"
       ],
       "canonicalRequirements": [
         "SEF-REQ-002",
@@ -1756,6 +1808,7 @@
       "owner": "Proxy authority",
       "dependencies": [
         "EXT-009",
+        "EXT-010",
         "SEF-PHASE-004",
         "SEF-REQ-005",
         "SEF-REQ-006",
@@ -1888,6 +1941,7 @@
         "EXT-004",
         "EXT-005",
         "EXT-009",
+        "EXT-010",
         "SEF-PHASE-013"
       ],
       "canonicalRequirements": [
@@ -1905,6 +1959,7 @@
         "EXT-005",
         "EXT-006",
         "EXT-007",
+        "EXT-010",
         "SEF-PHASE-014"
       ],
       "canonicalRequirements": [
