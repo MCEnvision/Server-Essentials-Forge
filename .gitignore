@@ -10,6 +10,7 @@
 !DOCUMENTATION.md
 !CHANGELOG.md
 !AGENTS.md
+AGENTS.md
 !src
 !src/main
 !src/main/**
@@ -26,3 +27,6 @@
 !/docs/general/shared-contracts.json
 !/docs/general/phases/
 !/docs/general/research/
+!/docs/verification/
+!/docs/verification/phase-000/
+!/docs/verification/phase-000/**

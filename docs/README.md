@@ -14,5 +14,6 @@ The [master plan](general/plan.md) defines the complete product contract and lin
 - [Research brief](general/research/brief.md). Scope, decisions, evidence, and remaining runtime verification boundaries.
 - [Repository map](general/research/repository-map.md). Observed code relationships and source fingerprints.
 - [Evidence index](general/research/evidence.json) and [resolved intake](general/research/intake.json). Supporting source and decision records.
+- [Phase 000 verification packet](verification/phase-000/README.md). Pinned action inventory and source boundary evidence.
 
 The plan targets the Forge backend on `forge-1.20.1` and the Velocity companion on `velocity-latest`. It does not implement either artifact, publish a release, deploy production, or create an execution goal.

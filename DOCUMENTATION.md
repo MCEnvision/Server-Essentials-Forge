@@ -7,6 +7,8 @@
 
 The [documentation index](docs/README.md) links the existing documentation and the [planned network backport](docs/general/plan.md). The plan describes future work and does not certify those features as implemented.
 
+The completed static readiness artifact for phase 000 is the [action inventory and source boundary](docs/verification/phase-000/README.md). It is source evidence bound to the pinned reference revision and does not replace runtime compatibility, signed chat, forwarding, or switching verification.
+
 ---
 
 ## Table of Contents
@@ -1395,4 +1397,3 @@ When enabled, you can use:
 For issues and feature requests, please visit the GitHub repository.
 
 **© 2022-2026 EnVy**
-

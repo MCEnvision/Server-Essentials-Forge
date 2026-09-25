@@ -11,6 +11,8 @@ The [network backport plan](docs/general/plan.md) defines the upcoming server-on
 
 See the [documentation index](docs/README.md) for the complete plan, phase blueprints, research, and existing technical documentation.
 
+Phase 000 source inventory evidence is available in the [phase 000 verification packet](docs/verification/phase-000/README.md). It records the pinned reference boundary and action dispositions only. The external Forge and Velocity feasibility fixture remains unverified.
+
 ---
 
 ## Table of Contents
@@ -1399,4 +1401,3 @@ When enabled, you can use:
 For issues and feature requests, please visit the GitHub repository.
 
 **© 2022-2026 EnVy**
-
