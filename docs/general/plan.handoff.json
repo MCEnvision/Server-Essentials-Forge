@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "0e4414a251be70a8f70b51301e1afc25a1165517e87493622b71010ba9814d41",
+  "planSetSha256": "5ac187c90cfeddeb4ba418e0d2f43b136d4f8ee4107fc8d671b5ee3d2818886f",
   "planningSubject": {
     "name": "SEF Forge 1.20.1 server-only backport, Velocity companion, comprehensive audit and hierarchical RTP",
     "requestedArtifact": "authoritative_plan",
@@ -73,9 +73,9 @@
       {
         "id": "SRC-010",
         "role": "owner_request",
-        "subject": "Approves Ambassador, ProxyCompatibleForge and the linked Forge 1.20.1 client reset file for the network compatibility matrix. This permits an external client compatibility mod, not SEF client code or arbitrary pack replacement.",
+        "subject": "Approves Ambassador, ProxyCompatibleForge and the linked Forge 1.20.1 client reset file for the network compatibility matrix, then clarifies they are optional deployment dependencies for standalone Forge. Configured Ambassador mode must ask operators to install the matching SEF Velocity companion when it cannot be verified. This permits an external client compatibility mod in the selected proxy profile, not SEF client code or arbitrary pack replacement.",
         "source": "Approved compatibility clarification in research/sources/client-reset-amendment.md, observed 2026-09-25",
-        "use": "Resolve DEC-007 and the early transfer fixture without changing the server-only SEF artifact boundary."
+        "use": "Resolve DEC-007 and the early transfer fixture while requiring standalone Forge without proxy adapters and operator-only companion installation guidance for configured network mode."
       },
       {
         "id": "SRC-101",
@@ -575,14 +575,14 @@
       "status": "covered",
       "source": "DEC-007",
       "plan_section": "Supported network profiles",
-      "rationale": "The owner approved compatibility-validated transfers using the pinned external reset-capable client profile, with early safe refusal of missing capability and incompatible or unknown relations. No SEF client or launcher project is added."
+      "rationale": "Standalone Forge deployment has no external proxy adapter dependency. The separately selected network profile uses compatibility-validated transfers with the pinned external reset-capable client, with early safe refusal of missing capability and incompatible or unknown relations. No SEF client or launcher project is added."
     },
     {
       "area": "inputs and outputs",
       "status": "covered",
       "source": "DEC-007",
       "plan_section": "Product behavior and command ownership",
-      "rationale": "The owner approved a pinned external client reset adapter for in-session Forge proxy switching, while SEF remains server-only. Missing capability and incompatible or unknown profiles refuse before movement. All command output follows the supplied rich-chat reference, and RTP exposes local/proxy modes without custom client interfaces."
+      "rationale": "The owner approved a pinned external client reset adapter for the selected Forge proxy profile, while standalone SEF runs without Velocity, Ambassador, ProxyCompatibleForge or client reset. Missing capability and incompatible or unknown network profiles refuse before movement. All command output follows the supplied rich-chat reference, and RTP exposes local/proxy modes without custom client interfaces."
     },
     {
       "area": "release lifecycle",
@@ -623,7 +623,7 @@
   "mandatoryRequirements": [
     {
       "id": "SEF-REQ-001",
-      "summary": "Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact and no required SEF client installation.",
+      "summary": "Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact. A standalone server requires no SEF client, Velocity, Ambassador, ProxyCompatibleForge or client reset installation.",
       "source": "SRC-001, SRC-002, SRC-003",
       "owner": "Forge backend",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -742,7 +742,7 @@
     },
     {
       "id": "SEF-REQ-009",
-      "summary": "Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains.",
+      "summary": "Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains. Document the matching companion as a separate network-only download.",
       "source": "SRC-001 exact branch and runtime answers",
       "owner": "Velocity module",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -759,7 +759,7 @@
     },
     {
       "id": "SEF-REQ-010",
-      "summary": "Prove Forge 1.20.1 handshake, authenticated player identity forwarding, signed chat, command arguments and two-way in-session backend switching through the selected Velocity runtime with pinned Ambassador, ProxyCompatibleForge and owner-approved external client reset adapter before dependent rollout. No SEF client module, paid service or production upgrade is implicit.",
+      "summary": "Prove Forge 1.20.1 handshake, authenticated player identity forwarding, signed chat, command arguments and two-way in-session backend switching through the selected Velocity runtime with pinned Ambassador, ProxyCompatibleForge and owner-approved external client reset adapter before dependent rollout. This network gate does not require those external adapters for a standalone server. No SEF client module, paid service or production upgrade is implicit.",
       "source": "SRC-001, primary compatibility research",
       "owner": "Compatibility fixtures",
       "contributors": "Compatibility and repository evidence owners",
@@ -777,7 +777,7 @@
     },
     {
       "id": "SEF-REQ-011",
-      "summary": "Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets.",
+      "summary": "Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets. When Ambassador mode is configured but the SEF Velocity companion cannot be verified, give operators manifest-backed installation or connection guidance and fence network operations without prompting standalone servers.",
       "source": "SRC-001",
       "owner": "Network transport",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -883,7 +883,7 @@
     },
     {
       "id": "SEF-REQ-018",
-      "summary": "Support three currently matching Forge modpacks and compatible differing modpack profiles using the approved external reset-capable client profile. Validate each directed real relation and observed reset capability, safely refuse missing capability, incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding an SEF client or launcher project.",
+      "summary": "Support three currently matching Forge modpacks and compatible differing modpack profiles in the selected Ambassador network mode using the approved external reset-capable client profile. Standalone mode does not require client reset. Validate each directed real relation and observed reset capability, safely refuse missing capability, incompatible or unknown transfers before moving the player, preserve source state, and explain required client pack changes without adding an SEF client or launcher project.",
       "source": "SRC-001, DEC-007 explicit owner approval",
       "owner": "Proxy compatibility registry",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -912,7 +912,7 @@
     },
     {
       "id": "SEF-REQ-020",
-      "summary": "Verify normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "summary": "Verify a clean standalone Forge installation without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance alongside normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported network topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
       "source": "SRC-001, SRC-004 and owner host policies",
       "owner": "Integrated verification",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -930,7 +930,7 @@
     },
     {
       "id": "SEF-REQ-021",
-      "summary": "Deliver exact installation, server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including artifact pairing and protocol mismatch guidance.",
+      "summary": "Deliver separate standalone Forge and Ambassador-network installation guides, plus exact server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including artifact pairing and protocol mismatch guidance. Make optional external adapter placement, the verified SEF Velocity companion download and operator-only missing-companion guidance explicit.",
       "source": "SRC-001 and owner documentation policy",
       "owner": "Documentation",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
@@ -1295,7 +1295,7 @@
     {
       "id": "DEC-007",
       "question": "Boundary for different modpacks",
-      "selectedChoice": "Approved. Use Ambassador on the proxy and ProxyCompatibleForge on Forge backends, with owner-linked Forge Client Reset Packet Forward file 4657349 as a pinned external Forge 1.20.1 client compatibility adapter for in-session proxy switching. Keep SEF itself server-only: no SEF client module or launcher project. Support different modpacks only when the running client's actually negotiated profile and a direction-specific real transfer prove compatibility; safely refuse missing reset capability, incompatible or unknown profiles before moving the player, with a clear explanation. Installing a reset adapter does not dynamically install arbitrary pack content or guarantee every mod can reset.",
+      "selectedChoice": "Approved. Standalone SEF runs on one Forge server without Velocity, Ambassador, ProxyCompatibleForge or a client reset mod. These are optional deployment dependencies, required only by the explicitly selected Ambassador network profile. In that profile use Ambassador on the proxy and ProxyCompatibleForge on Forge backends, with owner-linked Forge Client Reset Packet Forward file 4657349 as the pinned external Forge 1.20.1 client compatibility adapter for in-session proxy switching. If the configured Ambassador network cannot verify the matching SEF Velocity companion, give operators manifest-backed download or connection guidance and fence network operations; never prompt in standalone mode or infer proven absence from a timeout. Keep SEF itself server-only: no SEF client module or launcher project. Support different modpacks only when the running client's actually negotiated profile and a direction-specific real transfer prove compatibility; safely refuse missing reset capability, incompatible or unknown profiles before moving the player, with a clear explanation. Installing a reset adapter does not dynamically install arbitrary pack content or guarantee every mod can reset.",
       "rationale": "This resolved owner choice defines the implementation and acceptance boundary; the architecture applies it without adding optional scope.",
       "affectedRequirements": [
         "SEF-REQ-010",
@@ -1692,7 +1692,7 @@
       "required_evidence": [
         "Authoritative owner-linked release https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349. Retrieved artifact https://edge.forgecdn.net/files/4657/349/ForgeClientResetPacket-0.3.0.jar. 12847 bytes. SHA-256 12afe21a807f540566f77c53bd721217be383b60fbede3cc1928ba2e091cbf33. SHA-512 608b04c45a2b98217f8a8800f69e1768d396b5957c46beff1ecbedae0ec7669771c637ad79fa637ed0090a355f96ecc213d3a57ee90b8e69dbe4c74b5260bbc9. Downloaded and hashed without execution on node-1 on 2026-09-25.",
         "CurseForge lists Forge 1.20 and 1.20.1 and client-only environment. Archive metadata declares mod ID clientresetpacket and internal version 0.0.6; this differs from the 0.3.0 file label. The project page declares MIT while the JAR refers to the original license URL. Verify exact notices, dependency and advisory status before operator distribution.",
-        "Install separately only in the isolated Forge client profile. Do not bundle in SEF server artifacts or install on a backend. Phase 000 must prove actual in-session A to B and B to A switching with the pinned proxy and backend adapter matrix, not infer it from hashes or count a manual reconnect. Phase 005 must refuse absent observed reset capability before movement. Client reset does not supply arbitrary destination modpack content."
+        "Install separately only in the isolated Forge client profile when the Ambassador network mode is selected. Standalone Forge needs no client reset mod, Velocity, Ambassador or ProxyCompatibleForge. Do not bundle the reset mod in SEF server artifacts or install it on a backend. Phase 000 must prove actual in-session A to B and B to A switching with the pinned proxy and backend adapter matrix, not infer it from hashes or count a manual reconnect. Phase 005 must refuse absent observed reset capability before movement. Client reset does not supply arbitrary destination modpack content."
       ],
       "artifact_evidence": [
         "authoritative_source",

@@ -4,7 +4,7 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "0fd710b49d75ef470b26198d31b067a0a5d3fc1383a83dff9f7ad432e2ae1ac0"
+      "sha256": "3c14d8e227637388fbc45bc577df99ce0d18b8f220c4067c19319981296135f6"
     },
     "repository_map": {
       "path": "repository-map.md",
@@ -12,7 +12,7 @@
     },
     "intake": {
       "path": "intake.json",
-      "sha256": "af0ed9943729443a5f3670f740b82c6de04c8a753b434d9b26327b3edf8b539d"
+      "sha256": "8e80b22aeb17abe69e1d488cecd02de3a993d389609ac538a5a53a4f72a3219b"
     }
   },
   "sources": [
@@ -47,12 +47,12 @@
         },
         {
           "path": "README.md",
-          "sha256": "de06c5b858cc3d4cf492a5acd7af791eef8117d41c1efcf5affefae994189500"
+          "sha256": "f5b8ef8ea190edbff0a28f93a16fec013e1e2868918dc744ab52e12d9f3f6b0a"
         }
       ],
       "snapshot": {
         "path": "sources/environment-observations.md",
-        "sha256": "4a23c1c87301cda672259a2f8845826b254c162217d0493d8cc55168f8f1cf2c"
+        "sha256": "9a154ecd92c0a1e5141359005e9f7ac8754ef235b0f589132a708d686b337e01"
       }
     },
     {
@@ -78,7 +78,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/environment-observations.md",
-        "sha256": "4a23c1c87301cda672259a2f8845826b254c162217d0493d8cc55168f8f1cf2c"
+        "sha256": "9a154ecd92c0a1e5141359005e9f7ac8754ef235b0f589132a708d686b337e01"
       },
       "recheck_after": "2026-09-25T23:57:30Z"
     },
@@ -199,12 +199,12 @@
       "role": "owner_request",
       "locator": "Approved compatibility clarification in research/sources/client-reset-amendment.md, observed 2026-09-25",
       "revision": "observed 2026-09-25",
-      "observed_at": "2026-09-25T18:57:20Z",
+      "observed_at": "2026-09-25T19:30:16Z",
       "freshness": "pinned",
       "repository_files": [],
       "snapshot": {
         "path": "sources/client-reset-amendment.md",
-        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+        "sha256": "f52322fc520ec1effe2237a7260b37aa7d23f5f32fc814e1f11e05296c11a3a5"
       }
     },
     {
@@ -217,7 +217,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/client-reset-amendment.md",
-        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+        "sha256": "f52322fc520ec1effe2237a7260b37aa7d23f5f32fc814e1f11e05296c11a3a5"
       },
       "recheck_after": "2026-09-26T18:57:20Z"
     },
@@ -231,7 +231,7 @@
       "repository_files": [],
       "snapshot": {
         "path": "sources/client-reset-amendment.md",
-        "sha256": "3699874d5b5599deaf1af8adeedf578a69dad8d0989551c5d5ee95c21d9e2684"
+        "sha256": "f52322fc520ec1effe2237a7260b37aa7d23f5f32fc814e1f11e05296c11a3a5"
       }
     },
     {
@@ -1065,12 +1065,13 @@
   "findings": [
     {
       "id": "FIND-001",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact and no required SEF client installation.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Backport retained implemented SEFPORTED behavior to the existing Minecraft 1.20.1 Forge Java 17 baseline, with a server-only backend artifact. Standalone deployment requires no SEF client or external proxy adapter.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
         "SRC-002",
         "SRC-003",
+        "SRC-010",
         "SRC-207"
       ],
       "requirement_ids": [
@@ -1184,10 +1185,11 @@
     },
     {
       "id": "FIND-009",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Build the small independent Velocity companion on the owner-selected velocity-latest product branch, using Java 25 and a verified compatible Velocity target. Keep Minecraft Forge world logic out of the proxy and isolate both product artifacts and toolchains. Document its separate verified download for the selected network profile.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
+        "SRC-010",
         "SRC-104",
         "SRC-106"
       ],
@@ -1199,7 +1201,7 @@
     },
     {
       "id": "FIND-010",
-      "summary": "PROPOSED requirement derived from approved owner scope. Prove Forge 1.20.1 handshake, authenticated forwarding, signed chat, command arguments and two-way in-session switching through pinned Ambassador, PCF and the owner-linked external client reset JAR. No SEF client module or production upgrade is implicit.",
+      "summary": "PROPOSED requirement derived from approved owner scope. Prove Forge 1.20.1 handshake, authenticated forwarding, signed chat, command arguments and two-way in-session switching through pinned Ambassador, PCF and the owner-linked external client reset JAR for the selected network profile. These are not standalone Forge deployment dependencies. No SEF client module or production upgrade is implicit.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
@@ -1222,10 +1224,11 @@
     },
     {
       "id": "FIND-011",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Provide an authenticated private proxy/backend bridge that operates with empty backends, authenticates registered server identity, bounds messages and queues, prevents client forgery, replay and stale-session authority, and supports reconnect, version negotiation and credential rotation without exposing secrets. A configured Ambassador network with no verified SEF Velocity companion gives operator-only manifest-backed installation or connection guidance and fences network actions; standalone mode gives no prompt.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
+        "SRC-010",
         "SRC-111"
       ],
       "requirement_ids": [
@@ -1344,7 +1347,7 @@
     },
     {
       "id": "FIND-018",
-      "summary": "PROPOSED requirement derived from owner scope. Support matching and directed compatible differing Forge profiles with an externally reset-capable running client. Refuse missing observed reset capability and incompatible or unknown relations before movement, preserve source state and explain the client action without adding SEF client code.",
+      "summary": "PROPOSED requirement derived from owner scope. In the selected Ambassador network profile, support matching and directed compatible differing Forge profiles with an externally reset-capable running client. Standalone Forge needs no reset mod. Refuse missing observed reset capability and incompatible or unknown network relations before movement, preserve source state and explain the client action without adding SEF client code.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
@@ -1377,11 +1380,12 @@
     },
     {
       "id": "FIND-020",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Verify normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Verify standalone Forge startup and local features without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance, normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual network topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
         "SRC-004",
+        "SRC-010",
         "SRC-111",
         "SRC-112",
         "SRC-114"
@@ -1394,10 +1398,11 @@
     },
     {
       "id": "FIND-021",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Deliver exact installation, server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including artifact pairing and protocol mismatch guidance.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Deliver separate standalone Forge and Ambassador-network installation guides, plus exact server registration, forwarding, security, commands, permissions, configuration, migration, backup, rollback and compatibility documentation, including optional external adapter placement, verified SEF Velocity companion download, operator-only missing-companion guidance, artifact pairing and protocol mismatch guidance.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
+        "SRC-010",
         "SRC-101",
         "SRC-102"
       ],
