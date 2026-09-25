@@ -34,5 +34,5 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
 | `fixture-register.md` | `b955d7466e85ae7ad0935b09637ca9a7e9ff7cca622bc3c4caa8229e7976582e` |
-| `fixture-result.md` | `6d400d67911d63a9fe602b83505a9cbc0b933d20082b64fae6c1710969ed54f0` |
+| `fixture-result.md` | `6dd09006908709e49d30e44ad3257759fe29b9e9d8e0de4d2516c000619252fb` |
 | `cleanup-receipt.md` | `74c01ce5938542a99bb3d1350ec75471efc36f1d05e940069655d9d7510260a8` |

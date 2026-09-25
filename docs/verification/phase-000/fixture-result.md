@@ -55,6 +55,10 @@ The client submitted `/server backend-b` through the focused game window. Veloci
 
 The `MODERN_DEFAULT` retry did not change the switch result. A successful A to B gameplay transfer, a B to A transfer, and compatible reconnect behavior remain unverified. No root cause is inferred from this fixture.
 
+## adapter source correlation
+
+The pinned Ambassador 1.4.5 source explains the observed boundary. Its completed Forge connection phase sends a server redirect only when the client advertises `serverredirect` or `srvredirect:red`; otherwise it disconnects the player with the configured reset message. Its resettable path is enabled only when the client advertises `clientresetpacket`. See the pinned source commit `349ce41f5fba50653d0aec8ebb7d77f68a5d00e1` in `VelocityForgeClientConnectionPhase.java`, lines 126 through 141 and 203 through 208. The isolated client did not advertise either reset mod, so the observed `Please reconnect` result is consistent with the adapter's documented client reset boundary. This is a compatibility diagnosis, not a claim that the required no-client switching gate passes.
+
 ## direct forwarding negative
 
 A fresh bounded protocol probe connected directly to backend A without the Velocity forwarding payload. Backend A exposed the `velocity:player_info` login request and rejected the profile with null UUID before gameplay admission. The decisive records are `backend-a/logs/latest.log:140-141`, which state `This server requires you to connect with Velocity`. This proves direct unauthenticated forwarding rejection. The probe did not use credentials or a production endpoint.
