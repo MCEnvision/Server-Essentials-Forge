@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "planId": "PLAN-MASTER",
-  "planSetSha256": "5ac187c90cfeddeb4ba418e0d2f43b136d4f8ee4107fc8d671b5ee3d2818886f",
+  "planSetSha256": "95432ceaaafd74583956069b3f64c607244bc90daa08e1a1b0bbeee9636d2e1b",
   "planningSubject": {
     "name": "SEF Forge 1.20.1 server-only backport, Velocity companion, comprehensive audit and hierarchical RTP",
     "requestedArtifact": "authoritative_plan",
@@ -545,6 +545,20 @@
         "subject": "Historical attacker-controlled JDBC URL issue affects3.6.14.1 through3.41.2.1 and was patched3.41.2.2; selected wrapper is outside that range. Wrapper release includes a bounded UTF-8 reader fix. Native SQLite and wrapper advisories both require refresh; a JDBC-only scan is insufficient.",
         "source": "[SQLite JDBC GHSA-6phf-6h5g-97j2](https://github.com/xerial/sqlite-jdbc/security/advisories/GHSA-6phf-6h5g-97j2), [SQLite3.53.4 release](https://www.sqlite.org/releaselog/3_53_4.html), wrapper3.53.4.0 release",
         "use": "License and security implications for exact database artifacts. Refresh advisories before execution and release."
+      },
+      {
+        "id": "SRC-611",
+        "role": "owner_request",
+        "subject": "Trident for all client instance testing, existing Microsoft authentication and removal of mandatory game muting",
+        "source": "research/sources/trident-testing.md, observed 2026-09-26",
+        "use": "Resolve DEC-019, preserve laptop-only execution and personal state, and leave authentication/runtime claims pending execution verification."
+      },
+      {
+        "id": "SRC-612",
+        "role": "reference",
+        "subject": "Trident instance lifecycle, home/context resolution, scoped settings, account status and deferred deletion",
+        "source": "https://github.com/TridentCore/Trident.Net/blob/27e5d858c7959e6e7adc4f127b6a58697caa6cf1/docs/CLI.md",
+        "use": "Pin documented command semantics and their limitations. Installed help, actual client loading, input, rendering and disk cleanup still need execution evidence."
       }
     ]
   },
@@ -610,7 +624,7 @@
       "status": "covered",
       "source": "SRC-004",
       "plan_section": "Verification and evidence",
-      "rationale": "Use real signed-chat, transfer, restart and visibility paths with headless node-1 and a silent verified laptop client. Includes full audit/restoration conservation, dual-SQL engines, rich-chat rendering/actions and hierarchical RTP invariants plus real landings."
+      "rationale": "Use real signed-chat, transfer, restart and visibility paths with headless node-1 and a verified Trident laptop client. Includes full audit/restoration conservation, dual-SQL engines, rich-chat rendering/actions and hierarchical RTP invariants plus real landings."
     },
     {
       "area": "versioning",
@@ -912,8 +926,8 @@
     },
     {
       "id": "SEF-REQ-020",
-      "summary": "Verify a clean standalone Forge installation without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance alongside normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported network topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
-      "source": "SRC-001, SRC-004 and owner host policies",
+      "summary": "Verify a clean standalone Forge installation without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance alongside normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported network topology. Use node-1 only for headless workloads and verified Trident laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "source": "SRC-001, SRC-004, SRC-611, SRC-612 and owner host policies",
       "owner": "Integrated verification",
       "contributors": "Native backend and proxy adapters where the contract crosses platforms",
       "dependencies": [
@@ -1426,12 +1440,24 @@
         "SEF-REQ-036"
       ],
       "supersedes": []
+    },
+    {
+      "id": "DEC-019",
+      "question": "Trident client testing",
+      "selectedChoice": "Use Trident CLI on the verified laptop for all new Minecraft client instance testing, with the existing authenticated Trident home and a uniquely identified task-owned instance. Never run Trident on node-1 or fall back to Prism. Preserve personal instances, account stores, global configuration, shared caches and audio settings. The owner reports an existing valid Microsoft sign-in; verify usable authentication through nonsensitive CLI status before execution without reading or copying credentials. Required gameplay, rendering, joined-world and cleanup evidence remains mandatory.",
+      "rationale": "One explicit instance lifecycle replaces the previous launcher procedure without adding a product dependency or weakening real client verification. Current owner runtime policy removes mandatory muting, audio watchers and playback-stream proof.",
+      "affectedRequirements": [
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-020"
+      ],
+      "supersedes": []
     }
   ],
   "externalPrerequisites": [
     {
       "id": "EXT-001",
-      "name": "Existing authorized node-1 compute and owner laptop desktop over private connectivity",
+      "name": "Existing authorized node-1 compute and owner laptop desktop with authenticated Trident CLI over private connectivity",
       "affected_requirements": [
         "SEF-REQ-010",
         "SEF-REQ-018",
@@ -1443,8 +1469,9 @@
       "authorization": "authorized",
       "blocked_plan_approved": false,
       "required_evidence": [
-        "Planning inspection confirmed reachable node-1 and envision laptop, RTX 5090 hardware, active Hyprland and display.",
-        "Execution must reverify exact renderer, silent isolated client, owned audio stream mute, runtime artifacts and intended server join before assertions."
+        "Planning inspection confirmed reachable node-1 and envision laptop, RTX 5090 hardware, active Hyprland and display. These observations require execution-time revalidation.",
+        "The owner selected Trident and reports an existing valid Microsoft sign-in. Before dependent execution, verify the laptop binary/help, existing home, nonsensitive account status, explicit task-owned instance and paths, exact artifacts and Java/loader, discrete renderer, owned window/PID and intended private server/world join. Never run Trident on node-1, use Prism as fallback, copy credentials or change personal/global state. Leave audio unchanged; no mute or playback-stream evidence is required.",
+        "After the final consumer, verify owned process exit, instance-list absence and exact owned path cleanup. A successful deletion marker alone does not prove physical removal."
       ]
     },
     {
@@ -1984,11 +2011,11 @@
   "goalCreator": {
     "mandatoryBoundary": "all SEF-REQ-001 through SEF-REQ-036 and their evidence, the complete registered phase sequence, and the owner-selected paired product endpoint.",
     "optionalFutureDisposition": "excluded",
-    "lockedOwnerDecisions": "DEC-001 through DEC-018, plus standing host, silent-client, EULA, cleanup and sequential integration policies.",
+    "lockedOwnerDecisions": "DEC-001 through DEC-019, plus standing host, Trident client, EULA, cleanup and sequential integration policies.",
     "activePhase": "SEF-PHASE-000",
     "nextExecutableAction": "P000-TASK-001. Revalidate target/reference identity and prepare the complete retained/removed action inventory, then P000-TASK-002 exact external feasibility before dependent implementation.",
     "knownFailingChecks": "no product runtime tests have been executed in this plan authoring pass. Existing Dependabot update failures are observed repository preflight evidence, not product build results.",
     "knownExternalBlockers": "none",
-    "requiredEvidenceGates": "per-requirement ACs, phase exits, real path and residual silent-client proof, dual SQL engines, failure/recovery/conservation matrices, measured budgets, private additive review when available, required checks, resulting product commits, signatures and per-host cleanup."
+    "requiredEvidenceGates": "per-requirement ACs, phase exits, real path and residual Trident client proof, dual SQL engines, failure/recovery/conservation matrices, measured budgets, private additive review when available, required checks, resulting product commits, signatures and per-host cleanup."
   }
 }

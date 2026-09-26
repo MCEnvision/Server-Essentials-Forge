@@ -4,7 +4,7 @@
   "documents": {
     "brief": {
       "path": "brief.md",
-      "sha256": "3c14d8e227637388fbc45bc577df99ce0d18b8f220c4067c19319981296135f6"
+      "sha256": "8b682383a98d9445007f51db1e4e9c989661ba6875879c1e4b29d8ec720f6361"
     },
     "repository_map": {
       "path": "repository-map.md",
@@ -12,7 +12,7 @@
     },
     "intake": {
       "path": "intake.json",
-      "sha256": "8e80b22aeb17abe69e1d488cecd02de3a993d389609ac538a5a53a4f72a3219b"
+      "sha256": "fa85a7e0d98812a582871d5e8cdce51a2824f80ebd45431e31233482bb6346c8"
     }
   },
   "sources": [
@@ -1060,6 +1060,32 @@
         "path": "sources/lifecycle-messages.md",
         "sha256": "f82ebb631f0d1d99156f63bbcc91c16df9c10b3a9d6da41ab61cfc78c8a69ef8"
       }
+    },
+    {
+      "id": "SRC-611",
+      "role": "owner_request",
+      "locator": "Owner-approved Trident testing and game-muting removal, research/sources/trident-testing.md",
+      "revision": "observed 2026-09-26",
+      "observed_at": "2026-09-26T02:41:03Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/trident-testing.md",
+        "sha256": "407bf1bbc21cf49568d1b883db6e8bd12d42fd8506db976be2bbbed0578ce5cd"
+      }
+    },
+    {
+      "id": "SRC-612",
+      "role": "reference",
+      "locator": "https://github.com/TridentCore/Trident.Net/blob/27e5d858c7959e6e7adc4f127b6a58697caa6cf1/docs/CLI.md",
+      "revision": "27e5d858c7959e6e7adc4f127b6a58697caa6cf1",
+      "observed_at": "2026-09-26T02:41:03Z",
+      "freshness": "pinned",
+      "repository_files": [],
+      "snapshot": {
+        "path": "sources/trident-testing.md",
+        "sha256": "407bf1bbc21cf49568d1b883db6e8bd12d42fd8506db976be2bbbed0578ce5cd"
+      }
     }
   ],
   "findings": [
@@ -1380,7 +1406,7 @@
     },
     {
       "id": "FIND-020",
-      "summary": "PROPOSED requirement derived from owner scope and referenced research. Verify standalone Forge startup and local features without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance, normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual network topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "summary": "PROPOSED requirement derived from owner scope and referenced research. Verify standalone Forge startup and local features without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance, normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual network topology. Use node-1 only for headless workloads and verified Trident laptop clients for named interaction and visibility assertions, with verified cleanup.",
       "classification": "PROPOSED",
       "source_ids": [
         "SRC-001",
@@ -1388,7 +1414,9 @@
         "SRC-010",
         "SRC-111",
         "SRC-112",
-        "SRC-114"
+        "SRC-114",
+        "SRC-611",
+        "SRC-612"
       ],
       "requirement_ids": [
         "SEF-REQ-020"
@@ -1910,6 +1938,22 @@
       "depends_on": [
         "FIND-108"
       ],
+      "conflicts_with": []
+    },
+    {
+      "id": "FIND-113",
+      "summary": "The owner selects existing authenticated Trident CLI on the laptop for all new client tests and removes mandatory game muting. Pinned CLI documentation supports explicit instance selection and scoped lifecycle commands, but does not prove installed version compatibility, live authentication, local candidate installation, gameplay input, screenshots or physical deletion. Master Section 14 requires execution preflight, actual client evidence and verified owned-instance cleanup; no Trident runs on node-1 and no Prism fallback is allowed.",
+      "classification": "OBSERVED",
+      "source_ids": [
+        "SRC-611",
+        "SRC-612"
+      ],
+      "requirement_ids": [
+        "SEF-REQ-010",
+        "SEF-REQ-018",
+        "SEF-REQ-020"
+      ],
+      "depends_on": [],
       "conflicts_with": []
     }
   ]

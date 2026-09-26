@@ -544,6 +544,20 @@
         "subject": "Existing local connection templates, typed message compilation and first-join reminders",
         "source": "Read-only SEFPORTED ConnectionMessageService, MessageService and ReminderService, exact locators and fingerprints in sources/lifecycle-messages.md",
         "use": "Reuse source concepts while adding explicit network lifecycle, safe variants and main-config semantics; no claim of existing runtime support"
+      },
+      {
+        "id": "SRC-611",
+        "role": "owner_request",
+        "subject": "Trident for all client instance testing, existing Microsoft authentication and removal of mandatory game muting",
+        "source": "research/sources/trident-testing.md, observed 2026-09-26",
+        "use": "Resolve DEC-019, preserve laptop-only execution and personal state, and leave authentication/runtime claims pending execution verification."
+      },
+      {
+        "id": "SRC-612",
+        "role": "reference",
+        "subject": "Trident instance lifecycle, home/context resolution, scoped settings, account status and deferred deletion",
+        "source": "https://github.com/TridentCore/Trident.Net/blob/27e5d858c7959e6e7adc4f127b6a58697caa6cf1/docs/CLI.md",
+        "use": "Pin documented command semantics and their limitations. Installed help, actual client loading, input, rendering and disk cleanup still need execution evidence."
       }
     ]
   },
@@ -595,7 +609,7 @@
       "status": "covered",
       "source": "SRC-004",
       "plan_section": "Verification and evidence",
-      "rationale": "Use real signed-chat, transfer, restart and visibility paths with headless node-1 and a silent verified laptop client. Includes full audit/restoration conservation, dual-SQL engines, rich-chat rendering/actions and hierarchical RTP invariants plus real landings."
+      "rationale": "Use real signed-chat, transfer, restart and visibility paths with headless node-1 and a verified Trident laptop client. Includes full audit/restoration conservation, dual-SQL engines, rich-chat rendering/actions and hierarchical RTP invariants plus real landings."
     },
     {
       "area": "release lifecycle",
@@ -764,8 +778,8 @@
     },
     {
       "id": "SEF-REQ-020",
-      "summary": "Verify a clean standalone Forge installation without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance alongside normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported network topology. Use node-1 only for headless workloads and verified silent laptop clients for named interaction and visibility assertions, with verified cleanup.",
-      "source": "SRC-001, SRC-004 and owner host policies",
+      "summary": "Verify a clean standalone Forge installation without external proxy adapters or companion prompt, plus configured-network missing and unreachable companion guidance alongside normal, permission-denied, forged, replayed, stale, concurrent, offline, empty-backend, switch, disconnect, restart, partial-commit, storage-failure and transfer-recovery paths on the actual supported network topology. Use node-1 only for headless workloads and verified Trident laptop clients for named interaction and visibility assertions, with verified cleanup.",
+      "source": "SRC-001, SRC-004, SRC-611, SRC-612 and owner host policies",
       "lifecycle_stage": "post_change",
       "production_verification": "none"
     },
@@ -1038,12 +1052,18 @@
       "question": "Main-configuration lifecycle message editing and variation",
       "status": "resolved",
       "selected_choice": "Provide a server-side lifecycle message editor in the main configuration, with separate join, leave, first welcome and welcome-back families, variants and safe placeholders including {player_name}. Preserve the shared rich-chat style and complete custom-interface exclusion."
+    },
+    {
+      "id": "DEC-019",
+      "question": "Trident client testing",
+      "status": "resolved",
+      "selected_choice": "Use Trident CLI on the verified laptop for all new Minecraft client instance testing, with the existing authenticated Trident home and a uniquely identified task-owned instance. Never run Trident on node-1 or fall back to Prism. Preserve personal instances, account stores, global configuration, shared caches and audio settings. The owner reports an existing valid Microsoft sign-in; verify usable authentication through nonsensitive CLI status before execution without reading or copying credentials. Required gameplay, rendering, joined-world and cleanup evidence remains mandatory."
     }
   ],
   "prerequisites": [
     {
       "id": "EXT-001",
-      "name": "Existing authorized node-1 compute and owner laptop desktop over private connectivity",
+      "name": "Existing authorized node-1 compute and owner laptop desktop with authenticated Trident CLI over private connectivity",
       "affected_requirements": [
         "SEF-REQ-010",
         "SEF-REQ-018",
@@ -1055,8 +1075,9 @@
       "authorization": "authorized",
       "blocked_plan_approved": false,
       "required_evidence": [
-        "Planning inspection confirmed reachable node-1 and envision laptop, RTX 5090 hardware, active Hyprland and display.",
-        "Execution must reverify exact renderer, silent isolated client, owned audio stream mute, runtime artifacts and intended server join before assertions."
+        "Planning inspection confirmed reachable node-1 and envision laptop, RTX 5090 hardware, active Hyprland and display. These observations require execution-time revalidation.",
+        "The owner selected Trident and reports an existing valid Microsoft sign-in. Before dependent execution, verify the laptop binary/help, existing home, nonsensitive account status, explicit task-owned instance and paths, exact artifacts and Java/loader, discrete renderer, owned window/PID and intended private server/world join. Never run Trident on node-1, use Prism as fallback, copy credentials or change personal/global state. Leave audio unchanged; no mute or playback-stream evidence is required.",
+        "After the final consumer, verify owned process exit, instance-list absence and exact owned path cleanup. A successful deletion marker alone does not prove physical removal."
       ]
     },
     {
@@ -1304,7 +1325,7 @@
       "required_evidence": [
         "Authoritative owner-linked release https://www.curseforge.com/minecraft/mc-mods/forge-client-reset-packet-forward/files/4657349. Retrieved artifact https://edge.forgecdn.net/files/4657/349/ForgeClientResetPacket-0.3.0.jar. 12847 bytes. SHA-256 12afe21a807f540566f77c53bd721217be383b60fbede3cc1928ba2e091cbf33. SHA-512 608b04c45a2b98217f8a8800f69e1768d396b5957c46beff1ecbedae0ec7669771c637ad79fa637ed0090a355f96ecc213d3a57ee90b8e69dbe4c74b5260bbc9. Downloaded and hashed without execution on node-1 on 2026-09-25.",
         "CurseForge lists Forge 1.20 and 1.20.1 and client-only environment. Archive metadata declares mod ID clientresetpacket and internal version 0.0.6; this differs from the 0.3.0 file label. The project page declares MIT while the JAR refers to the original license URL. Verify exact notices, dependency and advisory status before operator distribution.",
-      "Install separately only in the isolated Forge client profile when the Ambassador network mode is selected. Standalone Forge needs no client reset mod, Velocity, Ambassador or ProxyCompatibleForge. Do not bundle the reset mod in SEF server artifacts or install it on a backend. Phase 000 must prove actual in-session A to B and B to A switching with the pinned proxy and backend adapter matrix, not infer it from hashes or count a manual reconnect. Phase 005 must refuse absent observed reset capability before movement. Client reset does not supply arbitrary destination modpack content."
+        "Install separately only in the isolated Forge client profile when the Ambassador network mode is selected. Standalone Forge needs no client reset mod, Velocity, Ambassador or ProxyCompatibleForge. Do not bundle the reset mod in SEF server artifacts or install it on a backend. Phase 000 must prove actual in-session A to B and B to A switching with the pinned proxy and backend adapter matrix, not infer it from hashes or count a manual reconnect. Phase 005 must refuse absent observed reset capability before movement. Client reset does not supply arbitrary destination modpack content."
       ],
       "artifact_evidence": [
         "authoritative_source",
