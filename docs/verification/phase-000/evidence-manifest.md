@@ -1,7 +1,7 @@
 # phase 000 evidence manifest
 
 This manifest records the bounded source evidence from `P000-TASK-001` and the candidate and fixture receipts from `P000-TASK-002` and `P000-TASK-003`.
-The fixture result records backend and proxy readiness, private routing, a legitimate login, signed chat and command input in bounded runs, the direct forwarding negative, and a later fresh legitimate control with a real SEF `/msg` dispatch. The adapter disconnected the client during both switch directions without its optional reset feature; later manual reconnects reached both backends but do not prove completed switches. The `fixture-20260925-k` retry adds headless startup proof only. No client connected in that retry, so forwarded identity, signed chat, client command arguments, and actual transfer remain unproven. The runs lack a single correlation UUID across the required positive and negative sequence, so `SEF-AC-010` remains open. No database behavior, administrative message-forgery rejection, or production compatibility is claimed.
+The fixture result records backend and proxy readiness, private routing, a legitimate login, signed chat and command input in bounded runs, the direct forwarding negative, and a later fresh legitimate control with a real SEF `/msg` dispatch. The adapter disconnected the client during both switch directions without the external reset mod. The owner-approved plan now requires reset file `4657349` only for the isolated compatible client profile, not as a SEF artifact dependency. The earlier no-reset switch attempts remain a missing-capability control; no reset-enabled transfer has been tested. Later manual reconnects reached both backends but do not prove completed switches. The `fixture-20260925-k` retry adds headless startup proof only. No client connected in that retry, so forwarded identity, signed chat, client command arguments, and actual transfer remain unproven. The runs lack one correlation UUID across the required positive and negative sequence, so `SEF-AC-010` remains open. No database behavior, administrative message-forgery rejection, or production compatibility is claimed.
 
 ## identity and immutability
 
@@ -44,5 +44,5 @@ The validator confirmed all registered plan paths exist, every action and module
 | `action-inventory-008.md` | `fc1d514c58014a7c6be4edee67ab1db41211713dcca3cc22a70e965575f65850` |
 | `configuration-modules.md` | `f1aecc92b33097211046121b07ac55105cf17000f67929fc3c6ffa7ca60a076c` |
 | `fixture-register.md` | `78bef0201f74f60d2bae558d05a8bbc785ac8633db7a010d8be9274dc3b0fbd7` |
-| `fixture-result.md` | `62ad4a2502abea70c31cb83ed50f4bf16b002a7cc547d2091819cec14aa531db` |
+| `fixture-result.md` | `eeed8f528d40e05287e06aeadc2d3402ec5f892b026da4933323a47897dca49e` |
 | `cleanup-receipt.md` | `42c65caecf409aa17d2b6bc86372076b4030f89002c7349cb0e9795a6d6a1abf` |
